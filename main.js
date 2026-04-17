@@ -940,7 +940,7 @@ function setupIpc() {
 
       // 头像：用第三方 head/skin 服務最簡單（僅用於顯示）
       const avatarUrl = result.uuid
-        ? `https://crafatar.com/avatars/${result.uuid}?size=64&overlay`
+        ? `https://crafatar.com/avatars/${result.uuid}?size=128&overlay`
         : "";
 
       await writeAccount({
@@ -957,6 +957,7 @@ function setupIpc() {
         uuid: result.uuid,
         avatarUrl,
       };
+      sendSyncDone("登入完成");
       return safe;
     } finally {
       loginInProgress = false;
