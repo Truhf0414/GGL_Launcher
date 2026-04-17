@@ -1,0 +1,81 @@
+{
+  "name": "GGL_launcher",
+  "version": "1.0.0",
+  "description": "年糕122做的Minecraft啟動器，可以拿來玩GGL3的伺服器",
+  "main": "main.js",
+  "author": "",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build:css": "npx --yes @tailwindcss/cli -c tailwind.config.js -i tailwind.css -o assets/tailwind.css --minify",
+    "build:icons": "node scripts/build-icons.js",
+    "build:rpc-helper": "npm --prefix rpc-helper install --no-audit --no-fund && cd rpc-helper && npx --yes pkg index.js --targets node18-win-x64 --output ../assets/rpc-helper.exe",
+    "docs:ipc": "node scripts/update-ipc-index.js",
+    "dist:win": "npm run docs:ipc && npm run build:css && npm run build:rpc-helper && electron-builder --win nsis --x64",
+    "pack:win": "npm run docs:ipc && npm run build:css && npm run build:rpc-helper && electron-builder --win dir --x64",
+    "format": "prettier --write **/*.{js,css,html,json,md,yml,yaml} --ignore-unknown",
+    "format:ui": "prettier --write styles.css index.html renderer.js main.js preload.js --ignore-unknown",
+    "format:file": "prettier --write",
+    "check:ui-css": "node scripts/check-ui-css.mjs",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "discord-rpc": "^4.0.1",
+    "electron": "^41.2.1",
+    "extract-zip": "^2.0.1",
+    "png-to-ico": "^2.1.1",
+    "sharp": "^0.34.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.12",
+    "electron-builder": "^26.0.12",
+    "husky": "^9.1.7",
+    "pkg": "^5.8.1",
+    "prettier": "^3.8.3",
+    "tailwindcss": "^4.1.12"
+  },
+  "build": {
+    "appId": "ggl3.launcher",
+    "productName": "GGL3",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!dist/**",
+      "!assets/*.mp4",
+      "!node_modules/**/test{,s}/**",
+      "!node_modules/**/__tests__/**",
+      "!node_modules/**/docs/**",
+      "!node_modules/**/.github/**"
+    ],
+    "asar": true,
+    "extraResources": [
+      {
+        "from": "assets/rpc-helper.exe",
+        "to": "assets/rpc-helper.exe"
+      },
+      {
+        "from": "assets/default-settings.json",
+        "to": "assets/default-settings.json"
+      },
+      {
+        "from": "assets/sakura_field_BG.mp4",
+        "to": "assets/sakura_field_BG.mp4"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.tools/
+
+# logs / temp
+*.log
+*.tmp
+.DS_Store
+
+# Electron / build artifacts (common)
+out/
+release/
+
