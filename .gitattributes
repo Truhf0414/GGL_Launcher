@@ -1,0 +1,12 @@
+* text=auto
+
+# Keep scripts consistent across platforms
+*.js  text eol=lf
+*.mjs text eol=lf
+*.sh  text eol=lf
+
+# Docs/config are ok as LF too
+*.md   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+

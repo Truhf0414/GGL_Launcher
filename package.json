@@ -12,12 +12,13 @@
     "build:icons": "node scripts/build-icons.js",
     "build:rpc-helper": "npm --prefix rpc-helper install --no-audit --no-fund && cd rpc-helper && npx --yes pkg index.js --targets node18-win-x64 --output ../assets/rpc-helper.exe",
     "docs:ipc": "node scripts/update-ipc-index.js",
-    "dist:win": "npm run docs:ipc && npm run build:css && npm run build:rpc-helper && electron-builder --win nsis --x64",
-    "pack:win": "npm run docs:ipc && npm run build:css && npm run build:rpc-helper && electron-builder --win dir --x64",
+    "dist:win": "npm run check:ui-css:strict && npm run docs:ipc && npm run build:css && npm run build:rpc-helper && electron-builder --win nsis --x64",
+    "pack:win": "npm run check:ui-css:strict && npm run docs:ipc && npm run build:css && npm run build:rpc-helper && electron-builder --win dir --x64",
     "format": "prettier --write **/*.{js,css,html,json,md,yml,yaml} --ignore-unknown",
     "format:ui": "prettier --write styles.css index.html renderer.js main.js preload.js --ignore-unknown",
     "format:file": "prettier --write",
     "check:ui-css": "node scripts/check-ui-css.mjs",
+    "check:ui-css:strict": "node scripts/check-ui-css.mjs --strict",
     "prepare": "husky"
   },
   "dependencies": {
