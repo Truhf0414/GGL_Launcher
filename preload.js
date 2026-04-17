@@ -32,6 +32,7 @@ const ALLOWED_ON = new Set([
   "minecraft:running",
   "rpc:notice",
   "instance:status",
+  "notifications:changed",
 ]);
 
 function fileUrlFromAbs(absPath) {

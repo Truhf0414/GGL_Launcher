@@ -111,6 +111,129 @@
   const inputOfflinePlayerId = el("inputOfflinePlayerId");
   const inputMinMemoryGb = el("inputMinMemoryGb");
   const inputMaxMemoryGb = el("inputMaxMemoryGb");
+  const settingsError = el("settingsError");
+  const modalPanel = settingsModal?.querySelector?.(".modal-panel") ?? null;
+
+  let lastFocusBeforeSettings = null;
+  let settingsKeydownHandler = null;
+
+  function setSettingsError(msg, { focusEl = null } = {}) {
+    const text = String(msg ?? "").trim();
+    if (settingsError) {
+      settingsError.textContent = text;
+      settingsError.classList.toggle("hidden", !text);
+    }
+    // Clear prior invalid state
+    for (const x of [
+      inputInstallDir,
+      inputOfflinePlayerId,
+      inputMinMemoryGb,
+      inputMaxMemoryGb,
+    ]) {
+      if (!x) continue;
+      x.classList.remove("input--error");
+      x.removeAttribute("aria-invalid");
+    }
+    if (focusEl) {
+      try {
+        focusEl.classList.add("input--error");
+        focusEl.setAttribute("aria-invalid", "true");
+        focusEl.focus();
+        focusEl.select?.();
+      } catch {}
+    }
+  }
+
+  function getFocusableInSettings() {
+    if (!settingsModal) return [];
+    const nodes = settingsModal.querySelectorAll(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    return Array.from(nodes).filter((n) => {
+      if (!(n instanceof HTMLElement)) return false;
+      // Hidden via display none
+      if (n.closest(".hidden")) return false;
+      const style = window.getComputedStyle(n);
+      return style.display !== "none" && style.visibility !== "hidden";
+    });
+  }
+
+  function openSettingsModal() {
+    lastFocusBeforeSettings = document.activeElement;
+    setSettingsError("");
+    settingsModal.classList.remove("hidden");
+    settingsModal.setAttribute("aria-hidden", "false");
+    requestAnimationFrame(() => settingsModal.classList.add("is-open"));
+
+    // Focus first meaningful control after paint.
+    requestAnimationFrame(() => {
+      try {
+        (inputInstallDir || modalPanel)?.focus?.();
+      } catch {}
+    });
+
+    settingsKeydownHandler = (ev) => {
+      if (!settingsModal || settingsModal.classList.contains("hidden")) return;
+
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        closeSettingsModal();
+        return;
+      }
+
+      if (ev.key !== "Tab") return;
+
+      const focusables = getFocusableInSettings();
+      if (focusables.length === 0) {
+        ev.preventDefault();
+        modalPanel?.focus?.();
+        return;
+      }
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+
+      // If focus escaped somehow, pull it back in.
+      if (!(active instanceof Node) || !settingsModal.contains(active)) {
+        ev.preventDefault();
+        first.focus();
+        return;
+      }
+
+      if (ev.shiftKey) {
+        if (active === first) {
+          ev.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (active === last) {
+          ev.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", settingsKeydownHandler, true);
+  }
+
+  function closeSettingsModal() {
+    closeOverlay(settingsModal);
+    settingsModal?.setAttribute?.("aria-hidden", "true");
+    setSettingsError("");
+    if (settingsKeydownHandler) {
+      document.removeEventListener("keydown", settingsKeydownHandler, true);
+      settingsKeydownHandler = null;
+    }
+    // Restore focus back to the opener (or settings button) after close animation.
+    const toFocus = lastFocusBeforeSettings || btnSettings;
+    lastFocusBeforeSettings = null;
+    setTimeout(() => {
+      try {
+        toFocus?.focus?.();
+      } catch {}
+    }, ANIM_MS + 20);
+  }
 
   // 通知面板
   const notifOverlay = el("notifOverlay");
@@ -120,9 +243,7 @@
   const notifEmpty = el("notifEmpty");
   const notifList = el("notifList");
 
-  const NOTIF_SEEN_STORAGE_KEY = "ggl:notifSeenIds:v1";
-  const NOTIF_SEEN_MAX = 500;
-  const NOTIF_POLL_MS = 60_000;
+  const NOTIF_LAST_SEEN_KEY_STORAGE = "ggl:notifLastSeenKey:v1";
 
   const ANIM_MS = 280;
   const STATUS_GUARD_MS = 2500;
@@ -135,11 +256,17 @@
 
   function openOverlay(elm) {
     elm.classList.remove("hidden");
+    try {
+      elm.setAttribute?.("aria-hidden", "false");
+    } catch {}
     requestAnimationFrame(() => elm.classList.add("is-open"));
   }
 
   function closeOverlay(elm) {
     elm.classList.remove("is-open");
+    try {
+      elm.setAttribute?.("aria-hidden", "true");
+    } catch {}
     setTimeout(() => elm.classList.add("hidden"), ANIM_MS);
   }
 
@@ -339,58 +466,51 @@
       inputMaxMemoryGb.value = String(
         settings.maxMemoryGb ?? settings.memoryGb ?? 4,
       );
-    openOverlay(settingsModal);
+    openSettingsModal();
   });
 
-  function loadSeenNotifIds() {
+  function loadLastSeenNotifKey() {
     try {
-      const raw = String(localStorage.getItem(NOTIF_SEEN_STORAGE_KEY) || "");
-      const arr = JSON.parse(raw);
-      if (!Array.isArray(arr)) return new Set();
-      return new Set(
-        arr
-          .map((x) => String(x || "").trim())
-          .filter(Boolean)
-          .slice(0, NOTIF_SEEN_MAX),
-      );
+      return String(localStorage.getItem(NOTIF_LAST_SEEN_KEY_STORAGE) || "");
     } catch {
-      return new Set();
+      return "";
     }
   }
 
-  function saveSeenNotifIds(set) {
+  function saveLastSeenNotifKey(key) {
     try {
-      const arr = Array.from(set || [])
-        .map((x) => String(x || "").trim())
-        .filter(Boolean)
-        .slice(-NOTIF_SEEN_MAX);
-      localStorage.setItem(NOTIF_SEEN_STORAGE_KEY, JSON.stringify(arr));
+      localStorage.setItem(NOTIF_LAST_SEEN_KEY_STORAGE, String(key || ""));
     } catch {}
   }
 
-  let seenNotifIds = loadSeenNotifIds();
+  let lastSeenNotifKey = loadLastSeenNotifKey();
 
   function setBellUnreadDot(hasUnread) {
     btnBell?.classList?.toggle("has-unread", Boolean(hasUnread));
   }
 
-  async function refreshNotifIndicator() {
+  async function fetchNotifications() {
     try {
-      const items = await ggl.invoke("notifications:get");
-      const list = Array.isArray(items) ? items : [];
-      const unread = list.some((n) => {
-        const id = String(n?.id || "").trim();
-        return id && !seenNotifIds.has(id);
+      const res = await ggl.invoke("notifications:get", {
+        lastSeenKey: lastSeenNotifKey,
       });
-      setBellUnreadDot(unread);
+      // Back-compat: older main.js might return an array.
+      if (Array.isArray(res)) return { items: res, unreadCount: 0 };
+      const items = Array.isArray(res?.items) ? res.items : [];
+      const unreadCount = Number(res?.unreadCount) || 0;
+      return { items, unreadCount };
     } catch {
-      // ignore network/IPC failures
+      return { items: [], unreadCount: 0 };
     }
   }
 
+  async function refreshNotifIndicator() {
+    const { unreadCount } = await fetchNotifications();
+    setBellUnreadDot(unreadCount > 0);
+  }
+
   async function renderNotifications() {
-    const items = await ggl.invoke("notifications:get");
-    const list = Array.isArray(items) ? items : [];
+    const { items: list, unreadCount } = await fetchNotifications();
 
     notifList.innerHTML = "";
 
@@ -398,7 +518,8 @@
       notifEmpty.classList.remove("hidden");
       notifList.classList.add("hidden");
       notifFooter?.classList?.add("hidden");
-      return [];
+      setBellUnreadDot(false);
+      return { items: [], unreadCount };
     }
 
     notifEmpty.classList.add("hidden");
@@ -427,28 +548,29 @@
       notifList.appendChild(wrap);
     }
 
-    return list;
+    return { items: list, unreadCount };
   }
 
-  function markNotifsSeen(list) {
-    let changed = false;
-    for (const n of Array.isArray(list) ? list : []) {
-      const id = String(n?.id || "").trim();
-      if (!id) continue;
-      if (seenNotifIds.has(id)) continue;
-      seenNotifIds.add(id);
-      changed = true;
+  function markNotifsSeen(items) {
+    const list = Array.isArray(items) ? items : [];
+    let maxKey = lastSeenNotifKey || "";
+    for (const n of list) {
+      const k = String(n?.key || "").trim();
+      if (k && k > maxKey) maxKey = k;
     }
-    if (changed) saveSeenNotifIds(seenNotifIds);
+    if (maxKey && maxKey !== lastSeenNotifKey) {
+      lastSeenNotifKey = maxKey;
+      saveLastSeenNotifKey(maxKey);
+    }
     setBellUnreadDot(false);
   }
 
   function openNotif() {
     openOverlay(notifOverlay);
     renderNotifications()
-      .then((list) => {
+      .then(({ items }) => {
         // Opening the panel = user has "seen" current announcements.
-        markNotifsSeen(list);
+        markNotifsSeen(items);
       })
       .catch(() => {});
   }
@@ -467,13 +589,9 @@
   });
   btnNotifClear.addEventListener("click", async () => {
     await ggl.invoke("notifications:clear");
-    const list = await renderNotifications();
-    markNotifsSeen(list);
+    const { items } = await renderNotifications();
+    markNotifsSeen(items);
   });
-
-  function closeSettingsModal() {
-    closeOverlay(settingsModal);
-  }
 
   btnSettingsClose.addEventListener("click", closeSettingsModal);
   settingsBackdrop.addEventListener("click", closeSettingsModal);
@@ -489,7 +607,7 @@
   btnSaveSettings.addEventListener("click", async () => {
     const dir = (inputInstallDir.value ?? "").trim();
     if (!dir) {
-      alert("請輸入安裝位置。");
+      setSettingsError("請輸入安裝位置。", { focusEl: inputInstallDir });
       return;
     }
     const offlineId = (inputOfflinePlayerId.value ?? "").trim() || "Player001";
@@ -507,20 +625,39 @@
       maxMemoryGb !== null &&
       minMemoryGb > maxMemoryGb
     ) {
-      alert("最小記憶體不能大於最大記憶體。");
+      setSettingsError("最小記憶體不能大於最大記憶體。", {
+        focusEl: inputMinMemoryGb || inputMaxMemoryGb,
+      });
       return;
     }
 
-    await ggl.invoke("settings:set", {
-      launcherRootDir: dir,
-      playerId: offlineId,
-      minMemoryGb,
-      maxMemoryGb,
-    });
-    closeSettingsModal();
-    // 重新檢查版本狀態（路徑變了）
-    await ggl.invoke("instance:recheck");
+    try {
+      await ggl.invoke("settings:set", {
+        launcherRootDir: dir,
+        playerId: offlineId,
+        minMemoryGb,
+        maxMemoryGb,
+      });
+      closeSettingsModal();
+      // 重新檢查版本狀態（路徑變了）
+      await ggl.invoke("instance:recheck");
+    } catch (e) {
+      const cleaned = formatInvokeError(e?.message ?? e);
+      setSettingsError(`儲存失敗：${cleaned}`);
+    }
   });
+
+  // Clear inline error when user edits inputs.
+  for (const x of [
+    inputInstallDir,
+    inputOfflinePlayerId,
+    inputMinMemoryGb,
+    inputMaxMemoryGb,
+  ]) {
+    x?.addEventListener?.("input", () => setSettingsError(""), {
+      passive: true,
+    });
+  }
 
   // 正版登入（Microsoft → Xbox → Minecraft）
   // 注意：此登入流程需要你在 Microsoft Azure 建立 OAuth App 並填 client_id（我在 main.js 有 TODO）
@@ -1296,10 +1433,12 @@
     }
   })();
 
-  // Notifications indicator: poll periodically and when refocusing.
+  // Notifications indicator: refresh on startup / focus / main push.
   void refreshNotifIndicator();
-  setInterval(() => void refreshNotifIndicator(), NOTIF_POLL_MS);
   window.addEventListener("focus", () => void refreshNotifIndicator(), {
     passive: true,
   });
+  try {
+    ggl.on("notifications:changed", () => void refreshNotifIndicator());
+  } catch {}
 })();
