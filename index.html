@@ -412,8 +412,6 @@
       aria-modal="true"
       aria-labelledby="notifTitle"
     >
-      <div class="notif-backdrop" id="notifBackdrop"></div>
-
       <div class="notif-panel">
         <div class="notif-header">
           <div class="notif-title" id="notifTitle">通知</div>
@@ -424,7 +422,7 @@
             title="關閉"
             aria-label="關閉"
           >
-            ×
+            <span class="notif-close__ico" aria-hidden="true">×</span>
           </button>
         </div>
 
@@ -449,7 +447,7 @@
           <div id="notifList" class="notif-list hidden"></div>
         </div>
 
-        <div class="notif-footer">
+        <div class="notif-footer" id="notifFooter">
           <button id="btnNotifClear" class="notif-clear" type="button">
             清除全部
           </button>

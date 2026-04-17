@@ -114,11 +114,15 @@
 
   // 通知面板
   const notifOverlay = el("notifOverlay");
-  const notifBackdrop = el("notifBackdrop");
   const btnNotifClose = el("btnNotifClose");
   const btnNotifClear = el("btnNotifClear");
+  const notifFooter = el("notifFooter");
   const notifEmpty = el("notifEmpty");
   const notifList = el("notifList");
+
+  const NOTIF_SEEN_STORAGE_KEY = "ggl:notifSeenIds:v1";
+  const NOTIF_SEEN_MAX = 500;
+  const NOTIF_POLL_MS = 60_000;
 
   const ANIM_MS = 280;
   const STATUS_GUARD_MS = 2500;
@@ -338,6 +342,52 @@
     openOverlay(settingsModal);
   });
 
+  function loadSeenNotifIds() {
+    try {
+      const raw = String(localStorage.getItem(NOTIF_SEEN_STORAGE_KEY) || "");
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return new Set();
+      return new Set(
+        arr
+          .map((x) => String(x || "").trim())
+          .filter(Boolean)
+          .slice(0, NOTIF_SEEN_MAX),
+      );
+    } catch {
+      return new Set();
+    }
+  }
+
+  function saveSeenNotifIds(set) {
+    try {
+      const arr = Array.from(set || [])
+        .map((x) => String(x || "").trim())
+        .filter(Boolean)
+        .slice(-NOTIF_SEEN_MAX);
+      localStorage.setItem(NOTIF_SEEN_STORAGE_KEY, JSON.stringify(arr));
+    } catch {}
+  }
+
+  let seenNotifIds = loadSeenNotifIds();
+
+  function setBellUnreadDot(hasUnread) {
+    btnBell?.classList?.toggle("has-unread", Boolean(hasUnread));
+  }
+
+  async function refreshNotifIndicator() {
+    try {
+      const items = await ggl.invoke("notifications:get");
+      const list = Array.isArray(items) ? items : [];
+      const unread = list.some((n) => {
+        const id = String(n?.id || "").trim();
+        return id && !seenNotifIds.has(id);
+      });
+      setBellUnreadDot(unread);
+    } catch {
+      // ignore network/IPC failures
+    }
+  }
+
   async function renderNotifications() {
     const items = await ggl.invoke("notifications:get");
     const list = Array.isArray(items) ? items : [];
@@ -347,11 +397,13 @@
     if (list.length === 0) {
       notifEmpty.classList.remove("hidden");
       notifList.classList.add("hidden");
-      return;
+      notifFooter?.classList?.add("hidden");
+      return [];
     }
 
     notifEmpty.classList.add("hidden");
     notifList.classList.remove("hidden");
+    notifFooter?.classList?.remove("hidden");
 
     for (const n of list) {
       const wrap = document.createElement("div");
@@ -374,11 +426,31 @@
       wrap.appendChild(time);
       notifList.appendChild(wrap);
     }
+
+    return list;
+  }
+
+  function markNotifsSeen(list) {
+    let changed = false;
+    for (const n of Array.isArray(list) ? list : []) {
+      const id = String(n?.id || "").trim();
+      if (!id) continue;
+      if (seenNotifIds.has(id)) continue;
+      seenNotifIds.add(id);
+      changed = true;
+    }
+    if (changed) saveSeenNotifIds(seenNotifIds);
+    setBellUnreadDot(false);
   }
 
   function openNotif() {
     openOverlay(notifOverlay);
-    renderNotifications().catch(() => {});
+    renderNotifications()
+      .then((list) => {
+        // Opening the panel = user has "seen" current announcements.
+        markNotifsSeen(list);
+      })
+      .catch(() => {});
   }
   function closeNotif() {
     closeOverlay(notifOverlay);
@@ -389,10 +461,14 @@
     else closeNotif();
   });
   btnNotifClose.addEventListener("click", closeNotif);
-  notifBackdrop.addEventListener("click", closeNotif);
+  // Click outside panel closes (dropdown-like; no backdrop needed).
+  notifOverlay.addEventListener("click", (ev) => {
+    if (ev.target === notifOverlay) closeNotif();
+  });
   btnNotifClear.addEventListener("click", async () => {
     await ggl.invoke("notifications:clear");
-    await renderNotifications();
+    const list = await renderNotifications();
+    markNotifsSeen(list);
   });
 
   function closeSettingsModal() {
@@ -1219,4 +1295,11 @@
       // 忽略
     }
   })();
+
+  // Notifications indicator: poll periodically and when refocusing.
+  void refreshNotifIndicator();
+  setInterval(() => void refreshNotifIndicator(), NOTIF_POLL_MS);
+  window.addEventListener("focus", () => void refreshNotifIndicator(), {
+    passive: true,
+  });
 })();

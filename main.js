@@ -550,27 +550,88 @@ function getAccountPath() {
   return path.join(app.getPath("userData"), "account.json");
 }
 
-function getNotificationsPath() {
-  return path.join(app.getPath("userData"), "notifications.json");
+function getNotificationsDismissedPath() {
+  return path.join(app.getPath("userData"), "notifications.dismissed.json");
 }
 
-async function readNotifications() {
+async function readDismissedNotificationIds() {
   try {
-    const raw = await fsp.readFile(getNotificationsPath(), "utf8");
+    const raw = await fsp.readFile(getNotificationsDismissedPath(), "utf8");
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const arr = Array.isArray(parsed) ? parsed : [];
+    return new Set(
+      arr
+        .map((x) => String(x || "").trim())
+        .filter(Boolean)
+        .slice(0, 2000),
+    );
   } catch {
-    return [];
+    return new Set();
   }
 }
 
-async function writeNotifications(list) {
-  await fsp.mkdir(path.dirname(getNotificationsPath()), { recursive: true });
+async function writeDismissedNotificationIds(idSet) {
+  const arr = Array.from(idSet || [])
+    .map((x) => String(x || "").trim())
+    .filter(Boolean)
+    .slice(0, 2000);
+  await fsp.mkdir(path.dirname(getNotificationsDismissedPath()), {
+    recursive: true,
+  });
   await fsp.writeFile(
-    getNotificationsPath(),
-    JSON.stringify(list, null, 2),
+    getNotificationsDismissedPath(),
+    JSON.stringify(arr, null, 2),
     "utf8",
   );
+}
+
+function computeBroadcastNotifId(n) {
+  const rawId = typeof n?.id === "string" ? n.id.trim() : "";
+  if (rawId) return rawId;
+  const title = typeof n?.title === "string" ? n.title.trim() : "";
+  const body = typeof n?.body === "string" ? n.body.trim() : "";
+  const timeText = typeof n?.timeText === "string" ? n.timeText.trim() : "";
+  return crypto
+    .createHash("sha1")
+    .update([title, body, timeText].join("\n"))
+    .digest("hex");
+}
+
+function normalizeBroadcastNotifications(manifest) {
+  const list = Array.isArray(manifest?.notifications)
+    ? manifest.notifications
+    : [];
+  const out = [];
+  for (const n of list) {
+    if (!n || typeof n !== "object") continue;
+    const title = typeof n.title === "string" ? n.title.trim() : "";
+    const body = typeof n.body === "string" ? n.body.trim() : "";
+    const timeText = typeof n.timeText === "string" ? n.timeText.trim() : "";
+    const id = computeBroadcastNotifId({ id: n.id, title, body, timeText });
+    // Allow title-only announcements, but require at least some visible text.
+    if (!title && !body) continue;
+    out.push({ id, title, body, timeText });
+  }
+  return out;
+}
+
+let _broadcastNotifCache = { ts: 0, items: [] };
+async function getBroadcastNotificationsCached() {
+  if (!isManifestUrlConfigured()) return [];
+  const now = Date.now();
+  if (
+    _broadcastNotifCache.items.length &&
+    now - _broadcastNotifCache.ts < 60_000
+  )
+    return _broadcastNotifCache.items;
+  try {
+    const manifest = await fetchJson(remoteManifestUrl);
+    const items = normalizeBroadcastNotifications(manifest);
+    _broadcastNotifCache = { ts: now, items };
+    return items;
+  } catch {
+    return _broadcastNotifCache.items || [];
+  }
 }
 
 async function readAccount() {
@@ -818,19 +879,29 @@ function setupIpc() {
     return result.filePaths?.[0] || "";
   });
 
-  // 通知：先做本地「最近通知」清單（之後可接你的伺服器推播/公告）
+  // 通知：伺服器廣播（manifest.notifications）
   ipcMain.handle("notifications:get", async () => {
-    const list = await readNotifications();
-    // 只回傳需要顯示的欄位，並且限制最多 20 筆
-    return list.slice(0, 20).map((n) => ({
-      title: String(n.title || ""),
-      body: String(n.body || ""),
-      timeText: String(n.timeText || ""),
-    }));
+    // Broadcast announcements from remote manifest (server-side "events").
+    const broadcast = await getBroadcastNotificationsCached();
+    if (broadcast.length === 0) return [];
+    const dismissed = await readDismissedNotificationIds();
+    return broadcast
+      .filter((n) => !dismissed.has(String(n.id || "")))
+      .slice(0, 20)
+      .map((n) => ({
+        id: String(n.id || ""),
+        title: String(n.title || ""),
+        body: String(n.body || ""),
+        timeText: String(n.timeText || ""),
+      }));
   });
 
   ipcMain.handle("notifications:clear", async () => {
-    await writeNotifications([]);
+    const broadcast = await getBroadcastNotificationsCached();
+    if (broadcast.length === 0) return true;
+    const dismissed = await readDismissedNotificationIds();
+    for (const n of broadcast) dismissed.add(String(n.id || ""));
+    await writeDismissedNotificationIds(dismissed);
     return true;
   });
 
