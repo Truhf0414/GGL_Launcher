@@ -19,6 +19,29 @@
 
   const el = (id) => document.getElementById(id);
 
+  /** Parse settings number fields; `null`/`undefined` → NaN (not 0). */
+  function parseFiniteNumberOrUnset(v) {
+    if (typeof v === "number") return Number.isFinite(v) ? v : NaN;
+    if (typeof v === "string") {
+      const s = v.trim();
+      if (!s) return NaN;
+      const n = Number(s);
+      return Number.isFinite(n) ? n : NaN;
+    }
+    return NaN;
+  }
+
+  /** Conservative Min/Max JVM heap (GB) from total system RAM. */
+  function recommendMemoryGbFromSysGb(sysGb) {
+    if (sysGb <= 8) return { minGb: 2, maxGb: 4 };
+    if (sysGb <= 16) return { minGb: 4, maxGb: 8 };
+    if (sysGb <= 32) return { minGb: 4, maxGb: 12 };
+    return { minGb: 4, maxGb: 16 };
+  }
+
+  const DEFAULT_LAUNCHER_ROOT = "C:\\Games\\GGL";
+  const ANIM_MS = 280;
+
   function initBackgroundVideo() {
     const source = el("bgVideoSource");
     if (!source) return;
@@ -112,7 +135,11 @@
   const inputMinMemoryGb = el("inputMinMemoryGb");
   const inputMaxMemoryGb = el("inputMaxMemoryGb");
   const settingsError = el("settingsError");
+  const memAutoHint = el("memAutoHint");
   const modalPanel = settingsModal?.querySelector?.(".modal-panel") ?? null;
+
+  const SETTINGS_FOCUSABLE_SEL =
+    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
   let lastFocusBeforeSettings = null;
   let settingsKeydownHandler = null;
@@ -146,9 +173,7 @@
 
   function getFocusableInSettings() {
     if (!settingsModal) return [];
-    const nodes = settingsModal.querySelectorAll(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    );
+    const nodes = settingsModal.querySelectorAll(SETTINGS_FOCUSABLE_SEL);
     return Array.from(nodes).filter((n) => {
       if (!(n instanceof HTMLElement)) return false;
       // Hidden via display none
@@ -158,73 +183,16 @@
     });
   }
 
-  function openSettingsModal() {
-    lastFocusBeforeSettings = document.activeElement;
-    setSettingsError("");
-    settingsModal.classList.remove("hidden");
-    settingsModal.setAttribute("aria-hidden", "false");
-    requestAnimationFrame(() => settingsModal.classList.add("is-open"));
-
-    // Focus first meaningful control after paint.
-    requestAnimationFrame(() => {
-      try {
-        (inputInstallDir || modalPanel)?.focus?.();
-      } catch {}
-    });
-
-    settingsKeydownHandler = (ev) => {
-      if (!settingsModal || settingsModal.classList.contains("hidden")) return;
-
-      if (ev.key === "Escape") {
-        ev.preventDefault();
-        closeSettingsModal();
-        return;
-      }
-
-      if (ev.key !== "Tab") return;
-
-      const focusables = getFocusableInSettings();
-      if (focusables.length === 0) {
-        ev.preventDefault();
-        modalPanel?.focus?.();
-        return;
-      }
-
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      const active = document.activeElement;
-
-      // If focus escaped somehow, pull it back in.
-      if (!(active instanceof Node) || !settingsModal.contains(active)) {
-        ev.preventDefault();
-        first.focus();
-        return;
-      }
-
-      if (ev.shiftKey) {
-        if (active === first) {
-          ev.preventDefault();
-          last.focus();
-        }
-      } else {
-        if (active === last) {
-          ev.preventDefault();
-          first.focus();
-        }
-      }
-    };
-
-    document.addEventListener("keydown", settingsKeydownHandler, true);
+  function detachSettingsKeydown() {
+    if (!settingsKeydownHandler) return;
+    document.removeEventListener("keydown", settingsKeydownHandler, true);
+    settingsKeydownHandler = null;
   }
 
   function closeSettingsModal() {
     closeOverlay(settingsModal);
-    settingsModal?.setAttribute?.("aria-hidden", "true");
     setSettingsError("");
-    if (settingsKeydownHandler) {
-      document.removeEventListener("keydown", settingsKeydownHandler, true);
-      settingsKeydownHandler = null;
-    }
+    detachSettingsKeydown();
     // Restore focus back to the opener (or settings button) after close animation.
     const toFocus = lastFocusBeforeSettings || btnSettings;
     lastFocusBeforeSettings = null;
@@ -233,6 +201,115 @@
         toFocus?.focus?.();
       } catch {}
     }, ANIM_MS + 20);
+  }
+
+  function handleSettingsModalKeydown(ev) {
+    if (!settingsModal || settingsModal.classList.contains("hidden")) return;
+
+    if (ev.key === "Escape") {
+      ev.preventDefault();
+      closeSettingsModal();
+      return;
+    }
+
+    if (ev.key !== "Tab") return;
+
+    const focusables = getFocusableInSettings();
+    if (focusables.length === 0) {
+      ev.preventDefault();
+      modalPanel?.focus?.();
+      return;
+    }
+
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+
+    // If focus escaped somehow, pull it back in.
+    if (!(active instanceof Node) || !settingsModal.contains(active)) {
+      ev.preventDefault();
+      first.focus();
+      return;
+    }
+
+    if (ev.shiftKey) {
+      if (active === first) {
+        ev.preventDefault();
+        last.focus();
+      }
+    } else if (active === last) {
+      ev.preventDefault();
+      first.focus();
+    }
+  }
+
+  function openSettingsModal() {
+    detachSettingsKeydown();
+    lastFocusBeforeSettings = document.activeElement;
+    setSettingsError("");
+    openOverlay(settingsModal);
+
+    // Focus first meaningful control after paint.
+    requestAnimationFrame(() => {
+      try {
+        (inputInstallDir || modalPanel)?.focus?.();
+      } catch {}
+    });
+
+    settingsKeydownHandler = handleSettingsModalKeydown;
+    document.addEventListener("keydown", settingsKeydownHandler, true);
+  }
+
+  function fillSettingsForm(settings) {
+    inputInstallDir.value = settings.launcherRootDir ?? DEFAULT_LAUNCHER_ROOT;
+    inputOfflinePlayerId.value = settings.playerId ?? "Player001";
+    if (memAutoHint) {
+      memAutoHint.textContent = "";
+      memAutoHint.classList.add("hidden");
+    }
+
+    const minFromSettings = parseFiniteNumberOrUnset(settings?.minMemoryGb);
+    const maxFromSettings = parseFiniteNumberOrUnset(settings?.maxMemoryGb);
+    const legacyFromSettings = parseFiniteNumberOrUnset(settings?.memoryGb);
+    // Main sends settingsMeta; legacy `memoryGb` alone must NOT block autosuggest.
+    const userMemConfigured = Boolean(
+      settings?.settingsMeta?.userMemoryConfigured ??
+        (Number.isFinite(minFromSettings) || Number.isFinite(maxFromSettings)),
+    );
+
+    if (!userMemConfigured) {
+      if (inputMinMemoryGb) inputMinMemoryGb.value = "";
+      if (inputMaxMemoryGb) inputMaxMemoryGb.value = "";
+    } else {
+      if (inputMinMemoryGb)
+        inputMinMemoryGb.value = Number.isFinite(minFromSettings)
+          ? String(minFromSettings)
+          : "";
+      if (inputMaxMemoryGb)
+        inputMaxMemoryGb.value = Number.isFinite(maxFromSettings)
+          ? String(maxFromSettings)
+          : Number.isFinite(legacyFromSettings)
+            ? String(legacyFromSettings)
+            : "";
+    }
+
+    const sysGb = Number(settings?.systemMemoryGb);
+    const sysOk = Number.isFinite(sysGb) && sysGb > 0;
+
+    if (!userMemConfigured && sysOk) {
+      const { minGb, maxGb } = recommendMemoryGbFromSysGb(sysGb);
+      if (inputMinMemoryGb) inputMinMemoryGb.value = String(minGb);
+      if (inputMaxMemoryGb) inputMaxMemoryGb.value = String(maxGb);
+      if (memAutoHint) {
+        memAutoHint.textContent = `已偵測系統記憶體 ${sysGb}GB，自動建議 Min ${minGb} / Max ${maxGb}。`;
+        memAutoHint.classList.remove("hidden");
+      }
+    } else if (memAutoHint && !userMemConfigured) {
+      memAutoHint.textContent = sysOk
+        ? `已偵測系統記憶體 ${sysGb}GB（尚未套用自動建議）。`
+        : "無法偵測系統記憶體（自動建議未套用）。";
+      memAutoHint.classList.remove("hidden");
+    }
   }
 
   // 通知面板
@@ -245,7 +322,6 @@
 
   const NOTIF_LAST_SEEN_KEY_STORAGE = "ggl:notifLastSeenKey:v1";
 
-  const ANIM_MS = 280;
   const STATUS_GUARD_MS = 2500;
   let statusMode = "normal"; // 'normal' | 'error'
   let statusUntil = 0;
@@ -456,16 +532,8 @@
 
   // 右上角功能（先做示意；你之後可以接真正設定頁/通知頁）
   btnSettings.addEventListener("click", async () => {
-    // 改成你截圖那種：彈窗 UI（先只做安裝位置）
     const settings = await ggl.invoke("settings:get");
-    inputInstallDir.value = settings.launcherRootDir ?? "C:\\GGL";
-    inputOfflinePlayerId.value = settings.playerId ?? "Player001";
-    if (inputMinMemoryGb)
-      inputMinMemoryGb.value = String(settings.minMemoryGb ?? "");
-    if (inputMaxMemoryGb)
-      inputMaxMemoryGb.value = String(
-        settings.maxMemoryGb ?? settings.memoryGb ?? 4,
-      );
+    fillSettingsForm(settings);
     openSettingsModal();
   });
 
@@ -599,7 +667,7 @@
   btnPickDir.addEventListener("click", async () => {
     const chosen = await ggl.invoke(
       "dialog:selectDirectory",
-      inputInstallDir.value || "C:\\",
+      inputInstallDir.value || DEFAULT_LAUNCHER_ROOT,
     );
     if (chosen) inputInstallDir.value = chosen;
   });
@@ -612,8 +680,8 @@
     }
     const offlineId = (inputOfflinePlayerId.value ?? "").trim() || "Player001";
 
-    const minGbRaw = inputMinMemoryGb ? Number(inputMinMemoryGb.value) : NaN;
-    const maxGbRaw = inputMaxMemoryGb ? Number(inputMaxMemoryGb.value) : NaN;
+    const minGbRaw = parseFiniteNumberOrUnset(inputMinMemoryGb?.value);
+    const maxGbRaw = parseFiniteNumberOrUnset(inputMaxMemoryGb?.value);
     const minMemoryGb =
       Number.isFinite(minGbRaw) && minGbRaw > 0 ? minGbRaw : null;
     const maxMemoryGb =

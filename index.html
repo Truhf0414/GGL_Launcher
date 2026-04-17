@@ -325,7 +325,7 @@
             title="關閉"
             aria-label="關閉"
           >
-            ×
+            <span class="modal-close__ico" aria-hidden="true">×</span>
           </button>
         </div>
 
@@ -353,7 +353,18 @@
                 title="選擇資料夾"
                 aria-label="選擇資料夾"
               >
-                📁
+                <svg
+                  class="topbar-ico"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
+                  />
+                </svg>
               </button>
             </div>
             <div class="hint">
@@ -395,6 +406,7 @@
                 placeholder="最大 (GB)"
               />
             </div>
+            <div id="memAutoHint" class="hint hidden"></div>
             <div class="hint">
               對應 JVM <span class="mono">-Xms</span> /
               <span class="mono">-Xmx</span>。建議最大值至少
@@ -408,7 +420,7 @@
               class="primary ctl ctl--primary"
               type="button"
             >
-              儲存
+              <span class="btn-label btn-label--save">儲存</span>
             </button>
           </div>
         </div>

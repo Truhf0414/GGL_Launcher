@@ -11,9 +11,26 @@ const path = require("path");
 const fs = require("fs");
 const fsp = require("fs/promises");
 const crypto = require("crypto");
+const os = require("os");
 const { spawn } = require("child_process");
 const http = require("http");
 const { URL, URLSearchParams } = require("url");
+
+function getSystemMemoryGb() {
+  try {
+    const bytes = Number(os.totalmem?.() ?? 0);
+    if (!Number.isFinite(bytes) || bytes <= 0) return null;
+    // Use GiB (1024^3) and round to nearest whole GB.
+    const gib = bytes / (1024 * 1024 * 1024);
+    const gb = Math.max(1, Math.round(gib));
+    return gb;
+  } catch {
+    return null;
+  }
+}
+
+/** Default install root (must match `assets/default-settings.json` + renderer fallback). */
+const DEFAULT_LAUNCHER_ROOT_DIR = "C:\\Games\\GGL";
 
 // =========================
 // Launcher log（避免被遊戲日誌洗掉）
@@ -145,7 +162,7 @@ function isManifestUrlConfigured() {
 // =========================
 // (A) 啟動器本地目錄（仿你提到的啟動器結構）
 // =========================
-// 需求：使用者可指定目錄位置（預設 C:\GGL）
+// 需求：使用者可指定目錄位置（預設 C:\Games\GGL）
 // 會建立：
 // <root>\group   -> Minecraft 實例（每個實例一個資料夾）
 // <root>\jdk     -> 內建 Java（放入 JDK 解壓內容）
@@ -158,7 +175,7 @@ const fabricLoaderVersion = "0.18.6";
 
 function normalizeRootDir(v) {
   const s = String(v || "").trim();
-  return s || "C:\\GGL";
+  return s || DEFAULT_LAUNCHER_ROOT_DIR;
 }
 
 function getPaths(settings) {
@@ -219,7 +236,7 @@ async function readDefaultSettingsOrFallback() {
     // minimal safe defaults (only fields used by launcher bootstrap / RPC)
     return {
       minecraftVersion: "1.21.11",
-      launcherRootDir: "C:\\GGL",
+      launcherRootDir: DEFAULT_LAUNCHER_ROOT_DIR,
       memoryGb: 4,
       playerId: "Player001",
       debugLogging: false,
@@ -279,7 +296,14 @@ function normalizeAllowedHosts(v) {
 
 function normalizeSettingsObject(obj) {
   const o = obj && typeof obj === "object" ? obj : {};
-  const memoryGb = Number.isFinite(Number(o.memoryGb)) ? Number(o.memoryGb) : 4;
+  // NOTE: `Number(null) === 0` — treat null/undefined/"" as "unset", not 0 GB.
+  let memoryGb = 4;
+  if (o.memoryGb !== null && o.memoryGb !== undefined) {
+    const s = typeof o.memoryGb === "string" ? o.memoryGb.trim() : o.memoryGb;
+    if (s !== "" && Number.isFinite(Number(s))) {
+      memoryGb = Number(s);
+    }
+  }
   const minMemoryGb = normalizeNullableNumber(o.minMemoryGb);
   const maxMemoryGb = normalizeNullableNumber(o.maxMemoryGb);
 
@@ -294,7 +318,9 @@ function normalizeSettingsObject(obj) {
     maxMemoryGb:
       maxMemoryGb === null ? null : Math.max(1, Math.min(64, maxMemoryGb)),
     playerId: normalizeString(o.playerId, "Player001"),
-    launcherRootDir: normalizeString(o.launcherRootDir, "C:\\GGL"),
+    // Use same coercion as getPaths() (String/trim); avoid normalizeString() which
+    // only accepts typeof string and would incorrectly fall back to default.
+    launcherRootDir: normalizeRootDir(o.launcherRootDir),
     debugLogging: Boolean(o.debugLogging),
 
     preferredJavaMirrorName:
@@ -320,10 +346,7 @@ function normalizeSettingsObject(obj) {
       ? Number(o.preferredMcMirrorAt)
       : 0,
 
-    minecraftVersion: normalizeString(
-      o.minecraftVersion || o.minecraftVersion,
-      "1.21.11",
-    ),
+    minecraftVersion: normalizeString(o.minecraftVersion, "1.21.11"),
 
     discordClientId:
       typeof o.discordClientId === "string" ? o.discordClientId.trim() : "",
@@ -420,13 +443,30 @@ async function ensureSettingsFileInitialized() {
 }
 
 async function readSettings() {
+  const raw = await readSettingsRaw();
+  return normalizeSettingsObject(raw);
+}
+
+async function readSettingsRaw() {
   try {
     const raw = await fsp.readFile(getSettingsPath(), "utf8");
     const parsed = JSON.parse(raw);
-    return normalizeSettingsObject(parsed);
+    return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
-    return normalizeSettingsObject({});
+    return {};
   }
+}
+
+function isExplicitNumberLike(v) {
+  if (v === null || v === undefined) return false;
+  if (typeof v === "number") return Number.isFinite(v);
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (!s) return false;
+    const n = Number(s);
+    return Number.isFinite(n);
+  }
+  return false;
 }
 
 function sendRpcNotice(text) {
@@ -817,6 +857,7 @@ async function ensureRuntimeAndLaunch({ settings, paths, playerId }) {
   });
 
   await launchMinecraftFabric1211({
+    settings,
     gameDir: paths.gameDir,
     memoryGb: settings.memoryGb,
     playerId,
@@ -954,7 +995,23 @@ function setupIpc() {
   ipcMain.handle("window:close", () => mainWindow?.close());
   ipcMain.handle("openExternal", (_e, url) => shell.openExternal(url));
 
-  ipcMain.handle("settings:get", async () => readSettings());
+  ipcMain.handle("settings:get", async () => {
+    const raw = await readSettingsRaw();
+    const settings = normalizeSettingsObject(raw);
+    // Only min/max count as "user configured". Legacy `memoryGb` defaults to 4 and must
+    // not block RAM autosuggest when min/max are unset.
+    const userMemoryConfigured =
+      isExplicitNumberLike(raw?.minMemoryGb) ||
+      isExplicitNumberLike(raw?.maxMemoryGb);
+
+    return {
+      ...(settings && typeof settings === "object" ? settings : {}),
+      systemMemoryGb: getSystemMemoryGb(),
+      settingsMeta: {
+        userMemoryConfigured,
+      },
+    };
+  });
   ipcMain.handle("settings:set", async (_e, patch) => writeSettings(patch));
   ipcMain.handle("dialog:selectDirectory", async (_e, defaultPath) => {
     const result = await dialog.showOpenDialog(mainWindow, {
@@ -2265,9 +2322,12 @@ async function withRetries(
   throw lastErr;
 }
 
-async function readInstanceMeta() {
+async function readInstanceMeta(settingsPre) {
   try {
-    const settings = await readSettings();
+    const settings =
+      settingsPre && typeof settingsPre === "object"
+        ? settingsPre
+        : await readSettings();
     const p = getPaths(settings).instanceMetaPath;
     const raw = await fsp.readFile(p, "utf8");
     const parsed = JSON.parse(raw);
@@ -2289,7 +2349,7 @@ async function readInstanceMeta() {
 async function writeInstanceMeta(patch) {
   const settings = await readSettings();
   const metaPath = getPaths(settings).instanceMetaPath;
-  const cur = await readInstanceMeta();
+  const cur = await readInstanceMeta(settings);
   const next = { ...cur, ...patch };
   await fsp.mkdir(path.dirname(metaPath), { recursive: true });
   await fsp.writeFile(metaPath, JSON.stringify(next, null, 2), "utf8");
@@ -2964,7 +3024,7 @@ async function fetchNoticeLogLines(logUrl) {
 
 async function checkInstanceStatus(settings) {
   // 只檢查「是否安裝」以及「版本是否落後」
-  const localMeta = await readInstanceMeta();
+  const localMeta = await readInstanceMeta(settings);
   const paths = getPaths(settings);
   let hasMinecraftDir = false;
   try {
@@ -3323,6 +3383,7 @@ function buildOptimizedJvmArgs({ minMemoryMb, maxMemoryMb, nativesDir }) {
 }
 
 async function launchMinecraftFabric1211({
+  settings,
   gameDir,
   memoryGb,
   playerId,
@@ -3349,7 +3410,7 @@ async function launchMinecraftFabric1211({
   }
 
   // 新需求：從實例內的 versions/ 自動偵測 Fabric/Minecraft 版本並啟動
-  const meta = await readInstanceMeta();
+  const meta = await readInstanceMeta(settings);
   let launchVersionId = String(meta.launchVersionId || "").trim();
   if (!launchVersionId) {
     launchVersionId = await detectLaunchVersionId(gameDir, minecraftVersion);
@@ -3407,7 +3468,6 @@ async function launchMinecraftFabric1211({
   const nativesDir = path.join(gameDir, "natives");
   await fsp.mkdir(nativesDir, { recursive: true });
 
-  const settings = await readSettings();
   const maxMb = settings?.maxMemoryGb
     ? mbFromGb(settings.maxMemoryGb)
     : mbFromGb(memoryGb);
