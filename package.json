@@ -19,6 +19,7 @@
     "format:file": "prettier --write",
     "check:ui-css": "node scripts/check-ui-css.mjs",
     "check:ui-css:strict": "node scripts/check-ui-css.mjs --strict",
+    "video:bg:downscale": "node scripts/downscale-bg-video.mjs",
     "prepare": "husky"
   },
   "dependencies": {

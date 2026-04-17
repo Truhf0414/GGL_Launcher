@@ -745,6 +745,24 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, "index.html"));
   mainWindow.once("ready-to-show", () => mainWindow.show());
+
+  function sendWindowPowerState() {
+    try {
+      mainWindow?.webContents?.send("window:power", {
+        minimized: Boolean(mainWindow?.isMinimized?.()),
+      });
+    } catch {}
+  }
+
+  // Renderer can pause background video more accurately with window state.
+  mainWindow.on("minimize", sendWindowPowerState);
+  mainWindow.on("restore", sendWindowPowerState);
+  mainWindow.on("show", sendWindowPowerState);
+  mainWindow.on("hide", sendWindowPowerState);
+  mainWindow.on("focus", sendWindowPowerState);
+  mainWindow.on("blur", sendWindowPowerState);
+  // initial
+  mainWindow.webContents.on("did-finish-load", sendWindowPowerState);
 }
 
 app.whenReady().then(async () => {

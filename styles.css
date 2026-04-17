@@ -102,7 +102,7 @@
   --optical-offline-ico-nudge-x: -0.5px;
   --optical-offline-ico-nudge-y: -0.5px;
   --optical-launch-singleline-nudge-y: -1px;
-  --optical-launch-btn-hover-nudge-y: -1px;
+  --optical-launch-btn-hover-nudge-y: 0px;
   --optical-topbar-bell-ico-nudge-x: 0px;
   --optical-topbar-bell-ico-nudge-y: -0.5px;
   --optical-topbar-press-nudge-y: 0.5px;
@@ -201,8 +201,9 @@ textarea,
   position: fixed;
   inset: 0;
   transform: scale(1.03);
-  filter: saturate(1.05) contrast(1.02);
   overflow: hidden;
+  /* Performance: keep heavy full-screen layer composited */
+  will-change: transform;
 }
 .app-bg-video {
   position: absolute;
@@ -211,6 +212,8 @@ textarea,
   height: 100%;
   object-fit: cover;
   /* 影片比 GIF 省資源，但透明視窗仍可能吃 GPU，先保守不加額外濾鏡 */
+  transform: translateZ(0);
+  will-change: transform;
 }
 .app-bg-fallback {
   position: absolute;
@@ -293,9 +296,9 @@ textarea,
   display: flex;
   align-items: center;
   gap: 8px;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  /* Performance: blur + hover/active transforms */
+  will-change: transform;
 }
 .pill-sep {
   width: 1px;
@@ -441,8 +444,6 @@ textarea,
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 .social-btn:hover {
   background: rgba(0, 0, 0, 0.3);
@@ -465,8 +466,6 @@ textarea,
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 .status-dot {
   width: 10px;
@@ -533,8 +532,6 @@ textarea,
   border: 1px solid var(--stroke);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   overflow: hidden;
 }
 .glass-card--compact {
@@ -704,8 +701,6 @@ textarea,
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   transition:
     background 160ms cubic-bezier(0.16, 1, 0.3, 1),
     border-color 160ms cubic-bezier(0.16, 1, 0.3, 1),
@@ -760,8 +755,6 @@ textarea,
   /* 透過 Base 的 :where(button,...) 已指定字體，這裡不需要 !important */
   font-family: var(--app-font-family);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.38);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -776,6 +769,8 @@ textarea,
     filter 0.12s ease,
     background 180ms cubic-bezier(0.16, 1, 0.3, 1),
     border-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* Performance: blur + hover/active transforms */
+  will-change: transform;
 }
 .launch-btn::before {
   content: "";
@@ -1013,7 +1008,8 @@ textarea,
   transform: none;
 }
 .launch-btn:hover {
-  filter: brightness(1.03);
+  background: rgba(18, 20, 26, 0.62);
+  border-color: rgba(255, 255, 255, 0.2);
   transform: translateY(var(--optical-launch-btn-hover-nudge-y));
 }
 .launch-btn:active {
@@ -1128,19 +1124,10 @@ textarea,
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.25);
-  /* blur 也做過渡：避免先變暗、再突然變糊 */
-  backdrop-filter: blur(0px);
-  -webkit-backdrop-filter: blur(0px);
   opacity: 0;
-  transition: opacity 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .notif-overlay.is-open .notif-backdrop {
   opacity: 1;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transition:
-    opacity 240ms cubic-bezier(0.16, 1, 0.3, 1),
-    backdrop-filter 260ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .notif-panel {
   position: absolute;
@@ -1150,10 +1137,8 @@ textarea,
   height: 230px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(18, 20, 26, 0.58);
+  background: rgba(18, 20, 26, 0.72);
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
   overflow: hidden;
   opacity: 0;
   transform: translateY(-10px) scale(0.965);
@@ -1265,10 +1250,7 @@ textarea,
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   opacity: 0;
-  transition: opacity 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .modal.is-open .modal-backdrop {
   opacity: 1;
@@ -1281,10 +1263,8 @@ textarea,
   width: 520px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(18, 20, 26, 0.62);
+  background: rgba(18, 20, 26, 0.76);
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
   opacity: 0;
   will-change: transform, opacity;
   transition:
