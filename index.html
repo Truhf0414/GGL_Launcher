@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0b1020" />
+    <title>GGL - Launcher</title>
+
+    <link rel="stylesheet" href="./assets/tailwind.css" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="select-none antialiased">
+    <noscript>
+      <div class="p-4 text-sm text-white/90 bg-black/60">
+        需要啟用 JavaScript 才能使用此啟動器。
+      </div>
+    </noscript>
+    <!-- 背景（影片優先，其次圖片 fallback） -->
+    <!-- 影片請放到：./assets/sakura_field_BG.mp4 -->
+    <div class="app-bg">
+      <video
+        class="app-bg-video"
+        autoplay
+        loop
+        muted
+        playsinline
+        preload="auto"
+        aria-hidden="true"
+      >
+        <source id="bgVideoSource" src="" type="video/mp4" />
+      </video>
+      <!-- fallback：如果影片載入失敗，仍會顯示 styles.css 的 --background-url 圖片 -->
+      <div class="app-bg-fallback"></div>
+    </div>
+    <div class="app-bg-overlay"></div>
+
+    <!-- 主容器（與截圖一致：左側 sidebar + 右側內容） -->
+    <div class="app-shell">
+      <!-- 右側主內容 -->
+      <main class="main">
+        <!-- 右上角控制列（帳號 / 通知 / 設定 / 最小化 / 關閉） -->
+        <!-- 注意：frameless 視窗需要自己做拖曳區與按鈕 -->
+        <header class="topbar drag-region">
+          <div class="topbar-spacer"></div>
+
+          <div class="topbar-pill no-drag">
+            <!-- 登入區（先顯示「登入」狀態；登入後才顯示頭像/ID） -->
+            <button
+              id="btnLogin"
+              class="account"
+              type="button"
+              aria-label="登入/帳號"
+            >
+              <span class="avatar" aria-hidden="true"></span>
+              <span id="accountName" class="account-name">登入</span>
+            </button>
+
+            <div class="pill-sep"></div>
+
+            <button
+              class="pill-btn"
+              id="btnBell"
+              type="button"
+              title="通知"
+              aria-label="通知"
+            >
+              <span class="icon" aria-hidden="true">
+                <!-- Bell icon (clean SVG) -->
+                <svg
+                  class="topbar-ico"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 .17 1 1H6l1-1V11a5 5 0 1 1 10 0v5.17Z"
+                  />
+                </svg>
+              </span>
+            </button>
+            <button
+              class="pill-btn"
+              id="btnSettings"
+              type="button"
+              title="設定"
+              aria-label="設定"
+            >
+              <span class="icon" aria-hidden="true">
+                <!-- Gear icon (clean SVG, consistent with others) -->
+                <svg
+                  class="topbar-ico"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 1h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.23-1.12.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 7.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.4 1.05.71 1.63.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.23 1.12-.54 1.63-.94l2.39.96c.24.1.51.01.64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"
+                  />
+                </svg>
+              </span>
+            </button>
+
+            <div class="pill-sep"></div>
+
+            <button
+              class="pill-btn"
+              id="btnMinimize"
+              type="button"
+              title="最小化"
+              aria-label="最小化"
+            >
+              <svg
+                class="topbar-ico"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <!-- 用 stroke 版讓線條更清楚、不黯淡 -->
+                <path
+                  d="M6 12h12"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+            <button
+              class="pill-btn pill-btn--close"
+              id="btnClose"
+              type="button"
+              title="關閉"
+              aria-label="關閉"
+            >
+              <svg
+                class="topbar-ico"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  fill="currentColor"
+                  d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.4 4.3 19.71 2.89 18.29 9.17 12 2.89 5.71 4.3 4.29l6.29 6.31 6.3-6.31 1.41 1.42Z"
+                />
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <!-- 主要文字區（截圖：大標題 + 描述 + 社群連結） -->
+        <section class="hero">
+          <!-- TODO: 你要改標題文字，改這裡 -->
+          <h1 id="serverTitle" class="hero-title">好好看_3</h1>
+
+          <!-- TODO: 你要改介紹文字，改這裡 -->
+          <p id="serverDesc" class="hero-desc">
+            輕鬆養老的伺服器，以客戶端以及QOL模組為主。<br />
+            服主會三不五時更新有的沒的東西，可以到DC吵我 ＞＜♭
+          </p>
+
+          <!-- 狀態 & 社群 -->
+          <div class="hero-row">
+            <div class="social">
+              <!-- 伺服器狀態：Online / Offline（燈號） -->
+              <div
+                class="server-status"
+                title="伺服器狀態"
+                role="status"
+                aria-live="polite"
+              >
+                <span
+                  id="serverStatusDot"
+                  class="status-dot status-dot--unknown"
+                  aria-hidden="true"
+                ></span>
+                <span id="serverStatusText" class="status-text-inline"
+                  >檢查中…</span
+                >
+              </div>
+
+              <!-- Discord（示意按鈕；你可以改成真正連結） -->
+              <button
+                id="btnDiscord"
+                class="social-btn"
+                type="button"
+                title="Discord"
+                aria-label="Discord"
+              >
+                <!-- Discord（簡化版白色圖示，18px 也不會糊成色塊） -->
+                <!-- 來源：Simple Icons 風格的 Discord mark（縮放友善） -->
+                <svg
+                  class="discord-ico"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M20.317 4.369a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.078.037c-.211.375-.444.864-.608 1.249a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.249.077.077 0 0 0-.078-.037 19.736 19.736 0 0 0-4.885 1.515.07.07 0 0 0-.032.027C.533 9.045-.32 13.58.099 18.057a.082.082 0 0 0 .031.056 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.095.252-.195.371-.291a.074.074 0 0 1 .078-.01c3.927 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .079.01c.12.096.245.196.372.291a.077.077 0 0 1-.006.128 12.874 12.874 0 0 1-1.873.892.077.077 0 0 0-.04.107c.36.698.772 1.363 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .031-.055c.5-5.177-.838-9.673-3.548-13.661a.061.061 0 0 0-.031-.028ZM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.184 1.095 2.157 2.419 0 1.333-.956 2.419-2.157 2.419Zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.184 1.095 2.157 2.419 0 1.333-.947 2.419-2.157 2.419Z"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 中下方資訊卡（毛玻璃） -->
+        <section class="cards">
+          <div class="glass-card glass-card--compact glass-card--changelog">
+            <div class="card-tabs">
+              <h2 class="card-heading" id="changelogHeading">更新日誌</h2>
+            </div>
+
+            <div class="card-body">
+              <div class="thumb" id="noticeThumb" aria-hidden="true">
+                <!-- TODO: 你要換縮圖圖片，改 styles.css 的 --thumb-url -->
+              </div>
+
+              <div class="card-meta">
+                <div class="card-meta-top">
+                  <div class="meta-title" id="noticeTitle">GGL 3.0</div>
+                  <div class="meta-date" id="noticeDate">版本</div>
+                </div>
+                <div id="noticeLog" class="notice-log hidden"></div>
+              </div>
+            </div>
+
+            <!-- 版本狀態（讓新手更清楚目前是否已安裝/是否需要更新） -->
+            <div class="card-foot">
+              <div
+                id="instanceStatusText"
+                class="instance-status"
+                role="status"
+                aria-live="polite"
+              >
+                正在檢查實例版本…
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 右下角控制區（巨大啟動按鈕 + 更新狀態/進度） -->
+        <section class="bottom-right no-drag">
+          <div class="launch-wrap">
+            <button
+              id="btnOfflineLink"
+              class="offline-link hidden"
+              type="button"
+              aria-label="離線啟動"
+            >
+              <span class="offline-link__icon" aria-hidden="true">
+                <!-- simple "user-offline" style icon -->
+                <svg
+                  class="offline-link__svg"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                  focusable="false"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M12 12a4 4 0 1 0-4-4a4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2.01-8 4.5V20h16v-1.5c0-2.49-3.58-4.5-8-4.5Zm9.71-11.29L20.3 4.12l-3 3l3 3l1.41-1.41L20.24 7.12l1.47-1.41ZM18.5 2.5l-1.41 1.41l1.47 1.41l-1.47 1.41L18.5 8.12l3-3Z"
+                  />
+                </svg>
+              </span>
+              <span class="sr-only">離線啟動</span>
+            </button>
+            <button
+              id="btnLaunch"
+              class="launch-btn launch-btn--progress"
+              type="button"
+              aria-label="啟動"
+            >
+              <div class="launch-content">
+                <div
+                  id="statusText"
+                  class="launch-subtext launch-subtext--left launch-subtext--single"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span class="launch-subtext-line">準備就緒</span>
+                </div>
+                <div class="launch-texts">
+                  <div class="launch-text">啟動</div>
+                </div>
+              </div>
+              <div
+                id="progressRoot"
+                class="launch-progress"
+                role="progressbar"
+                aria-label="下載/更新進度"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+              >
+                <div
+                  id="progressBar"
+                  class="launch-progress-bar"
+                  style="width: 0%"
+                ></div>
+              </div>
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- 設定彈窗（仿你提供的截圖：毛玻璃中心彈窗） -->
+    <!-- 先只做「安裝位置」，其他功能之後再加 -->
+    <div
+      id="settingsModal"
+      class="modal hidden no-drag"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="settingsTitle"
+    >
+      <div class="modal-backdrop" id="settingsBackdrop"></div>
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div class="modal-title" id="settingsTitle">設定</div>
+          <button
+            id="btnSettingsClose"
+            class="modal-close"
+            type="button"
+            title="關閉"
+            aria-label="關閉"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <div class="label">安裝位置</div>
+            <div class="input-row">
+              <input
+                id="inputInstallDir"
+                class="input"
+                type="text"
+                placeholder="例如 C:\Games\GGL"
+              />
+              <button
+                id="btnPickDir"
+                class="icon-btn"
+                type="button"
+                title="選擇資料夾"
+                aria-label="選擇資料夾"
+              >
+                📁
+              </button>
+            </div>
+            <div class="hint">
+              會在此目錄建立 <span class="mono">group / jdk / .temp</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="label">離線玩家 ID</div>
+            <div class="input-row">
+              <input
+                id="inputOfflinePlayerId"
+                class="input"
+                type="text"
+                placeholder="例如 Player001"
+              />
+            </div>
+            <div class="hint">未登入時，離線啟動會使用此 ID</div>
+          </div>
+
+          <div class="form-group">
+            <div class="label">記憶體（Java）</div>
+            <div class="input-row">
+              <input
+                id="inputMinMemoryGb"
+                class="input"
+                type="number"
+                min="1"
+                step="0.5"
+                placeholder="最小 (GB)"
+              />
+              <input
+                id="inputMaxMemoryGb"
+                class="input"
+                type="number"
+                min="1"
+                step="0.5"
+                placeholder="最大 (GB)"
+              />
+            </div>
+            <div class="hint">
+              對應 JVM <span class="mono">-Xms</span> /
+              <span class="mono">-Xmx</span>。建議最大值至少
+              4GB，且最小值不要大於最大值。
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button id="btnSaveSettings" class="primary" type="button">
+              儲存
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 通知面板（點鈴鐺後顯示，仿你提供的截圖：背景模糊 + 右上毛玻璃面板） -->
+    <div
+      id="notifOverlay"
+      class="notif-overlay hidden no-drag"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="notifTitle"
+    >
+      <div class="notif-backdrop" id="notifBackdrop"></div>
+
+      <div class="notif-panel">
+        <div class="notif-header">
+          <div class="notif-title" id="notifTitle">通知</div>
+          <button
+            id="btnNotifClose"
+            class="notif-close"
+            type="button"
+            title="關閉"
+            aria-label="關閉"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="notif-body">
+          <div id="notifEmpty" class="notif-empty">
+            <div class="notif-empty-ico" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                width="28"
+                height="28"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  fill="currentColor"
+                  d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 .17 1 1H6l1-1V11a5 5 0 1 1 10 0v5.17Z"
+                />
+              </svg>
+            </div>
+            <div class="notif-empty-text">暫無通知</div>
+          </div>
+
+          <div id="notifList" class="notif-list hidden"></div>
+        </div>
+
+        <div class="notif-footer">
+          <button id="btnNotifClear" class="notif-clear" type="button">
+            清除全部
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>
