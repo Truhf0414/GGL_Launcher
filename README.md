@@ -28,6 +28,9 @@ npm start
 - **Changelog card scaling**: use `--design-cards-scale` (no `zoom`)
   - Want card smaller but text same size: set `--design-cards-type-scale: 1`
 - **Launch button stacked status alignment**: keep `--design-launch-subtext-top-offset` (optical correction)
+- **UI guardrails**:
+  - `npm run check:ui-css`: errors fail, warnings only warn (good for everyday dev/commits)
+  - `npm run check:ui-css:strict`: stricter checks used before packaging (`dist:win` / `pack:win`)
 - **After UI edits, format**:
   - Preferred: `npm run format:ui`
   - Single file: `npm run format:file -- styles.css`
