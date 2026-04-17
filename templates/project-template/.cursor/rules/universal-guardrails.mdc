@@ -1,0 +1,36 @@
+---
+description: Universal project guardrails (AI + humans)
+alwaysApply: true
+---
+
+# Universal guardrails (read first)
+
+## Goals & change policy
+
+- **Read before change**: find entry points + usages first.
+- **Keep behavior stable** unless explicitly requested.
+- **Prefer the smallest safe change** that solves the problem.
+
+## Files to avoid (churn control)
+
+- Do not edit generated/vendor output (respect `.gitignore` / `.prettierignore`).
+- Avoid formatting unrelated files/sections.
+- Keep diffs scoped to the task.
+
+## Single source of truth
+
+- Centralize key config/tokens in one place; reference it elsewhere.
+- If renaming config/tokens, prefer **back-compat aliases** when feasible.
+
+## Guardrails (checks)
+
+- Add lightweight checks for “explosive” mistakes (low false positives).
+- Separate into:
+  - **Errors**: block commit/build
+  - **Warnings**: inform only
+
+## Workflow (recommended)
+
+- Run checks first, then formatting.
+- Provide **1–3 shortest verification steps** for every change.
+
