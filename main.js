@@ -597,21 +597,59 @@ function computeBroadcastNotifId(n) {
     .digest("hex");
 }
 
+function parseIsoDateToMs(v) {
+  const s = typeof v === "string" ? v.trim() : "";
+  if (!s) return null;
+  const t = Date.parse(s);
+  return Number.isFinite(t) ? t : null;
+}
+
+function notifKeyFor({ createdAtMs, id }) {
+  const ms = Number.isFinite(createdAtMs) ? createdAtMs : 0;
+  const safeId = String(id || "");
+  return `${ms}:${safeId}`;
+}
+
 function normalizeBroadcastNotifications(manifest) {
   const list = Array.isArray(manifest?.notifications)
     ? manifest.notifications
     : [];
   const out = [];
+  const now = Date.now();
   for (const n of list) {
     if (!n || typeof n !== "object") continue;
     const title = typeof n.title === "string" ? n.title.trim() : "";
     const body = typeof n.body === "string" ? n.body.trim() : "";
     const timeText = typeof n.timeText === "string" ? n.timeText.trim() : "";
     const id = computeBroadcastNotifId({ id: n.id, title, body, timeText });
+    const priorityRaw = Number(n.priority);
+    const priority = Number.isFinite(priorityRaw) ? priorityRaw : 0;
+    const createdAtMs = parseIsoDateToMs(n.createdAt) ?? 0;
+    const startsAtMs = parseIsoDateToMs(n.startsAt);
+    const expiresAtMs = parseIsoDateToMs(n.expiresAt);
     // Allow title-only announcements, but require at least some visible text.
     if (!title && !body) continue;
-    out.push({ id, title, body, timeText });
+
+    // Scheduling window (optional)
+    if (startsAtMs !== null && now < startsAtMs) continue;
+    if (expiresAtMs !== null && now >= expiresAtMs) continue;
+
+    out.push({
+      id,
+      title,
+      body,
+      timeText,
+      priority,
+      createdAtMs,
+      key: notifKeyFor({ createdAtMs, id }),
+    });
   }
+  // Deterministic order: priority desc, createdAt desc, id asc.
+  out.sort((a, b) => {
+    if (b.priority !== a.priority) return b.priority - a.priority;
+    if (b.createdAtMs !== a.createdAtMs) return b.createdAtMs - a.createdAtMs;
+    return String(a.id).localeCompare(String(b.id));
+  });
   return out;
 }
 
@@ -632,6 +670,55 @@ async function getBroadcastNotificationsCached() {
   } catch {
     return _broadcastNotifCache.items || [];
   }
+}
+
+let _broadcastNotifHash = "";
+let _broadcastPollTimer = null;
+
+function computeBroadcastNotifHash(items) {
+  try {
+    const payload = (Array.isArray(items) ? items : []).map((n) => ({
+      id: String(n?.id || ""),
+      key: String(n?.key || ""),
+      priority: Number(n?.priority) || 0,
+      title: String(n?.title || ""),
+      body: String(n?.body || ""),
+      timeText: String(n?.timeText || ""),
+    }));
+    return crypto
+      .createHash("sha1")
+      .update(JSON.stringify(payload))
+      .digest("hex");
+  } catch {
+    return "";
+  }
+}
+
+function startNotificationsBroadcastPolling() {
+  if (_broadcastPollTimer) return;
+  const POLL_MS = 30_000;
+  const tick = async () => {
+    if (!isManifestUrlConfigured()) return;
+    try {
+      const manifest = await fetchJson(remoteManifestUrl);
+      const items = normalizeBroadcastNotifications(manifest);
+      const h = computeBroadcastNotifHash(items);
+      if (h && h !== _broadcastNotifHash) {
+        _broadcastNotifHash = h;
+        _broadcastNotifCache = { ts: Date.now(), items };
+        try {
+          mainWindow?.webContents?.send("notifications:changed", {
+            count: items.length,
+          });
+        } catch {}
+      }
+    } catch {
+      // ignore; next tick will retry
+    }
+  };
+  // Prime once soon after load.
+  setTimeout(() => void tick(), 1200);
+  _broadcastPollTimer = setInterval(() => void tick(), POLL_MS);
 }
 
 async function readAccount() {
@@ -843,6 +930,7 @@ app.whenReady().then(async () => {
   createWindow();
   setupIpc();
   startServerStatusPolling();
+  startNotificationsBroadcastPolling();
   // 啟動時：只做「版本檢查」，不自動下載
   setTimeout(() => {
     checkInstanceStatusAndNotify().catch((e) => {
@@ -880,12 +968,14 @@ function setupIpc() {
   });
 
   // 通知：伺服器廣播（manifest.notifications）
-  ipcMain.handle("notifications:get", async () => {
+  ipcMain.handle("notifications:get", async (_e, opts) => {
+    const lastSeenKey =
+      opts && typeof opts === "object" ? String(opts.lastSeenKey || "") : "";
     // Broadcast announcements from remote manifest (server-side "events").
     const broadcast = await getBroadcastNotificationsCached();
-    if (broadcast.length === 0) return [];
+    if (broadcast.length === 0) return { items: [], unreadCount: 0 };
     const dismissed = await readDismissedNotificationIds();
-    return broadcast
+    const items = broadcast
       .filter((n) => !dismissed.has(String(n.id || "")))
       .slice(0, 20)
       .map((n) => ({
@@ -893,7 +983,19 @@ function setupIpc() {
         title: String(n.title || ""),
         body: String(n.body || ""),
         timeText: String(n.timeText || ""),
+        createdAtMs: Number(n.createdAtMs) || 0,
+        priority: Number(n.priority) || 0,
+        key: String(n.key || ""),
       }));
+
+    let unreadCount = 0;
+    if (!lastSeenKey) unreadCount = items.length;
+    else {
+      for (const n of items) {
+        if (String(n.key || "") > lastSeenKey) unreadCount += 1;
+      }
+    }
+    return { items, unreadCount };
   });
 
   ipcMain.handle("notifications:clear", async () => {
