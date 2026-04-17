@@ -23,6 +23,7 @@ const ALLOWED_INVOKE = new Set([
 
 const ALLOWED_ON = new Set([
   "server:status",
+  "window:power",
   "sync:status",
   "sync:progress",
   "sync:done",

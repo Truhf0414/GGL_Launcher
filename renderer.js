@@ -36,6 +36,17 @@
       markHasVideo(false);
 
       if (video) {
+        let isMinimized = false;
+
+        const applyPowerState = () => {
+          const lowPower =
+            isMinimized || document.hidden || !document.hasFocus();
+          try {
+            if (lowPower) video.pause();
+            else video.play().catch(() => {});
+          } catch {}
+        };
+
         // When video actually starts playing, hide fallback layer.
         video.addEventListener("playing", () => markHasVideo(true), {
           passive: true,
@@ -48,6 +59,18 @@
         video.addEventListener("stalled", () => markHasVideo(false), {
           passive: true,
         });
+
+        // Power / focus handling: pause when unfocused, resume on focus.
+        window.addEventListener("blur", applyPowerState, { passive: true });
+        window.addEventListener("focus", applyPowerState, { passive: true });
+        document.addEventListener("visibilitychange", applyPowerState, {
+          passive: true,
+        });
+        ggl.on("window:power", (payload) => {
+          isMinimized = Boolean(payload?.minimized);
+          applyPowerState();
+        });
+        applyPowerState();
       }
 
       video?.load?.();
