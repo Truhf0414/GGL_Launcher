@@ -13,20 +13,29 @@ const tmpOut = path.join(repoRoot, "assets", "sakura_field_BG.downscaled.mp4");
 
 const keepBackup = process.argv.includes("--keep-backup");
 const targetWidthArg = process.argv.find((a) => a.startsWith("--width="));
+const targetFpsArg = process.argv.find((a) => a.startsWith("--fps="));
+const crfArg = process.argv.find((a) => a.startsWith("--crf="));
 const targetWidth = targetWidthArg
   ? Number(targetWidthArg.split("=")[1])
   : 1920;
+const targetFps = targetFpsArg ? Number(targetFpsArg.split("=")[1]) : 30;
+const crf = crfArg ? Number(crfArg.split("=")[1]) : 24;
 
 if (!Number.isFinite(targetWidth) || targetWidth < 320) {
   fail(`invalid width "${targetWidthArg}" (use --width=1920 etc.)`);
+}
+if (!Number.isFinite(targetFps) || targetFps < 10 || targetFps > 60) {
+  fail(`invalid fps "${targetFpsArg}" (use --fps=30 etc.)`);
+}
+if (!Number.isFinite(crf) || crf < 18 || crf > 35) {
+  fail(`invalid crf "${crfArg}" (use --crf=24 etc.)`);
 }
 
 if (!fs.existsSync(input)) {
   fail(`input not found: ${input}`);
 }
 
-let ffmpegPath;
-ffmpegPath = "ffmpeg";
+const ffmpegPath = "ffmpeg";
 
 // Ensure temp output doesn't exist
 try {
@@ -34,14 +43,15 @@ try {
 } catch {}
 
 console.log(
-  `[downscale-bg-video] downscaling to width=${targetWidth} (overwrite original)`,
+  `[downscale-bg-video] encode width=${targetWidth} fps=${targetFps} crf=${crf} (overwrite original)`,
 );
 
 // Notes:
 // - Use H.264 for maximum compatibility in Electron/Chromium on Windows.
 // - No audio needed (video is muted), so strip audio for smaller files.
 // - Keep even dimensions: scale to width, auto height, force even via trunc().
-const vf = `scale=${targetWidth}:-2:flags=lanczos`;
+// FPS cap reduces decode+present cost (common launcher trick).
+const vf = `scale=${targetWidth}:-2:flags=lanczos,fps=${targetFps}`;
 const args = [
   "-y",
   "-hide_banner",
@@ -56,7 +66,7 @@ const args = [
   "-preset",
   "medium",
   "-crf",
-  "23",
+  String(crf),
   "-pix_fmt",
   "yuv420p",
   "-movflags",
