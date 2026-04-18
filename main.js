@@ -4,7 +4,7 @@
 // 2) 啟動時檢查伺服器端版本（不自動下載），點擊「安裝/更新」才同步實例
 // 3) Minecraft（Fabric 1.21.1）Java 啟動骨架（優先使用內建 jdk）
 //
-// 你是新手也沒關係：我把可改的地方用「TODO」標出來。
+// 可調設定（遠端 manifest、OAuth、Discord RPC 等）集中在檔案前段常數區，其餘依區塊註解。
 
 const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const path = require("path");
@@ -117,10 +117,12 @@ function logSyncProgressThrottled(text, progress01) {
 }
 
 // =========================
-// (A) 你要改的遠端 manifest 連結（實例清單）
+// (A) 遠端 manifest（實例同步 + 可選公告）
 // =========================
-// TODO: 把這個 URL 換成你 Web Server / 雲端空間上的 manifest.json
-// 這個 manifest 用來描述「要安裝的實例」以及「伺服器端最新版本」。
+// 同一支 JSON 會被用來：
+// - 比對 / 下載實例內容（version、mode=files|zip、baseUrl/files…）
+// - 讀取 manifest.notifications → UI 小鈴鐺廣播（見 normalizeBroadcastNotifications）
+// 若 URL 留空或仍是 example.com 佔位，isManifestUrlConfigured() 會當成「未設定」。
 const remoteManifestUrl = "https://ggl3.ddns.net/manifest.json";
 
 // =========================
@@ -142,14 +144,12 @@ function isServerStatusConfigured() {
 }
 
 // =========================
-// (LOGIN) Microsoft OAuth（需要你填 client id）
+// (LOGIN) Microsoft → Xbox → Minecraft（OAuth）
 // =========================
-// TODO: 你需要在 Azure Portal 建立「Microsoft identity platform」App，
-// 取得 client_id，並啟用 Redirect URI: http://localhost (http)
-// 這樣才能讓 Electron 打開 Microsoft 登入並拿到授權碼。
+// Azure「Microsoft identity platform」應用程式：把應用程式 (用戶端) ID 填在 msClientId。
+// Redirect URI 必須包含（精確）：http://localhost:49152/callback（見下方 loopbackPort）。
+// 若留空或字串含 PUT_YOUR，啟動器會拒絕開登入並提示尚未設定。
 const msClientId = "9d61536d-3658-4565-98b3-170cb8ac37a1";
-// 為了讓 Azure Redirect URI 好設定，我們使用固定的 loopback port。
-// 你只要在 Azure 的 Redirect URI 填：http://localhost:49152/callback
 const loopbackPort = 49152;
 
 function isManifestUrlConfigured() {
@@ -244,7 +244,7 @@ async function readDefaultSettingsOrFallback() {
       discordLargeImageKey: "ggl",
       discordLargeImageText: "GGL",
       discordStateText: "GGL3 麥塊模組伺服器",
-      discordButtonJoinServerUrl: "",
+      discordButtonJoinServerUrl: "https://discord.gg/WaRn7fphSm",
       discordButtonDownloadLauncherUrl: "",
     };
   }

@@ -30,14 +30,13 @@
       >
         <source id="bgVideoSource" src="" type="video/mp4" />
       </video>
-      <!-- fallback：如果影片載入失敗，仍會顯示 styles.css 的 --background-url 圖片 -->
+      <!-- fallback：影片失敗時用 styles.css 的 --background-url（內建漸層，無外部圖） -->
       <div class="app-bg-fallback"></div>
     </div>
     <div class="app-bg-overlay"></div>
 
-    <!-- 主容器（與截圖一致：左側 sidebar + 右側內容） -->
+    <!-- 主容器：單欄版面（頂欄 + hero + 卡片等皆在此 main 內） -->
     <div class="app-shell">
-      <!-- 右側主內容 -->
       <main class="main">
         <!-- 右上角控制列（帳號 / 通知 / 設定 / 最小化 / 關閉） -->
         <!-- 注意：frameless 視窗需要自己做拖曳區與按鈕 -->
@@ -147,12 +146,10 @@
           </div>
         </header>
 
-        <!-- 主要文字區（截圖：大標題 + 描述 + 社群連結） -->
+        <!-- 主要文字區（大標題 + 描述 + 社群連結） -->
         <section class="hero">
-          <!-- TODO: 你要改標題文字，改這裡 -->
           <h1 id="serverTitle" class="hero-title">好好看_3</h1>
 
-          <!-- TODO: 你要改介紹文字，改這裡 -->
           <p id="serverDesc" class="hero-desc">
             輕鬆養老的伺服器，以客戶端以及QOL模組為主。<br />
             服主會三不五時更新有的沒的東西，可以到DC吵我 ＞＜♭
@@ -178,7 +175,7 @@
                 >
               </div>
 
-              <!-- Discord（示意按鈕；你可以改成真正連結） -->
+              <!-- Discord：邀請連結在 renderer.js（DISCORD_INVITE_URL） -->
               <button
                 id="btnDiscord"
                 class="social-btn"
@@ -212,9 +209,7 @@
             </div>
 
             <div class="card-body">
-              <div class="thumb" id="noticeThumb" aria-hidden="true">
-                <!-- TODO: 你要換縮圖圖片，改 styles.css 的 --thumb-url -->
-              </div>
+              <div class="thumb" id="noticeThumb" aria-hidden="true"></div>
 
               <div class="card-meta">
                 <div class="card-meta-top">
@@ -479,6 +474,7 @@
       </div>
     </div>
 
+    <script src="./lib/settings-logic.js"></script>
     <script src="./renderer.js"></script>
   </body>
 </html>

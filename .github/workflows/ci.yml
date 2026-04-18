@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: UI/CSS rules
+        run: npm run check:ui-css
+
+      - name: Syntax (core scripts)
+        run: |
+          node -c main.js
+          node -c preload.js
+          node -c renderer.js
+          node -c lib/settings-logic.js
+
+      - name: Unit tests
+        run: npm test
