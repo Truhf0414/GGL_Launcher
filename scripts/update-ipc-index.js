@@ -4,6 +4,8 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "..");
 const PRELOAD_PATH = path.join(ROOT, "preload.js");
 const MAIN_PATH = path.join(ROOT, "main.js");
+const IPC_HANDLERS_PATH = path.join(ROOT, "main", "ipc-handlers.js");
+const MICROSOFT_AUTH_PATH = path.join(ROOT, "main", "microsoft-auth.js");
 const ARCH_PATH = path.join(ROOT, "ARCHITECTURE.md");
 
 const START = "<!-- IPC_INDEX:START -->";
@@ -52,11 +54,25 @@ function extractSetBlock(lines, setName) {
   return { startLine, endLine, values };
 }
 
-function extractIpcMainHandles(lines) {
+function extractIpcMainHandles(lines, fileLabel) {
   const out = [];
   for (let i = 0; i < lines.length; i++) {
     const m = lines[i].match(/\bipcMain\.handle\(\s*"([^"]+)"/);
-    if (m && m[1]) out.push({ channel: m[1], line: i + 1 });
+    if (m && m[1]) out.push({ channel: m[1], line: i + 1, file: fileLabel });
+  }
+  return out;
+}
+
+function collectAllMainIpcHandles() {
+  const parts = [
+    [IPC_HANDLERS_PATH, "main/ipc-handlers.js"],
+    [MICROSOFT_AUTH_PATH, "main/microsoft-auth.js"],
+    [MAIN_PATH, "main.js"],
+  ];
+  const out = [];
+  for (const [abs, label] of parts) {
+    if (!fs.existsSync(abs)) continue;
+    out.push(...extractIpcMainHandles(toLines(readText(abs)), label));
   }
   return out;
 }
@@ -65,20 +81,13 @@ function renderIndex({ preloadInvoke, preloadOn, mainHandles }) {
   const invokeList = uniqSorted(preloadInvoke.values);
   const onList = uniqSorted(preloadOn.values);
 
-  const mainMap = new Map(); // channel -> first line
+  const mainMap = new Map(); // channel -> { line, file }
   for (const h of mainHandles)
-    if (!mainMap.has(h.channel)) mainMap.set(h.channel, h.line);
+    if (!mainMap.has(h.channel)) mainMap.set(h.channel, { line: h.line, file: h.file });
   const mainChannels = uniqSorted(Array.from(mainMap.keys()));
 
   const missingInMain = invokeList.filter((c) => !mainMap.has(c));
   const extraInMain = mainChannels.filter((c) => !invokeList.includes(c));
-
-  const mainMin = mainHandles.length
-    ? Math.min(...mainHandles.map((x) => x.line))
-    : -1;
-  const mainMax = mainHandles.length
-    ? Math.max(...mainHandles.map((x) => x.line))
-    : -1;
 
   const out = [];
   out.push("### IPC index (auto-generated)");
@@ -90,8 +99,9 @@ function renderIndex({ preloadInvoke, preloadOn, mainHandles }) {
   out.push(
     `  - \`ALLOWED_ON\`: lines **${preloadOn.startLine}–${preloadOn.endLine}**`,
   );
-  out.push("- **Main IPC handlers**: `main.js` (`ipcMain.handle(...)`)");
-  out.push(`  - lines **${mainMin}–${mainMax}**`);
+  out.push(
+    "- **Main IPC handlers**: `main/ipc-handlers.js` + `main/microsoft-auth.js` (`ipcMain.handle(...)`; line refs below)",
+  );
   out.push("");
 
   out.push("**Consistency check**");
@@ -112,8 +122,9 @@ function renderIndex({ preloadInvoke, preloadOn, mainHandles }) {
   out.push("#### Invoke channels (`window.ggl.invoke`)");
   out.push("");
   for (const c of invokeList) {
-    const ln = mainMap.get(c);
-    out.push(`- \`${c}\`${ln ? ` (main: ~${ln})` : ""}`);
+    const ref = mainMap.get(c);
+    const tail = ref ? ` (\`${ref.file}\`: ~${ref.line})` : "";
+    out.push(`- \`${c}\`${tail}`);
   }
   out.push("");
 
@@ -138,12 +149,11 @@ function upsertBlock(doc, body) {
 
 function main() {
   const preloadLines = toLines(readText(PRELOAD_PATH));
-  const mainLines = toLines(readText(MAIN_PATH));
   const arch = readText(ARCH_PATH);
 
   const preloadInvoke = extractSetBlock(preloadLines, "ALLOWED_INVOKE");
   const preloadOn = extractSetBlock(preloadLines, "ALLOWED_ON");
-  const mainHandles = extractIpcMainHandles(mainLines);
+  const mainHandles = collectAllMainIpcHandles();
 
   const body = renderIndex({ preloadInvoke, preloadOn, mainHandles });
   const next = upsertBlock(arch, body);

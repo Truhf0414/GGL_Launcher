@@ -1,0 +1,97 @@
+// Launcher log（避免被遊戲日誌洗掉）+ debug 開關（供主程序與 helper 參數使用）
+const { app } = require("electron");
+const path = require("path");
+const fsp = require("fs/promises");
+
+let debugLoggingEnabled = false;
+
+function computeDebugLoggingEnabled(settings) {
+  const env = String(process.env.GGL_DEBUG_LOG || "")
+    .trim()
+    .toLowerCase();
+  const envOn = env === "1" || env === "true" || env === "yes" || env === "on";
+  const sOn = Boolean(settings?.debugLogging);
+  return envOn || sOn;
+}
+
+function getDebugLoggingEnabled() {
+  return debugLoggingEnabled;
+}
+
+function setDebugLoggingEnabled(enabled) {
+  debugLoggingEnabled = Boolean(enabled);
+}
+
+function getLauncherLogPath() {
+  return path.join(app.getPath("desktop"), "launcher.log");
+}
+
+async function appendLauncherLog(line) {
+  if (!debugLoggingEnabled) return;
+  try {
+    const ts = new Date().toISOString();
+    await fsp.mkdir(path.dirname(getLauncherLogPath()), { recursive: true });
+    await fsp.appendFile(
+      getLauncherLogPath(),
+      `[${ts}] ${String(line).replace(/\r?\n/g, " ")}\n`,
+      "utf8",
+    );
+  } catch {}
+}
+
+async function appendRpcDiagLog(line) {
+  if (!debugLoggingEnabled) return;
+  try {
+    const p = path.join(app.getPath("userData"), "rpc-launch.log");
+    const ts = new Date().toISOString();
+    await fsp.mkdir(path.dirname(p), { recursive: true });
+    await fsp.appendFile(
+      p,
+      `[${ts}] ${String(line).replace(/\r?\n/g, " ")}\n`,
+      "utf8",
+    );
+  } catch {}
+}
+
+async function rotateLauncherLogIfTooLarge(maxBytes = 6 * 1024 * 1024) {
+  if (!debugLoggingEnabled) return;
+  try {
+    const p = getLauncherLogPath();
+    const st = await fsp.stat(p);
+    if (!st.isFile()) return;
+    if (st.size <= maxBytes) return;
+    const bak = p.replace(/\.log$/i, ".1.log");
+    try {
+      await fsp.rm(bak, { force: true });
+    } catch {}
+    await fsp.rename(p, bak);
+  } catch {}
+}
+
+const _logThrottle = {
+  syncText: "",
+  syncPctBucket: -1,
+};
+
+function logSyncProgressThrottled(text, progress01) {
+  const pct = Math.max(0, Math.min(1, Number(progress01) || 0)) * 100;
+  const bucket = Math.floor(pct / 5);
+  if (
+    String(text) !== _logThrottle.syncText ||
+    bucket !== _logThrottle.syncPctBucket
+  ) {
+    _logThrottle.syncText = String(text);
+    _logThrottle.syncPctBucket = bucket;
+    void appendLauncherLog(`SYNC ${text} ${pct.toFixed(1)}%`);
+  }
+}
+
+module.exports = {
+  computeDebugLoggingEnabled,
+  getDebugLoggingEnabled,
+  setDebugLoggingEnabled,
+  appendLauncherLog,
+  appendRpcDiagLog,
+  rotateLauncherLogIfTooLarge,
+  logSyncProgressThrottled,
+};

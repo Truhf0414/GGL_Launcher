@@ -723,6 +723,7 @@
     uuid: "",
     avatarUrl: "",
   };
+  let accountLoginInFlight = false;
 
   // Avatar loading: try multiple providers for robustness.
   let avatarLoadSeq = 0;
@@ -1008,7 +1009,10 @@
         if (handled) return;
       }
 
+      if (accountLoginInFlight) return;
+
       // 未登入：開始登入
+      accountLoginInFlight = true;
       setStatus("正在開啟登入視窗…", 0);
       const a = await ggl.invoke("account:login");
       accountState = a;
@@ -1020,6 +1024,8 @@
       const msg = String(e?.message ?? e);
       setStatus(formatLoginError(msg), 0);
       // 讓錯誤提示持續顯示，直到使用者下一次操作/狀態更新再覆蓋
+    } finally {
+      accountLoginInFlight = false;
     }
   });
 
@@ -1065,6 +1071,15 @@
         return "登入逾時（請重試）";
       case "USER_CLOSED":
         return "已取消登入";
+      case "OAUTH_CALLBACK":
+      case "OAUTH_NO_CODE":
+      case "OAUTH_HANDLER":
+        return detail.trim()
+          ? `Microsoft 登入未完成：${detail.trim()}`
+          : "Microsoft 登入未完成（請重試）";
+      case "AUTH_PAGE_LOAD_FAILED":
+      case "LOGIN_UI_FAILED":
+        return "無法開啟登入視窗（請重啟啟動器後再試）";
       case "APPID_NOT_APPROVED":
         return "登入功能審核中（AppID 尚未通過）";
       case "NO_ENTITLEMENTS":
