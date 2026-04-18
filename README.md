@@ -110,7 +110,7 @@ npm run build:rpc-helper
 
 ## Instance update (manifest-driven)
 
-這個啟動器在 `main.js` 內建了「manifest 驅動」的實例同步：
+這個啟動器以「manifest 驅動」同步實例（URL 在 `main/launcher-config.js` 的 `remoteManifestUrl`）：
 
 - 啟動時：只做版本檢查（不下載）
 - 使用者點「安裝 / 更新」：才會同步實例（mods/config 等）
@@ -119,7 +119,7 @@ npm run build:rpc-helper
 
 ### 1) 建立更新倉庫
 
-建立一個新 repo，例如：`catnip-instance`
+建立一個新 repo，例如：`ggl3-instance`
 
 ### 2) 準備 zip 內容
 
@@ -153,7 +153,7 @@ npm run build:rpc-helper
 
 ### 4) 在啟動器設定 manifest URL
 
-打開 `main.js`，把 `remoteManifestUrl` 改成 GitHub 的 raw 連結（建議放在 repo 裡固定的路徑，例如 `manifest.json` 在預設分支）：
+打開 `main/launcher-config.js`，把 `remoteManifestUrl` 改成 GitHub 的 raw 連結（建議放在 repo 裡固定的路徑，例如 `manifest.json` 在預設分支）：
 
 - `https://raw.githubusercontent.com/<owner>/<repo>/<branch>/manifest.json`
 
