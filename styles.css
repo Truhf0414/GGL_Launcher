@@ -2,54 +2,35 @@
   /* =========================
      Assets (URLs / images) — adjust here
      ========================= */
-  --design-background-url: url("https://images.unsplash.com/photo-1546443046-ed1ce6ffd1ab?auto=format&fit=crop&w=1920&q=80");
-  --design-server-logo-url: linear-gradient(
-    135deg,
-    rgba(78, 176, 93, 1),
-    rgba(44, 120, 64, 1)
+  /* 全畫面 fallback：不用外部圖，與櫻花影片 / 深色主題一致 */
+  --design-background-url: linear-gradient(
+    165deg,
+    #0a0612 0%,
+    #120a1c 22%,
+    #1a0f2e 48%,
+    #0d1528 72%,
+    #0b1020 100%
   );
-  --design-server-icon-1-url: linear-gradient(
-    135deg,
-    rgba(180, 255, 180, 1),
-    rgba(60, 170, 120, 1)
-  );
-  --design-server-icon-2-url: linear-gradient(
-    135deg,
-    rgba(115, 180, 255, 1),
-    rgba(40, 90, 180, 1)
-  );
-  --design-thumb-url: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.35),
-    rgba(255, 255, 255, 0.08)
-  );
+  /* 僅在 manifest 未帶 notice.imageUrl 時顯示；要自訂可改 url(...) 或換 SVG */
+  --design-thumb-url: url("./assets/notice-thumb.svg");
 
-  /* Back-compat aliases (do not delete lightly) */
+  /* Back-compat aliases */
   --background-url: var(--design-background-url);
-  --server-logo-url: var(--design-server-logo-url);
-  --server-icon-1-url: var(--design-server-icon-1-url);
-  --server-icon-2-url: var(--design-server-icon-2-url);
   --thumb-url: var(--design-thumb-url);
 
   /* =========================
      Material tokens (glass / stroke / radius / shadow)
      ========================= */
   --design-glass: rgba(20, 22, 28, 0.4);
-  --design-glass-2: rgba(18, 20, 26, 0.55);
   --design-stroke: rgba(255, 255, 255, 0.1);
-  --design-stroke-2: rgba(255, 255, 255, 0.14);
   --design-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
   --design-radius: 18px;
-  --design-radius-lg: 26px;
 
   /* Back-compat aliases */
   --glass: var(--design-glass);
-  --glass-2: var(--design-glass-2);
   --stroke: var(--design-stroke);
-  --stroke-2: var(--design-stroke-2);
   --shadow: var(--design-shadow);
   --radius: var(--design-radius);
-  --radius-lg: var(--design-radius-lg);
 
   /* =========================
      Typography
@@ -67,7 +48,6 @@
      - What: pins BOTH the left changelog card + right launch area to same baseline.
      - Tune: increase to move both up; decrease to move both down. */
   --design-bottom-align: 28px;
-  --bottom-align: var(--design-bottom-align);
 
   /* Hero spacing (top-left title block)
      - offset-y: aligns title top vs topbar cluster.
@@ -1465,6 +1445,7 @@ textarea,
   left: -1px;
   top: 6px;
 }
+
 .form-error {
   margin: 2px 0 10px 0;
   padding: 10px 12px;

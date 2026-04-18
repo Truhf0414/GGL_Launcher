@@ -19,27 +19,24 @@
 
   const el = (id) => document.getElementById(id);
 
-  /** Parse settings number fields; `null`/`undefined` → NaN (not 0). */
-  function parseFiniteNumberOrUnset(v) {
-    if (typeof v === "number") return Number.isFinite(v) ? v : NaN;
-    if (typeof v === "string") {
-      const s = v.trim();
-      if (!s) return NaN;
-      const n = Number(s);
-      return Number.isFinite(n) ? n : NaN;
-    }
-    return NaN;
+  const SL = window.GglSettingsLogic;
+  if (
+    !SL ||
+    typeof SL.parseFiniteNumberOrUnset !== "function" ||
+    typeof SL.computeMemoryUiModel !== "function"
+  ) {
+    try {
+      console.error(
+        "GglSettingsLogic missing: ensure ./lib/settings-logic.js is loaded before renderer.js.",
+      );
+    } catch {}
+    return;
   }
-
-  /** Conservative Min/Max JVM heap (GB) from total system RAM. */
-  function recommendMemoryGbFromSysGb(sysGb) {
-    if (sysGb <= 8) return { minGb: 2, maxGb: 4 };
-    if (sysGb <= 16) return { minGb: 4, maxGb: 8 };
-    if (sysGb <= 32) return { minGb: 4, maxGb: 12 };
-    return { minGb: 4, maxGb: 16 };
-  }
+  const { parseFiniteNumberOrUnset, computeMemoryUiModel } = SL;
 
   const DEFAULT_LAUNCHER_ROOT = "C:\\Games\\GGL";
+  /** GGL 社群邀請（頂欄 Discord 按鈕）；Rich Presence「加入伺服器」預設見 default-settings.json。 */
+  const DISCORD_INVITE_URL = "https://discord.gg/WaRn7fphSm";
   const ANIM_MS = 280;
 
   function initBackgroundVideo() {
@@ -143,6 +140,28 @@
 
   let lastFocusBeforeSettings = null;
   let settingsKeydownHandler = null;
+  let settingsFocusableCache = null;
+
+  function invalidateSettingsFocusableCache() {
+    settingsFocusableCache = null;
+  }
+
+  function isElementTabbableVisible(n) {
+    if (!(n instanceof HTMLElement)) return false;
+    if (n.closest(".hidden")) return false;
+    if (typeof n.checkVisibility === "function") {
+      try {
+        return n.checkVisibility({
+          checkOpacity: false,
+          checkVisibilityCSS: true,
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+    const style = window.getComputedStyle(n);
+    return style.display !== "none" && style.visibility !== "hidden";
+  }
 
   function setSettingsError(msg, { focusEl = null } = {}) {
     const text = String(msg ?? "").trim();
@@ -172,15 +191,14 @@
   }
 
   function getFocusableInSettings() {
-    if (!settingsModal) return [];
+    if (settingsFocusableCache) return settingsFocusableCache;
+    if (!settingsModal) {
+      settingsFocusableCache = [];
+      return settingsFocusableCache;
+    }
     const nodes = settingsModal.querySelectorAll(SETTINGS_FOCUSABLE_SEL);
-    return Array.from(nodes).filter((n) => {
-      if (!(n instanceof HTMLElement)) return false;
-      // Hidden via display none
-      if (n.closest(".hidden")) return false;
-      const style = window.getComputedStyle(n);
-      return style.display !== "none" && style.visibility !== "hidden";
-    });
+    settingsFocusableCache = Array.from(nodes).filter(isElementTabbableVisible);
+    return settingsFocusableCache;
   }
 
   function detachSettingsKeydown() {
@@ -245,6 +263,7 @@
 
   function openSettingsModal() {
     detachSettingsKeydown();
+    invalidateSettingsFocusableCache();
     lastFocusBeforeSettings = document.activeElement;
     setSettingsError("");
     openOverlay(settingsModal);
@@ -261,53 +280,19 @@
   }
 
   function fillSettingsForm(settings) {
-    inputInstallDir.value = settings.launcherRootDir ?? DEFAULT_LAUNCHER_ROOT;
-    inputOfflinePlayerId.value = settings.playerId ?? "Player001";
+    const s = settings && typeof settings === "object" ? settings : {};
+    inputInstallDir.value = s.launcherRootDir ?? DEFAULT_LAUNCHER_ROOT;
+    inputOfflinePlayerId.value = s.playerId ?? "Player001";
     if (memAutoHint) {
       memAutoHint.textContent = "";
       memAutoHint.classList.add("hidden");
     }
 
-    const minFromSettings = parseFiniteNumberOrUnset(settings?.minMemoryGb);
-    const maxFromSettings = parseFiniteNumberOrUnset(settings?.maxMemoryGb);
-    const legacyFromSettings = parseFiniteNumberOrUnset(settings?.memoryGb);
-    // Main sends settingsMeta; legacy `memoryGb` alone must NOT block autosuggest.
-    const userMemConfigured = Boolean(
-      settings?.settingsMeta?.userMemoryConfigured ??
-        (Number.isFinite(minFromSettings) || Number.isFinite(maxFromSettings)),
-    );
-
-    if (!userMemConfigured) {
-      if (inputMinMemoryGb) inputMinMemoryGb.value = "";
-      if (inputMaxMemoryGb) inputMaxMemoryGb.value = "";
-    } else {
-      if (inputMinMemoryGb)
-        inputMinMemoryGb.value = Number.isFinite(minFromSettings)
-          ? String(minFromSettings)
-          : "";
-      if (inputMaxMemoryGb)
-        inputMaxMemoryGb.value = Number.isFinite(maxFromSettings)
-          ? String(maxFromSettings)
-          : Number.isFinite(legacyFromSettings)
-            ? String(legacyFromSettings)
-            : "";
-    }
-
-    const sysGb = Number(settings?.systemMemoryGb);
-    const sysOk = Number.isFinite(sysGb) && sysGb > 0;
-
-    if (!userMemConfigured && sysOk) {
-      const { minGb, maxGb } = recommendMemoryGbFromSysGb(sysGb);
-      if (inputMinMemoryGb) inputMinMemoryGb.value = String(minGb);
-      if (inputMaxMemoryGb) inputMaxMemoryGb.value = String(maxGb);
-      if (memAutoHint) {
-        memAutoHint.textContent = `已偵測系統記憶體 ${sysGb}GB，自動建議 Min ${minGb} / Max ${maxGb}。`;
-        memAutoHint.classList.remove("hidden");
-      }
-    } else if (memAutoHint && !userMemConfigured) {
-      memAutoHint.textContent = sysOk
-        ? `已偵測系統記憶體 ${sysGb}GB（尚未套用自動建議）。`
-        : "無法偵測系統記憶體（自動建議未套用）。";
+    const m = computeMemoryUiModel(s);
+    if (inputMinMemoryGb) inputMinMemoryGb.value = m.minInput;
+    if (inputMaxMemoryGb) inputMaxMemoryGb.value = m.maxInput;
+    if (memAutoHint && m.hintShow) {
+      memAutoHint.textContent = m.hintText;
       memAutoHint.classList.remove("hidden");
     }
   }
@@ -530,11 +515,15 @@
   btnMinimize.addEventListener("click", () => ggl.invoke("window:minimize"));
   btnClose.addEventListener("click", () => ggl.invoke("window:close"));
 
-  // 右上角功能（先做示意；你之後可以接真正設定頁/通知頁）
+  // 右上角：設定 / 通知等
   btnSettings.addEventListener("click", async () => {
-    const settings = await ggl.invoke("settings:get");
-    fillSettingsForm(settings);
-    openSettingsModal();
+    try {
+      const settings = await ggl.invoke("settings:get");
+      fillSettingsForm(settings);
+      openSettingsModal();
+    } catch (e) {
+      setStatusError(`無法載入設定：${formatInvokeError(e?.message ?? e)}`);
+    }
   });
 
   function loadLastSeenNotifKey() {
@@ -727,8 +716,7 @@
     });
   }
 
-  // 正版登入（Microsoft → Xbox → Minecraft）
-  // 注意：此登入流程需要你在 Microsoft Azure 建立 OAuth App 並填 client_id（我在 main.js 有 TODO）
+  // 正版登入（Microsoft → Xbox → Minecraft）；client id 與 Redirect 設定在 main.js（msClientId / loopbackPort）。
   let accountState = {
     loggedIn: false,
     name: "",
@@ -1104,8 +1092,7 @@
   }
 
   btnDiscord.addEventListener("click", () => {
-    // TODO: 你可以改成你的 Discord 邀請連結
-    ggl.invoke("openExternal", "https://discord.com/");
+    ggl.invoke("openExternal", DISCORD_INVITE_URL);
   });
 
   // 右下角主按鈕狀態：需在 setServerStatus 首次呼叫前存在
