@@ -466,4 +466,9 @@ module.exports = {
   ensureFileValid,
   verifyFileSha256IfProvided,
   verifyFileSha1IfProvided,
+  formatFetchCause,
+  isRetryableError,
+  normalizeDownloadSources,
+  makeRetryNotice,
+  withRetries,
 };

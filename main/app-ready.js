@@ -230,12 +230,21 @@ async function runMainAppReady(ctx) {
   // 啟動時：只做「版本檢查」，不自動下載
   setTimeout(() => {
     checkInstanceStatusAndNotify().catch((e) => {
-      sendSyncStatus(`版本檢查失敗：${String(e?.message ?? e)}`);
+      const msg = String(e?.message ?? e);
+      sendSyncStatus(`版本檢查失敗：${msg}`);
+      try {
+        sendSyncDone("版本檢查失敗");
+      } catch {}
       sendInstanceStatus({
         state: "error",
+        fetchFailed: true,
         needsInstall: true,
         needsUpdate: false,
-        text: "版本檢查失敗（可稍後按安裝/更新重試）",
+        noUpdateSource: false,
+        localVersion: "",
+        remoteVersion: "",
+        notice: null,
+        text: "版本檢查失敗（可按「重試連線」再試）",
       });
     });
   }, 350);

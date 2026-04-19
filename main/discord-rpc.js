@@ -3,8 +3,8 @@ const path = require("path");
 const fsp = require("fs/promises");
 const fs = require("fs");
 const { spawn } = require("child_process");
-const { URL } = require("url");
 const { app } = require("electron");
+const { filterButtonUrl } = require("../lib/discord-button-url.js");
 const {
   getDebugLoggingEnabled,
   appendLauncherLog,
@@ -18,31 +18,6 @@ let getMainWindow = () => mainWindowModule.getMainWindow();
 function configureDiscordRpc(deps = {}) {
   if (typeof deps.getMainWindow === "function") {
     getMainWindow = deps.getMainWindow;
-  }
-}
-
-function normalizeAllowedHosts(list) {
-  if (!Array.isArray(list)) return [];
-  const seen = new Set();
-  for (const h of list) {
-    const s = String(h ?? "")
-      .trim()
-      .toLowerCase();
-    if (s) seen.add(s);
-  }
-  return Array.from(seen);
-}
-
-function filterButtonUrl(url, allowedHosts) {
-  const u = String(url || "").trim();
-  if (!/^https?:\/\//i.test(u)) return "";
-  const hosts = normalizeAllowedHosts(allowedHosts);
-  if (hosts.length === 0) return u;
-  try {
-    const host = new URL(u).hostname.toLowerCase();
-    return hosts.includes(host) ? u : "";
-  } catch {
-    return "";
   }
 }
 

@@ -7,6 +7,9 @@
 // - 比對 / 下載實例內容（version、mode=files|zip、baseUrl/files…）
 // - 讀取 manifest.notifications → UI 小鈴鐺廣播（見 main/notifications.js）
 // 若 URL 留空或仍是 example.com 佔位，isManifestUrlConfigured() 會當成「未設定」。
+const {
+  isRemoteManifestUrlConfigured,
+} = require("../lib/manifest-url-configured.js");
 const remoteManifestUrl = "https://ggl3.ddns.net/manifest.json";
 
 // =========================
@@ -47,10 +50,7 @@ function getRemoteManifestUrl() {
 }
 
 function isManifestUrlConfigured() {
-  const u = remoteManifestUrl.trim();
-  if (!u) return false;
-  if (/^https?:\/\/example\.com\/manifest\.json$/i.test(u)) return false;
-  return true;
+  return isRemoteManifestUrlConfigured(remoteManifestUrl);
 }
 
 module.exports = {

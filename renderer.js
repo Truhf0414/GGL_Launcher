@@ -1115,6 +1115,7 @@
     needsInstall: true,
     needsUpdate: false,
     noUpdateSource: false,
+    fetchFailed: false,
   };
   let launcherBusy = false;
   let gameRunning = false;
@@ -1124,7 +1125,8 @@
     return (
       !currentInstanceState?.needsInstall &&
       !currentInstanceState?.needsUpdate &&
-      !currentInstanceState?.noUpdateSource
+      !currentInstanceState?.noUpdateSource &&
+      !currentInstanceState?.fetchFailed
     );
   }
 
@@ -1256,6 +1258,16 @@
       return;
     }
 
+    if (currentInstanceState.fetchFailed) {
+      btnLaunch.classList.remove("launch-btn--ready");
+      btnLaunch.classList.remove("launch-btn--busy");
+      setLaunchLabel("重試連線");
+      btnLaunch.disabled = false;
+      btnLaunch.classList.remove("launch-btn--disabled");
+      setOfflineLinkState({ visible: false, enabled: false });
+      return;
+    }
+
     if (currentInstanceState.needsInstall) {
       btnLaunch.classList.remove("launch-btn--ready");
       btnLaunch.classList.remove("launch-btn--busy");
@@ -1297,6 +1309,22 @@
 
   // 啟動遊戲
   btnLaunch.addEventListener("click", async () => {
+    if (currentInstanceState.fetchFailed) {
+      setLauncherBusy(true);
+      btnLaunch.style.opacity = "0.92";
+      try {
+        setStatus("重新連線並檢查版本…", 0);
+        await ggl.invoke("instance:recheck");
+      } catch (e) {
+        setStatusError(formatInvokeError(e?.message ?? e));
+      } finally {
+        setLauncherBusy(false);
+        updateLaunchButtonUi();
+        btnLaunch.style.opacity = "1";
+      }
+      return;
+    }
+
     setLauncherBusy(true);
     btnLaunch.style.opacity = "0.92";
     try {
@@ -1482,7 +1510,13 @@
     const needsInstall = Boolean(payload?.needsInstall);
     const needsUpdate = Boolean(payload?.needsUpdate);
     const noUpdateSource = Boolean(payload?.noUpdateSource);
-    currentInstanceState = { needsInstall, needsUpdate, noUpdateSource };
+    const fetchFailed = Boolean(payload?.fetchFailed);
+    currentInstanceState = {
+      needsInstall,
+      needsUpdate,
+      noUpdateSource,
+      fetchFailed,
+    };
 
     updateLaunchButtonUi();
     ensureReadyStatusText();
