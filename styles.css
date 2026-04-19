@@ -11,7 +11,7 @@
     #0d1528 72%,
     #0b1020 100%
   );
-  /* 僅在 manifest 未帶 notice.imageUrl 時顯示；要自訂可改 url(...) 或換 SVG */
+  /* manifest 未帶 notice.imageUrl 時的佔位縮圖（中性灰底、無字） */
   --design-thumb-url: url("./assets/notice-thumb.svg");
 
   /* Back-compat aliases */

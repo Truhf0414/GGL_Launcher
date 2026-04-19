@@ -98,5 +98,6 @@ function startServerStatusPolling() {
 
 module.exports = {
   configureServerStatus,
+  isServerStatusConfigured,
   startServerStatusPolling,
 };

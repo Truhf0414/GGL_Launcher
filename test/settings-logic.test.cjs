@@ -55,3 +55,18 @@ test("computeMemoryUiModel tolerates null/invalid settings", () => {
   assert.equal(m.hintShow, true);
   assert.ok(m.hintText.includes("無法偵測"));
 });
+
+test("computeMemoryUiModel uses legacy memoryGb when user configured", () => {
+  const m = computeMemoryUiModel({
+    memoryGb: 6,
+    systemMemoryGb: 64,
+    settingsMeta: { userMemoryConfigured: true },
+  });
+  assert.equal(m.minInput, "");
+  assert.equal(m.maxInput, "6");
+  assert.equal(m.hintShow, false);
+});
+
+test("recommendMemoryGbFromSysGb boundary 9GB uses 16GB tier", () => {
+  assert.deepEqual(recommendMemoryGbFromSysGb(9), { minGb: 4, maxGb: 8 });
+});

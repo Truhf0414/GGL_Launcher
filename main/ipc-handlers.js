@@ -221,7 +221,14 @@ function createMainIpcBridge(deps) {
     });
 
     ipcMain.handle("instance:recheck", async () => {
-      await deps.checkInstanceStatusAndNotify();
+      try {
+        await deps.checkInstanceStatusAndNotify();
+      } catch (e) {
+        const msg = String(e?.message ?? e);
+        sendSyncStatus(`版本檢查失敗：${msg}`);
+        sendSyncDone("版本檢查失敗");
+        throw e;
+      }
     });
   }
 

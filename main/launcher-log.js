@@ -2,17 +2,11 @@
 const { app } = require("electron");
 const path = require("path");
 const fsp = require("fs/promises");
+const {
+  computeDebugLoggingEnabled,
+} = require("../lib/launcher-debug-logging.js");
 
 let debugLoggingEnabled = false;
-
-function computeDebugLoggingEnabled(settings) {
-  const env = String(process.env.GGL_DEBUG_LOG || "")
-    .trim()
-    .toLowerCase();
-  const envOn = env === "1" || env === "true" || env === "yes" || env === "on";
-  const sOn = Boolean(settings?.debugLogging);
-  return envOn || sOn;
-}
 
 function getDebugLoggingEnabled() {
   return debugLoggingEnabled;

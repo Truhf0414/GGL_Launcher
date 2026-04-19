@@ -3,8 +3,14 @@ const crypto = require("crypto");
 const fs = require("fs");
 const fsp = require("fs/promises");
 const path = require("path");
+const { summarizeManifestFetchFailure } = require("../lib/manifest-network");
+const {
+  readManifestVersionString,
+  parseManifestNoticeFields,
+} = require("../lib/manifest-fields.js");
 const { readSettings } = require("./settings");
 const { getPaths, INSTANCE_ID } = require("./paths");
+const { resolveManifestFileUrl } = require("../lib/manifest-file-url.js");
 
 const defaultDeps = {
   getRemoteManifestUrl: () => "",
@@ -77,16 +83,6 @@ async function ensureDirForFile(absFilePath) {
   await fsp.mkdir(path.dirname(absFilePath), { recursive: true });
 }
 
-function resolveFileUrl(manifest, fileEntry) {
-  if (fileEntry.url && /^https?:\/\//i.test(fileEntry.url))
-    return fileEntry.url;
-  const baseUrl = typeof manifest.baseUrl === "string" ? manifest.baseUrl : "";
-  const rel = fileEntry.url || fileEntry.path;
-  if (!baseUrl)
-    throw new Error("manifest 缺少 baseUrl，且 file.url 也不是完整 URL。");
-  return baseUrl.replace(/\/+$/, "") + "/" + String(rel).replace(/^\/+/, "");
-}
-
 const noticeLogCache = new Map(); // logUrl -> { ts: number, lines: string[] }
 
 async function fetchNoticeLogLines(logUrl) {
@@ -156,12 +152,28 @@ async function checkInstanceStatus(settings) {
       needsInstall,
       needsUpdate: false,
       noUpdateSource: true,
+      fetchFailed: false,
     };
   }
 
-  const manifest = await deps.fetchJson(deps.getRemoteManifestUrl());
-  const remoteVersion =
-    typeof manifest.version === "string" ? manifest.version : "";
+  let manifest;
+  try {
+    manifest = await deps.fetchJson(deps.getRemoteManifestUrl());
+  } catch (e) {
+    const { code, hint } = summarizeManifestFetchFailure(e);
+    return {
+      localVersion: localMeta.localVersion || "",
+      remoteVersion: "",
+      needsInstall: !hasMinecraftDir || !localMeta.localVersion,
+      needsUpdate: false,
+      noUpdateSource: false,
+      fetchFailed: true,
+      fetchErrorCode: code,
+      fetchErrorHint: hint,
+      notice: null,
+    };
+  }
+  const remoteVersion = readManifestVersionString(manifest);
 
   const needsInstall = !hasMinecraftDir || !localMeta.localVersion;
   const needsUpdate =
@@ -174,25 +186,14 @@ async function checkInstanceStatus(settings) {
     needsInstall,
     needsUpdate,
     noUpdateSource: false,
+    fetchFailed: false,
     notice,
   };
 }
 
 async function normalizeManifestNotice(manifest) {
-  const n =
-    manifest?.notice && typeof manifest.notice === "object"
-      ? manifest.notice
-      : {};
-  const title = typeof n.title === "string" ? n.title.trim() : "";
-  const subtitle = typeof n.subtitle === "string" ? n.subtitle.trim() : "";
-  const imageUrl = typeof n.imageUrl === "string" ? n.imageUrl.trim() : "";
-  const logUrl = typeof n.logUrl === "string" ? n.logUrl.trim() : "";
-  const inlineLog = Array.isArray(n.log)
-    ? n.log
-        .map((x) => String(x))
-        .filter(Boolean)
-        .slice(0, 150)
-    : [];
+  const { title, subtitle, imageUrl, logUrl, inlineLog } =
+    parseManifestNoticeFields(manifest);
   const remoteLog =
     inlineLog.length === 0 ? await fetchNoticeLogLines(logUrl) : [];
   const log = inlineLog.length ? inlineLog : remoteLog;
@@ -208,6 +209,18 @@ async function checkInstanceStatusAndNotify() {
 
   const settings = await readSettings();
   const s = await checkInstanceStatus(settings);
+
+  if (s.fetchFailed) {
+    const hint = s.fetchErrorHint || "無法取得更新資訊";
+    deps.sendSyncDone(hint);
+    deps.sendInstanceStatus({
+      state: "error",
+      ...s,
+      text: hint,
+    });
+    return;
+  }
+
   const lv = s.localVersion ? `本地：${s.localVersion}` : "本地：未安裝";
   const rv = s.remoteVersion ? `遠端：${s.remoteVersion}` : "遠端：未知";
 
@@ -228,6 +241,31 @@ async function checkInstanceStatusAndNotify() {
   }
 
   deps.sendInstanceStatus({ state: "checked", ...s, text });
+}
+
+async function emitManifestFetchFailureUi(settings, err) {
+  const { code, hint } = summarizeManifestFetchFailure(err);
+  const localMeta = await readInstanceMeta(settings);
+  const paths = getPaths(settings);
+  let hasMinecraftDir = false;
+  try {
+    await fsp.access(paths.gameDir, fs.constants.F_OK);
+    hasMinecraftDir = true;
+  } catch {}
+  deps.sendSyncDone(hint);
+  deps.sendInstanceStatus({
+    state: "error",
+    fetchFailed: true,
+    fetchErrorCode: code,
+    fetchErrorHint: hint,
+    text: hint,
+    localVersion: localMeta.localVersion || "",
+    remoteVersion: "",
+    needsInstall: !hasMinecraftDir || !localMeta.localVersion,
+    needsUpdate: false,
+    noUpdateSource: false,
+    notice: null,
+  });
 }
 
 async function installOrUpdateInstance(settings) {
@@ -251,7 +289,13 @@ async function installOrUpdateInstance(settings) {
   deps.sendSyncStatus("準備安裝/更新…");
   deps.sendSyncProgress("準備安裝/更新…", 0);
 
-  const manifest = await deps.fetchJson(deps.getRemoteManifestUrl());
+  let manifest;
+  try {
+    manifest = await deps.fetchJson(deps.getRemoteManifestUrl());
+  } catch (e) {
+    await emitManifestFetchFailureUi(settings, e);
+    throw e;
+  }
 
   // (GitHub 友善) zip 模式：一個 instance.zip 打包 mods/config/... 解壓到 gameDir
   const mode = String(manifest.mode || "files").toLowerCase();
@@ -315,8 +359,7 @@ async function installOrUpdateInstance(settings) {
       await writeInstanceMeta({ launchVersionId: detected });
     }
 
-    const remoteVersion =
-      typeof manifest.version === "string" ? manifest.version : "";
+    const remoteVersion = readManifestVersionString(manifest);
     if (remoteVersion)
       await writeInstanceMeta({
         localVersion: remoteVersion,
@@ -379,8 +422,7 @@ async function installOrUpdateInstance(settings) {
 
   if (toDownload.length === 0) {
     // 沒檔案要下載也要更新版本號（避免 UI 一直顯示可更新）
-    const remoteVersion =
-      typeof manifest.version === "string" ? manifest.version : "";
+    const remoteVersion = readManifestVersionString(manifest);
     if (remoteVersion)
       await writeInstanceMeta({
         localVersion: remoteVersion,
@@ -396,7 +438,7 @@ async function installOrUpdateInstance(settings) {
     done += 1;
     const relPath = String(f.path);
     const finalAbs = path.join(paths.gameDir, relPath);
-    const url = resolveFileUrl(manifest, f);
+    const url = resolveManifestFileUrl(manifest, f);
 
     const tempAbs = path.join(paths.tempDir, INSTANCE_ID, relPath);
     let lastPct = 0;
@@ -431,8 +473,7 @@ async function installOrUpdateInstance(settings) {
     await fsp.copyFile(tempAbs, finalAbs);
   }
 
-  const remoteVersion =
-    typeof manifest.version === "string" ? manifest.version : "";
+  const remoteVersion = readManifestVersionString(manifest);
   if (remoteVersion)
     await writeInstanceMeta({
       localVersion: remoteVersion,
@@ -627,7 +668,7 @@ module.exports = {
   ensureDirForFile,
   readInstanceMeta,
   writeInstanceMeta,
-  resolveFileUrl,
+  resolveFileUrl: resolveManifestFileUrl,
   normalizeManifestNotice,
   checkInstanceStatus,
   checkInstanceStatusAndNotify,
