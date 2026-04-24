@@ -1,6 +1,7 @@
 const { IPC } = require("../../lib/ipc-channels");
 
-function registerInstanceIpc({ ipcMain, deps, sendSyncStatus, sendSyncDone }) {
+function registerInstanceIpc(ctx) {
+  const { ipcMain, deps, sendSyncStatus, sendSyncDone } = ctx || {};
   ipcMain.handle(IPC.invoke.INSTANCE_INSTALL_OR_UPDATE, async () => {
     try {
       if (!deps.isManifestUrlConfigured()) {

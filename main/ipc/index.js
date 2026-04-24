@@ -8,19 +8,14 @@ const { registerInstanceIpc } = require("./instance-ipc");
 const { registerDiagnosticsIpc } = require("./diagnostics-ipc");
 
 function registerAllMainIpc(ctx) {
-  const { ipcMain, deps, showInfoDialog, sendSyncStatus, sendSyncDone } =
-    ctx || {};
-  const shell = ctx?.shell;
-  const dialog = ctx?.dialog;
-
-  registerWindowIpc({ ipcMain, deps });
-  registerExternalIpc({ ipcMain, deps: { ...deps, shell } });
-  registerSettingsIpc({ ipcMain, deps });
-  registerDialogIpc({ ipcMain, deps: { ...deps, dialog } });
-  registerNotificationsIpc({ ipcMain, deps });
-  registerMinecraftIpc({ ipcMain, deps, showInfoDialog });
-  registerInstanceIpc({ ipcMain, deps, sendSyncStatus, sendSyncDone });
-  registerDiagnosticsIpc({ ipcMain, deps: { ...deps, shell } });
+  registerWindowIpc(ctx);
+  registerExternalIpc(ctx);
+  registerSettingsIpc(ctx);
+  registerDialogIpc(ctx);
+  registerNotificationsIpc(ctx);
+  registerMinecraftIpc(ctx);
+  registerInstanceIpc(ctx);
+  registerDiagnosticsIpc(ctx);
 }
 
 module.exports = { registerAllMainIpc };

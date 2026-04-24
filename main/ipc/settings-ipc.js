@@ -1,6 +1,7 @@
 const { IPC } = require("../../lib/ipc-channels");
 
-function registerSettingsIpc({ ipcMain, deps }) {
+function registerSettingsIpc(ctx) {
+  const { ipcMain, deps } = ctx || {};
   ipcMain.handle(IPC.invoke.SETTINGS_GET, async () => {
     const raw = await deps.readSettingsRaw();
     const settings = deps.normalizeSettingsObject(raw);

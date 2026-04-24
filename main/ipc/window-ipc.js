@@ -1,6 +1,7 @@
 const { IPC } = require("../../lib/ipc-channels");
 
-function registerWindowIpc({ ipcMain, deps }) {
+function registerWindowIpc(ctx) {
+  const { ipcMain, deps } = ctx || {};
   ipcMain.handle(IPC.invoke.WINDOW_MINIMIZE, () =>
     deps.getMainWindow?.()?.minimize?.(),
   );
