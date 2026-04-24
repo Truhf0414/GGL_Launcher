@@ -346,8 +346,22 @@
   const notifFooter = el("notifFooter");
   const notifEmpty = el("notifEmpty");
   const notifList = el("notifList");
+  const Notif = window.GglRendererNotificationsUi;
+  if (!Notif || typeof Notif.createNotificationsUi !== "function") {
+    try {
+      console.error(
+        "GglRendererNotificationsUi missing: ensure ./renderer/notifications-ui.js is loaded before renderer.js.",
+      );
+    } catch {}
+    return;
+  }
 
-  const NOTIF_LAST_SEEN_KEY_STORAGE = "ggl:notifLastSeenKey:v1";
+  const notifUi = Notif.createNotificationsUi({
+    safeInvoke,
+    openOverlay,
+    closeOverlay,
+    setStatusError,
+  });
 
   const UI = window.GglRendererUiStatus;
   if (
@@ -404,132 +418,24 @@
     }
   });
 
-  function loadLastSeenNotifKey() {
-    try {
-      return String(localStorage.getItem(NOTIF_LAST_SEEN_KEY_STORAGE) || "");
-    } catch {
-      return "";
-    }
-  }
-
-  function saveLastSeenNotifKey(key) {
-    try {
-      localStorage.setItem(NOTIF_LAST_SEEN_KEY_STORAGE, String(key || ""));
-    } catch {}
-  }
-
-  let lastSeenNotifKey = loadLastSeenNotifKey();
-
-  function setBellUnreadDot(hasUnread) {
-    btnBell?.classList?.toggle("has-unread", Boolean(hasUnread));
-  }
-
-  async function fetchNotifications() {
-    try {
-      const res = await safeInvoke("notifications:get", {
-        lastSeenKey: lastSeenNotifKey,
-      });
-      // Back-compat: older main.js might return an array.
-      if (Array.isArray(res)) return { items: res, unreadCount: 0 };
-      const items = Array.isArray(res?.items) ? res.items : [];
-      const unreadCount = Number(res?.unreadCount) || 0;
-      return { items, unreadCount };
-    } catch {
-      return { items: [], unreadCount: 0 };
-    }
-  }
-
-  async function refreshNotifIndicator() {
-    const { unreadCount } = await fetchNotifications();
-    setBellUnreadDot(unreadCount > 0);
-  }
-
-  async function renderNotifications() {
-    const { items: list, unreadCount } = await fetchNotifications();
-
-    notifList.innerHTML = "";
-
-    if (list.length === 0) {
-      notifEmpty.classList.remove("hidden");
-      notifList.classList.add("hidden");
-      notifFooter?.classList?.add("hidden");
-      setBellUnreadDot(false);
-      return { items: [], unreadCount };
-    }
-
-    notifEmpty.classList.add("hidden");
-    notifList.classList.remove("hidden");
-    notifFooter?.classList?.remove("hidden");
-
-    for (const n of list) {
-      const wrap = document.createElement("div");
-      wrap.className = "notif-item";
-
-      const title = document.createElement("div");
-      title.className = "notif-item-title";
-      title.textContent = n.title || "通知";
-
-      const body = document.createElement("div");
-      body.className = "notif-item-body";
-      body.textContent = n.body || "";
-
-      const time = document.createElement("div");
-      time.className = "notif-item-time";
-      time.textContent = n.timeText || "";
-
-      wrap.appendChild(title);
-      wrap.appendChild(body);
-      wrap.appendChild(time);
-      notifList.appendChild(wrap);
-    }
-
-    return { items: list, unreadCount };
-  }
-
-  function markNotifsSeen(items) {
-    const list = Array.isArray(items) ? items : [];
-    let maxKey = lastSeenNotifKey || "";
-    for (const n of list) {
-      const k = String(n?.key || "").trim();
-      if (k && k > maxKey) maxKey = k;
-    }
-    if (maxKey && maxKey !== lastSeenNotifKey) {
-      lastSeenNotifKey = maxKey;
-      saveLastSeenNotifKey(maxKey);
-    }
-    setBellUnreadDot(false);
-  }
-
-  function openNotif() {
-    openOverlay(notifOverlay);
-    renderNotifications()
-      .then(({ items }) => {
-        // Opening the panel = user has "seen" current announcements.
-        markNotifsSeen(items);
-      })
-      .catch(() => {});
-  }
-  function closeNotif() {
-    closeOverlay(notifOverlay);
-  }
-
   btnBell.addEventListener("click", () => {
-    if (notifOverlay.classList.contains("hidden")) openNotif();
-    else closeNotif();
+    notifUi.toggleNotif({
+      notifOverlay,
+      notifList,
+      notifEmpty,
+      notifFooter,
+      btnBell,
+    });
   });
-  btnNotifClose.addEventListener("click", closeNotif);
+  btnNotifClose.addEventListener("click", () =>
+    notifUi.closeNotif(notifOverlay),
+  );
   // Click outside panel closes (dropdown-like; no backdrop needed).
   notifOverlay.addEventListener("click", (ev) => {
-    if (ev.target === notifOverlay) closeNotif();
+    if (ev.target === notifOverlay) notifUi.closeNotif(notifOverlay);
   });
   btnNotifClear.addEventListener("click", async () => {
-    try {
-      await safeInvoke("notifications:clear");
-      const { items } = await renderNotifications();
-      markNotifsSeen(items);
-    } catch (e) {
-      setStatusError(`清除通知失敗：${String(e?.message ?? e)}`);
-    }
+    await notifUi.clearNotifs({ notifList, notifEmpty, notifFooter, btnBell });
   });
 
   btnSettingsClose.addEventListener("click", closeSettingsModal);
@@ -1455,10 +1361,15 @@
   })();
 
   // Notifications indicator: refresh on startup / focus / main push.
-  void refreshNotifIndicator();
-  onDom(window, "focus", () => void refreshNotifIndicator(), { passive: true });
+  void notifUi.refreshNotifIndicator(btnBell);
+  onDom(window, "focus", () => void notifUi.refreshNotifIndicator(btnBell), {
+    passive: true,
+  });
   try {
-    onIpc("notifications:changed", () => void refreshNotifIndicator());
+    onIpc(
+      "notifications:changed",
+      () => void notifUi.refreshNotifIndicator(btnBell),
+    );
   } catch {}
 
   // Ensure key long-lived handlers/timers are stopped on unload.
