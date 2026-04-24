@@ -434,32 +434,28 @@
 
   launchUi?.init?.();
 
-  // 接收主程序的更新狀態（檢查更新/下載進度）
-  onIpc("sync:status", (payload) => {
-    if (statusGuard.isErrorGuardActive()) return;
-    statusGuard.resetToNormal();
-    setStatus(payload?.text ?? "...");
-  });
+  const SU = window.GglRendererSyncUi;
+  if (!SU || typeof SU.createSyncUi !== "function") {
+    try {
+      console.error(
+        "GglRendererSyncUi missing: ensure ./renderer/sync-ui.js is loaded before renderer.js.",
+      );
+    } catch {}
+  }
 
-  onIpc("sync:progress", (payload) => {
-    setLauncherBusy(true);
-    if (statusGuard.isErrorGuardActive()) return;
-    statusGuard.resetToNormal();
-    setStatus(payload?.text ?? "同步中…", payload?.progress01 ?? 0);
-  });
+  const syncUi =
+    SU?.createSyncUi?.({
+      onIpc,
+      trackTimeout,
+      setLauncherBusy,
+      setStatus,
+      ensureReadyStatusText,
+      statusGuard,
+      setStatusVisibility,
+      getBusyState: () => ({ gameRunning }),
+    }) || null;
 
-  onIpc("sync:done", (payload) => {
-    if (statusGuard.isErrorGuardActive()) return;
-    statusGuard.resetToNormal();
-    setStatus(payload?.text ?? "已是最新", 1);
-    trackTimeout(
-      setTimeout(() => {
-        if (statusGuard.isErrorGuardActive()) return;
-        ensureReadyStatusText();
-      }, 900),
-    );
-    trackTimeout(setTimeout(() => setLauncherBusy(false), 950));
-  });
+  syncUi?.init?.();
 
   const minecraftUi =
     MU?.createMinecraftUi?.({
@@ -481,31 +477,6 @@
     }) || null;
 
   minecraftUi?.init?.();
-
-  function showTransientStatus(text, ms = 4500) {
-    const t = String(text || "").trim();
-    if (!t) return;
-    // 遊戲執行中時平常會把狀態字隱藏；這裡短暫顯示一次提示
-    setStatus(t, null);
-    setStatusVisibility(true);
-    trackTimeout(
-      setTimeout(
-        () => {
-          if (gameRunning) {
-            setStatus("", null);
-            setStatusVisibility(false);
-          } else {
-            ensureReadyStatusText();
-          }
-        },
-        Math.max(1200, Number(ms) || 4500),
-      ),
-    );
-  }
-
-  onIpc("rpc:notice", (payload) => {
-    showTransientStatus(payload?.text || "Discord 狀態未啟用", 5200);
-  });
 
   onIpc("instance:status", (payload) => {
     // payload: { state, localVersion, remoteVersion, needsInstall, needsUpdate, text }
