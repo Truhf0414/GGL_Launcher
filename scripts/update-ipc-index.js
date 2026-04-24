@@ -6,6 +6,7 @@ const PRELOAD_PATH = path.join(ROOT, "preload.js");
 const MAIN_PATH = path.join(ROOT, "main.js");
 const IPC_HANDLERS_PATH = path.join(ROOT, "main", "ipc-handlers.js");
 const MICROSOFT_AUTH_PATH = path.join(ROOT, "main", "microsoft-auth.js");
+const MAIN_IPC_DIR = path.join(ROOT, "main", "ipc");
 const ARCH_PATH = path.join(ROOT, "ARCHITECTURE.md");
 const IPC_CHANNELS_PATH = path.join(ROOT, "lib", "ipc-channels.js");
 
@@ -65,11 +66,18 @@ function extractIpcMainHandles(lines, fileLabel, ipcInvoke = {}) {
 
 function collectAllMainIpcHandles() {
   const { ipcInvoke } = readIpcChannelsFromSingleSource();
-  const parts = [
-    [IPC_HANDLERS_PATH, "main/ipc-handlers.js"],
-    [MICROSOFT_AUTH_PATH, "main/microsoft-auth.js"],
-    [MAIN_PATH, "main.js"],
-  ];
+  const parts = [];
+  // Main handlers may be split across these modules.
+  parts.push([IPC_HANDLERS_PATH, "main/ipc-handlers.js"]);
+  if (fs.existsSync(MAIN_IPC_DIR)) {
+    for (const name of fs.readdirSync(MAIN_IPC_DIR)) {
+      if (!name.endsWith(".js")) continue;
+      const abs = path.join(MAIN_IPC_DIR, name);
+      parts.push([abs, `main/ipc/${name}`]);
+    }
+  }
+  parts.push([MICROSOFT_AUTH_PATH, "main/microsoft-auth.js"]);
+  parts.push([MAIN_PATH, "main.js"]);
   const out = [];
   for (const [abs, label] of parts) {
     if (!fs.existsSync(abs)) continue;

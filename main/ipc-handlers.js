@@ -2,6 +2,14 @@
 const { ipcMain, shell, dialog } = require("electron");
 const { registerAccountIpcHandlers } = require("./microsoft-auth");
 const { IPC } = require("../lib/ipc-channels");
+const { registerWindowIpc } = require("./ipc/window-ipc");
+const { registerExternalIpc } = require("./ipc/external-ipc");
+const { registerSettingsIpc } = require("./ipc/settings-ipc");
+const { registerDialogIpc } = require("./ipc/dialog-ipc");
+const { registerNotificationsIpc } = require("./ipc/notifications-ipc");
+const { registerMinecraftIpc } = require("./ipc/minecraft-ipc");
+const { registerInstanceIpc } = require("./ipc/instance-ipc");
+const { registerDiagnosticsIpc } = require("./ipc/diagnostics-ipc");
 
 /** 避免 `setupMainIpc` 被呼叫兩次時重複 `ipcMain.handle`（Electron 會丟錯） */
 let mainIpcRegistered = false;
@@ -95,165 +103,14 @@ function createMainIpcBridge(deps) {
 
     registerAccountIpcHandlers(ipcMain);
 
-    ipcMain.handle(IPC.invoke.WINDOW_MINIMIZE, () =>
-      deps.getMainWindow?.()?.minimize?.(),
-    );
-    ipcMain.handle(IPC.invoke.WINDOW_CLOSE, () => deps.getMainWindow?.()?.close?.());
-    ipcMain.handle(IPC.invoke.OPEN_EXTERNAL, (_e, url) => {
-      const u = String(url || "").trim();
-      if (!/^https?:\/\//i.test(u)) return;
-      try {
-        return shell.openExternal(u);
-      } catch {
-        /* 無效 URL 等 */
-      }
-    });
-
-    ipcMain.handle(IPC.invoke.SETTINGS_GET, async () => {
-      const raw = await deps.readSettingsRaw();
-      const settings = deps.normalizeSettingsObject(raw);
-      const userMemoryConfigured =
-        deps.isExplicitNumberLike(raw?.minMemoryGb) ||
-        deps.isExplicitNumberLike(raw?.maxMemoryGb);
-
-      return {
-        ...(settings && typeof settings === "object" ? settings : {}),
-        systemMemoryGb: deps.getSystemMemoryGb(),
-        settingsMeta: {
-          userMemoryConfigured,
-        },
-      };
-    });
-    ipcMain.handle(IPC.invoke.SETTINGS_SET, async (_e, patch) =>
-      deps.writeSettings(patch),
-    );
-    ipcMain.handle(IPC.invoke.DIALOG_SELECT_DIRECTORY, async (_e, defaultPath) => {
-      const result = await dialog.showOpenDialog(
-        deps.getMainWindow?.() ?? undefined,
-        {
-          title: "選擇安裝位置",
-          defaultPath:
-            typeof defaultPath === "string" && defaultPath
-              ? defaultPath
-              : "C:\\",
-          properties: ["openDirectory", "createDirectory"],
-        },
-      );
-      if (result.canceled) return "";
-      return result.filePaths?.[0] || "";
-    });
-
-    ipcMain.handle(IPC.invoke.NOTIFICATIONS_GET, async (_e, opts) => {
-      const lastSeenKey =
-        opts && typeof opts === "object" ? String(opts.lastSeenKey || "") : "";
-      const broadcast = await deps.getBroadcastNotificationsCached();
-      if (broadcast.length === 0) return { items: [], unreadCount: 0 };
-      const dismissed = await deps.readDismissedNotificationIds();
-      const items = broadcast
-        .filter((n) => !dismissed.has(String(n.id || "")))
-        .slice(0, 20)
-        .map((n) => ({
-          id: String(n.id || ""),
-          title: String(n.title || ""),
-          body: String(n.body || ""),
-          timeText: String(n.timeText || ""),
-          createdAtMs: Number(n.createdAtMs) || 0,
-          priority: Number(n.priority) || 0,
-          key: String(n.key || ""),
-        }));
-
-      let unreadCount = 0;
-      if (!lastSeenKey) unreadCount = items.length;
-      else {
-        for (const n of items) {
-          if (String(n.key || "") > lastSeenKey) unreadCount += 1;
-        }
-      }
-      return { items, unreadCount };
-    });
-
-    ipcMain.handle(IPC.invoke.NOTIFICATIONS_CLEAR, async () => {
-      const broadcast = await deps.getBroadcastNotificationsCached();
-      if (broadcast.length === 0) return true;
-      const dismissed = await deps.readDismissedNotificationIds();
-      for (const n of broadcast) dismissed.add(String(n.id || ""));
-      await deps.writeDismissedNotificationIds(dismissed);
-      return true;
-    });
-
-    ipcMain.handle(IPC.invoke.MINECRAFT_LAUNCH, async () => {
-      const acct = await deps.readAccount();
-      const settings = await deps.readSettings();
-      const paths = deps.getPaths(settings);
-      await requireUpToDateInstanceOrThrow(settings);
-      await deps.ensureRuntimeAndLaunch({
-        settings,
-        paths,
-        playerId: acct.loggedIn && acct.name ? acct.name : settings.playerId,
-      });
-    });
-
-    ipcMain.handle(IPC.invoke.MINECRAFT_LAUNCH_OFFLINE, async () => {
-      const settings = await deps.readSettings();
-      const paths = deps.getPaths(settings);
-      await requireUpToDateInstanceOrThrow(settings);
-      await deps.ensureRuntimeAndLaunch({
-        settings,
-        paths,
-        playerId: settings.playerId,
-      });
-    });
-
-    ipcMain.handle(IPC.invoke.MINECRAFT_IS_RUNNING, async () =>
-      deps.isMinecraftRunning(),
-    );
-
-    ipcMain.handle(IPC.invoke.INSTANCE_INSTALL_OR_UPDATE, async () => {
-      try {
-        if (!deps.isManifestUrlConfigured()) {
-          sendSyncStatus("尚未設定更新來源");
-          return false;
-        }
-        const settings = await deps.readSettings();
-        await deps.installOrUpdateInstance(settings);
-        await deps.checkInstanceStatusAndNotify();
-        return true;
-      } catch (e) {
-        const msg = String(e?.message ?? e);
-        const code = e && typeof e === "object" ? String(e.code || "") : "";
-        sendSyncStatus(
-          msg.includes("尚未設定更新來源")
-            ? "尚未設定更新來源"
-            : code && code.startsWith("GGL_LAUNCHER_")
-              ? msg
-              : `安裝/更新失敗：${msg}`,
-        );
-        throw e;
-      }
-    });
-
-    ipcMain.handle(IPC.invoke.INSTANCE_RECHECK, async () => {
-      try {
-        await deps.checkInstanceStatusAndNotify();
-      } catch (e) {
-        const msg = String(e?.message ?? e);
-        sendSyncStatus(`版本檢查失敗：${msg}`);
-        sendSyncDone("版本檢查失敗");
-        throw e;
-      }
-    });
-
-    ipcMain.handle(IPC.invoke.DIAGNOSTICS_EXPORT, async () => {
-      const dir = await deps.exportDiagnostics?.();
-      const p = String(dir || "").trim();
-      if (!p) throw new Error("無法匯出診斷報告。");
-      try {
-        await shell.openPath(p);
-      } catch {
-        // ignore
-      }
-      return p;
-    });
+    registerWindowIpc({ ipcMain, deps });
+    registerExternalIpc({ ipcMain, deps: { ...deps, shell } });
+    registerSettingsIpc({ ipcMain, deps });
+    registerDialogIpc({ ipcMain, deps: { ...deps, dialog } });
+    registerNotificationsIpc({ ipcMain, deps });
+    registerMinecraftIpc({ ipcMain, deps, showInfoDialog });
+    registerInstanceIpc({ ipcMain, deps, sendSyncStatus, sendSyncDone });
+    registerDiagnosticsIpc({ ipcMain, deps: { ...deps, shell } });
   }
 
   return {
