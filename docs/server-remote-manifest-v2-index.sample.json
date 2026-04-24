@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 2,
+  "version": "GGL3.0.00",
+  "contentSequence": 1,
+  "minSupportedFrom": "GGL3.0.00",
+  "minSupportedSequence": 1,
+  "bootstrapManifestUrl": "https://ggl3.ddns.net/manifests/v2/bootstrap-GGL3.0.01.json",
+  "bootstrapBaseUrl": "https://ggl3.ddns.net/files/bootstrap-GGL3.0.01/",
+  "patchBaseUrl": "https://ggl3.ddns.net/files/patches/",
+  "maxPatchChainSteps": 8,
+  "patchEdges": {
+  },
+  "hashAlgo": "sha1",
+  "minLauncherVersion": "1.0.0",
+  "maintenance": {
+    "enabled": false,
+    "message": ""
+  },
+  "notice": {
+    "title": "範例總索引（請改內容）",
+    "subtitle": "v2 / schemaVersion 2",
+    "imageUrl": "",
+    "logUrl": "",
+    "log": []
+  }
+}

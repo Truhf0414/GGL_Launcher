@@ -131,6 +131,7 @@ npm run build:rpc-helper
 - `shaderpacks/`
 - `scripts/`
 - `kubejs/`
+- `configureddefaults/`（若有用到預設選項／服主自訂預設檔）
 
 > 啟動器會套用 zip 內容到實例資料夾；若你希望由啟動器自動建構 runtime/assets，也可以只打包 mods/config 等核心內容。
 

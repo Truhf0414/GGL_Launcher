@@ -6,6 +6,7 @@ const ALLOWED_INVOKE = new Set([
   "window:minimize",
   "window:close",
   "openExternal",
+  "diagnostics:export",
   "settings:get",
   "settings:set",
   "notifications:get",

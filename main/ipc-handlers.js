@@ -71,6 +71,14 @@ function createMainIpcBridge(deps) {
 
   function requireUpToDateInstanceOrThrow(settings) {
     return deps.checkInstanceStatus(settings).then(async (status) => {
+      if (status.launchBlocked) {
+        const msg =
+          typeof status.text === "string" && status.text.trim()
+            ? status.text.trim()
+            : "目前無法啟動（伺服器維護或啟動器版本不符等）。請稍後再試。";
+        await showInfoDialog("無法啟動", msg);
+        throw new Error(msg);
+      }
       if (!status.needsInstall && !status.needsUpdate) return status;
       await showInfoDialog(
         "需要安裝/更新",
@@ -211,10 +219,13 @@ function createMainIpcBridge(deps) {
         return true;
       } catch (e) {
         const msg = String(e?.message ?? e);
+        const code = e && typeof e === "object" ? String(e.code || "") : "";
         sendSyncStatus(
           msg.includes("尚未設定更新來源")
             ? "尚未設定更新來源"
-            : `安裝/更新失敗：${msg}`,
+            : code && code.startsWith("GGL_LAUNCHER_")
+              ? msg
+              : `安裝/更新失敗：${msg}`,
         );
         throw e;
       }
@@ -229,6 +240,18 @@ function createMainIpcBridge(deps) {
         sendSyncDone("版本檢查失敗");
         throw e;
       }
+    });
+
+    ipcMain.handle("diagnostics:export", async () => {
+      const dir = await deps.exportDiagnostics?.();
+      const p = String(dir || "").trim();
+      if (!p) throw new Error("無法匯出診斷報告。");
+      try {
+        await shell.openPath(p);
+      } catch {
+        // ignore
+      }
+      return p;
     });
   }
 

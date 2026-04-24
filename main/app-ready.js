@@ -216,6 +216,12 @@ async function runMainAppReady(ctx) {
     sendSyncDone,
     sendInstanceStatus,
     ensureBundledJava,
+    isJavaGameProcessRunningForSync: () => {
+      const { isBlockingJavaProcessForSync } = require("./minecraft-jvm-block");
+      return isBlockingJavaProcessForSync();
+    },
+    getLauncherVersionString: () =>
+      String(require("../package.json").version || "").trim(),
   });
   configureServerStatus({
     sendServerStatus,

@@ -25,15 +25,15 @@ test("detectLaunchVersionId: prefers fabric matching preferred MC version", asyn
   await writeJson(
     path.join(
       vdir,
-      "fabric-loader-0.18.6-1.21.11",
-      "fabric-loader-0.18.6-1.21.11.json",
+      "fabric-loader-0.19.1-1.21.11",
+      "fabric-loader-0.19.1-1.21.11.json",
     ),
     {},
   );
   await writeJson(path.join(vdir, "1.21.11", "1.21.11.json"), {});
 
   const id = await detectLaunchVersionId(gameDir, "1.21.11");
-  assert.equal(id, "fabric-loader-0.18.6-1.21.11");
+  assert.equal(id, "fabric-loader-0.19.1-1.21.11");
 });
 
 test("detectLaunchVersionId: empty when no valid json files", async (t) => {

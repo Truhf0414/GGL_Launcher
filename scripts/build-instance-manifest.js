@@ -4,7 +4,7 @@
 //   node scripts/build-instance-manifest.js --input "H:\path\to\.minecraft" --version "2026.04.14-1" --out "manifest.json" --baseUrl "https://example.com/files/"
 //
 // Notes:
-// - This script only includes whitelisted roots by default (mods/config/resourcepacks/shaderpacks/scripts/kubejs).
+// - This script only includes whitelisted roots by default (mods/config/resourcepacks/shaderpacks/configureddefaults).
 // - Hash defaults to sha1 to match common launcher ecosystems.
 
 const fs = require("fs");
@@ -70,8 +70,7 @@ async function main() {
     "config",
     "resourcepacks",
     "shaderpacks",
-    "scripts",
-    "kubejs",
+    "configureddefaults",
   ]);
   const files = [];
 
