@@ -331,6 +331,11 @@
     uuid: "",
     avatarUrl: "",
   };
+
+  // NOTE: these must exist before account UI init
+  // (account-ui needs ensureReadyStatusText during wiring).
+  let isInstanceReady = () => false;
+  let ensureReadyStatusText = () => {};
   const AU = window.GglRendererAccountUi;
   if (!AU || typeof AU.createAccountUi !== "function") {
     try {
@@ -398,9 +403,8 @@
       getInstanceState: () => currentInstanceState,
     }) || null;
 
-  const isInstanceReady = readyStatus?.isInstanceReady || (() => false);
-  const ensureReadyStatusText =
-    readyStatus?.ensureReadyStatusText || (() => {});
+  isInstanceReady = readyStatus?.isInstanceReady || (() => false);
+  ensureReadyStatusText = readyStatus?.ensureReadyStatusText || (() => {});
 
   const MU = window.GglRendererMinecraftUi;
   if (!MU || typeof MU.createMinecraftUi !== "function") {
