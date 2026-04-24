@@ -3,6 +3,16 @@
 
 (function () {
   const ggl = window.ggl;
+  const Mods = window.GglRendererModules;
+  const getModule =
+    Mods?.getModule ||
+    ((name) => {
+      try {
+        return window[name] || null;
+      } catch {
+        return null;
+      }
+    });
 
   if (
     !ggl ||
@@ -106,7 +116,9 @@
   /** GGL 社群邀請（頂欄 Discord 按鈕）；Rich Presence「加入伺服器」預設見 default-settings.json。 */
   const DISCORD_INVITE_URL = "https://discord.gg/WaRn7fphSm";
 
-  const BG = window.GglRendererBackgroundVideo;
+  const BG = getModule("GglRendererBackgroundVideo", {
+    requiredFns: ["createBackgroundVideo"],
+  });
   if (!BG || typeof BG.createBackgroundVideo !== "function") {
     try {
       console.error(
@@ -137,7 +149,17 @@
   const serverStatusDot = el("serverStatusDot");
   const serverStatusText = el("serverStatusText");
 
-  const UI = window.GglRendererUiStatus;
+  const UI = getModule("GglRendererUiStatus", {
+    requiredFns: [
+      "openOverlay",
+      "closeOverlay",
+      "setStatus",
+      "createStatusGuard",
+      "setStatusError",
+      "setStatusVisibility",
+    ],
+    warn: false,
+  });
   if (
     !UI ||
     typeof UI.openOverlay !== "function" ||
@@ -212,14 +234,9 @@
   const inputMaxMemoryGb = el("inputMaxMemoryGb");
   const settingsError = el("settingsError");
   const memAutoHint = el("memAutoHint");
-  const SM = window.GglRendererSettingsModal;
-  if (!SM || typeof SM.createSettingsModal !== "function") {
-    try {
-      console.error(
-        "GglRendererSettingsModal missing: ensure ./renderer/settings-modal.js is loaded before renderer.js.",
-      );
-    } catch {}
-  }
+  const SM = getModule("GglRendererSettingsModal", {
+    requiredFns: ["createSettingsModal"],
+  });
 
   const settingsModalUi =
     SM?.createSettingsModal?.({
@@ -256,14 +273,9 @@
   const notifFooter = el("notifFooter");
   const notifEmpty = el("notifEmpty");
   const notifList = el("notifList");
-  const Notif = window.GglRendererNotificationsUi;
-  if (!Notif || typeof Notif.createNotificationsUi !== "function") {
-    try {
-      console.error(
-        "GglRendererNotificationsUi missing: ensure ./renderer/notifications-ui.js is loaded before renderer.js.",
-      );
-    } catch {}
-  }
+  const Notif = getModule("GglRendererNotificationsUi", {
+    requiredFns: ["createNotificationsUi"],
+  });
 
   const notifUi =
     Notif?.createNotificationsUi?.({
@@ -281,14 +293,9 @@
     if (instanceStatusText) instanceStatusText.textContent = text;
   }
 
-  const WC = window.GglRendererWindowControls;
-  if (!WC || typeof WC.createWindowControls !== "function") {
-    try {
-      console.error(
-        "GglRendererWindowControls missing: ensure ./renderer/window-controls.js is loaded before renderer.js.",
-      );
-    } catch {}
-  }
+  const WC = getModule("GglRendererWindowControls", {
+    requiredFns: ["createWindowControls"],
+  });
 
   WC?.createWindowControls?.({
     safeInvokeSilent,
@@ -336,14 +343,9 @@
   // (account-ui needs ensureReadyStatusText during wiring).
   let isInstanceReady = () => false;
   let ensureReadyStatusText = () => {};
-  const AU = window.GglRendererAccountUi;
-  if (!AU || typeof AU.createAccountUi !== "function") {
-    try {
-      console.error(
-        "GglRendererAccountUi missing: ensure ./renderer/account-ui.js is loaded before renderer.js.",
-      );
-    } catch {}
-  }
+  const AU = getModule("GglRendererAccountUi", {
+    requiredFns: ["createAccountUi"],
+  });
 
   const accountUi =
     AU?.createAccountUi?.({
@@ -377,23 +379,13 @@
   let launcherBusy = false;
   let gameRunning = false;
 
-  const LU = window.GglRendererLaunchUi;
-  if (!LU || typeof LU.createLaunchUi !== "function") {
-    try {
-      console.error(
-        "GglRendererLaunchUi missing: ensure ./renderer/launch-ui.js is loaded before renderer.js.",
-      );
-    } catch {}
-  }
+  const LU = getModule("GglRendererLaunchUi", {
+    requiredFns: ["createLaunchUi"],
+  });
 
-  const RS = window.GglRendererReadyStatus;
-  if (!RS || typeof RS.createReadyStatus !== "function") {
-    try {
-      console.error(
-        "GglRendererReadyStatus missing: ensure ./renderer/ready-status.js is loaded before renderer.js.",
-      );
-    } catch {}
-  }
+  const RS = getModule("GglRendererReadyStatus", {
+    requiredFns: ["createReadyStatus"],
+  });
 
   const readyStatus =
     RS?.createReadyStatus?.({
@@ -406,23 +398,13 @@
   isInstanceReady = readyStatus?.isInstanceReady || (() => false);
   ensureReadyStatusText = readyStatus?.ensureReadyStatusText || (() => {});
 
-  const MU = window.GglRendererMinecraftUi;
-  if (!MU || typeof MU.createMinecraftUi !== "function") {
-    try {
-      console.error(
-        "GglRendererMinecraftUi missing: ensure ./renderer/minecraft-ui.js is loaded before renderer.js.",
-      );
-    } catch {}
-  }
+  const MU = getModule("GglRendererMinecraftUi", {
+    requiredFns: ["createMinecraftUi"],
+  });
 
-  const SSU = window.GglRendererServerStatusUi;
-  if (!SSU || typeof SSU.createServerStatusUi !== "function") {
-    try {
-      console.error(
-        "GglRendererServerStatusUi missing: ensure ./renderer/server-status-ui.js is loaded before renderer.js.",
-      );
-    } catch {}
-  }
+  const SSU = getModule("GglRendererServerStatusUi", {
+    requiredFns: ["createServerStatusUi"],
+  });
 
   const serverStatusUi =
     SSU?.createServerStatusUi?.({
@@ -464,14 +446,7 @@
 
   launchUi?.init?.();
 
-  const SU = window.GglRendererSyncUi;
-  if (!SU || typeof SU.createSyncUi !== "function") {
-    try {
-      console.error(
-        "GglRendererSyncUi missing: ensure ./renderer/sync-ui.js is loaded before renderer.js.",
-      );
-    } catch {}
-  }
+  const SU = getModule("GglRendererSyncUi", { requiredFns: ["createSyncUi"] });
 
   const syncUi =
     SU?.createSyncUi?.({
@@ -508,14 +483,9 @@
 
   minecraftUi?.init?.();
 
-  const IU = window.GglRendererInstanceUi;
-  if (!IU || typeof IU.createInstanceUi !== "function") {
-    try {
-      console.error(
-        "GglRendererInstanceUi missing: ensure ./renderer/instance-ui.js is loaded before renderer.js.",
-      );
-    } catch {}
-  }
+  const IU = getModule("GglRendererInstanceUi", {
+    requiredFns: ["createInstanceUi"],
+  });
 
   const instanceUi =
     IU?.createInstanceUi?.({
@@ -540,14 +510,9 @@
     }) || null;
 
   instanceUi?.init?.();
-  const ST = window.GglRendererStartup;
-  if (!ST || typeof ST.createStartup !== "function") {
-    try {
-      console.error(
-        "GglRendererStartup missing: ensure ./renderer/startup.js is loaded before renderer.js.",
-      );
-    } catch {}
-  }
+  const ST = getModule("GglRendererStartup", {
+    requiredFns: ["createStartup"],
+  });
 
   ST?.createStartup?.({
     safeInvoke,
