@@ -18,33 +18,60 @@
   }
 
   const LT = window.GglRendererLifetime;
-  if (
-    !LT ||
-    typeof LT.safeInvoke !== "function" ||
-    typeof LT.safeInvokeSilent !== "function" ||
-    typeof LT.onIpc !== "function" ||
-    typeof LT.onDom !== "function" ||
-    typeof LT.trackInterval !== "function" ||
-    typeof LT.trackTimeout !== "function" ||
-    typeof LT.trackDomCleanup !== "function"
-  ) {
+  const hasLifetime =
+    LT &&
+    typeof LT.safeInvoke === "function" &&
+    typeof LT.safeInvokeSilent === "function" &&
+    typeof LT.onIpc === "function" &&
+    typeof LT.onDom === "function" &&
+    typeof LT.trackInterval === "function" &&
+    typeof LT.trackTimeout === "function" &&
+    typeof LT.trackDomCleanup === "function";
+
+  if (!hasLifetime) {
+    // Degrade gracefully: keep UI buttons alive even if lifetime.js failed to load.
     try {
       console.error(
-        "GglRendererLifetime missing: ensure ./renderer/lifetime.js is loaded before renderer.js.",
+        "GglRendererLifetime missing: falling back to local wiring. Check that ./renderer/lifetime.js loads before renderer.js.",
       );
     } catch {}
-    return;
   }
 
-  const {
-    safeInvoke,
-    safeInvokeSilent,
-    onIpc,
-    onDom,
-    trackInterval,
-    trackTimeout,
-    trackDomCleanup,
-  } = LT;
+  const safeInvoke =
+    (hasLifetime && LT.safeInvoke) ||
+    (async (channel, ...args) => await ggl.invoke(channel, ...args));
+  const safeInvokeSilent =
+    (hasLifetime && LT.safeInvokeSilent) ||
+    ((channel, ...args) => {
+      try {
+        const p = ggl.invoke(channel, ...args);
+        if (p && typeof p.catch === "function") p.catch(() => {});
+      } catch {}
+    });
+  const onIpc =
+    (hasLifetime && LT.onIpc) ||
+    ((channel, handler) => {
+      try {
+        return ggl.on(channel, handler);
+      } catch {
+        return () => {};
+      }
+    });
+  const onDom =
+    (hasLifetime && LT.onDom) ||
+    ((target, type, handler, options) => {
+      if (!target?.addEventListener) return () => {};
+      target.addEventListener(type, handler, options);
+      return () => {
+        try {
+          target.removeEventListener(type, handler, options);
+        } catch {}
+      };
+    });
+  const trackInterval = (hasLifetime && LT.trackInterval) || ((id) => id);
+  const trackTimeout = (hasLifetime && LT.trackTimeout) || ((id) => id);
+  const trackDomCleanup =
+    (hasLifetime && LT.trackDomCleanup) || ((off) => off || (() => {}));
 
   const el = (id) => document.getElementById(id);
 
