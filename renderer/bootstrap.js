@@ -14,6 +14,57 @@
         }
       });
 
+    try {
+      window.GglRendererSelfCheck?.runSelfCheck?.();
+    } catch {}
+
+    const MODULES = {
+      BG: {
+        name: "GglRendererBackgroundVideo",
+        requiredFns: ["createBackgroundVideo"],
+      },
+      UI: {
+        name: "GglRendererUiStatus",
+        requiredFns: [
+          "openOverlay",
+          "closeOverlay",
+          "setStatus",
+          "createStatusGuard",
+          "setStatusError",
+          "setStatusVisibility",
+        ],
+      },
+      SM: {
+        name: "GglRendererSettingsModal",
+        requiredFns: ["createSettingsModal"],
+      },
+      Notif: {
+        name: "GglRendererNotificationsUi",
+        requiredFns: ["createNotificationsUi"],
+      },
+      WC: {
+        name: "GglRendererWindowControls",
+        requiredFns: ["createWindowControls"],
+      },
+      AU: { name: "GglRendererAccountUi", requiredFns: ["createAccountUi"] },
+      LU: { name: "GglRendererLaunchUi", requiredFns: ["createLaunchUi"] },
+      RS: {
+        name: "GglRendererReadyStatus",
+        requiredFns: ["createReadyStatus"],
+      },
+      MU: {
+        name: "GglRendererMinecraftUi",
+        requiredFns: ["createMinecraftUi"],
+      },
+      SSU: {
+        name: "GglRendererServerStatusUi",
+        requiredFns: ["createServerStatusUi"],
+      },
+      SU: { name: "GglRendererSyncUi", requiredFns: ["createSyncUi"] },
+      IU: { name: "GglRendererInstanceUi", requiredFns: ["createInstanceUi"] },
+      ST: { name: "GglRendererStartup", requiredFns: ["createStartup"] },
+    };
+
     if (
       !ggl ||
       typeof ggl.invoke !== "function" ||
@@ -112,8 +163,8 @@
     const DEFAULT_LAUNCHER_ROOT = "C:\\Games\\GGL";
     const DISCORD_INVITE_URL = "https://discord.gg/WaRn7fphSm";
 
-    const BG = getModule("GglRendererBackgroundVideo", {
-      requiredFns: ["createBackgroundVideo"],
+    const BG = getModule(MODULES.BG.name, {
+      requiredFns: MODULES.BG.requiredFns,
     });
 
     const btnMinimize = el("btnMinimize");
@@ -138,7 +189,7 @@
     const serverStatusDot = el("serverStatusDot");
     const serverStatusText = el("serverStatusText");
 
-    const UI = getModule("GglRendererUiStatus", {
+    const UI = getModule(MODULES.UI.name, {
       requiredFns: [
         "openOverlay",
         "closeOverlay",
@@ -208,8 +259,8 @@
     const settingsError = el("settingsError");
     const memAutoHint = el("memAutoHint");
 
-    const SM = getModule("GglRendererSettingsModal", {
-      requiredFns: ["createSettingsModal"],
+    const SM = getModule(MODULES.SM.name, {
+      requiredFns: MODULES.SM.requiredFns,
     });
     const settingsModalUi =
       SM?.createSettingsModal?.({
@@ -245,8 +296,8 @@
     const notifFooter = el("notifFooter");
     const notifEmpty = el("notifEmpty");
     const notifList = el("notifList");
-    const Notif = getModule("GglRendererNotificationsUi", {
-      requiredFns: ["createNotificationsUi"],
+    const Notif = getModule(MODULES.Notif.name, {
+      requiredFns: MODULES.Notif.requiredFns,
     });
     const notifUi =
       Notif?.createNotificationsUi?.({
@@ -260,8 +311,8 @@
       if (instanceStatusText) instanceStatusText.textContent = text;
     }
 
-    const WC = getModule("GglRendererWindowControls", {
-      requiredFns: ["createWindowControls"],
+    const WC = getModule(MODULES.WC.name, {
+      requiredFns: MODULES.WC.requiredFns,
     });
     WC?.createWindowControls?.({
       safeInvokeSilent,
@@ -313,29 +364,29 @@
     let launcherBusy = false;
     let gameRunning = false;
 
-    const AU = getModule("GglRendererAccountUi", {
-      requiredFns: ["createAccountUi"],
+    const AU = getModule(MODULES.AU.name, {
+      requiredFns: MODULES.AU.requiredFns,
     });
-    const LU = getModule("GglRendererLaunchUi", {
-      requiredFns: ["createLaunchUi"],
+    const LU = getModule(MODULES.LU.name, {
+      requiredFns: MODULES.LU.requiredFns,
     });
-    const RS = getModule("GglRendererReadyStatus", {
-      requiredFns: ["createReadyStatus"],
+    const RS = getModule(MODULES.RS.name, {
+      requiredFns: MODULES.RS.requiredFns,
     });
-    const MU = getModule("GglRendererMinecraftUi", {
-      requiredFns: ["createMinecraftUi"],
+    const MU = getModule(MODULES.MU.name, {
+      requiredFns: MODULES.MU.requiredFns,
     });
-    const SSU = getModule("GglRendererServerStatusUi", {
-      requiredFns: ["createServerStatusUi"],
+    const SSU = getModule(MODULES.SSU.name, {
+      requiredFns: MODULES.SSU.requiredFns,
     });
-    const SU = getModule("GglRendererSyncUi", {
-      requiredFns: ["createSyncUi"],
+    const SU = getModule(MODULES.SU.name, {
+      requiredFns: MODULES.SU.requiredFns,
     });
-    const IU = getModule("GglRendererInstanceUi", {
-      requiredFns: ["createInstanceUi"],
+    const IU = getModule(MODULES.IU.name, {
+      requiredFns: MODULES.IU.requiredFns,
     });
-    const ST = getModule("GglRendererStartup", {
-      requiredFns: ["createStartup"],
+    const ST = getModule(MODULES.ST.name, {
+      requiredFns: MODULES.ST.requiredFns,
     });
 
     const accountUi =
