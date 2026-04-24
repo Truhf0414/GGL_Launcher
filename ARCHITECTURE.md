@@ -96,8 +96,8 @@ Use this table to find code after splits. **When you add or extract a new `main/
 #### Invoke channels (`window.ggl.invoke`)
 
 - `account:get` (`main/microsoft-auth.js`: ~469)
-- `account:login` (`main/microsoft-auth.js`: ~485)
-- `account:logout` (`main/microsoft-auth.js`: ~471)
+- `account:login` (`main/microsoft-auth.js`: ~487)
+- `account:logout` (`main/microsoft-auth.js`: ~473)
 - `diagnostics:export` (`main/ipc/diagnostics-ipc.js`: ~6)
 - `dialog:selectDirectory` (`main/ipc/dialog-ipc.js`: ~6)
 - `instance:installOrUpdate` (`main/ipc/instance-ipc.js`: ~5)

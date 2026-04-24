@@ -1557,7 +1557,20 @@ textarea,
 .modal-actions {
   margin-top: 16px;
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  /* 兩鈕高度不同(40/42)，列對齊；窄寬換行時保留行距 */
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+/* Long CJK label (匯出診斷報告): default button line-box sits optically low without flex */
+.modal-actions .ctl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+  text-align: center;
 }
 .primary {
   border-radius: 12px;
