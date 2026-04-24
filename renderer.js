@@ -66,74 +66,15 @@
   const DEFAULT_LAUNCHER_ROOT = "C:\\Games\\GGL";
   /** GGL 社群邀請（頂欄 Discord 按鈕）；Rich Presence「加入伺服器」預設見 default-settings.json。 */
   const DISCORD_INVITE_URL = "https://discord.gg/WaRn7fphSm";
-  const ANIM_MS = 280;
 
-  function initBackgroundVideo() {
-    const source = el("bgVideoSource");
-    if (!source) return;
-    source.setAttribute("src", ggl.assetUrl("sakura_field_BG.mp4"));
-    // Force reload if needed (some Chromium versions won't pick up src change without load)
+  const BG = window.GglRendererBackgroundVideo;
+  if (!BG || typeof BG.createBackgroundVideo !== "function") {
     try {
-      const video = source.closest("video");
-      const bgRoot = document.querySelector(".app-bg");
-      const markHasVideo = (has) => {
-        if (!bgRoot) return;
-        bgRoot.classList.toggle("has-video", Boolean(has));
-      };
-
-      // Default: keep fallback visible until we KNOW the video is playing.
-      markHasVideo(false);
-
-      if (video) {
-        let isMinimized = false;
-
-        const applyPowerState = () => {
-          const lowPower =
-            isMinimized || document.hidden || !document.hasFocus();
-          try {
-            if (lowPower) video.pause();
-            else video.play().catch(() => {});
-          } catch {}
-        };
-
-        // When video actually starts playing, hide fallback layer.
-        const onPlaying = () => markHasVideo(true);
-        const onError = () => markHasVideo(false);
-        const onStalled = () => markHasVideo(false);
-        video.addEventListener("playing", onPlaying, {
-          passive: true,
-        });
-        // If loading fails, keep fallback visible.
-        video.addEventListener("error", onError, {
-          passive: true,
-        });
-        // Some cases never fire error but stall; be conservative.
-        video.addEventListener("stalled", onStalled, {
-          passive: true,
-        });
-        trackDomCleanup(() => {
-          try {
-            video.removeEventListener("playing", onPlaying);
-            video.removeEventListener("error", onError);
-            video.removeEventListener("stalled", onStalled);
-          } catch {}
-        });
-
-        // Power / focus handling: pause when unfocused, resume on focus.
-        onDom(window, "blur", applyPowerState, { passive: true });
-        onDom(window, "focus", applyPowerState, { passive: true });
-        onDom(document, "visibilitychange", applyPowerState, {
-          passive: true,
-        });
-        onIpc("window:power", (payload) => {
-          isMinimized = Boolean(payload?.minimized);
-          applyPowerState();
-        });
-        applyPowerState();
-      }
-
-      video?.load?.();
+      console.error(
+        "GglRendererBackgroundVideo missing: ensure ./renderer/background-video.js is loaded before renderer.js.",
+      );
     } catch {}
+    return;
   }
 
   const btnMinimize = el("btnMinimize");
@@ -158,7 +99,17 @@
   const serverStatusDot = el("serverStatusDot");
   const serverStatusText = el("serverStatusText");
 
-  initBackgroundVideo();
+  const bgVideoSource = el("bgVideoSource");
+  const bgRoot = document.querySelector(".app-bg");
+  BG.createBackgroundVideo({
+    ggl,
+    onDom,
+    onIpc,
+    trackDomCleanup,
+  }).initBackgroundVideo({
+    sourceEl: bgVideoSource,
+    bgRoot,
+  });
 
   // 設定彈窗
   const settingsModal = el("settingsModal");
