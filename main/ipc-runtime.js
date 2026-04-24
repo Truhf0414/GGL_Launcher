@@ -1,10 +1,17 @@
 // Main IPC runtime: registration wiring with a closure guard.
-const { ipcMain, shell, dialog } = require("electron");
+// Intentionally does NOT import Electron; all Electron deps are injected.
 const { registerAccountIpcHandlers } = require("./microsoft-auth");
 const { registerAllMainIpc } = require("./ipc");
-const { createShowInfoDialog } = require("./ui-dialogs");
 
-function createIpcRuntime({ deps, sendSyncStatus, sendSyncDone }) {
+function createIpcRuntime({
+  ipcMain,
+  shell,
+  dialog,
+  deps,
+  showInfoDialog,
+  sendSyncStatus,
+  sendSyncDone,
+}) {
   let registered = false;
 
   function setupOnce() {
@@ -12,8 +19,6 @@ function createIpcRuntime({ deps, sendSyncStatus, sendSyncDone }) {
     registered = true;
 
     registerAccountIpcHandlers(ipcMain);
-
-    const showInfoDialog = createShowInfoDialog(deps.getMainWindow);
 
     registerAllMainIpc({
       ipcMain,
