@@ -1,6 +1,6 @@
 // Renderer ↔ Main：IPC bridge + setup entrypoint
 const { createIpcBridgeSenders } = require("./ipc-bridge");
-const { setupMainIpcRuntime } = require("./ipc-runtime");
+const { createIpcRuntime } = require("./ipc-runtime");
 
 /** @param {Record<string, unknown>} deps 由 main.js 注入（getMainWindow、settings、manifest、launch 等） */
 function createMainIpcBridge(deps) {
@@ -15,8 +15,10 @@ function createMainIpcBridge(deps) {
     sendServerStatus,
   } = createIpcBridgeSenders(deps);
 
+  const runtime = createIpcRuntime({ deps, sendSyncStatus, sendSyncDone });
+
   function setupMainIpc() {
-    setupMainIpcRuntime({ deps, sendSyncStatus, sendSyncDone });
+    runtime.setupOnce();
   }
 
   return {
