@@ -439,14 +439,18 @@ function validateV2IndexManifest(manifest) {
   // - { url: "https://.../patch.json", fromSequence: number, toSequence: number }
   for (const [k, v] of Object.entries(manifest.patchEdges)) {
     const key = String(k || "");
-    if (!key.includes("->")) return "總索引（v2）patchEdges key 格式需為 \"from->to\"。";
+    if (!key.includes("->"))
+      return '總索引（v2）patchEdges key 格式需為 "from->to"。';
     if (typeof v === "string") {
-      if (!isHttpsUrlString(v)) return "總索引（v2）patchEdges url 需為 https。";
+      if (!isHttpsUrlString(v))
+        return "總索引（v2）patchEdges url 需為 https。";
       continue;
     }
-    if (!v || typeof v !== "object") return "總索引（v2）patchEdges value 格式不正確。";
+    if (!v || typeof v !== "object")
+      return "總索引（v2）patchEdges value 格式不正確。";
     const url = String(v.url || "").trim();
-    if (!isHttpsUrlString(url)) return "總索引（v2）patchEdges.url 需為 https。";
+    if (!isHttpsUrlString(url))
+      return "總索引（v2）patchEdges.url 需為 https。";
     const fsq = Number(v.fromSequence);
     const tsq = Number(v.toSequence);
     if (!Number.isFinite(fsq) || !Number.isFinite(tsq))
@@ -849,12 +853,7 @@ async function installOrUpdateInstanceV2(settings, paths, index) {
     const pBase = progressBase01 + (progressSpan01 * i) / Math.max(1, n);
     const pSpan = progressSpan01 / Math.max(1, n);
     const patch = await deps.fetchJson(step.url);
-    assertPatchIdentity(
-      patch,
-      curV,
-      step.to,
-      curS,
-    );
+    assertPatchIdentity(patch, curV, step.to, curS);
     if (
       Number.isFinite(step.toSequence) &&
       Number(patch.toSequence) !== step.toSequence

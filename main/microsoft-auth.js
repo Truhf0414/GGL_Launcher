@@ -466,7 +466,9 @@ function registerAccountIpcHandlers(ipcMain) {
       ipcMain.removeHandler(ch);
     } catch {}
   }
-  ipcMain.handle(IPC.invoke.ACCOUNT_GET, async () => getAccountPayloadForRenderer());
+  ipcMain.handle(IPC.invoke.ACCOUNT_GET, async () =>
+    getAccountPayloadForRenderer(),
+  );
 
   ipcMain.handle(IPC.invoke.ACCOUNT_LOGOUT, async () => {
     if (loginInProgress) {
