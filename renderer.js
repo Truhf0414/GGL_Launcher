@@ -254,11 +254,22 @@
     if (instanceStatusText) instanceStatusText.textContent = text;
   }
 
-  // 視窗控制
-  btnMinimize.addEventListener("click", () =>
-    safeInvokeSilent("window:minimize"),
-  );
-  btnClose.addEventListener("click", () => safeInvokeSilent("window:close"));
+  const WC = window.GglRendererWindowControls;
+  if (!WC || typeof WC.createWindowControls !== "function") {
+    try {
+      console.error(
+        "GglRendererWindowControls missing: ensure ./renderer/window-controls.js is loaded before renderer.js.",
+      );
+    } catch {}
+  }
+
+  WC?.createWindowControls?.({
+    safeInvokeSilent,
+    btnMinimize,
+    btnClose,
+    btnDiscord,
+    discordInviteUrl: DISCORD_INVITE_URL,
+  })?.init?.();
 
   // 右上角：設定 / 通知等
   btnBell.addEventListener("click", () => {
@@ -321,10 +332,6 @@
     }) || null;
 
   accountUi?.init?.();
-
-  btnDiscord.addEventListener("click", () => {
-    safeInvokeSilent("openExternal", DISCORD_INVITE_URL);
-  });
 
   // 右下角主按鈕狀態：需在 setServerStatus 首次呼叫前存在
   let currentInstanceState = {
