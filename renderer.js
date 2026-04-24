@@ -376,32 +376,23 @@
     } catch {}
   }
 
-  function setServerStatus(state) {
-    // state: 'online' | 'offline' | 'unknown'
-    const s = state || "unknown";
-    if (serverStatusDot) {
-      serverStatusDot.classList.remove(
-        "status-dot--online",
-        "status-dot--offline",
-        "status-dot--unknown",
+  const SSU = window.GglRendererServerStatusUi;
+  if (!SSU || typeof SSU.createServerStatusUi !== "function") {
+    try {
+      console.error(
+        "GglRendererServerStatusUi missing: ensure ./renderer/server-status-ui.js is loaded before renderer.js.",
       );
-      serverStatusDot.classList.add(
-        s === "online"
-          ? "status-dot--online"
-          : s === "offline"
-            ? "status-dot--offline"
-            : "status-dot--unknown",
-      );
-    }
-    if (serverStatusText) {
-      serverStatusText.textContent =
-        s === "online" ? "Online" : s === "offline" ? "Offline" : "檢查中…";
-    }
+    } catch {}
   }
 
-  onIpc("server:status", (payload) => setServerStatus(payload?.state));
+  const serverStatusUi =
+    SSU?.createServerStatusUi?.({
+      onIpc,
+      serverStatusDot,
+      serverStatusText,
+    }) || null;
 
-  setServerStatus("unknown");
+  serverStatusUi?.init?.();
 
   const launchUi =
     LU?.createLaunchUi?.({
