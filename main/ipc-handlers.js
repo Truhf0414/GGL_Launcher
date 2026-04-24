@@ -3,6 +3,7 @@ const { ipcMain, shell, dialog } = require("electron");
 const { registerAccountIpcHandlers } = require("./microsoft-auth");
 const { IPC } = require("../lib/ipc-channels");
 const { registerAllMainIpc } = require("./ipc");
+const { createShowInfoDialog } = require("./ui-dialogs");
 
 /** 避免 `setupMainIpc` 被呼叫兩次時重複 `ipcMain.handle`（Electron 會丟錯） */
 let mainIpcRegistered = false;
@@ -60,35 +61,7 @@ function createMainIpcBridge(deps) {
     deps.getMainWindow?.()?.webContents?.send(IPC.on.SERVER_STATUS, { state });
   }
 
-  async function showInfoDialog(title, message) {
-    const win = deps.getMainWindow?.();
-    try {
-      if (win && typeof win.isDestroyed === "function" && !win.isDestroyed()) {
-        await dialog.showMessageBox(win, { type: "info", title, message });
-      } else {
-        await dialog.showMessageBox({ type: "info", title, message });
-      }
-    } catch {}
-  }
-
-  function requireUpToDateInstanceOrThrow(settings) {
-    return deps.checkInstanceStatus(settings).then(async (status) => {
-      if (status.launchBlocked) {
-        const msg =
-          typeof status.text === "string" && status.text.trim()
-            ? status.text.trim()
-            : "目前無法啟動（伺服器維護或啟動器版本不符等）。請稍後再試。";
-        await showInfoDialog("無法啟動", msg);
-        throw new Error(msg);
-      }
-      if (!status.needsInstall && !status.needsUpdate) return status;
-      await showInfoDialog(
-        "需要安裝/更新",
-        "偵測到尚未安裝或有更新，請先點擊『安裝/更新』完成同步後再啟動。",
-      );
-      throw new Error("需要安裝/更新。");
-    });
-  }
+  const showInfoDialog = createShowInfoDialog(deps.getMainWindow);
 
   function setupMainIpc() {
     if (mainIpcRegistered) return;
