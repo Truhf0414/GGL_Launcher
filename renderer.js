@@ -508,33 +508,29 @@
     }) || null;
 
   instanceUi?.init?.();
-
-  // 啟動時：主程序會做「版本檢查」但不會自動下載
-  setStatus("正在檢查版本…", 0);
-  setInstanceStatus("正在檢查實例版本…");
-
-  // 啟動時先讀取帳號狀態（若之前登入過就會自動顯示頭像/ID）
-  (async () => {
+  const ST = window.GglRendererStartup;
+  if (!ST || typeof ST.createStartup !== "function") {
     try {
-      const a = await safeInvoke("account:get");
-      accountState = a;
-      accountUi?.applyAccountToUi?.();
-    } catch {
-      // 忽略
-    }
-  })();
+      console.error(
+        "GglRendererStartup missing: ensure ./renderer/startup.js is loaded before renderer.js.",
+      );
+    } catch {}
+  }
 
-  // Notifications indicator: refresh on startup / focus / main push.
-  void notifUi?.refreshNotifIndicator?.(btnBell);
-  onDom(window, "focus", () => void notifUi?.refreshNotifIndicator?.(btnBell), {
-    passive: true,
-  });
-  try {
-    onIpc(
-      "notifications:changed",
-      () => void notifUi?.refreshNotifIndicator?.(btnBell),
-    );
-  } catch {}
+  ST?.createStartup?.({
+    safeInvoke,
+    onDom,
+    onIpc,
+    btnBell,
+    notifUi,
+    setStatus,
+    setInstanceStatus,
+    getAccountState: () => accountState,
+    setAccountState: (s) => {
+      accountState = s;
+    },
+    accountUi,
+  })?.init?.();
 
   // Ensure key long-lived handlers/timers are stopped on unload.
   trackDomCleanup(() => {
