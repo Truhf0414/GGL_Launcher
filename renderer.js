@@ -49,6 +49,20 @@
   const el = (id) => document.getElementById(id);
 
   const SL = window.GglSettingsLogic;
+  const parseFiniteNumberOrUnset =
+    SL?.parseFiniteNumberOrUnset ||
+    ((v) => {
+      const n = Number(String(v ?? "").trim());
+      return Number.isFinite(n) ? n : null;
+    });
+  const computeMemoryUiModel =
+    SL?.computeMemoryUiModel ||
+    (() => ({
+      minInput: "",
+      maxInput: "",
+      hintShow: false,
+      hintText: "",
+    }));
   if (
     !SL ||
     typeof SL.parseFiniteNumberOrUnset !== "function" ||
@@ -59,9 +73,7 @@
         "GglSettingsLogic missing: ensure ./lib/settings-logic.js is loaded before renderer.js.",
       );
     } catch {}
-    return;
   }
-  const { parseFiniteNumberOrUnset, computeMemoryUiModel } = SL;
 
   const DEFAULT_LAUNCHER_ROOT = "C:\\Games\\GGL";
   /** GGL 社群邀請（頂欄 Discord 按鈕）；Rich Presence「加入伺服器」預設見 default-settings.json。 */
@@ -74,7 +86,6 @@
         "GglRendererBackgroundVideo missing: ensure ./renderer/background-video.js is loaded before renderer.js.",
       );
     } catch {}
-    return;
   }
 
   const btnMinimize = el("btnMinimize");
@@ -99,17 +110,67 @@
   const serverStatusDot = el("serverStatusDot");
   const serverStatusText = el("serverStatusText");
 
-  const bgVideoSource = el("bgVideoSource");
-  const bgRoot = document.querySelector(".app-bg");
-  BG.createBackgroundVideo({
-    ggl,
-    onDom,
-    onIpc,
-    trackDomCleanup,
-  }).initBackgroundVideo({
-    sourceEl: bgVideoSource,
-    bgRoot,
-  });
+  const UI = window.GglRendererUiStatus;
+  if (
+    !UI ||
+    typeof UI.openOverlay !== "function" ||
+    typeof UI.closeOverlay !== "function" ||
+    typeof UI.setStatus !== "function" ||
+    typeof UI.createStatusGuard !== "function" ||
+    typeof UI.setStatusError !== "function" ||
+    typeof UI.setStatusVisibility !== "function"
+  ) {
+    try {
+      console.error(
+        "GglRendererUiStatus missing: ensure ./renderer/ui-status.js is loaded before renderer.js.",
+      );
+    } catch {}
+  }
+
+  const ANIM_MS = UI?.ANIM_MS ?? 280;
+  const statusGuard = UI?.createStatusGuard?.() || {
+    isErrorGuardActive: () => false,
+    resetToNormal: () => {},
+    setError: () => {},
+  };
+  const statusCtx = { statusText, progressBar, progressRoot, btnLaunch };
+
+  const openOverlay = UI?.openOverlay || (() => {});
+  const closeOverlay = UI?.closeOverlay || (() => {});
+  const setStatus = (text, progress01 = null) => {
+    if (UI?.setStatus) return UI.setStatus(statusCtx, text, progress01);
+    // Fallback: minimal single-line status.
+    try {
+      if (statusText) statusText.textContent = String(text ?? "");
+      if (progressBar && progress01 !== null && !Number.isNaN(progress01)) {
+        const p = Math.max(0, Math.min(1, Number(progress01)));
+        progressBar.style.width = `${Math.round(p * 100)}%`;
+      }
+    } catch {}
+  };
+  const setStatusError = (text) => {
+    if (UI?.setStatusError)
+      return UI.setStatusError(statusCtx, statusGuard, text);
+    setStatus(text, 0);
+  };
+  const setStatusVisibility = (visible) => {
+    if (UI?.setStatusVisibility)
+      return UI.setStatusVisibility({ statusText, btnLaunch }, visible);
+  };
+
+  try {
+    const bgVideoSource = el("bgVideoSource");
+    const bgRoot = document.querySelector(".app-bg");
+    BG?.createBackgroundVideo?.({
+      ggl,
+      onDom,
+      onIpc,
+      trackDomCleanup,
+    })?.initBackgroundVideo?.({
+      sourceEl: bgVideoSource,
+      bgRoot,
+    });
+  } catch {}
 
   // 設定彈窗
   const settingsModal = el("settingsModal");
@@ -131,35 +192,35 @@
         "GglRendererSettingsModal missing: ensure ./renderer/settings-modal.js is loaded before renderer.js.",
       );
     } catch {}
-    return;
   }
 
-  const settingsModalUi = SM.createSettingsModal({
-    safeInvoke,
-    setStatusError,
-    openOverlay,
-    closeOverlay,
-    trackTimeout,
-    ANIM_MS,
-    DEFAULT_LAUNCHER_ROOT,
-    computeMemoryUiModel,
-    parseFiniteNumberOrUnset,
-    btnSettings,
-    settingsModal,
-    settingsBackdrop,
-    btnSettingsClose,
-    btnSaveSettings,
-    btnExportDiagnostics,
-    inputInstallDir,
-    btnPickDir,
-    inputOfflinePlayerId,
-    inputMinMemoryGb,
-    inputMaxMemoryGb,
-    settingsError,
-    memAutoHint,
-  });
+  const settingsModalUi =
+    SM?.createSettingsModal?.({
+      safeInvoke,
+      setStatusError,
+      openOverlay,
+      closeOverlay,
+      trackTimeout,
+      ANIM_MS,
+      DEFAULT_LAUNCHER_ROOT,
+      computeMemoryUiModel,
+      parseFiniteNumberOrUnset,
+      btnSettings,
+      settingsModal,
+      settingsBackdrop,
+      btnSettingsClose,
+      btnSaveSettings,
+      btnExportDiagnostics,
+      inputInstallDir,
+      btnPickDir,
+      inputOfflinePlayerId,
+      inputMinMemoryGb,
+      inputMaxMemoryGb,
+      settingsError,
+      memAutoHint,
+    }) || null;
 
-  settingsModalUi.init();
+  settingsModalUi?.init?.();
 
   // 通知面板
   const notifOverlay = el("notifOverlay");
@@ -175,49 +236,19 @@
         "GglRendererNotificationsUi missing: ensure ./renderer/notifications-ui.js is loaded before renderer.js.",
       );
     } catch {}
-    return;
   }
 
-  const notifUi = Notif.createNotificationsUi({
-    safeInvoke,
-    openOverlay,
-    closeOverlay,
-    setStatusError,
-  });
-
-  const UI = window.GglRendererUiStatus;
-  if (
-    !UI ||
-    typeof UI.openOverlay !== "function" ||
-    typeof UI.closeOverlay !== "function" ||
-    typeof UI.setStatus !== "function" ||
-    typeof UI.createStatusGuard !== "function" ||
-    typeof UI.setStatusError !== "function"
-  ) {
-    try {
-      console.error(
-        "GglRendererUiStatus missing: ensure ./renderer/ui-status.js is loaded before renderer.js.",
-      );
-    } catch {}
-    return;
-  }
-
-  const ANIM_MS = UI.ANIM_MS;
-  const statusGuard = UI.createStatusGuard();
-  const statusCtx = { statusText, progressBar, progressRoot, btnLaunch };
+  const notifUi =
+    Notif?.createNotificationsUi?.({
+      safeInvoke,
+      openOverlay,
+      closeOverlay,
+      setStatusError,
+    }) || null;
 
   function isStatusHidden() {
     return Boolean(statusText?.classList?.contains("launch-subtext--hidden"));
   }
-
-  const openOverlay = UI.openOverlay;
-  const closeOverlay = UI.closeOverlay;
-  const setStatus = (text, progress01 = null) =>
-    UI.setStatus(statusCtx, text, progress01);
-  const setStatusError = (text) =>
-    UI.setStatusError(statusCtx, statusGuard, text);
-  const setStatusVisibility = (visible) =>
-    UI.setStatusVisibility({ statusText, btnLaunch }, visible);
 
   function setInstanceStatus(text) {
     if (instanceStatusText) instanceStatusText.textContent = text;
@@ -231,7 +262,7 @@
 
   // 右上角：設定 / 通知等
   btnBell.addEventListener("click", () => {
-    notifUi.toggleNotif({
+    notifUi?.toggleNotif?.({
       notifOverlay,
       notifList,
       notifEmpty,
@@ -240,14 +271,19 @@
     });
   });
   btnNotifClose.addEventListener("click", () =>
-    notifUi.closeNotif(notifOverlay),
+    notifUi?.closeNotif?.(notifOverlay),
   );
   // Click outside panel closes (dropdown-like; no backdrop needed).
   notifOverlay.addEventListener("click", (ev) => {
-    if (ev.target === notifOverlay) notifUi.closeNotif(notifOverlay);
+    if (ev.target === notifOverlay) notifUi?.closeNotif?.(notifOverlay);
   });
   btnNotifClear.addEventListener("click", async () => {
-    await notifUi.clearNotifs({ notifList, notifEmpty, notifFooter, btnBell });
+    await notifUi?.clearNotifs?.({
+      notifList,
+      notifEmpty,
+      notifFooter,
+      btnBell,
+    });
   });
 
   // 正版登入（Microsoft → Xbox → Minecraft）；client id 與 Redirect 設定在 main.js（msClientId / loopbackPort）。
@@ -1094,14 +1130,14 @@
   })();
 
   // Notifications indicator: refresh on startup / focus / main push.
-  void notifUi.refreshNotifIndicator(btnBell);
-  onDom(window, "focus", () => void notifUi.refreshNotifIndicator(btnBell), {
+  void notifUi?.refreshNotifIndicator?.(btnBell);
+  onDom(window, "focus", () => void notifUi?.refreshNotifIndicator?.(btnBell), {
     passive: true,
   });
   try {
     onIpc(
       "notifications:changed",
-      () => void notifUi.refreshNotifIndicator(btnBell),
+      () => void notifUi?.refreshNotifIndicator?.(btnBell),
     );
   } catch {}
 
