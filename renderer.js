@@ -126,6 +126,7 @@
   const settingsBackdrop = el("settingsBackdrop");
   const btnSettingsClose = el("btnSettingsClose");
   const btnSaveSettings = el("btnSaveSettings");
+  const btnExportDiagnostics = el("btnExportDiagnostics");
   const inputInstallDir = el("inputInstallDir");
   const btnPickDir = el("btnPickDir");
   const inputOfflinePlayerId = el("inputOfflinePlayerId");
@@ -704,6 +705,17 @@
     }
   });
 
+  btnExportDiagnostics?.addEventListener("click", async () => {
+    try {
+      setSettingsError("正在匯出診斷報告…（會自動打開資料夾）");
+      const dir = await ggl.invoke("diagnostics:export");
+      setSettingsError(`已匯出診斷報告：${String(dir || "")}`);
+    } catch (e) {
+      const cleaned = formatInvokeError(e?.message ?? e);
+      setSettingsError(`匯出失敗：${cleaned}`);
+    }
+  });
+
   // Clear inline error when user edits inputs.
   for (const x of [
     inputInstallDir,
@@ -1116,6 +1128,8 @@
     needsUpdate: false,
     noUpdateSource: false,
     fetchFailed: false,
+    launchBlocked: false,
+    needsFullReinstall: false,
   };
   let launcherBusy = false;
   let gameRunning = false;
@@ -1126,7 +1140,8 @@
       !currentInstanceState?.needsInstall &&
       !currentInstanceState?.needsUpdate &&
       !currentInstanceState?.noUpdateSource &&
-      !currentInstanceState?.fetchFailed
+      !currentInstanceState?.fetchFailed &&
+      !currentInstanceState?.launchBlocked
     );
   }
 
@@ -1268,6 +1283,15 @@
       return;
     }
 
+    if (currentInstanceState.launchBlocked) {
+      btnLaunch.classList.remove("launch-btn--ready", "launch-btn--busy");
+      setLaunchLabel("無法啟動");
+      btnLaunch.disabled = true;
+      btnLaunch.classList.add("launch-btn--disabled");
+      setOfflineLinkState({ visible: false, enabled: false });
+      return;
+    }
+
     if (currentInstanceState.needsInstall) {
       btnLaunch.classList.remove("launch-btn--ready");
       btnLaunch.classList.remove("launch-btn--busy");
@@ -1281,7 +1305,9 @@
     if (currentInstanceState.needsUpdate) {
       btnLaunch.classList.remove("launch-btn--ready");
       btnLaunch.classList.remove("launch-btn--busy");
-      setLaunchLabel("更新");
+      setLaunchLabel(
+        currentInstanceState.needsFullReinstall ? "修復同步" : "更新",
+      );
       btnLaunch.disabled = false;
       btnLaunch.classList.remove("launch-btn--disabled");
       setOfflineLinkState({ visible: false, enabled: false });
@@ -1516,6 +1542,8 @@
       needsUpdate,
       noUpdateSource,
       fetchFailed,
+      launchBlocked: Boolean(payload?.launchBlocked),
+      needsFullReinstall: Boolean(payload?.needsFullReinstall),
     };
 
     updateLaunchButtonUi();

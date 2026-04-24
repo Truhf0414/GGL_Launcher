@@ -36,6 +36,7 @@ const {
   checkInstanceStatus,
   checkInstanceStatusAndNotify,
   installOrUpdateInstance,
+  readInstanceMeta,
 } = require("./main/manifest-sync");
 const {
   configureNetFetch,
@@ -80,6 +81,7 @@ const {
   fabricLoaderVersion,
   isManifestUrlConfigured,
 } = require("./main/launcher-config");
+const { exportDiagnostics } = require("./main/diagnostics-export");
 const { runMainAppReady } = require("./main/app-ready");
 
 configureMainWindow({ appRoot: __dirname });
@@ -112,6 +114,17 @@ const {
   installOrUpdateInstance,
   checkInstanceStatusAndNotify,
   isManifestUrlConfigured,
+  getRemoteManifestUrl,
+  fetchJson,
+  exportDiagnostics: () =>
+    exportDiagnostics({
+      readSettings,
+      getPaths,
+      readInstanceMeta,
+      getRemoteManifestUrl,
+      isManifestUrlConfigured,
+      fetchJson,
+    }),
   getBroadcastNotificationsCached,
   readDismissedNotificationIds,
   writeDismissedNotificationIds,

@@ -21,7 +21,7 @@ const defaultLaunchDeps = {
   sendMcRunning: () => {},
   getMainWindow: () => null,
   tryStartDiscordRpcHelper: async () => {},
-  fabricLoaderVersion: "0.18.6",
+  fabricLoaderVersion: "0.19.1",
   ensureMinecraftAndFabricRuntime: async () => {},
 };
 

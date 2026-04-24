@@ -42,8 +42,8 @@ const loopbackPort = 49152;
 // <root>\.temp   -> 暫存下載檔/中繼檔（避免下載中斷時破壞實例）
 //
 // 注意：這些路徑會從 settings.launcherRootDir 取得（實際路徑見 main/paths.js）。
-// 你指定的 Fabric Loader 版本（依你提供：0.18.6）
-const fabricLoaderVersion = "0.18.6";
+// 你指定的 Fabric Loader 版本
+const fabricLoaderVersion = "0.19.1";
 
 function getRemoteManifestUrl() {
   return remoteManifestUrl;
