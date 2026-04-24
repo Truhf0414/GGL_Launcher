@@ -17,6 +17,93 @@
     return;
   }
 
+  // ---- Lifetime cleanup (prevents duplicate listeners on renderer reload) ----
+  const ipcUnsubscribers = [];
+  const domUnsubscribers = [];
+  const intervalIds = [];
+  const timeoutIds = [];
+
+  async function safeInvoke(channel, ...args) {
+    // Always normalize IPC error text once before bubbling up.
+    try {
+      return await ggl.invoke(channel, ...args);
+    } catch (e) {
+      const cleaned = formatInvokeError(e?.message ?? e);
+      const err = new Error(cleaned);
+      try {
+        err.cause = e;
+      } catch {}
+      throw err;
+    }
+  }
+
+  function safeInvokeSilent(channel, ...args) {
+    // For fire-and-forget actions (minimize/close/openExternal).
+    try {
+      const p = ggl.invoke(channel, ...args);
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    } catch {}
+  }
+
+  function onIpc(channel, handler) {
+    const off = ggl.on(channel, handler);
+    ipcUnsubscribers.push(off);
+    return off;
+  }
+
+  function onDom(target, type, handler, options) {
+    if (!target?.addEventListener) return () => {};
+    target.addEventListener(type, handler, options);
+    const off = () => {
+      try {
+        target.removeEventListener(type, handler, options);
+      } catch {}
+    };
+    domUnsubscribers.push(off);
+    return off;
+  }
+
+  function trackInterval(id) {
+    intervalIds.push(id);
+    return id;
+  }
+
+  function trackTimeout(id) {
+    timeoutIds.push(id);
+    return id;
+  }
+
+  function cleanupRendererLifetime() {
+    // Stop custom timers first (they might trigger UI work).
+    for (const id of intervalIds.splice(0)) {
+      try {
+        clearInterval(id);
+      } catch {}
+    }
+    for (const id of timeoutIds.splice(0)) {
+      try {
+        clearTimeout(id);
+      } catch {}
+    }
+
+    // Remove DOM listeners.
+    for (const off of domUnsubscribers.splice(0)) {
+      try {
+        off();
+      } catch {}
+    }
+
+    // Unsubscribe IPC listeners.
+    for (const off of ipcUnsubscribers.splice(0)) {
+      try {
+        off();
+      } catch {}
+    }
+  }
+
+  // In Electron, renderer can be reloaded in dev; avoid leaking listeners.
+  onDom(window, "beforeunload", cleanupRendererLifetime, { once: true });
+
   const el = (id) => document.getElementById(id);
 
   const SL = window.GglSettingsLogic;
@@ -68,25 +155,35 @@
         };
 
         // When video actually starts playing, hide fallback layer.
-        video.addEventListener("playing", () => markHasVideo(true), {
+        const onPlaying = () => markHasVideo(true);
+        const onError = () => markHasVideo(false);
+        const onStalled = () => markHasVideo(false);
+        video.addEventListener("playing", onPlaying, {
           passive: true,
         });
         // If loading fails, keep fallback visible.
-        video.addEventListener("error", () => markHasVideo(false), {
+        video.addEventListener("error", onError, {
           passive: true,
         });
         // Some cases never fire error but stall; be conservative.
-        video.addEventListener("stalled", () => markHasVideo(false), {
+        video.addEventListener("stalled", onStalled, {
           passive: true,
+        });
+        domUnsubscribers.push(() => {
+          try {
+            video.removeEventListener("playing", onPlaying);
+            video.removeEventListener("error", onError);
+            video.removeEventListener("stalled", onStalled);
+          } catch {}
         });
 
         // Power / focus handling: pause when unfocused, resume on focus.
-        window.addEventListener("blur", applyPowerState, { passive: true });
-        window.addEventListener("focus", applyPowerState, { passive: true });
-        document.addEventListener("visibilitychange", applyPowerState, {
+        onDom(window, "blur", applyPowerState, { passive: true });
+        onDom(window, "focus", applyPowerState, { passive: true });
+        onDom(document, "visibilitychange", applyPowerState, {
           passive: true,
         });
-        ggl.on("window:power", (payload) => {
+        onIpc("window:power", (payload) => {
           isMinimized = Boolean(payload?.minimized);
           applyPowerState();
         });
@@ -215,11 +312,13 @@
     // Restore focus back to the opener (or settings button) after close animation.
     const toFocus = lastFocusBeforeSettings || btnSettings;
     lastFocusBeforeSettings = null;
-    setTimeout(() => {
-      try {
-        toFocus?.focus?.();
-      } catch {}
-    }, ANIM_MS + 20);
+    trackTimeout(
+      setTimeout(() => {
+        try {
+          toFocus?.focus?.();
+        } catch {}
+      }, ANIM_MS + 20),
+    );
   }
 
   function handleSettingsModalKeydown(ev) {
@@ -329,7 +428,7 @@
     try {
       elm.setAttribute?.("aria-hidden", "true");
     } catch {}
-    setTimeout(() => elm.classList.add("hidden"), ANIM_MS);
+    trackTimeout(setTimeout(() => elm.classList.add("hidden"), ANIM_MS));
   }
 
   function setStatusVisibility(visible) {
@@ -513,17 +612,19 @@
   }
 
   // 視窗控制
-  btnMinimize.addEventListener("click", () => ggl.invoke("window:minimize"));
-  btnClose.addEventListener("click", () => ggl.invoke("window:close"));
+  btnMinimize.addEventListener("click", () =>
+    safeInvokeSilent("window:minimize"),
+  );
+  btnClose.addEventListener("click", () => safeInvokeSilent("window:close"));
 
   // 右上角：設定 / 通知等
   btnSettings.addEventListener("click", async () => {
     try {
-      const settings = await ggl.invoke("settings:get");
+      const settings = await safeInvoke("settings:get");
       fillSettingsForm(settings);
       openSettingsModal();
     } catch (e) {
-      setStatusError(`無法載入設定：${formatInvokeError(e?.message ?? e)}`);
+      setStatusError(`無法載入設定：${String(e?.message ?? e)}`);
     }
   });
 
@@ -549,7 +650,7 @@
 
   async function fetchNotifications() {
     try {
-      const res = await ggl.invoke("notifications:get", {
+      const res = await safeInvoke("notifications:get", {
         lastSeenKey: lastSeenNotifKey,
       });
       // Back-compat: older main.js might return an array.
@@ -646,20 +747,28 @@
     if (ev.target === notifOverlay) closeNotif();
   });
   btnNotifClear.addEventListener("click", async () => {
-    await ggl.invoke("notifications:clear");
-    const { items } = await renderNotifications();
-    markNotifsSeen(items);
+    try {
+      await safeInvoke("notifications:clear");
+      const { items } = await renderNotifications();
+      markNotifsSeen(items);
+    } catch (e) {
+      setStatusError(`清除通知失敗：${String(e?.message ?? e)}`);
+    }
   });
 
   btnSettingsClose.addEventListener("click", closeSettingsModal);
   settingsBackdrop.addEventListener("click", closeSettingsModal);
 
   btnPickDir.addEventListener("click", async () => {
-    const chosen = await ggl.invoke(
-      "dialog:selectDirectory",
-      inputInstallDir.value || DEFAULT_LAUNCHER_ROOT,
-    );
-    if (chosen) inputInstallDir.value = chosen;
+    try {
+      const chosen = await safeInvoke(
+        "dialog:selectDirectory",
+        inputInstallDir.value || DEFAULT_LAUNCHER_ROOT,
+      );
+      if (chosen) inputInstallDir.value = chosen;
+    } catch {
+      // keep silent: directory picker failures shouldn't hard-block settings
+    }
   });
 
   btnSaveSettings.addEventListener("click", async () => {
@@ -690,7 +799,7 @@
     }
 
     try {
-      await ggl.invoke("settings:set", {
+      await safeInvoke("settings:set", {
         launcherRootDir: dir,
         playerId: offlineId,
         minMemoryGb,
@@ -698,21 +807,19 @@
       });
       closeSettingsModal();
       // 重新檢查版本狀態（路徑變了）
-      await ggl.invoke("instance:recheck");
+      await safeInvoke("instance:recheck");
     } catch (e) {
-      const cleaned = formatInvokeError(e?.message ?? e);
-      setSettingsError(`儲存失敗：${cleaned}`);
+      setSettingsError(`儲存失敗：${String(e?.message ?? e)}`);
     }
   });
 
   btnExportDiagnostics?.addEventListener("click", async () => {
     try {
       setSettingsError("正在匯出診斷報告…（會自動打開資料夾）");
-      const dir = await ggl.invoke("diagnostics:export");
+      const dir = await safeInvoke("diagnostics:export");
       setSettingsError(`已匯出診斷報告：${String(dir || "")}`);
     } catch (e) {
-      const cleaned = formatInvokeError(e?.message ?? e);
-      setSettingsError(`匯出失敗：${cleaned}`);
+      setSettingsError(`匯出失敗：${String(e?.message ?? e)}`);
     }
   });
 
@@ -876,10 +983,10 @@
       try {
         closeAccountMenu();
         resetLogoutArm();
-        await ggl.invoke("openExternal", MC_PROFILE_EDIT_URL);
+        await safeInvoke("openExternal", MC_PROFILE_EDIT_URL);
       } catch (e) {
         const msg = String(e?.message ?? e);
-        setStatus(`無法開啟更改 ID 頁面：${msg}`, 0, "error");
+        setStatusError(`無法開啟更改 ID 頁面：${msg}`);
       }
     });
 
@@ -887,10 +994,10 @@
       try {
         closeAccountMenu();
         resetLogoutArm();
-        await ggl.invoke("openExternal", MC_SKIN_EDIT_URL);
+        await safeInvoke("openExternal", MC_SKIN_EDIT_URL);
       } catch (e) {
         const msg = String(e?.message ?? e);
-        setStatus(`無法開啟更改造型頁面：${msg}`, 0, "error");
+        setStatusError(`無法開啟更改造型頁面：${msg}`);
       }
     });
 
@@ -913,14 +1020,14 @@
       try {
         closeAccountMenu();
         resetLogoutArm();
-        await ggl.invoke("account:logout");
-        const a = await ggl.invoke("account:get");
+        await safeInvoke("account:logout");
+        const a = await safeInvoke("account:get");
         accountState = a;
         applyAccountToUi();
         setStatus("已登出", 1800);
       } catch (e) {
         const msg = String(e?.message ?? e);
-        setStatus(`登出失敗：${msg}`, 0, "error");
+        setStatusError(`登出失敗：${msg}`);
       }
     });
 
@@ -1026,7 +1133,7 @@
       // 未登入：開始登入
       accountLoginInFlight = true;
       setStatus("正在開啟登入視窗…", 0);
-      const a = await ggl.invoke("account:login");
+      const a = await safeInvoke("account:login");
       accountState = a;
       applyAccountToUi();
       // account:login uses sync:status updates; ensure we snap back to ready after successful login.
@@ -1119,7 +1226,7 @@
   }
 
   btnDiscord.addEventListener("click", () => {
-    ggl.invoke("openExternal", DISCORD_INVITE_URL);
+    safeInvokeSilent("openExternal", DISCORD_INVITE_URL);
   });
 
   // 右下角主按鈕狀態：需在 setServerStatus 首次呼叫前存在
@@ -1164,23 +1271,25 @@
   function startMcWatchdog() {
     if (mcWatchdogTimer) return;
     // 保守輪詢：事件漏接時也能把 UI 解鎖
-    mcWatchdogTimer = setInterval(async () => {
-      try {
-        // 若 UI 已經認為不在執行，就停掉輪詢
-        if (!gameRunning) {
-          stopMcWatchdog();
-          return;
+    mcWatchdogTimer = trackInterval(
+      setInterval(async () => {
+        try {
+          // 若 UI 已經認為不在執行，就停掉輪詢
+          if (!gameRunning) {
+            stopMcWatchdog();
+            return;
+          }
+        const isRunning = await safeInvoke("minecraft:isRunning");
+          if (!isRunning) {
+            gameRunning = false;
+            setLauncherBusy(false);
+            stopMcWatchdog();
+          }
+        } catch {
+          // 忽略，下一輪再試
         }
-        const isRunning = await ggl.invoke("minecraft:isRunning");
-        if (!isRunning) {
-          gameRunning = false;
-          setLauncherBusy(false);
-          stopMcWatchdog();
-        }
-      } catch {
-        // 忽略，下一輪再試
-      }
-    }, 2500);
+      }, 2500),
+    );
   }
 
   function setServerStatus(state) {
@@ -1206,7 +1315,7 @@
     }
   }
 
-  ggl.on("server:status", (payload) => setServerStatus(payload?.state));
+  onIpc("server:status", (payload) => setServerStatus(payload?.state));
 
   setServerStatus("unknown");
 
@@ -1340,9 +1449,9 @@
       btnLaunch.style.opacity = "0.92";
       try {
         setStatus("重新連線並檢查版本…", 0);
-        await ggl.invoke("instance:recheck");
+        await safeInvoke("instance:recheck");
       } catch (e) {
-        setStatusError(formatInvokeError(e?.message ?? e));
+        setStatusError(String(e?.message ?? e));
       } finally {
         setLauncherBusy(false);
         updateLaunchButtonUi();
@@ -1364,12 +1473,12 @@
           return;
         }
         setStatus("開始安裝/更新…", 0);
-        await ggl.invoke("instance:installOrUpdate");
+        await safeInvoke("instance:installOrUpdate");
       } else {
-        await ggl.invoke("minecraft:launch");
+        await safeInvoke("minecraft:launch");
       }
     } catch (e) {
-      const cleaned = formatInvokeError(e?.message ?? e);
+      const cleaned = String(e?.message ?? e);
       // 安裝/更新階段給更明確的文案，避免直接露出 IPC 原始錯誤
       if (
         currentInstanceState.needsInstall ||
@@ -1397,9 +1506,9 @@
       setLauncherBusy(true);
       btnLaunch.style.opacity = "0.92";
       try {
-        await ggl.invoke("minecraft:launchOffline");
+        await safeInvoke("minecraft:launchOffline");
       } catch (e) {
-        setStatusError(formatInvokeError(e?.message ?? e));
+        setStatusError(String(e?.message ?? e));
       } finally {
         // 交由 minecraft:running 控制鎖定；若未真的啟動則會立刻恢復
         setLauncherBusy(false);
@@ -1410,31 +1519,33 @@
   }
 
   // 接收主程序的更新狀態（檢查更新/下載進度）
-  ggl.on("sync:status", (payload) => {
+  onIpc("sync:status", (payload) => {
     if (statusMode === "error" && Date.now() < statusUntil) return;
     statusMode = "normal";
     setStatus(payload?.text ?? "...");
   });
 
-  ggl.on("sync:progress", (payload) => {
+  onIpc("sync:progress", (payload) => {
     setLauncherBusy(true);
     if (statusMode === "error" && Date.now() < statusUntil) return;
     statusMode = "normal";
     setStatus(payload?.text ?? "同步中…", payload?.progress01 ?? 0);
   });
 
-  ggl.on("sync:done", (payload) => {
+  onIpc("sync:done", (payload) => {
     if (statusMode === "error" && Date.now() < statusUntil) return;
     statusMode = "normal";
     setStatus(payload?.text ?? "已是最新", 1);
-    setTimeout(() => {
-      if (statusMode === "error" && Date.now() < statusUntil) return;
-      ensureReadyStatusText();
-    }, 900);
-    setTimeout(() => setLauncherBusy(false), 950);
+    trackTimeout(
+      setTimeout(() => {
+        if (statusMode === "error" && Date.now() < statusUntil) return;
+        ensureReadyStatusText();
+      }, 900),
+    );
+    trackTimeout(setTimeout(() => setLauncherBusy(false), 950));
   });
 
-  ggl.on("minecraft:status", (payload) => {
+  onIpc("minecraft:status", (payload) => {
     // 注意：main.js 會在「啟動中」與「已結束」都送 minecraft:status
     // 若一律 setLauncherBusy(true) 會造成遊戲已結束但按鈕仍被鎖住。
     const text = String(payload?.text ?? "").trim();
@@ -1453,13 +1564,13 @@
     setStatus(text || "啟動中…");
   });
 
-  ggl.on("minecraft:progress", (payload) => {
+  onIpc("minecraft:progress", (payload) => {
     if (gameRunning) return;
     setLauncherBusy(true);
     setStatus(payload?.text ?? "準備中…", payload?.progress01 ?? 0);
   });
 
-  ggl.on("minecraft:running", (payload) => {
+  onIpc("minecraft:running", (payload) => {
     gameRunning = Boolean(payload?.isRunning);
     if (gameRunning) {
       setLauncherBusy(true);
@@ -1478,24 +1589,23 @@
     // 遊戲執行中時平常會把狀態字隱藏；這裡短暫顯示一次提示
     setStatus(t, null);
     setStatusVisibility(true);
-    setTimeout(
-      () => {
+    trackTimeout(
+      setTimeout(() => {
         if (gameRunning) {
           setStatus("", null);
           setStatusVisibility(false);
         } else {
           ensureReadyStatusText();
         }
-      },
-      Math.max(1200, Number(ms) || 4500),
+      }, Math.max(1200, Number(ms) || 4500)),
     );
   }
 
-  ggl.on("rpc:notice", (payload) => {
+  onIpc("rpc:notice", (payload) => {
     showTransientStatus(payload?.text || "Discord 狀態未啟用", 5200);
   });
 
-  ggl.on("instance:status", (payload) => {
+  onIpc("instance:status", (payload) => {
     // payload: { state, localVersion, remoteVersion, needsInstall, needsUpdate, text }
     setInstanceStatus(payload?.text ?? "實例狀態未知");
 
@@ -1557,7 +1667,7 @@
   // 啟動時先讀取帳號狀態（若之前登入過就會自動顯示頭像/ID）
   (async () => {
     try {
-      const a = await ggl.invoke("account:get");
+      const a = await safeInvoke("account:get");
       accountState = a;
       applyAccountToUi();
     } catch {
@@ -1567,10 +1677,22 @@
 
   // Notifications indicator: refresh on startup / focus / main push.
   void refreshNotifIndicator();
-  window.addEventListener("focus", () => void refreshNotifIndicator(), {
-    passive: true,
-  });
+  onDom(
+    window,
+    "focus",
+    () => void refreshNotifIndicator(),
+    { passive: true },
+  );
   try {
-    ggl.on("notifications:changed", () => void refreshNotifIndicator());
+    onIpc("notifications:changed", () => void refreshNotifIndicator());
   } catch {}
+
+  // Ensure key long-lived handlers/timers are stopped on unload.
+  domUnsubscribers.push(() => {
+    try {
+      stopMcWatchdog();
+      detachSettingsKeydown();
+      closeAccountMenu?.();
+    } catch {}
+  });
 })();

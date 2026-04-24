@@ -23,6 +23,11 @@ jobs:
       - name: UI/CSS rules
         run: npm run check:ui-css
 
+      - name: IPC docs index is up-to-date
+        run: |
+          npm run docs:ipc
+          git diff --exit-code ARCHITECTURE.md
+
       - name: Syntax (core scripts)
         run: |
           node -c main.js
