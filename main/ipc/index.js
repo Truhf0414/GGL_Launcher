@@ -7,15 +7,12 @@ const { registerMinecraftIpc } = require("./minecraft-ipc");
 const { registerInstanceIpc } = require("./instance-ipc");
 const { registerDiagnosticsIpc } = require("./diagnostics-ipc");
 
-function registerAllMainIpc({
-  ipcMain,
-  deps,
-  showInfoDialog,
-  sendSyncStatus,
-  sendSyncDone,
-  shell,
-  dialog,
-}) {
+function registerAllMainIpc(ctx) {
+  const { ipcMain, deps, showInfoDialog, sendSyncStatus, sendSyncDone } =
+    ctx || {};
+  const shell = ctx?.shell;
+  const dialog = ctx?.dialog;
+
   registerWindowIpc({ ipcMain, deps });
   registerExternalIpc({ ipcMain, deps: { ...deps, shell } });
   registerSettingsIpc({ ipcMain, deps });
