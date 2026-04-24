@@ -434,7 +434,11 @@ async function ensureLibrariesAndAssets({
         try {
           const extractZip = require("extract-zip");
           await extractZip(t.abs, { dir: nativesDir });
-        } catch {}
+        } catch (e) {
+          const msg = String(e?.message ?? e);
+          sendMcStatus(`解壓 natives 失敗：${msg}`);
+          throw new Error(`解壓 natives 失敗：${msg}`);
+        }
       }
     });
   }

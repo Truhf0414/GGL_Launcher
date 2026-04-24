@@ -1,20 +1,28 @@
 // Renderer UI helpers: account avatar + account menu + login/logout flow.
 // Loaded before renderer.js via index.html.
 (function () {
-  function createAccountUi({
-    safeInvoke,
-    setStatus,
-    setStatusError,
-    trackTimeout,
-    ANIM_MS,
-    btnLogin,
-    accountName,
-    avatarEl,
-    getAccountState,
-    setAccountState,
-    updateLaunchButtonUi,
-    ensureReadyStatusText,
-  }) {
+  function createAccountUi(input) {
+    const ctx = input?.ctx || null;
+    const fx = ctx?.fx || {};
+    const ui = ctx?.ui || {};
+    const consts = ctx?.consts || {};
+
+    const safeInvoke = input?.safeInvoke || fx.safeInvoke;
+    const setStatus = input?.setStatus || fx.setStatus;
+    const setStatusError = input?.setStatusError || fx.setStatusError;
+    const onDom = input?.onDom || fx.onDom;
+    const trackTimeout = input?.trackTimeout || fx.trackTimeout || ((x) => x);
+    const ANIM_MS =
+      input?.ANIM_MS ??
+      (Number.isFinite(consts.ANIM_MS) ? consts.ANIM_MS : 280);
+    const btnLogin = input?.btnLogin || ui.btnLogin;
+    const accountName = input?.accountName || ui.accountName;
+    const avatarEl = input?.avatarEl || ui.avatarEl;
+    const getAccountState = input?.getAccountState || (() => ({}));
+    const setAccountState = input?.setAccountState || (() => {});
+    const updateLaunchButtonUi = input?.updateLaunchButtonUi || (() => {});
+    const ensureReadyStatusText = input?.ensureReadyStatusText || (() => {});
+
     let accountLoginInFlight = false;
 
     // Avatar loading: try multiple providers for robustness.
@@ -343,7 +351,20 @@
     }
 
     function init() {
-      btnLogin?.addEventListener?.("click", async () => {
+      const bind =
+        typeof onDom === "function"
+          ? onDom
+          : (target, type, handler, options) => {
+              if (!target?.addEventListener) return () => {};
+              target.addEventListener(type, handler, options);
+              return () => {
+                try {
+                  target.removeEventListener(type, handler, options);
+                } catch {}
+              };
+            };
+
+      bind(btnLogin, "click", async () => {
         try {
           const accountState = getAccountState();
           // 若已登入：先簡單詢問是否登出
@@ -373,7 +394,8 @@
       });
 
       // Close menu on outside click / ESC / resize.
-      document.addEventListener(
+      bind(
+        document,
         "click",
         (ev) => {
           if (!accountMenuOpen) return;
@@ -384,15 +406,16 @@
         },
         { capture: true },
       );
-      document.addEventListener("keydown", (ev) => {
+      bind(document, "keydown", (ev) => {
         if (!accountMenuOpen) return;
         if (ev.key === "Escape") closeAccountMenu();
       });
-      window.addEventListener("resize", () => {
+      bind(window, "resize", () => {
         if (!accountMenuOpen) return;
         scheduleAccountMenuPosition();
       });
-      window.addEventListener(
+      bind(
+        window,
         "scroll",
         () => {
           if (!accountMenuOpen) return;

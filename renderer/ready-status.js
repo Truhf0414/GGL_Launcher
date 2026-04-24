@@ -1,12 +1,17 @@
 // Renderer UI helpers: "ready" status policy.
 // Loaded before renderer.js via index.html.
 (function () {
-  function createReadyStatus({
-    setStatus,
-    statusGuard,
-    getBusyState,
-    getInstanceState,
-  }) {
+  function createReadyStatus(input) {
+    const ctx = input?.ctx || null;
+    const fx = ctx?.fx || {};
+
+    const setStatus = input?.setStatus || fx.setStatus || (() => {});
+    const statusGuard = input?.statusGuard || {
+      isErrorGuardActive: () => false,
+    };
+    const getBusyState = input?.getBusyState || (() => ({}));
+    const getInstanceState = input?.getInstanceState || (() => ({}));
+
     function isInstanceReady() {
       const s = getInstanceState();
       return (

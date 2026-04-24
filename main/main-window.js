@@ -2,6 +2,7 @@ const path = require("path");
 const fs = require("fs");
 const { BrowserWindow } = require("electron");
 const { getDebugLoggingEnabled } = require("./launcher-log");
+const { gglEvent } = require("../lib/ggl-structured-log");
 
 let appRoot = path.join(__dirname, "..");
 /** @type {string} */
@@ -65,6 +66,7 @@ function createMainWindow() {
       sandbox: false,
     },
   });
+  gglEvent("main", "main_window_created", {});
 
   // Debug 用：把 renderer 的 console/error 印到主程序
   // 平常不掛，避免噪音與 deprecated 警告

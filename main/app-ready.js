@@ -5,6 +5,8 @@
  * @param {object} ctx
  */
 
+const { gglEvent } = require("../lib/ggl-structured-log");
+
 /** 與 `main.js` 的 `getMainAppReadyContext()` 鍵名一致；增刪注入時請兩邊一併改。 */
 const MAIN_APP_READY_KEYS = [
   "app",
@@ -98,6 +100,7 @@ async function runMainAppReady(ctx) {
     throw new Error("runMainAppReady: ctx is required");
   }
   assertMainAppReadyContext(ctx);
+  gglEvent("main", "app_ready_begin", {});
 
   const {
     app,
@@ -233,6 +236,8 @@ async function runMainAppReady(ctx) {
   setupMainIpc();
   startServerStatusPolling();
   startNotificationsBroadcastPolling();
+  gglEvent("main", "app_ready_wired", { ipc: true });
+
   // 啟動時：只做「版本檢查」，不自動下載
   setTimeout(() => {
     checkInstanceStatusAndNotify().catch((e) => {

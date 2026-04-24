@@ -1,6 +1,6 @@
-import { spawnSync } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
+const { spawnSync } = require("node:child_process");
+const fs = require("node:fs");
+const path = require("node:path");
 
 function fail(msg) {
   console.error(`[downscale-bg-video] ${msg}`);

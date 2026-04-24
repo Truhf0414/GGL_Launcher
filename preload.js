@@ -11,13 +11,47 @@ function fileUrlFromAbs(absPath) {
   return `file:///${encodeURI(p)}`;
 }
 
+function normalizeAssetRelPath(rel) {
+  const raw = String(rel || "")
+    .trim()
+    .replace(/\\/g, "/");
+  if (!raw) return null;
+  // Block traversal, absolute paths, URL-ish, and drive letters.
+  if (raw.includes("\0")) return null;
+  if (raw.startsWith("/") || raw.startsWith("\\")) return null;
+  if (/^[a-zA-Z]:[\\/]/.test(raw)) return null;
+  if (raw.includes(":")) return null;
+  const parts = raw.split("/").filter((p) => p && p !== ".");
+  if (parts.some((p) => p === "..")) return null;
+  return parts.join("/");
+}
+
 function resolvePackagedAssetPath(rel) {
+  const normalized = normalizeAssetRelPath(rel);
+  if (!normalized) {
+    throw new Error("Blocked assetUrl path.");
+  }
+
   // packaged: process.resourcesPath/assets/... ; dev: __dirname/assets/...
-  const packaged = path.join(process.resourcesPath || "", "assets", rel);
+  const packagedBase = path.join(process.resourcesPath || "", "assets");
+  const packaged = path.join(packagedBase, normalized);
   try {
-    if (packaged && fs.existsSync(packaged)) return packaged;
+    if (
+      packaged &&
+      path
+        .resolve(packaged)
+        .startsWith(path.resolve(packagedBase) + path.sep) &&
+      fs.existsSync(packaged)
+    )
+      return packaged;
   } catch {}
-  return path.join(__dirname, "assets", rel);
+
+  const devBase = path.join(__dirname, "assets");
+  const dev = path.join(devBase, normalized);
+  if (!path.resolve(dev).startsWith(path.resolve(devBase) + path.sep)) {
+    throw new Error("Blocked assetUrl path.");
+  }
+  return dev;
 }
 
 contextBridge.exposeInMainWorld("ggl", {

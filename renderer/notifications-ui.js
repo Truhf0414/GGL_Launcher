@@ -1,12 +1,16 @@
 // Renderer UI helpers: notifications panel + unread indicator.
 // Loaded before renderer.js via index.html.
 (function () {
-  function createNotificationsUi({
-    safeInvoke,
-    openOverlay,
-    closeOverlay,
-    setStatusError,
-  }) {
+  function createNotificationsUi(input) {
+    const ctx = input?.ctx || null;
+    const fx = ctx?.fx || {};
+
+    const safeInvoke = input?.safeInvoke || fx.safeInvoke;
+    const openOverlay = input?.openOverlay || fx.openOverlay || (() => {});
+    const closeOverlay = input?.closeOverlay || fx.closeOverlay || (() => {});
+    const setStatusError =
+      input?.setStatusError || fx.setStatusError || (() => {});
+
     const NOTIF_LAST_SEEN_KEY_STORAGE = "ggl:notifLastSeenKey:v1";
 
     function loadLastSeenNotifKey() {

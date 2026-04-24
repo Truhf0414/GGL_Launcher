@@ -1,5 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
+const fs = require("node:fs");
+const path = require("node:path");
 
 const repoRoot = process.cwd();
 const htmlPath = path.join(repoRoot, "index.html");
@@ -14,6 +14,8 @@ const expected = [
   "./renderer/lifetime.js",
   "./renderer/module-registry.js",
   "./renderer/self-check.js",
+  "./renderer/constants.js",
+  "./renderer/ggl-log.js",
   "./renderer/ui-status.js",
   "./renderer/notifications-ui.js",
   "./renderer/settings-modal.js",
@@ -27,6 +29,7 @@ const expected = [
   "./renderer/instance-ui.js",
   "./renderer/startup.js",
   "./renderer/ready-status.js",
+  "./renderer/bootstrap-ctx.js",
   "./renderer/bootstrap.js",
   "./renderer.js",
 ];
@@ -46,11 +49,16 @@ const rendererLike = srcs.filter(
   (s) => s.startsWith("./renderer/") || s === "./renderer.js",
 );
 const libs = srcs.filter((s) => s.startsWith("./lib/"));
-const actual = [...libs.filter((s) => s === "./lib/settings-logic.js"), ...rendererLike];
+const actual = [
+  ...libs.filter((s) => s === "./lib/settings-logic.js"),
+  ...rendererLike,
+];
 
 // Only validate if renderer.js is present (avoid false positives on unrelated pages).
 if (!srcs.includes("./renderer.js")) {
-  console.log("[renderer-scripts-check] skipped (no ./renderer.js in index.html)");
+  console.log(
+    "[renderer-scripts-check] skipped (no ./renderer.js in index.html)",
+  );
   process.exit(0);
 }
 
@@ -68,4 +76,3 @@ if (actual.join("\n") !== expected.join("\n")) {
 }
 
 console.log("[renderer-scripts-check] ok");
-

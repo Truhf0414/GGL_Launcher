@@ -1,7 +1,15 @@
 // Renderer UI helpers: server status dot/text.
 // Loaded before renderer.js via index.html.
 (function () {
-  function createServerStatusUi({ onIpc, serverStatusDot, serverStatusText }) {
+  function createServerStatusUi(input) {
+    const ctx = input?.ctx || null;
+    const fx = ctx?.fx || {};
+    const ui = ctx?.ui || {};
+
+    const onIpc = input?.onIpc || fx.onIpc;
+    const serverStatusDot = input?.serverStatusDot || ui.serverStatusDot;
+    const serverStatusText = input?.serverStatusText || ui.serverStatusText;
+
     function setServerStatus(state) {
       const s = state || "unknown";
       if (serverStatusDot) {
