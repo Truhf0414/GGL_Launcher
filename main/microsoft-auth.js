@@ -6,6 +6,7 @@ const {
   writeAccount,
   getAccountPayloadForRenderer,
 } = require("./account-store");
+const { IPC } = require("../lib/ipc-channels");
 
 const defaultDeps = {
   msClientId: "",
@@ -456,14 +457,18 @@ async function loginMicrosoftAndMinecraft() {
 
 function registerAccountIpcHandlers(ipcMain) {
   // 避免熱重載或重複呼叫 setupIpc 時堆疊 handler（雖多數情況下後註冊會覆蓋，仍明確清掉）
-  for (const ch of ["account:get", "account:logout", "account:login"]) {
+  for (const ch of [
+    IPC.invoke.ACCOUNT_GET,
+    IPC.invoke.ACCOUNT_LOGOUT,
+    IPC.invoke.ACCOUNT_LOGIN,
+  ]) {
     try {
       ipcMain.removeHandler(ch);
     } catch {}
   }
-  ipcMain.handle("account:get", async () => getAccountPayloadForRenderer());
+  ipcMain.handle(IPC.invoke.ACCOUNT_GET, async () => getAccountPayloadForRenderer());
 
-  ipcMain.handle("account:logout", async () => {
+  ipcMain.handle(IPC.invoke.ACCOUNT_LOGOUT, async () => {
     if (loginInProgress) {
       throw new Error("登入進行中，請稍候再登出。");
     }
@@ -477,7 +482,7 @@ function registerAccountIpcHandlers(ipcMain) {
     return true;
   });
 
-  ipcMain.handle("account:login", async () => {
+  ipcMain.handle(IPC.invoke.ACCOUNT_LOGIN, async () => {
     const msClientId = String(deps.msClientId || "").trim();
     if (loginInProgress) {
       deps.sendSyncStatus("登入仍在進行中…");

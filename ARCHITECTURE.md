@@ -86,9 +86,8 @@ Use this table to find code after splits. **When you add or extract a new `main/
 
 ### IPC index (auto-generated)
 
-- **Preload allowlists**: `preload.js`
-  - `ALLOWED_INVOKE`: lines **5–22**
-  - `ALLOWED_ON`: lines **24–36**
+- **IPC channel source**: `lib/ipc-channels.js`
+- **Preload allowlists**: derived from the channel source (`preload.js`)
 - **Main IPC handlers**: `main/ipc-handlers.js` + `main/microsoft-auth.js` (`ipcMain.handle(...)`; line refs below)
 
 **Consistency check**
@@ -96,22 +95,23 @@ Use this table to find code after splits. **When you add or extract a new `main/
 
 #### Invoke channels (`window.ggl.invoke`)
 
-- `account:get` (`main/microsoft-auth.js`: ~464)
-- `account:login` (`main/microsoft-auth.js`: ~480)
-- `account:logout` (`main/microsoft-auth.js`: ~466)
-- `dialog:selectDirectory` (`main/ipc-handlers.js`: ~104)
-- `instance:installOrUpdate` (`main/ipc-handlers.js`: ~185)
-- `instance:recheck` (`main/ipc-handlers.js`: ~206)
-- `minecraft:isRunning` (`main/ipc-handlers.js`: ~181)
-- `minecraft:launch` (`main/ipc-handlers.js`: ~158)
-- `minecraft:launchOffline` (`main/ipc-handlers.js`: ~170)
-- `notifications:clear` (`main/ipc-handlers.js`: ~149)
-- `notifications:get` (`main/ipc-handlers.js`: ~120)
-- `openExternal` (`main/ipc-handlers.js`: ~84)
-- `settings:get` (`main/ipc-handlers.js`: ~86)
-- `settings:set` (`main/ipc-handlers.js`: ~101)
-- `window:close` (`main/ipc-handlers.js`: ~83)
-- `window:minimize` (`main/ipc-handlers.js`: ~82)
+- `account:get` (`main/microsoft-auth.js`: ~469)
+- `account:login` (`main/microsoft-auth.js`: ~485)
+- `account:logout` (`main/microsoft-auth.js`: ~471)
+- `diagnostics:export` (`main/ipc-handlers.js`: ~246)
+- `dialog:selectDirectory` (`main/ipc-handlers.js`: ~130)
+- `instance:installOrUpdate` (`main/ipc-handlers.js`: ~211)
+- `instance:recheck` (`main/ipc-handlers.js`: ~235)
+- `minecraft:isRunning` (`main/ipc-handlers.js`: ~207)
+- `minecraft:launch` (`main/ipc-handlers.js`: ~184)
+- `minecraft:launchOffline` (`main/ipc-handlers.js`: ~196)
+- `notifications:clear` (`main/ipc-handlers.js`: ~175)
+- `notifications:get` (`main/ipc-handlers.js`: ~146)
+- `openExternal` (`main/ipc-handlers.js`: ~102)
+- `settings:get` (`main/ipc-handlers.js`: ~112)
+- `settings:set` (`main/ipc-handlers.js`: ~127)
+- `window:close` (`main/ipc-handlers.js`: ~101)
+- `window:minimize` (`main/ipc-handlers.js`: ~98)
 
 #### Event channels (`window.ggl.on`)
 

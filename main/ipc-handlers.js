@@ -1,6 +1,7 @@
 // Renderer ↔ Main：IPC handlers + 推播到視窗（sync / MC / instance / server）
 const { ipcMain, shell, dialog } = require("electron");
 const { registerAccountIpcHandlers } = require("./microsoft-auth");
+const { IPC } = require("../lib/ipc-channels");
 
 /** 避免 `setupMainIpc` 被呼叫兩次時重複 `ipcMain.handle`（Electron 會丟錯） */
 let mainIpcRegistered = false;
@@ -9,34 +10,34 @@ let mainIpcRegistered = false;
 function createMainIpcBridge(deps) {
   function sendSyncStatus(text) {
     void deps.appendLauncherLog(`SYNC ${text}`);
-    deps.getMainWindow?.()?.webContents?.send("sync:status", { text });
+    deps.getMainWindow?.()?.webContents?.send(IPC.on.SYNC_STATUS, { text });
   }
   function sendSyncProgress(text, progress01) {
     const p = Math.max(0, Math.min(1, Number(progress01) || 0));
     deps.logSyncProgressThrottled(text, p);
-    deps.getMainWindow?.()?.webContents?.send("sync:progress", {
+    deps.getMainWindow?.()?.webContents?.send(IPC.on.SYNC_PROGRESS, {
       text,
       progress01: p,
     });
   }
   function sendSyncDone(text) {
     void deps.appendLauncherLog(`SYNC_DONE ${text}`);
-    deps.getMainWindow?.()?.webContents?.send("sync:done", { text });
+    deps.getMainWindow?.()?.webContents?.send(IPC.on.SYNC_DONE, { text });
   }
   function sendMcStatus(text) {
     void deps.appendLauncherLog(`MC ${text}`);
-    deps.getMainWindow?.()?.webContents?.send("minecraft:status", { text });
+    deps.getMainWindow?.()?.webContents?.send(IPC.on.MINECRAFT_STATUS, { text });
   }
   function sendMcProgress(text, progress01) {
     const p = Math.max(0, Math.min(1, Number(progress01) || 0));
     void deps.appendLauncherLog(`MC ${text} ${(p * 100).toFixed(1)}%`);
-    deps.getMainWindow?.()?.webContents?.send("minecraft:progress", {
+    deps.getMainWindow?.()?.webContents?.send(IPC.on.MINECRAFT_PROGRESS, {
       text,
       progress01: p,
     });
   }
   function sendMcRunning(isRunning) {
-    deps.getMainWindow?.()?.webContents?.send("minecraft:running", {
+    deps.getMainWindow?.()?.webContents?.send(IPC.on.MINECRAFT_RUNNING, {
       isRunning: Boolean(isRunning),
     });
   }
@@ -52,10 +53,10 @@ function createMainIpcBridge(deps) {
       };
       void deps.appendLauncherLog(`INSTANCE ${JSON.stringify(summary)}`);
     } catch {}
-    deps.getMainWindow?.()?.webContents?.send("instance:status", payload);
+    deps.getMainWindow?.()?.webContents?.send(IPC.on.INSTANCE_STATUS, payload);
   }
   function sendServerStatus(state) {
-    deps.getMainWindow?.()?.webContents?.send("server:status", { state });
+    deps.getMainWindow?.()?.webContents?.send(IPC.on.SERVER_STATUS, { state });
   }
 
   async function showInfoDialog(title, message) {
@@ -94,11 +95,11 @@ function createMainIpcBridge(deps) {
 
     registerAccountIpcHandlers(ipcMain);
 
-    ipcMain.handle("window:minimize", () =>
+    ipcMain.handle(IPC.invoke.WINDOW_MINIMIZE, () =>
       deps.getMainWindow?.()?.minimize?.(),
     );
-    ipcMain.handle("window:close", () => deps.getMainWindow?.()?.close?.());
-    ipcMain.handle("openExternal", (_e, url) => {
+    ipcMain.handle(IPC.invoke.WINDOW_CLOSE, () => deps.getMainWindow?.()?.close?.());
+    ipcMain.handle(IPC.invoke.OPEN_EXTERNAL, (_e, url) => {
       const u = String(url || "").trim();
       if (!/^https?:\/\//i.test(u)) return;
       try {
@@ -108,7 +109,7 @@ function createMainIpcBridge(deps) {
       }
     });
 
-    ipcMain.handle("settings:get", async () => {
+    ipcMain.handle(IPC.invoke.SETTINGS_GET, async () => {
       const raw = await deps.readSettingsRaw();
       const settings = deps.normalizeSettingsObject(raw);
       const userMemoryConfigured =
@@ -123,10 +124,10 @@ function createMainIpcBridge(deps) {
         },
       };
     });
-    ipcMain.handle("settings:set", async (_e, patch) =>
+    ipcMain.handle(IPC.invoke.SETTINGS_SET, async (_e, patch) =>
       deps.writeSettings(patch),
     );
-    ipcMain.handle("dialog:selectDirectory", async (_e, defaultPath) => {
+    ipcMain.handle(IPC.invoke.DIALOG_SELECT_DIRECTORY, async (_e, defaultPath) => {
       const result = await dialog.showOpenDialog(
         deps.getMainWindow?.() ?? undefined,
         {
@@ -142,7 +143,7 @@ function createMainIpcBridge(deps) {
       return result.filePaths?.[0] || "";
     });
 
-    ipcMain.handle("notifications:get", async (_e, opts) => {
+    ipcMain.handle(IPC.invoke.NOTIFICATIONS_GET, async (_e, opts) => {
       const lastSeenKey =
         opts && typeof opts === "object" ? String(opts.lastSeenKey || "") : "";
       const broadcast = await deps.getBroadcastNotificationsCached();
@@ -171,7 +172,7 @@ function createMainIpcBridge(deps) {
       return { items, unreadCount };
     });
 
-    ipcMain.handle("notifications:clear", async () => {
+    ipcMain.handle(IPC.invoke.NOTIFICATIONS_CLEAR, async () => {
       const broadcast = await deps.getBroadcastNotificationsCached();
       if (broadcast.length === 0) return true;
       const dismissed = await deps.readDismissedNotificationIds();
@@ -180,7 +181,7 @@ function createMainIpcBridge(deps) {
       return true;
     });
 
-    ipcMain.handle("minecraft:launch", async () => {
+    ipcMain.handle(IPC.invoke.MINECRAFT_LAUNCH, async () => {
       const acct = await deps.readAccount();
       const settings = await deps.readSettings();
       const paths = deps.getPaths(settings);
@@ -192,7 +193,7 @@ function createMainIpcBridge(deps) {
       });
     });
 
-    ipcMain.handle("minecraft:launchOffline", async () => {
+    ipcMain.handle(IPC.invoke.MINECRAFT_LAUNCH_OFFLINE, async () => {
       const settings = await deps.readSettings();
       const paths = deps.getPaths(settings);
       await requireUpToDateInstanceOrThrow(settings);
@@ -203,11 +204,11 @@ function createMainIpcBridge(deps) {
       });
     });
 
-    ipcMain.handle("minecraft:isRunning", async () =>
+    ipcMain.handle(IPC.invoke.MINECRAFT_IS_RUNNING, async () =>
       deps.isMinecraftRunning(),
     );
 
-    ipcMain.handle("instance:installOrUpdate", async () => {
+    ipcMain.handle(IPC.invoke.INSTANCE_INSTALL_OR_UPDATE, async () => {
       try {
         if (!deps.isManifestUrlConfigured()) {
           sendSyncStatus("尚未設定更新來源");
@@ -231,7 +232,7 @@ function createMainIpcBridge(deps) {
       }
     });
 
-    ipcMain.handle("instance:recheck", async () => {
+    ipcMain.handle(IPC.invoke.INSTANCE_RECHECK, async () => {
       try {
         await deps.checkInstanceStatusAndNotify();
       } catch (e) {
@@ -242,7 +243,7 @@ function createMainIpcBridge(deps) {
       }
     });
 
-    ipcMain.handle("diagnostics:export", async () => {
+    ipcMain.handle(IPC.invoke.DIAGNOSTICS_EXPORT, async () => {
       const dir = await deps.exportDiagnostics?.();
       const p = String(dir || "").trim();
       if (!p) throw new Error("無法匯出診斷報告。");
