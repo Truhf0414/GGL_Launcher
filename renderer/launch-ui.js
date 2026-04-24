@@ -1,18 +1,23 @@
 // Renderer UI helpers: launch button state machine + click actions.
 // Loaded before renderer.js via index.html.
 (function () {
-  function createLaunchUi({
-    safeInvoke,
-    setStatus,
-    setStatusError,
-    btnLaunch,
-    btnOfflineLink,
-    getAccountState,
-    getInstanceState,
-    getBusyState,
-    setBusyState,
-    ensureReadyStatusText,
-  }) {
+  function createLaunchUi(input) {
+    const ctx = input?.ctx || null;
+    const fx = ctx?.fx || {};
+    const ui = ctx?.ui || {};
+
+    const safeInvoke = input?.safeInvoke || fx.safeInvoke;
+    const setStatus = input?.setStatus || fx.setStatus;
+    const setStatusError = input?.setStatusError || fx.setStatusError;
+    const onDom = input?.onDom || fx.onDom;
+    const btnLaunch = input?.btnLaunch || ui.btnLaunch;
+    const btnOfflineLink = input?.btnOfflineLink || ui.btnOfflineLink;
+    const getAccountState = input?.getAccountState || (() => ({}));
+    const getInstanceState = input?.getInstanceState || (() => ({}));
+    const getBusyState = input?.getBusyState || (() => ({}));
+    const setBusyState = input?.setBusyState || (() => {});
+    const ensureReadyStatusText = input?.ensureReadyStatusText || (() => {});
+
     function setOfflineLinkState({ visible, enabled }) {
       if (!btnOfflineLink) return;
       const v = Boolean(visible);
@@ -139,7 +144,20 @@
     }
 
     function init() {
-      btnLaunch?.addEventListener?.("click", async () => {
+      const bind =
+        typeof onDom === "function"
+          ? onDom
+          : (target, type, handler, options) => {
+              if (!target?.addEventListener) return () => {};
+              target.addEventListener(type, handler, options);
+              return () => {
+                try {
+                  target.removeEventListener(type, handler, options);
+                } catch {}
+              };
+            };
+
+      bind(btnLaunch, "click", async () => {
         const currentInstanceState = getInstanceState();
 
         if (currentInstanceState.fetchFailed) {
@@ -196,7 +214,7 @@
         }
       });
 
-      btnOfflineLink?.addEventListener?.("click", async () => {
+      bind(btnOfflineLink, "click", async () => {
         setLauncherBusy(true);
         btnLaunch.style.opacity = "0.92";
         try {

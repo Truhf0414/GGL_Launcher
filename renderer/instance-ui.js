@@ -1,17 +1,22 @@
 // Renderer UI helpers: instance status + notice/changelog rendering.
 // Loaded before renderer.js via index.html.
 (function () {
-  function createInstanceUi({
-    onIpc,
-    setInstanceStatus,
-    updateLaunchButtonUi,
-    ensureReadyStatusText,
-    setInstanceState,
-    noticeTitle,
-    noticeDate,
-    noticeLog,
-    noticeThumb,
-  }) {
+  function createInstanceUi(input) {
+    const ctx = input?.ctx || null;
+    const fx = ctx?.fx || {};
+    const ui = ctx?.ui || {};
+
+    const onIpc = input?.onIpc || fx.onIpc;
+    const setInstanceStatus = input?.setInstanceStatus || (() => {});
+    const updateLaunchButtonUi = input?.updateLaunchButtonUi || (() => {});
+    const ensureReadyStatusText = input?.ensureReadyStatusText || (() => {});
+    const setInstanceState = input?.setInstanceState || (() => {});
+
+    const noticeTitle = input?.noticeTitle || ui.noticeTitle;
+    const noticeDate = input?.noticeDate || ui.noticeDate;
+    const noticeLog = input?.noticeLog || ui.noticeLog;
+    const noticeThumb = input?.noticeThumb || ui.noticeThumb;
+
     function applyNotice(n) {
       if (!n || typeof n !== "object") return;
 

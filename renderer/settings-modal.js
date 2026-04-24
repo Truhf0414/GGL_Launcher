@@ -1,30 +1,46 @@
 // Renderer UI helpers: settings modal (focus trap + form + actions).
 // Loaded before renderer.js via index.html.
 (function () {
-  function createSettingsModal({
-    safeInvoke,
-    setStatusError,
-    openOverlay,
-    closeOverlay,
-    trackTimeout,
-    ANIM_MS,
-    DEFAULT_LAUNCHER_ROOT,
-    computeMemoryUiModel,
-    parseFiniteNumberOrUnset,
-    btnSettings,
-    settingsModal,
-    settingsBackdrop,
-    btnSettingsClose,
-    btnSaveSettings,
-    btnExportDiagnostics,
-    inputInstallDir,
-    btnPickDir,
-    inputOfflinePlayerId,
-    inputMinMemoryGb,
-    inputMaxMemoryGb,
-    settingsError,
-    memAutoHint,
-  }) {
+  function createSettingsModal(input) {
+    const ctx = input?.ctx || null;
+    const fx = ctx?.fx || {};
+    const ui = ctx?.ui || {};
+    const consts = ctx?.consts || {};
+
+    const safeInvoke = input?.safeInvoke || fx.safeInvoke;
+    const setStatusError = input?.setStatusError || fx.setStatusError;
+    const openOverlay = input?.openOverlay || fx.openOverlay || (() => {});
+    const closeOverlay = input?.closeOverlay || fx.closeOverlay || (() => {});
+    const onDom = input?.onDom || fx.onDom;
+    const trackTimeout = input?.trackTimeout || fx.trackTimeout || ((x) => x);
+    const ANIM_MS =
+      input?.ANIM_MS ??
+      (Number.isFinite(consts.ANIM_MS) ? consts.ANIM_MS : 280);
+    const DEFAULT_LAUNCHER_ROOT =
+      input?.DEFAULT_LAUNCHER_ROOT || consts.DEFAULT_LAUNCHER_ROOT;
+    const computeMemoryUiModel =
+      input?.computeMemoryUiModel || fx.computeMemoryUiModel || (() => ({}));
+    const parseFiniteNumberOrUnset =
+      input?.parseFiniteNumberOrUnset ||
+      fx.parseFiniteNumberOrUnset ||
+      (() => null);
+
+    const btnSettings = input?.btnSettings || ui.btnSettings;
+    const settingsModal = input?.settingsModal || ui.settingsModal;
+    const settingsBackdrop = input?.settingsBackdrop || ui.settingsBackdrop;
+    const btnSettingsClose = input?.btnSettingsClose || ui.btnSettingsClose;
+    const btnSaveSettings = input?.btnSaveSettings || ui.btnSaveSettings;
+    const btnExportDiagnostics =
+      input?.btnExportDiagnostics || ui.btnExportDiagnostics;
+    const inputInstallDir = input?.inputInstallDir || ui.inputInstallDir;
+    const btnPickDir = input?.btnPickDir || ui.btnPickDir;
+    const inputOfflinePlayerId =
+      input?.inputOfflinePlayerId || ui.inputOfflinePlayerId;
+    const inputMinMemoryGb = input?.inputMinMemoryGb || ui.inputMinMemoryGb;
+    const inputMaxMemoryGb = input?.inputMaxMemoryGb || ui.inputMaxMemoryGb;
+    const settingsError = input?.settingsError || ui.settingsError;
+    const memAutoHint = input?.memAutoHint || ui.memAutoHint;
+
     const modalPanel = settingsModal?.querySelector?.(".modal-panel") ?? null;
     const SETTINGS_FOCUSABLE_SEL =
       'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -270,18 +286,25 @@
     }
 
     function init() {
-      btnSettings?.addEventListener?.(
-        "click",
-        () => void openWithLatestSettings(),
-      );
-      btnSettingsClose?.addEventListener?.("click", closeSettingsModal);
-      settingsBackdrop?.addEventListener?.("click", closeSettingsModal);
-      btnPickDir?.addEventListener?.("click", () => void pickInstallDir());
-      btnSaveSettings?.addEventListener?.("click", () => void saveSettings());
-      btnExportDiagnostics?.addEventListener?.(
-        "click",
-        () => void exportDiagnostics(),
-      );
+      const bind =
+        typeof onDom === "function"
+          ? onDom
+          : (target, type, handler, options) => {
+              if (!target?.addEventListener) return () => {};
+              target.addEventListener(type, handler, options);
+              return () => {
+                try {
+                  target.removeEventListener(type, handler, options);
+                } catch {}
+              };
+            };
+
+      bind(btnSettings, "click", () => void openWithLatestSettings());
+      bind(btnSettingsClose, "click", closeSettingsModal);
+      bind(settingsBackdrop, "click", closeSettingsModal);
+      bind(btnPickDir, "click", () => void pickInstallDir());
+      bind(btnSaveSettings, "click", () => void saveSettings());
+      bind(btnExportDiagnostics, "click", () => void exportDiagnostics());
 
       // Clear inline error when user edits inputs.
       for (const x of [
@@ -290,7 +313,7 @@
         inputMinMemoryGb,
         inputMaxMemoryGb,
       ]) {
-        x?.addEventListener?.("input", () => setSettingsError(""), {
+        bind(x, "input", () => setSettingsError(""), {
           passive: true,
         });
       }

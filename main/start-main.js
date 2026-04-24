@@ -49,11 +49,21 @@ const {
   isMinecraftRunning,
 } = require("./minecraft-launch");
 const { configureMicrosoftAuth } = require("./microsoft-auth");
-const { createMainIpcBridge } = require("./ipc-handlers");
-const { configureServerStatus, startServerStatusPolling } = require("./server-status");
-const { configureMainWindow, createMainWindow, getMainWindow, getAppIconPath } =
-  require("./main-window");
-const { configureDiscordRpc, tryStartDiscordRpcHelper } = require("./discord-rpc");
+const { createMainIpcBridge } = require("./ipc-setup");
+const {
+  configureServerStatus,
+  startServerStatusPolling,
+} = require("./server-status");
+const {
+  configureMainWindow,
+  createMainWindow,
+  getMainWindow,
+  getAppIconPath,
+} = require("./main-window");
+const {
+  configureDiscordRpc,
+  tryStartDiscordRpcHelper,
+} = require("./discord-rpc");
 const { getSystemMemoryGb } = require("./system-memory");
 const {
   getRemoteManifestUrl,
@@ -67,6 +77,7 @@ const {
 } = require("./launcher-config");
 const { exportDiagnostics } = require("./diagnostics-export");
 const { runMainAppReady } = require("./app-ready");
+const { gglEvent, gglError } = require("../lib/ggl-structured-log");
 
 function createMainAppReadyContext({ app, appRoot }) {
   configureMainWindow({ appRoot });
@@ -165,10 +176,16 @@ function createMainAppReadyContext({ app, appRoot }) {
 }
 
 async function startMain({ app, appRoot }) {
+  gglEvent("main", "start_main_begin", {
+    node: process.version,
+    platform: process.platform,
+  });
   try {
     const ctx = createMainAppReadyContext({ app, appRoot });
     await runMainAppReady(ctx);
+    gglEvent("main", "start_main_done", {});
   } catch (err) {
+    gglError("main", "start_main_failed", err, {});
     console.error("[MAIN_APP_READY]", err);
     try {
       void appendLauncherLog(`BOOT failed: ${String(err?.stack ?? err)}`);
@@ -177,4 +194,3 @@ async function startMain({ app, appRoot }) {
 }
 
 module.exports = { startMain };
-

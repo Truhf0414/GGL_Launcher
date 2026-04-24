@@ -6,8 +6,13 @@
 
   const { trackTimeout } = LT;
 
-  const ANIM_MS = 280;
-  const STATUS_GUARD_MS = 2500;
+  const K = window.GglRendererConstants || {};
+  const ANIM_MS = Number.isFinite(Number(K.UI_ANIM_MS))
+    ? Number(K.UI_ANIM_MS)
+    : 280;
+  const STATUS_GUARD_MS = Number.isFinite(Number(K.UI_STATUS_GUARD_MS))
+    ? Number(K.UI_STATUS_GUARD_MS)
+    : 2500;
 
   function openOverlay(elm) {
     if (!elm) return;

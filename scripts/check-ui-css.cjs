@@ -1,5 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
+const fs = require("node:fs");
+const path = require("node:path");
 
 const repoRoot = process.cwd();
 const cssPath = path.join(repoRoot, "styles.css");
@@ -61,8 +61,11 @@ const css = fs.readFileSync(cssPath, "utf8");
 const cssNoComments = maskCssComments(css);
 const errors = [];
 const warnings = [];
-const isStrict = process.argv.includes("--strict") || process.env.UI_CSS_STRICT === "1";
-const rerunCmd = isStrict ? "npm run check:ui-css:strict" : "npm run check:ui-css";
+const isStrict =
+  process.argv.includes("--strict") || process.env.UI_CSS_STRICT === "1";
+const rerunCmd = isStrict
+  ? "npm run check:ui-css:strict"
+  : "npm run check:ui-css";
 
 // (1) No zoom
 {
@@ -226,10 +229,7 @@ const rerunCmd = isStrict ? "npm run check:ui-css:strict" : "npm run check:ui-cs
   }
   if (html) {
     function tagHasNoDragById(id) {
-      const re = new RegExp(
-        `<[^>]+\\bid\\s*=\\s*["']${id}["'][^>]*>`,
-        "i",
-      );
+      const re = new RegExp(`<[^>]+\\bid\\s*=\\s*["']${id}["'][^>]*>`, "i");
       const m = re.exec(html);
       if (!m) return null;
       return /\bclass\s*=\s*["'][^"']*\bno-drag\b[^"']*["']/i.test(m[0]);
@@ -265,4 +265,3 @@ if (warnings.length) {
   for (const w of warnings) console.log(`- ${w}`);
 }
 console.log("[ui-css-check] ok");
-

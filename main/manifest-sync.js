@@ -138,6 +138,23 @@ function hashFile(filePath, algo) {
   });
 }
 
+function safeRelPathOrThrow(gameDirAbs, relRaw, hintPrefix = "path") {
+  const normalized = normalizeInstanceRelPath(relRaw);
+  if (!normalized) {
+    throw new LauncherSyncError(
+      SYNC_V2_C.PATCH_IDENTITY_MISMATCH,
+      `${hintPrefix} 含有非法 path。請改用「安裝/更新」做一次全量同步。`,
+    );
+  }
+  if (!isResolvedPathUnderGameDir(gameDirAbs, normalized)) {
+    throw new LauncherSyncError(
+      SYNC_V2_C.PATCH_IDENTITY_MISMATCH,
+      `${hintPrefix} 路徑超出 gameDir：${normalized}`,
+    );
+  }
+  return normalized;
+}
+
 async function ensureDirForFile(absFilePath) {
   await fsp.mkdir(path.dirname(absFilePath), { recursive: true });
 }
@@ -584,8 +601,8 @@ async function downloadFilteredManifestFiles({
   }
   const list = Array.isArray(files) ? files : [];
   const targets = list.filter((f) => {
-    const p = String(f.path || "");
-    const root = p.split(/[\\/]/)[0];
+    const p = String(f.path || "").replace(/\\/g, "/");
+    const root = p.split("/")[0];
     return V2_FILE_ALLOWED_ROOTS.has(root);
   });
   if (targets.length === 0) {
@@ -599,13 +616,18 @@ async function downloadFilteredManifestFiles({
   let checked = 0;
   for (const f of targets) {
     checked += 1;
-    const relPath = String(f.path);
-    const absPath = path.join(gameDir, relPath);
+    const relNorm = safeRelPathOrThrow(
+      gameDir,
+      String(f.path || ""),
+      `${progressLabel}`,
+    );
+    const relForFs = relNorm.replace(/\//g, path.sep);
+    const absPath = path.join(gameDir, relForFs);
     const p01 =
       progressBase01 +
       ((progressSpan01 * checked) / (targets.length + 1)) * 0.35;
     deps.sendSyncProgress(
-      `${progressLabel}：比對 ${relPath}`,
+      `${progressLabel}：比對 ${relNorm}`,
       Math.min(progressBase01 + progressSpan01 * 0.95, p01),
     );
     const expected = String(f.hash || "").toLowerCase();
@@ -627,10 +649,15 @@ async function downloadFilteredManifestFiles({
   let done = 0;
   for (const f of toDownload) {
     done += 1;
-    const relPath = String(f.path);
-    const finalAbs = path.join(gameDir, relPath);
+    const relNorm = safeRelPathOrThrow(
+      gameDir,
+      String(f.path || ""),
+      `${progressLabel}`,
+    );
+    const relForFs = relNorm.replace(/\//g, path.sep);
+    const finalAbs = path.join(gameDir, relForFs);
     const url = resolveManifestFileUrlWithBase(baseUrl, f);
-    const tempAbs = path.join(paths.tempDir, INSTANCE_ID, relPath);
+    const tempAbs = path.join(paths.tempDir, INSTANCE_ID, relForFs);
     let lastPct = 0;
     await deps.downloadToFile(
       url,
@@ -643,7 +670,7 @@ async function downloadFilteredManifestFiles({
           lastPct = pct100;
           const g01 = progressBase01 + progressSpan01 * (0.35 + overall * 0.6);
           deps.sendSyncProgress(
-            `${progressLabel}（${done}/${toDownload.length}）：${relPath}`,
+            `${progressLabel}（${done}/${toDownload.length}）：${relNorm}`,
             Math.min(progressBase01 + progressSpan01 * 0.98, g01),
           );
         }
@@ -655,7 +682,7 @@ async function downloadFilteredManifestFiles({
       if (got !== String(f.hash).toLowerCase()) {
         throw new LauncherSyncError(
           SYNC_V2_C.PATCH_IDENTITY_MISMATCH,
-          `雜湊驗證失敗：${relPath}。請稍後再試或改用全量同步。`,
+          `雜湊驗證失敗：${relNorm}。請稍後再試或改用全量同步。`,
         );
       }
     }
@@ -964,6 +991,29 @@ async function installOrUpdateInstance(settings) {
       { resume: true, label: "實例包" },
     );
 
+    // Optional integrity verification (back-compat: warn when missing).
+    const zipSha256 =
+      typeof manifest.zipSha256 === "string" ? manifest.zipSha256.trim() : "";
+    const zipSha1 =
+      typeof manifest.zipSha1 === "string" ? manifest.zipSha1.trim() : "";
+    const expectAlgo = zipSha256 ? "sha256" : zipSha1 ? "sha1" : "";
+    const expectHash = (zipSha256 || zipSha1).toLowerCase();
+    if (expectAlgo && expectHash) {
+      deps.sendSyncStatus("正在驗證實例包完整性…");
+      deps.sendSyncProgress("正在驗證實例包完整性…", 0.81);
+      const got = (await hashFile(zipPath, expectAlgo)).toLowerCase();
+      if (got !== expectHash) {
+        throw new LauncherSyncError(
+          SYNC_V2_C.PATCH_IDENTITY_MISMATCH,
+          "實例包雜湊驗證失敗（zip）。請稍後再試或聯絡服主。",
+        );
+      }
+    } else {
+      deps.sendSyncStatus(
+        "注意：實例包未提供雜湊驗證欄位（zipSha256/zipSha1）",
+      );
+    }
+
     deps.sendSyncStatus("正在套用實例包…");
     deps.sendSyncProgress("正在套用實例包…", 0.82);
 
@@ -1065,10 +1115,16 @@ async function installOrUpdateInstance(settings) {
   let checked = 0;
   for (const f of targets) {
     checked += 1;
-    const relPath = String(f.path);
-    const absPath = path.join(paths.gameDir, relPath);
+    const relNorm = safeRelPathOrThrow(
+      paths.gameDir,
+      String(f.path || ""),
+      "manifest.files",
+    );
+    const root = relNorm.split("/")[0];
+    const relForFs = relNorm.replace(/\//g, path.sep);
+    const absPath = path.join(paths.gameDir, relForFs);
     deps.sendSyncProgress(
-      `比對檔案：${relPath}`,
+      `比對檔案：${relNorm}`,
       checked / (targets.length + 1),
     );
 
@@ -1109,11 +1165,16 @@ async function installOrUpdateInstance(settings) {
   let done = 0;
   for (const f of toDownload) {
     done += 1;
-    const relPath = String(f.path);
-    const finalAbs = path.join(paths.gameDir, relPath);
+    const relNorm = safeRelPathOrThrow(
+      paths.gameDir,
+      String(f.path || ""),
+      "manifest.files",
+    );
+    const relForFs = relNorm.replace(/\//g, path.sep);
+    const finalAbs = path.join(paths.gameDir, relForFs);
     const url = resolveManifestFileUrl(manifest, f);
 
-    const tempAbs = path.join(paths.tempDir, INSTANCE_ID, relPath);
+    const tempAbs = path.join(paths.tempDir, INSTANCE_ID, relForFs);
     let lastPct = 0;
     await deps.downloadToFile(
       url,
@@ -1125,7 +1186,7 @@ async function installOrUpdateInstance(settings) {
         if (pct100 !== lastPct) {
           lastPct = pct100;
           deps.sendSyncProgress(
-            `下載中 (${done}/${toDownload.length})：${relPath}`,
+            `下載中 (${done}/${toDownload.length})：${relNorm}`,
             overall,
           );
         }
@@ -1137,7 +1198,7 @@ async function installOrUpdateInstance(settings) {
     if (f.hash) {
       const got = (await hashFile(tempAbs, algo)).toLowerCase();
       if (got !== String(f.hash).toLowerCase()) {
-        throw new Error(`雜湊驗證失敗：${relPath}`);
+        throw new Error(`雜湊驗證失敗：${relNorm}`);
       }
     }
 

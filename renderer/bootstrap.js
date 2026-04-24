@@ -71,6 +71,12 @@
       typeof ggl.on !== "function"
     ) {
       try {
+        window.GglStructuredLog?.gglError?.(
+          "renderer",
+          "ggl_bridge_missing",
+          new Error("GGL bridge not available (preload not loaded)"),
+          {},
+        );
         console.error("GGL bridge not available (preload not loaded).");
       } catch {}
       return;
@@ -132,6 +138,30 @@
       (hasLifetime && LT.trackDomCleanup) || ((off) => off || (() => {}));
 
     const el = (id) => document.getElementById(id);
+    const BCTX = window.GglRendererBootstrapCtx;
+    if (
+      !BCTX ||
+      typeof BCTX.buildUiRefs !== "function" ||
+      typeof BCTX.buildRootCtx !== "function"
+    ) {
+      try {
+        window.GglStructuredLog?.gglError?.(
+          "renderer",
+          "bootstrap_ctx_factory_missing",
+          new Error("GglRendererBootstrapCtx not loaded"),
+          {},
+        );
+        console.error(
+          "GglRendererBootstrapCtx missing: ensure ./renderer/bootstrap-ctx.js loads before ./renderer/bootstrap.js.",
+        );
+      } catch {}
+      return;
+    }
+    try {
+      window.GglStructuredLog?.gglEvent?.("renderer", "bootstrap_prelude_ok", {
+        hasLifetime,
+      });
+    } catch {}
 
     const SL = window.GglSettingsLogic;
     const parseFiniteNumberOrUnset =
@@ -160,34 +190,61 @@
       } catch {}
     }
 
-    const DEFAULT_LAUNCHER_ROOT = "C:\\Games\\GGL";
-    const DISCORD_INVITE_URL = "https://discord.gg/WaRn7fphSm";
+    const K = window.GglRendererConstants || {};
+    const DEFAULT_LAUNCHER_ROOT =
+      typeof K.DEFAULT_LAUNCHER_ROOT === "string" && K.DEFAULT_LAUNCHER_ROOT
+        ? K.DEFAULT_LAUNCHER_ROOT
+        : "C:\\Games\\GGL";
+    const DISCORD_INVITE_URL =
+      typeof K.DISCORD_INVITE_URL === "string" && K.DISCORD_INVITE_URL
+        ? K.DISCORD_INVITE_URL
+        : "https://discord.gg/WaRn7fphSm";
 
     const BG = getModule(MODULES.BG.name, {
       requiredFns: MODULES.BG.requiredFns,
     });
 
-    const btnMinimize = el("btnMinimize");
-    const btnClose = el("btnClose");
-    const btnSettings = el("btnSettings");
-    const btnBell = el("btnBell");
-    const btnLogin = el("btnLogin");
-    const btnDiscord = el("btnDiscord");
-    const btnLaunch = el("btnLaunch");
-    const btnOfflineLink = el("btnOfflineLink");
-
-    const statusText = el("statusText");
-    const progressBar = el("progressBar");
-    const progressRoot = el("progressRoot");
-    const accountName = el("accountName");
-    const instanceStatusText = el("instanceStatusText");
-    const noticeTitle = el("noticeTitle");
-    const noticeDate = el("noticeDate");
-    const noticeLog = el("noticeLog");
-    const noticeThumb = el("noticeThumb");
-    const avatarEl = document.querySelector(".avatar");
-    const serverStatusDot = el("serverStatusDot");
-    const serverStatusText = el("serverStatusText");
+    const uiRefs = BCTX.buildUiRefs(el);
+    const {
+      btnMinimize,
+      btnClose,
+      btnSettings,
+      btnBell,
+      btnLogin,
+      btnDiscord,
+      btnLaunch,
+      btnOfflineLink,
+      statusText,
+      progressBar,
+      progressRoot,
+      accountName,
+      instanceStatusText,
+      noticeTitle,
+      noticeDate,
+      noticeLog,
+      noticeThumb,
+      avatarEl,
+      serverStatusDot,
+      serverStatusText,
+      settingsModal,
+      settingsBackdrop,
+      btnSettingsClose,
+      btnSaveSettings,
+      btnExportDiagnostics,
+      inputInstallDir,
+      btnPickDir,
+      inputOfflinePlayerId,
+      inputMinMemoryGb,
+      inputMaxMemoryGb,
+      settingsError,
+      memAutoHint,
+      notifOverlay,
+      btnNotifClose,
+      btnNotifClear,
+      notifFooter,
+      notifEmpty,
+      notifList,
+    } = uiRefs;
 
     const UI = getModule(MODULES.UI.name, {
       requiredFns: [
@@ -201,7 +258,13 @@
       warn: false,
     });
 
-    const ANIM_MS = UI?.ANIM_MS ?? 280;
+    const rawAnim = Number(K?.UI_ANIM_MS);
+    const ANIM_MS =
+      Number.isFinite(rawAnim) && rawAnim >= 0
+        ? rawAnim
+        : Number.isFinite(Number(UI?.ANIM_MS))
+          ? Number(UI.ANIM_MS)
+          : 280;
     const statusGuard = UI?.createStatusGuard?.() || {
       isErrorGuardActive: () => false,
       resetToNormal: () => {},
@@ -231,49 +294,49 @@
         return UI.setStatusVisibility({ statusText, btnLaunch }, visible);
     };
 
-    try {
-      const bgVideoSource = el("bgVideoSource");
-      const bgRoot = document.querySelector(".app-bg");
-      BG?.createBackgroundVideo?.({
-        ggl,
-        onDom,
-        onIpc,
-        trackDomCleanup,
-      })?.initBackgroundVideo?.({
-        sourceEl: bgVideoSource,
-        bgRoot,
-      });
-    } catch {}
-
-    // Settings modal
-    const settingsModal = el("settingsModal");
-    const settingsBackdrop = el("settingsBackdrop");
-    const btnSettingsClose = el("btnSettingsClose");
-    const btnSaveSettings = el("btnSaveSettings");
-    const btnExportDiagnostics = el("btnExportDiagnostics");
-    const inputInstallDir = el("inputInstallDir");
-    const btnPickDir = el("btnPickDir");
-    const inputOfflinePlayerId = el("inputOfflinePlayerId");
-    const inputMinMemoryGb = el("inputMinMemoryGb");
-    const inputMaxMemoryGb = el("inputMaxMemoryGb");
-    const settingsError = el("settingsError");
-    const memAutoHint = el("memAutoHint");
-
-    const SM = getModule(MODULES.SM.name, {
-      requiredFns: MODULES.SM.requiredFns,
-    });
-    const settingsModalUi =
-      SM?.createSettingsModal?.({
-        safeInvoke,
-        setStatusError,
-        openOverlay,
-        closeOverlay,
-        trackTimeout,
-        ANIM_MS,
-        DEFAULT_LAUNCHER_ROOT,
-        computeMemoryUiModel,
-        parseFiniteNumberOrUnset,
+    const ctx = BCTX.buildRootCtx({
+      ggl,
+      safeInvoke,
+      safeInvokeSilent,
+      onIpc,
+      onDom,
+      trackInterval,
+      trackTimeout,
+      trackDomCleanup,
+      openOverlay,
+      closeOverlay,
+      setStatus,
+      setStatusError,
+      setStatusVisibility,
+      computeMemoryUiModel,
+      parseFiniteNumberOrUnset,
+      ui: {
+        btnMinimize,
+        btnClose,
         btnSettings,
+        btnBell,
+        btnLogin,
+        btnDiscord,
+        btnLaunch,
+        btnOfflineLink,
+        statusText,
+        progressBar,
+        progressRoot,
+        accountName,
+        instanceStatusText,
+        noticeTitle,
+        noticeDate,
+        noticeLog,
+        noticeThumb,
+        avatarEl,
+        serverStatusDot,
+        serverStatusText,
+        notifOverlay,
+        btnNotifClose,
+        btnNotifClear,
+        notifFooter,
+        notifEmpty,
+        notifList,
         settingsModal,
         settingsBackdrop,
         btnSettingsClose,
@@ -286,25 +349,46 @@
         inputMaxMemoryGb,
         settingsError,
         memAutoHint,
+      },
+      ANIM_MS,
+      DEFAULT_LAUNCHER_ROOT,
+      DISCORD_INVITE_URL,
+    });
+    try {
+      window.GglStructuredLog?.gglEvent?.("renderer", "bootstrap_ctx_ready", {
+        moduleDefs: Object.keys(MODULES).length,
+      });
+    } catch {}
+
+    try {
+      const bgVideoSource = el("bgVideoSource");
+      const bgRoot = document.querySelector(".app-bg");
+      BG?.createBackgroundVideo?.({
+        ctx,
+      })?.initBackgroundVideo?.({
+        sourceEl: bgVideoSource,
+        bgRoot,
+      });
+    } catch {}
+
+    // Settings modal (refs already collected in uiRefs)
+
+    const SM = getModule(MODULES.SM.name, {
+      requiredFns: MODULES.SM.requiredFns,
+    });
+    const settingsModalUi =
+      SM?.createSettingsModal?.({
+        ctx,
       }) || null;
     settingsModalUi?.init?.();
 
-    // Notifications
-    const notifOverlay = el("notifOverlay");
-    const btnNotifClose = el("btnNotifClose");
-    const btnNotifClear = el("btnNotifClear");
-    const notifFooter = el("notifFooter");
-    const notifEmpty = el("notifEmpty");
-    const notifList = el("notifList");
+    // Notifications (refs already collected in uiRefs)
     const Notif = getModule(MODULES.Notif.name, {
       requiredFns: MODULES.Notif.requiredFns,
     });
     const notifUi =
       Notif?.createNotificationsUi?.({
-        safeInvoke,
-        openOverlay,
-        closeOverlay,
-        setStatusError,
+        ctx,
       }) || null;
 
     function setInstanceStatus(text) {
@@ -315,15 +399,11 @@
       requiredFns: MODULES.WC.requiredFns,
     });
     WC?.createWindowControls?.({
-      safeInvokeSilent,
-      btnMinimize,
-      btnClose,
-      btnDiscord,
-      discordInviteUrl: DISCORD_INVITE_URL,
+      ctx,
     })?.init?.();
 
     // Notif button wiring (still here because it binds raw DOM nodes).
-    btnBell?.addEventListener?.("click", () => {
+    onDom(btnBell, "click", () => {
       notifUi?.toggleNotif?.({
         notifOverlay,
         notifList,
@@ -332,13 +412,11 @@
         btnBell,
       });
     });
-    btnNotifClose?.addEventListener?.("click", () =>
-      notifUi?.closeNotif?.(notifOverlay),
-    );
-    notifOverlay?.addEventListener?.("click", (ev) => {
+    onDom(btnNotifClose, "click", () => notifUi?.closeNotif?.(notifOverlay));
+    onDom(notifOverlay, "click", (ev) => {
       if (ev.target === notifOverlay) notifUi?.closeNotif?.(notifOverlay);
     });
-    btnNotifClear?.addEventListener?.("click", async () => {
+    onDom(btnNotifClear, "click", async () => {
       await notifUi?.clearNotifs?.({
         notifList,
         notifEmpty,
@@ -391,14 +469,7 @@
 
     const accountUi =
       AU?.createAccountUi?.({
-        safeInvoke,
-        setStatus,
-        setStatusError,
-        trackTimeout,
-        ANIM_MS,
-        btnLogin,
-        accountName,
-        avatarEl,
+        ctx,
         getAccountState: () => accountState,
         setAccountState: (s) => {
           accountState = s;
@@ -410,7 +481,7 @@
 
     const readyStatus =
       RS?.createReadyStatus?.({
-        setStatus,
+        ctx,
         statusGuard,
         getBusyState: () => ({ launcherBusy, gameRunning }),
         getInstanceState: () => currentInstanceState,
@@ -420,19 +491,13 @@
 
     const serverStatusUi =
       SSU?.createServerStatusUi?.({
-        onIpc,
-        serverStatusDot,
-        serverStatusText,
+        ctx,
       }) || null;
     serverStatusUi?.init?.();
 
     const launchUi =
       LU?.createLaunchUi?.({
-        safeInvoke,
-        setStatus,
-        setStatusError,
-        btnLaunch,
-        btnOfflineLink,
+        ctx,
         getAccountState: () => accountState,
         getInstanceState: () => currentInstanceState,
         getBusyState: () => ({ launcherBusy, gameRunning }),
@@ -460,24 +525,18 @@
 
     const syncUi =
       SU?.createSyncUi?.({
-        onIpc,
-        trackTimeout,
+        ctx,
         setLauncherBusy,
-        setStatus,
         ensureReadyStatusText,
         statusGuard,
-        setStatusVisibility,
         getBusyState: () => ({ gameRunning }),
       }) || null;
     syncUi?.init?.();
 
     const minecraftUi =
       MU?.createMinecraftUi?.({
-        safeInvoke,
-        onIpc,
-        trackInterval,
+        ctx,
         setLauncherBusy,
-        setStatus,
         ensureReadyStatusText,
         isInstanceReady,
         getBusyState: () => ({ launcherBusy, gameRunning }),
@@ -487,13 +546,12 @@
           if (Object.prototype.hasOwnProperty.call(next, "gameRunning"))
             gameRunning = Boolean(next.gameRunning);
         },
-        setStatusVisibility,
       }) || null;
     minecraftUi?.init?.();
 
     const instanceUi =
       IU?.createInstanceUi?.({
-        onIpc,
+        ctx,
         setInstanceStatus,
         updateLaunchButtonUi,
         ensureReadyStatusText,
@@ -507,20 +565,12 @@
             needsFullReinstall: Boolean(next?.needsFullReinstall),
           };
         },
-        noticeTitle,
-        noticeDate,
-        noticeLog,
-        noticeThumb,
       }) || null;
     instanceUi?.init?.();
 
     ST?.createStartup?.({
-      safeInvoke,
-      onDom,
-      onIpc,
-      btnBell,
+      ctx,
       notifUi,
-      setStatus,
       setInstanceStatus,
       getAccountState: () => accountState,
       setAccountState: (s) => {

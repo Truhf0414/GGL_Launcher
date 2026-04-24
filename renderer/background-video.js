@@ -1,7 +1,16 @@
 // Renderer UI helpers: background video init + power/fallback handling.
 // Loaded before renderer.js via index.html.
 (function () {
-  function createBackgroundVideo({ ggl, onDom, onIpc, trackDomCleanup }) {
+  function createBackgroundVideo(input) {
+    const ctx = input?.ctx || null;
+    const fx = ctx?.fx || {};
+
+    const ggl = input?.ggl || fx.ggl;
+    const onDom = input?.onDom || fx.onDom;
+    const onIpc = input?.onIpc || fx.onIpc;
+    const trackDomCleanup =
+      input?.trackDomCleanup || fx.trackDomCleanup || ((x) => x);
+
     function initBackgroundVideo({ sourceEl, bgRoot }) {
       if (!sourceEl) return;
       sourceEl.setAttribute("src", ggl.assetUrl("sakura_field_BG.mp4"));

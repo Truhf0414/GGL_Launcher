@@ -31,6 +31,12 @@ npm start
 - **UI guardrails**:
   - `npm run check:ui-css`: errors fail, warnings only warn (good for everyday dev/commits)
   - `npm run check:ui-css:strict`: stricter checks used before packaging (`dist:win` / `pack:win`)
+- **Renderer `<script>` order** (do not hand-wiggle without updating the check):
+  - The expected load order is enforced by `scripts/check-renderer-scripts.cjs` (also run as part of `check:ui-css`).
+  - If you add/rename/reorder `index.html` renderer scripts, update the `expected` array in that file so CI/local checks stay honest.
+- **Structured logs (support / debugging)**:
+  - Main process: `lib/ggl-structured-log.js` (`gglEvent` / `gglError`) prints one line per event: prefix `[GGL]` + JSON (easy to `grep` / share in screenshots).
+  - Renderer: `renderer/ggl-log.js` exposes `window.GglStructuredLog` with the same shape.
 - **After UI edits, format**:
   - Preferred: `npm run format:ui`
   - Single file: `npm run format:file -- styles.css`

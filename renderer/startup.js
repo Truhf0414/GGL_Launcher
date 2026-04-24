@@ -1,18 +1,22 @@
 // Renderer startup wiring: initial statuses + account preload + notif hooks.
 // Loaded before renderer.js via index.html.
 (function () {
-  function createStartup({
-    safeInvoke,
-    onDom,
-    onIpc,
-    btnBell,
-    notifUi,
-    setStatus,
-    setInstanceStatus,
-    getAccountState,
-    setAccountState,
-    accountUi,
-  }) {
+  function createStartup(input) {
+    const ctx = input?.ctx || null;
+    const fx = ctx?.fx || {};
+    const ui = ctx?.ui || {};
+
+    const safeInvoke = input?.safeInvoke || fx.safeInvoke;
+    const onDom = input?.onDom || fx.onDom;
+    const onIpc = input?.onIpc || fx.onIpc;
+    const btnBell = input?.btnBell || ui.btnBell;
+    const notifUi = input?.notifUi || null;
+    const setStatus = input?.setStatus || fx.setStatus || (() => {});
+    const setInstanceStatus = input?.setInstanceStatus || (() => {});
+    const getAccountState = input?.getAccountState || (() => ({}));
+    const setAccountState = input?.setAccountState || (() => {});
+    const accountUi = input?.accountUi || null;
+
     function init() {
       // 啟動時：主程序會做「版本檢查」但不會自動下載
       setStatus("正在檢查版本…", 0);
