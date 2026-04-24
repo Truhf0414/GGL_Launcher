@@ -2,14 +2,7 @@
 const { ipcMain, shell, dialog } = require("electron");
 const { registerAccountIpcHandlers } = require("./microsoft-auth");
 const { IPC } = require("../lib/ipc-channels");
-const { registerWindowIpc } = require("./ipc/window-ipc");
-const { registerExternalIpc } = require("./ipc/external-ipc");
-const { registerSettingsIpc } = require("./ipc/settings-ipc");
-const { registerDialogIpc } = require("./ipc/dialog-ipc");
-const { registerNotificationsIpc } = require("./ipc/notifications-ipc");
-const { registerMinecraftIpc } = require("./ipc/minecraft-ipc");
-const { registerInstanceIpc } = require("./ipc/instance-ipc");
-const { registerDiagnosticsIpc } = require("./ipc/diagnostics-ipc");
+const { registerAllMainIpc } = require("./ipc");
 
 /** 避免 `setupMainIpc` 被呼叫兩次時重複 `ipcMain.handle`（Electron 會丟錯） */
 let mainIpcRegistered = false;
@@ -103,14 +96,15 @@ function createMainIpcBridge(deps) {
 
     registerAccountIpcHandlers(ipcMain);
 
-    registerWindowIpc({ ipcMain, deps });
-    registerExternalIpc({ ipcMain, deps: { ...deps, shell } });
-    registerSettingsIpc({ ipcMain, deps });
-    registerDialogIpc({ ipcMain, deps: { ...deps, dialog } });
-    registerNotificationsIpc({ ipcMain, deps });
-    registerMinecraftIpc({ ipcMain, deps, showInfoDialog });
-    registerInstanceIpc({ ipcMain, deps, sendSyncStatus, sendSyncDone });
-    registerDiagnosticsIpc({ ipcMain, deps: { ...deps, shell } });
+    registerAllMainIpc({
+      ipcMain,
+      deps,
+      showInfoDialog,
+      sendSyncStatus,
+      sendSyncDone,
+      shell,
+      dialog,
+    });
   }
 
   return {
