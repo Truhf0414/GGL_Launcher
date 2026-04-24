@@ -1,8 +1,10 @@
 const { IPC } = require("../../lib/ipc-channels");
 
-function registerDialogIpc({ ipcMain, deps }) {
+function registerDialogIpc(ctx) {
+  const { ipcMain, deps } = ctx || {};
+  const dialog = ctx?.dialog;
   ipcMain.handle(IPC.invoke.DIALOG_SELECT_DIRECTORY, async (_e, defaultPath) => {
-    const result = await deps.dialog.showOpenDialog(
+    const result = await dialog.showOpenDialog(
       deps.getMainWindow?.() ?? undefined,
       {
         title: "選擇安裝位置",

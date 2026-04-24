@@ -1,6 +1,7 @@
 const { IPC } = require("../../lib/ipc-channels");
 
-function registerMinecraftIpc({ ipcMain, deps, showInfoDialog }) {
+function registerMinecraftIpc(ctx) {
+  const { ipcMain, deps, showInfoDialog } = ctx || {};
   async function requireUpToDateInstanceOrThrow(settings) {
     const status = await deps.checkInstanceStatus(settings);
     if (status.launchBlocked) {

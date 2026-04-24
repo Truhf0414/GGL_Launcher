@@ -1,12 +1,14 @@
 const { IPC } = require("../../lib/ipc-channels");
 
-function registerDiagnosticsIpc({ ipcMain, deps }) {
+function registerDiagnosticsIpc(ctx) {
+  const { ipcMain, deps } = ctx || {};
+  const shell = ctx?.shell;
   ipcMain.handle(IPC.invoke.DIAGNOSTICS_EXPORT, async () => {
     const dir = await deps.exportDiagnostics?.();
     const p = String(dir || "").trim();
     if (!p) throw new Error("無法匯出診斷報告。");
     try {
-      await deps.shell.openPath(p);
+      await shell.openPath(p);
     } catch {
       // ignore
     }
