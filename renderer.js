@@ -354,25 +354,26 @@
     } catch {}
   }
 
-  function isInstanceReady() {
-    return (
-      !currentInstanceState?.needsInstall &&
-      !currentInstanceState?.needsUpdate &&
-      !currentInstanceState?.noUpdateSource &&
-      !currentInstanceState?.fetchFailed &&
-      !currentInstanceState?.launchBlocked
-    );
+  const RS = window.GglRendererReadyStatus;
+  if (!RS || typeof RS.createReadyStatus !== "function") {
+    try {
+      console.error(
+        "GglRendererReadyStatus missing: ensure ./renderer/ready-status.js is loaded before renderer.js.",
+      );
+    } catch {}
   }
 
-  function ensureReadyStatusText() {
-    // 需求：只要遊戲檔案都準備好，就一律顯示「準備就緒」
-    // 避免被「遊戲已結束」等短暫訊息卡住視覺狀態
-    if (launcherBusy) return;
-    if (gameRunning) return;
-    if (!isInstanceReady()) return;
-    if (statusGuard.isErrorGuardActive()) return;
-    setStatus("準備就緒", 0);
-  }
+  const readyStatus =
+    RS?.createReadyStatus?.({
+      setStatus,
+      statusGuard,
+      getBusyState: () => ({ launcherBusy, gameRunning }),
+      getInstanceState: () => currentInstanceState,
+    }) || null;
+
+  const isInstanceReady = readyStatus?.isInstanceReady || (() => false);
+  const ensureReadyStatusText =
+    readyStatus?.ensureReadyStatusText || (() => {});
 
   const MU = window.GglRendererMinecraftUi;
   if (!MU || typeof MU.createMinecraftUi !== "function") {
