@@ -469,60 +469,38 @@
 
   minecraftUi?.init?.();
 
-  onIpc("instance:status", (payload) => {
-    // payload: { state, localVersion, remoteVersion, needsInstall, needsUpdate, text }
-    setInstanceStatus(payload?.text ?? "實例狀態未知");
+  const IU = window.GglRendererInstanceUi;
+  if (!IU || typeof IU.createInstanceUi !== "function") {
+    try {
+      console.error(
+        "GglRendererInstanceUi missing: ensure ./renderer/instance-ui.js is loaded before renderer.js.",
+      );
+    } catch {}
+  }
 
-    // 遠端公告（由 manifest.notice 驅動）
-    const n = payload?.notice;
-    if (n && typeof n === "object") {
-      if (noticeTitle && typeof n.title === "string" && n.title.trim())
-        noticeTitle.textContent = n.title.trim();
-      // 若有 changelog，就優先顯示 changelog；subtitle（版本/日期）改成次要資訊（有提供才顯示）
-      const subtitle = typeof n.subtitle === "string" ? n.subtitle.trim() : "";
-      if (noticeDate) {
-        // 讓「日期 / 版本」自動分行，版面更整齊
-        noticeDate.textContent = subtitle
-          ? subtitle.replace(/\s*\/\s*/g, "\n")
-          : "";
-      }
+  const instanceUi =
+    IU?.createInstanceUi?.({
+      onIpc,
+      setInstanceStatus,
+      updateLaunchButtonUi,
+      ensureReadyStatusText,
+      setInstanceState: (next) => {
+        currentInstanceState = {
+          needsInstall: Boolean(next?.needsInstall),
+          needsUpdate: Boolean(next?.needsUpdate),
+          noUpdateSource: Boolean(next?.noUpdateSource),
+          fetchFailed: Boolean(next?.fetchFailed),
+          launchBlocked: Boolean(next?.launchBlocked),
+          needsFullReinstall: Boolean(next?.needsFullReinstall),
+        };
+      },
+      noticeTitle,
+      noticeDate,
+      noticeLog,
+      noticeThumb,
+    }) || null;
 
-      if (typeof n.imageUrl === "string" && n.imageUrl.trim()) {
-        const url = n.imageUrl.trim();
-        // 直接設定在縮圖元素上，比 CSS 變數更直覺、也更不容易被其他樣式影響
-        if (noticeThumb) noticeThumb.style.backgroundImage = `url("${url}")`;
-        document.documentElement.style.setProperty(
-          "--thumb-url",
-          `url("${url}")`,
-        );
-      }
-      if (noticeLog) {
-        const lines = Array.isArray(n.log) ? n.log : [];
-        const text = lines
-          .map((x) => String(x))
-          .filter(Boolean)
-          .join("\n");
-        noticeLog.textContent = text;
-        noticeLog.classList.toggle("hidden", !text);
-      }
-    }
-
-    const needsInstall = Boolean(payload?.needsInstall);
-    const needsUpdate = Boolean(payload?.needsUpdate);
-    const noUpdateSource = Boolean(payload?.noUpdateSource);
-    const fetchFailed = Boolean(payload?.fetchFailed);
-    currentInstanceState = {
-      needsInstall,
-      needsUpdate,
-      noUpdateSource,
-      fetchFailed,
-      launchBlocked: Boolean(payload?.launchBlocked),
-      needsFullReinstall: Boolean(payload?.needsFullReinstall),
-    };
-
-    updateLaunchButtonUi();
-    ensureReadyStatusText();
-  });
+  instanceUi?.init?.();
 
   // 啟動時：主程序會做「版本檢查」但不會自動下載
   setStatus("正在檢查版本…", 0);
