@@ -337,7 +337,6 @@
   };
   let launcherBusy = false;
   let gameRunning = false;
-  let mcWatchdogTimer = null;
 
   const LU = window.GglRendererLaunchUi;
   if (!LU || typeof LU.createLaunchUi !== "function") {
@@ -368,34 +367,13 @@
     setStatus("準備就緒", 0);
   }
 
-  function stopMcWatchdog() {
-    if (!mcWatchdogTimer) return;
-    clearInterval(mcWatchdogTimer);
-    mcWatchdogTimer = null;
-  }
-
-  function startMcWatchdog() {
-    if (mcWatchdogTimer) return;
-    // 保守輪詢：事件漏接時也能把 UI 解鎖
-    mcWatchdogTimer = trackInterval(
-      setInterval(async () => {
-        try {
-          // 若 UI 已經認為不在執行，就停掉輪詢
-          if (!gameRunning) {
-            stopMcWatchdog();
-            return;
-          }
-          const isRunning = await safeInvoke("minecraft:isRunning");
-          if (!isRunning) {
-            gameRunning = false;
-            setLauncherBusy(false);
-            stopMcWatchdog();
-          }
-        } catch {
-          // 忽略，下一輪再試
-        }
-      }, 2500),
-    );
+  const MU = window.GglRendererMinecraftUi;
+  if (!MU || typeof MU.createMinecraftUi !== "function") {
+    try {
+      console.error(
+        "GglRendererMinecraftUi missing: ensure ./renderer/minecraft-ui.js is loaded before renderer.js.",
+      );
+    } catch {}
   }
 
   function setServerStatus(state) {
@@ -483,43 +461,26 @@
     trackTimeout(setTimeout(() => setLauncherBusy(false), 950));
   });
 
-  onIpc("minecraft:status", (payload) => {
-    // 注意：main.js 會在「啟動中」與「已結束」都送 minecraft:status
-    // 若一律 setLauncherBusy(true) 會造成遊戲已結束但按鈕仍被鎖住。
-    const text = String(payload?.text ?? "").trim();
-    const looksEnded = /已(?:結束|退出|關閉)/.test(text);
-    const looksLaunching = /(正在|啟動|準備)/.test(text);
+  const minecraftUi =
+    MU?.createMinecraftUi?.({
+      safeInvoke,
+      onIpc,
+      trackInterval,
+      setLauncherBusy,
+      setStatus,
+      ensureReadyStatusText,
+      isInstanceReady,
+      getBusyState: () => ({ launcherBusy, gameRunning }),
+      setBusyState: (next) => {
+        if (Object.prototype.hasOwnProperty.call(next, "launcherBusy"))
+          launcherBusy = Boolean(next.launcherBusy);
+        if (Object.prototype.hasOwnProperty.call(next, "gameRunning"))
+          gameRunning = Boolean(next.gameRunning);
+      },
+      setStatusVisibility,
+    }) || null;
 
-    if (looksEnded) {
-      setLauncherBusy(false);
-      if (!isInstanceReady()) setStatus(text || "遊戲已結束");
-      return;
-    }
-
-    if (gameRunning) return;
-    // 只在看起來像「啟動/準備」時才鎖 UI
-    if (looksLaunching) setLauncherBusy(true);
-    setStatus(text || "啟動中…");
-  });
-
-  onIpc("minecraft:progress", (payload) => {
-    if (gameRunning) return;
-    setLauncherBusy(true);
-    setStatus(payload?.text ?? "準備中…", payload?.progress01 ?? 0);
-  });
-
-  onIpc("minecraft:running", (payload) => {
-    gameRunning = Boolean(payload?.isRunning);
-    if (gameRunning) {
-      setLauncherBusy(true);
-      // 遊戲已經進入執行中，就不再顯示「正在啟動…」等狀態字
-      setStatus("", null);
-      startMcWatchdog();
-    } else {
-      setLauncherBusy(false);
-      stopMcWatchdog();
-    }
-  });
+  minecraftUi?.init?.();
 
   function showTransientStatus(text, ms = 4500) {
     const t = String(text || "").trim();
@@ -631,7 +592,7 @@
   // Ensure key long-lived handlers/timers are stopped on unload.
   trackDomCleanup(() => {
     try {
-      stopMcWatchdog();
+      minecraftUi?.teardown?.();
       settingsModalUi?.teardown?.();
       accountUi?.teardown?.();
     } catch {}
