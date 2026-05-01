@@ -12,14 +12,15 @@
     "build:icons": "node scripts/build-icons.js",
     "build:rpc-helper": "npm --prefix rpc-helper install --no-audit --no-fund && cd rpc-helper && npx --yes pkg index.js --targets node18-win-x64 --output ../assets/rpc-helper.exe",
     "docs:ipc": "node scripts/update-ipc-index.js",
-    "dist:win": "npm run check:ui-css:strict && npm run docs:ipc && npm run build:css && npm run build:rpc-helper && electron-builder --win nsis --x64",
-    "pack:win": "npm run check:ui-css:strict && npm run docs:ipc && npm run build:css && npm run build:rpc-helper && electron-builder --win dir --x64",
+    "dist:win": "npm run check:ui-css:strict && npm run docs:ipc && npm run build:css && npm run build:rpc-helper && electron-builder --win nsis --x64 && npm run check:packaged-artifacts",
+    "pack:win": "npm run check:ui-css:strict && npm run docs:ipc && npm run build:css && npm run build:rpc-helper && electron-builder --win dir --x64 && npm run check:packaged-artifacts",
     "format": "prettier --write **/*.{js,css,html,json,md,yml,yaml} --ignore-unknown",
     "format:ui": "prettier --write styles.css index.html renderer.js main.js main/start-main.js main/launcher-config.js main/launcher-log.js main/app-ready.js main/account-store.js main/paths.js main/settings.js main/notifications.js main/manifest-sync.js main/net-fetch.js main/microsoft-auth.js main/ipc-handlers.js main/minecraft-bootstrap.js main/mc-mirror.js main/bundled-java.js main/minecraft-version-json.js main/minecraft-launch.js main/format-eta-seconds.js main/server-status.js main/main-window.js main/discord-rpc.js main/system-memory.js preload.js lib/settings-logic.js lib/ggl-structured-log.js lib/manifest-network.js lib/manifest-fields.js lib/discord-button-url.js lib/manifest-url-configured.js lib/manifest-file-url.js lib/paths-layout.js lib/notifications-broadcast.js lib/launcher-debug-logging.js renderer/constants.js renderer/ggl-log.js renderer/ui-status.js renderer/bootstrap-ctx.js renderer/bootstrap.js --ignore-unknown",
     "format:file": "prettier --write",
     "check:ui-css": "node scripts/check-ui-css.cjs && node scripts/check-renderer-scripts.cjs",
     "check:ui-css:strict": "node scripts/check-ui-css.cjs --strict && node scripts/check-renderer-scripts.cjs",
     "check:renderer-scripts": "node scripts/check-renderer-scripts.cjs",
+    "check:packaged-artifacts": "node scripts/check-packaged-artifacts.cjs",
     "test": "node --test test/discord-button-url.test.cjs test/format-eta-seconds.test.cjs test/ggl-structured-log.test.cjs test/instance-sync-v2.test.cjs test/instance-sync-v2-roots.test.cjs test/launcher-config-smoke.test.cjs test/launcher-debug-logging.test.cjs test/manifest-fields.test.cjs test/manifest-file-url.test.cjs test/manifest-network.test.cjs test/manifest-sync-detect-version.test.cjs test/manifest-url-configured.test.cjs test/mc-mirror.test.cjs test/minecraft-version-json.test.cjs test/net-fetch-logic.test.cjs test/notifications-broadcast.test.cjs test/paths-layout.test.cjs test/server-status-config.test.cjs test/settings-logic.test.cjs",
     "release:v2": "node scripts/release-v2.js",
     "preflight:release:v2": "node scripts/preflight-release-v2.js",
@@ -45,13 +46,26 @@
   },
   "build": {
     "appId": "ggl3.launcher",
-    "productName": "GGL3",
+    "productName": "GGL Launcher",
     "directories": {
       "output": "dist"
     },
     "files": [
-      "**/*",
-      "!dist/**",
+      "package.json",
+      "main.js",
+      "preload.js",
+      "renderer.js",
+      "index.html",
+      "styles.css",
+      "main/**/*",
+      "lib/**/*",
+      "renderer/**/*",
+      "assets/tailwind.css",
+      "assets/notice-thumb.svg",
+      "assets/icon.ico",
+      "node_modules/**/*",
+      "!assets/rpc-helper.exe",
+      "!assets/default-settings.json",
       "!assets/*.mp4",
       "!node_modules/**/test{,s}/**",
       "!node_modules/**/__tests__/**",
@@ -83,7 +97,8 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "artifactName": "GGL-Launcher-Setup-${version}.exe"
     }
   }
 }
