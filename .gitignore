@@ -15,3 +15,6 @@ release/
 
 # project notes (local only)
 _notes/
+
+# graphify knowledge graph output (rebuildable)
+graphify-out/
