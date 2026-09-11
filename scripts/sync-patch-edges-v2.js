@@ -3,7 +3,7 @@
 // Scan patch-*.json files in siteRoot and sync index manifest.json patchEdges to object-form.
 //
 // Usage:
-//   node scripts/sync-patch-edges-v2.js --siteRoot "H:\Caddy_sitebuild" --domainBase "https://ggl3.ddns.net"
+//   node scripts/sync-patch-edges-v2.js --siteRoot "H:\Caddy_sitebuild" --domainBase "https://ggl.leaharmonic.com"
 //
 // Notes:
 // - Only files named `patch-<FROM>-to-<TO>.json` in siteRoot are considered.

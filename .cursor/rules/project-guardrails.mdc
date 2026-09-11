@@ -1,5 +1,5 @@
 ---
-description: Project guardrails and workflow for AI + humans
+description: 
 alwaysApply: true
 ---
 
@@ -35,4 +35,3 @@ alwaysApply: true
 
 - Run the relevant `check:*` and formatting scripts.
 - Provide the **shortest verification steps** (1–3 steps) to confirm behavior/UI is unchanged (unless requested).
-

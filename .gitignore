@@ -12,3 +12,6 @@ scripts/.electron-builder.generated.json
 out/
 release/
 
+
+# project notes (local only)
+_notes/

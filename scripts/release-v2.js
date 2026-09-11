@@ -5,7 +5,7 @@
 // Usage (PowerShell):
 //   node scripts/release-v2.js `
 //     --siteRoot "H:\Caddy_sitebuild" `
-//     --domainBase "https://ggl3.ddns.net" `
+//     --domainBase "https://ggl.leaharmonic.com" `
 //     --fromVersion "GGL3.0.01" --fromSequence 2 `
 //     --toVersion "GGL3.0.02" --toSequence 3 `
 //     --fromZip "H:\Caddy_sitebuild\instance-GGL3.0.01.zip" `
