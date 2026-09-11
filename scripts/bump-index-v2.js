@@ -6,10 +6,10 @@
 //   node scripts/bump-index-v2.js `
 //     --manifestPath "H:\Caddy_sitebuild\manifest.json" `
 //     --newVersion "GGL3.0.02" --newSequence 3 `
-//     --bootstrapManifestUrl "https://ggl3.ddns.net/bootstrap-GGL3.0.02.json" `
-//     --bootstrapBaseUrl "https://ggl3.ddns.net/files/bootstrap-GGL3.0.02/" `
+//     --bootstrapManifestUrl "https://ggl.leaharmonic.com/bootstrap-GGL3.0.02.json" `
+//     --bootstrapBaseUrl "https://ggl.leaharmonic.com/files/bootstrap-GGL3.0.02/" `
 //     --addPatchEdge "GGL3.0.01->GGL3.0.02" `
-//     --patchUrl "https://ggl3.ddns.net/patch-GGL3.0.01-to-GGL3.0.02.json" `
+//     --patchUrl "https://ggl.leaharmonic.com/patch-GGL3.0.01-to-GGL3.0.02.json" `
 //     --patchFromSequence 2 --patchToSequence 3
 //
 // Notes:

@@ -4,9 +4,9 @@
   "contentSequence": 1,
   "minSupportedFrom": "GGL3.0.00",
   "minSupportedSequence": 1,
-  "bootstrapManifestUrl": "https://ggl3.ddns.net/manifests/v2/bootstrap-GGL3.0.01.json",
-  "bootstrapBaseUrl": "https://ggl3.ddns.net/files/bootstrap-GGL3.0.01/",
-  "patchBaseUrl": "https://ggl3.ddns.net/files/patches/",
+  "bootstrapManifestUrl": "https://ggl.leaharmonic.com/manifests/v2/bootstrap-GGL3.0.01.json",
+  "bootstrapBaseUrl": "https://ggl.leaharmonic.com/files/bootstrap-GGL3.0.01/",
+  "patchBaseUrl": "https://ggl.leaharmonic.com/files/patches/",
   "maxPatchChainSteps": 8,
   "patchEdges": {
   },

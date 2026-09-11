@@ -10,14 +10,14 @@
 const {
   isRemoteManifestUrlConfigured,
 } = require("../lib/manifest-url-configured.js");
-const remoteManifestUrl = "https://ggl3.ddns.net/manifest.json";
+const remoteManifestUrl = "https://ggl.leaharmonic.com/manifest.json";
 
 // =========================
 // 伺服器狀態檢查（Online / Offline）
 // =========================
 // Minecraft 伺服器通常不是 HTTP，因此預設用 TCP 測試連線（能連到 port 就視為 Online）。
 // 你也可以改用 HTTP health URL（如果你自己有做）。
-const serverStatusHost = "ggl3.ddns.net";
+const serverStatusHost = "ggl3.leaharmonic.com";
 const serverStatusPort = 25565;
 // 可選：若你有 health 網址，填在這裡（會優先用 HTTP）
 const serverStatusUrl = "";

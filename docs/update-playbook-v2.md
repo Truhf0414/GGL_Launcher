@@ -6,7 +6,7 @@
 
 ## 你要記的 3 個名詞（人話版）
 
-- **總索引**（index）：啟動器永遠先抓它（你的 `remoteManifestUrl` 指到的那支，例如 `https://ggl3.ddns.net/manifest.json`）。
+- **總索引**（index）：啟動器永遠先抓它（你的 `remoteManifestUrl` 指到的那支，例如 `https://ggl.leaharmonic.com/manifest.json`）。
 - **bootstrap**：全量安裝/全量修復用的「清單 + 檔案樹」。
 - **patch**：增量更新用的「刪哪些 + 下載哪些」。
 
@@ -73,7 +73,7 @@
 ```powershell
 node scripts/release-v2.js `
   --siteRoot "H:\Caddy_sitebuild" `
-  --domainBase "https://ggl3.ddns.net" `
+  --domainBase "https://ggl.leaharmonic.com" `
   --fromVersion "GGL3.0.01" --fromSequence 2 `
   --toVersion "GGL3.0.02" --toSequence 3 `
   --fromZip "H:\Caddy_sitebuild\instance-GGL3.0.01.zip" `
@@ -155,10 +155,10 @@ node scripts/build-patch-from-zips-v2.js `
 node scripts/bump-index-v2.js `
   --manifestPath "H:\Caddy_sitebuild\manifest.json" `
   --newVersion "GGL3.0.02" --newSequence 3 `
-  --bootstrapManifestUrl "https://ggl3.ddns.net/bootstrap-GGL3.0.02.json" `
-  --bootstrapBaseUrl "https://ggl3.ddns.net/files/bootstrap-GGL3.0.02/" `
+  --bootstrapManifestUrl "https://ggl.leaharmonic.com/bootstrap-GGL3.0.02.json" `
+  --bootstrapBaseUrl "https://ggl.leaharmonic.com/files/bootstrap-GGL3.0.02/" `
   --addPatchEdge "GGL3.0.01->GGL3.0.02" `
-  --patchUrl "https://ggl3.ddns.net/patch-GGL3.0.01-to-GGL3.0.02.json" `
+  --patchUrl "https://ggl.leaharmonic.com/patch-GGL3.0.01-to-GGL3.0.02.json" `
   --patchFromSequence 2 --patchToSequence 3
 ```
 
@@ -168,9 +168,9 @@ node scripts/bump-index-v2.js `
 
 ### 1) 用瀏覽器開 3 個網址
 
-- `https://ggl3.ddns.net/manifest.json`
-- `https://ggl3.ddns.net/bootstrap-NEW_VERSION.json`
-- `https://ggl3.ddns.net/patch-OLD_VERSION-to-NEW_VERSION.json`
+- `https://ggl.leaharmonic.com/manifest.json`
+- `https://ggl.leaharmonic.com/bootstrap-NEW_VERSION.json`
+- `https://ggl.leaharmonic.com/patch-OLD_VERSION-to-NEW_VERSION.json`
 
 ### 2) 用腳本抽查 hash（推薦）
 

@@ -2,7 +2,7 @@ param(
   [string]$FromVersion = "",
   [string]$ToVersion = "",
   [string]$SiteRoot = "H:\Caddy_sitebuild",
-  [string]$DomainBase = "https://ggl3.ddns.net",
+  [string]$DomainBase = "https://ggl.leaharmonic.com",
   [string]$FromZip = "",
   [string]$ToZip = "",
   [string]$ForceConfigPaths = "",
