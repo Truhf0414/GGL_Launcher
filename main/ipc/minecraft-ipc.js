@@ -25,10 +25,31 @@ function registerMinecraftIpc(ctx) {
     const settings = await deps.readSettings();
     const paths = deps.getPaths(settings);
     await requireUpToDateInstanceOrThrow(settings);
+    if (!acct.loggedIn || !acct.name || !acct.uuid || !acct.mcAccessToken) {
+      await showInfoDialog("需要登入", "正版啟動需要先登入 Microsoft 帳號。");
+      throw new Error("尚未登入。");
+    }
+
+    const tokenCheck = await deps.checkStoredTokenStillValid(
+      acct.mcAccessToken,
+    );
+    if (!tokenCheck.ok) {
+      const msg =
+        tokenCheck.reason === "expired"
+          ? "登入已過期，請重新登入 Microsoft 帳號。"
+          : "無法確認登入狀態（網路問題），請稍後再試。";
+      await showInfoDialog("無法啟動", msg);
+      throw new Error(msg);
+    }
+
     await deps.ensureRuntimeAndLaunch({
       settings,
       paths,
-      playerId: acct.loggedIn && acct.name ? acct.name : settings.playerId,
+      auth: {
+        name: acct.name,
+        uuid: acct.uuid,
+        accessToken: acct.mcAccessToken,
+      },
     });
   });
 
@@ -39,7 +60,7 @@ function registerMinecraftIpc(ctx) {
     await deps.ensureRuntimeAndLaunch({
       settings,
       paths,
-      playerId: settings.playerId,
+      auth: { name: settings.playerId },
     });
   });
 
@@ -49,4 +70,3 @@ function registerMinecraftIpc(ctx) {
 }
 
 module.exports = { registerMinecraftIpc };
-

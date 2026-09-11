@@ -102,7 +102,7 @@ function cleanupStaleMcProcessIfNeeded() {
   return false;
 }
 
-async function ensureRuntimeAndLaunch({ settings, paths, playerId }) {
+async function ensureRuntimeAndLaunch({ settings, paths, auth }) {
   if (launchBusy) {
     throw new Error("啟動流程進行中，請稍候再試。");
   }
@@ -119,7 +119,7 @@ async function ensureRuntimeAndLaunch({ settings, paths, playerId }) {
       settings,
       gameDir: paths.gameDir,
       memoryGb: settings.memoryGb,
-      playerId,
+      auth,
       minecraftVersion: settings.minecraftVersion,
       jdkDir: paths.jdkDir,
     });
@@ -163,7 +163,7 @@ async function launchMinecraftFabric1211({
   settings,
   gameDir,
   memoryGb,
-  playerId,
+  auth,
   minecraftVersion,
   jdkDir,
 }) {
@@ -245,8 +245,9 @@ async function launchMinecraftFabric1211({
     ? mbFromGb(settings.maxMemoryGb)
     : mbFromGb(memoryGb);
   const minMb = settings?.minMemoryGb ? mbFromGb(settings.minMemoryGb) : 0;
+  const online = Boolean(auth?.uuid && auth?.accessToken);
   const placeholders = {
-    auth_player_name: playerId || "Player001",
+    auth_player_name: auth?.name || "Player001",
     version_name: resolved.id,
     game_directory: gameDir,
     assets_root: path.join(gameDir, "assets"),
@@ -254,14 +255,13 @@ async function launchMinecraftFabric1211({
     assets_index_name: String(
       resolved.assetIndex || minecraftVersion || "1.21.11",
     ),
-    auth_uuid: "00000000-0000-0000-0000-000000000000",
-    auth_access_token: "0",
-    user_type: "mojang",
+    auth_uuid: online ? auth.uuid : "00000000-0000-0000-0000-000000000000",
+    auth_access_token: online ? auth.accessToken : "0",
+    user_type: online ? "msa" : "legacy",
     version_type: "release",
     natives_directory: nativesDir,
     classpath: cp,
   };
-
   const jvmArgs = buildOptimizedJvmArgs({
     minMemoryMb: minMb,
     maxMemoryMb: maxMb,

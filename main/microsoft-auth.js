@@ -231,6 +231,20 @@ async function safeJson(res) {
   }
 }
 
+/** 啟動前檢查：現存 token 還能不能換到 profile。只回報，不改 account.json。 */
+async function checkStoredTokenStillValid(mcAccessToken) {
+  const token = String(mcAccessToken || "").trim();
+  if (!token) return { ok: false, reason: "not_logged_in" };
+  try {
+    await minecraftGetProfile(token);
+    return { ok: true };
+  } catch (e) {
+    const msg = String(e?.message || "");
+    if (/HTTP 401/.test(msg)) return { ok: false, reason: "expired" };
+    return { ok: false, reason: "network" };
+  }
+}
+
 async function loginMicrosoftAndMinecraft() {
   const codeVerifier = base64Url(crypto.randomBytes(32));
   const codeChallenge = base64Url(
@@ -535,4 +549,5 @@ function registerAccountIpcHandlers(ipcMain) {
 module.exports = {
   configureMicrosoftAuth,
   registerAccountIpcHandlers,
+  checkStoredTokenStillValid,
 };
