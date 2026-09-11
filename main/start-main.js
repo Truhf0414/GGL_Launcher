@@ -48,7 +48,11 @@ const {
   ensureRuntimeAndLaunch,
   isMinecraftRunning,
 } = require("./minecraft-launch");
-const { configureMicrosoftAuth } = require("./microsoft-auth");
+const {
+  configureMicrosoftAuth,
+  checkStoredTokenStillValid,
+} = require("./microsoft-auth");
+
 const { createMainIpcBridge } = require("./ipc-setup");
 const {
   configureServerStatus,
@@ -97,6 +101,7 @@ function createMainAppReadyContext({ app, appRoot }) {
     appendLauncherLog,
     logSyncProgressThrottled,
     readAccount,
+    checkStoredTokenStillValid,
     readSettings,
     readSettingsRaw,
     writeSettings,
