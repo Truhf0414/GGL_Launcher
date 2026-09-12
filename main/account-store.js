@@ -9,7 +9,6 @@ const {
   createTokenEnvelope,
   readTokenEnvelope,
   normalizeAccountState,
-  deriveLoggedInFlag,
 } = require("../lib/account-secret");
 
 const defaultDeps = {
@@ -86,11 +85,11 @@ async function writeAccount(next) {
   return next;
 }
 
-/** 給 renderer 的帳號快照：白名單，token／到期時間／原始 state 都不外洩。 */
+/** 給 renderer 的帳號快照：白名單，token／到期時間都不外洩；state 本身如實傳出（三態之一）。 */
 async function getAccountPayloadForRenderer() {
   const acct = await readAccount();
   return {
-    loggedIn: deriveLoggedInFlag(acct.state),
+    state: acct.state,
     name: acct.name,
     uuid: acct.uuid,
     avatarUrl: acct.avatarUrl,

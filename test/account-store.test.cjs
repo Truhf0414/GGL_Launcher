@@ -133,7 +133,7 @@ test("舊明文 account.json（loggedIn 布林 + 裸字串 token）：讀回視�
   assert.equal(acct.mcAccessToken, "");
 });
 
-test("renderer 快照：只有白名單四個欄位，不含 token／到期時間／原始 state", async (t) => {
+test("renderer 快照：只有白名單四個欄位（state／name／uuid／avatarUrl），不含 token／到期時間", async (t) => {
   await withTempAccountFile(t);
   await writeAccount({
     state: ACCOUNT_STATE.ACTIVE,
@@ -147,14 +147,14 @@ test("renderer 快照：只有白名單四個欄位，不含 token／到期時�
   const payload = await getAccountPayloadForRenderer();
   assert.deepEqual(Object.keys(payload).sort(), [
     "avatarUrl",
-    "loggedIn",
     "name",
+    "state",
     "uuid",
   ]);
-  assert.equal(payload.loggedIn, true);
+  assert.equal(payload.state, ACCOUNT_STATE.ACTIVE);
 });
 
-test("renderer 快照的 loggedIn 由 state 推導：reauth-required 視為未登入", async (t) => {
+test("renderer 快照如實傳出 reauth-required，不再壓成一個布林", async (t) => {
   await withTempAccountFile(t);
   await writeAccount({
     state: ACCOUNT_STATE.REAUTH_REQUIRED,
@@ -166,7 +166,7 @@ test("renderer 快照的 loggedIn 由 state 推導：reauth-required 視為未�
     expiresAt: null,
   });
   const payload = await getAccountPayloadForRenderer();
-  assert.equal(payload.loggedIn, false);
+  assert.equal(payload.state, ACCOUNT_STATE.REAUTH_REQUIRED);
   // reauth-required 不刪 credential：確認 msRefreshToken 仍在磁碟上讀得到
   const acct = await readAccount();
   assert.equal(acct.msRefreshToken, "old-refresh-still-on-disk");

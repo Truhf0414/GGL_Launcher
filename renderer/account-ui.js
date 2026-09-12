@@ -1,6 +1,13 @@
 // Renderer UI helpers: account avatar + account menu + login/logout flow.
 // Loaded before renderer.js via index.html.
 (function () {
+  const K = window.GglRendererConstants || {};
+  const ACCOUNT_STATE = K.ACCOUNT_STATE || {
+    LOGGED_OUT: "logged-out",
+    ACTIVE: "active",
+    REAUTH_REQUIRED: "reauth-required",
+  };
+
   function createAccountUi(input) {
     const ctx = input?.ctx || null;
     const fx = ctx?.fx || {};
@@ -113,7 +120,7 @@
 
     function applyAccountToUi() {
       const accountState = getAccountState();
-      if (accountState.loggedIn) {
+      if (accountState.state === ACCOUNT_STATE.ACTIVE) {
         accountName.textContent = accountState.name || "已登入";
         if (avatarEl) {
           const uuid = String(accountState.uuid || "").trim();
@@ -131,7 +138,12 @@
           void setAvatarFromCandidates(candidates);
         }
       } else {
-        accountName.textContent = "登入";
+        // logged-out 與 reauth-required 都不算「已登入」，但誠實區分文字：
+        // reauth-required 是「曾登入、憑證已失效」，不是單純沒登入過。
+        accountName.textContent =
+          accountState.state === ACCOUNT_STATE.REAUTH_REQUIRED
+            ? "需要重新登入"
+            : "登入";
         if (avatarEl) {
           avatarEl.classList.remove("avatar--has-image");
           avatarEl.style.backgroundImage = "";
@@ -296,7 +308,7 @@
     }
 
     function toggleAccountMenu() {
-      if (!getAccountState().loggedIn) return false;
+      if (getAccountState().state !== ACCOUNT_STATE.ACTIVE) return false;
       if (accountMenuOpen) closeAccountMenu();
       else openAccountMenu();
       return true;
@@ -367,8 +379,8 @@
       bind(btnLogin, "click", async () => {
         try {
           const accountState = getAccountState();
-          // 若已登入：先簡單詢問是否登出
-          if (accountState.loggedIn) {
+          // 若已登入（active）：先簡單詢問是否登出；logged-out／reauth-required 都直接走登入流程
+          if (accountState.state === ACCOUNT_STATE.ACTIVE) {
             // Better UX: open a small account menu instead of a blocking modal dialog.
             const handled = toggleAccountMenu();
             if (handled) return;

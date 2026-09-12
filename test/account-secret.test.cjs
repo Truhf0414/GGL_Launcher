@@ -14,7 +14,6 @@ const {
   computeExpiresAt,
   isRefreshDue,
   normalizeAccountState,
-  deriveLoggedInFlag,
   nextStateAfterInteractiveLogin,
   nextStateAfterLogout,
   nextStateAfterRefreshOutcome,
@@ -144,12 +143,6 @@ test("normalizeAccountState：不認得的值一律當 logged-out", () => {
   );
   assert.equal(normalizeAccountState("garbage"), ACCOUNT_STATE.LOGGED_OUT);
   assert.equal(normalizeAccountState(undefined), ACCOUNT_STATE.LOGGED_OUT);
-});
-
-test("deriveLoggedInFlag：只有 active 算已登入", () => {
-  assert.equal(deriveLoggedInFlag(ACCOUNT_STATE.ACTIVE), true);
-  assert.equal(deriveLoggedInFlag(ACCOUNT_STATE.LOGGED_OUT), false);
-  assert.equal(deriveLoggedInFlag(ACCOUNT_STATE.REAUTH_REQUIRED), false);
 });
 
 test("三態轉移：互動登入成功一律轉 active，登出一律轉 logged-out", () => {

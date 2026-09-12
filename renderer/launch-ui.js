@@ -1,6 +1,13 @@
 // Renderer UI helpers: launch button state machine + click actions.
 // Loaded before renderer.js via index.html.
 (function () {
+  const K = window.GglRendererConstants || {};
+  const ACCOUNT_STATE = K.ACCOUNT_STATE || {
+    LOGGED_OUT: "logged-out",
+    ACTIVE: "active",
+    REAUTH_REQUIRED: "reauth-required",
+  };
+
   function createLaunchUi(input) {
     const ctx = input?.ctx || null;
     const fx = ctx?.fx || {};
@@ -17,6 +24,9 @@
     const getBusyState = input?.getBusyState || (() => ({}));
     const setBusyState = input?.setBusyState || (() => {});
     const ensureReadyStatusText = input?.ensureReadyStatusText || (() => {});
+    // 啟動失敗有可能是 main 端剛把帳號轉成 reauth-required（invalid_grant）——
+    // 沒有這個 resync，畫面會停在啟動前拉到的舊 accountState，按鈕文字說謊。
+    const resyncAccountState = input?.resyncAccountState || (async () => {});
 
     function setOfflineLinkState({ visible, enabled }) {
       if (!btnOfflineLink) return;
@@ -119,10 +129,14 @@
         return;
       }
 
-      if (!accountState.loggedIn) {
+      if (accountState.state !== ACCOUNT_STATE.ACTIVE) {
         btnLaunch.classList.remove("launch-btn--ready");
         btnLaunch.classList.remove("launch-btn--busy");
-        setLaunchLabel("登入");
+        setLaunchLabel(
+          accountState.state === ACCOUNT_STATE.REAUTH_REQUIRED
+            ? "重新登入"
+            : "登入",
+        );
         btnLaunch.disabled = true;
         btnLaunch.classList.add("launch-btn--disabled");
         setOfflineLinkState({ visible: true, enabled: true });
@@ -201,6 +215,9 @@
             setStatusError(`安裝/更新失敗：${cleaned}`);
           } else {
             setStatusError(cleaned);
+            // minecraft:launch 失敗有可能是 main 端剛把帳號轉成 reauth-required；
+            // 拉一次最新狀態，按鈕才不會繼續顯示啟動前的舊帳號狀態。
+            await resyncAccountState();
           }
         } finally {
           if (
