@@ -257,6 +257,10 @@ async function launchMinecraftFabric1211({
     ),
     auth_uuid: online ? auth.uuid : "00000000-0000-0000-0000-000000000000",
     auth_access_token: online ? auth.accessToken : "0",
+    // 版本 json 若帶這兩個 token，我們沒有真值可填；填空字串而非留原始 ${...}
+    // 字面文字，避免那串帶括號的假值被當成參數值直接傳給遊戲。
+    auth_xuid: "",
+    clientid: "",
     user_type: online ? "msa" : "legacy",
     version_type: "release",
     natives_directory: nativesDir,
