@@ -8,7 +8,7 @@ const {
   rotateLauncherLogIfTooLarge,
   logSyncProgressThrottled,
 } = require("./launcher-log");
-const { readAccount } = require("./account-store");
+const { readAccount, writeAccount } = require("./account-store");
 const { getPaths } = require("./paths");
 const {
   ensureSettingsFileInitialized,
@@ -50,7 +50,7 @@ const {
 } = require("./minecraft-launch");
 const {
   configureMicrosoftAuth,
-  checkStoredTokenStillValid,
+  refreshMicrosoftAndMinecraftTokens,
 } = require("./microsoft-auth");
 
 const { createMainIpcBridge } = require("./ipc-setup");
@@ -101,7 +101,8 @@ function createMainAppReadyContext({ app, appRoot }) {
     appendLauncherLog,
     logSyncProgressThrottled,
     readAccount,
-    checkStoredTokenStillValid,
+    writeAccount,
+    refreshMicrosoftAndMinecraftTokens,
     readSettings,
     readSettingsRaw,
     writeSettings,
