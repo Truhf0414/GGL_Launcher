@@ -685,7 +685,7 @@ function registerAccountIpcHandlers(ipcMain) {
       });
 
       const safe = {
-        loggedIn: true,
+        state: ACCOUNT_STATE.ACTIVE,
         name: result.name,
         uuid: result.uuid,
         avatarUrl,

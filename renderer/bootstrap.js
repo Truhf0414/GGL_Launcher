@@ -426,7 +426,12 @@
     });
 
     // Account UI
-    let accountState = { loggedIn: false, name: "", uuid: "", avatarUrl: "" };
+    let accountState = {
+      state: K.ACCOUNT_STATE?.LOGGED_OUT || "logged-out",
+      name: "",
+      uuid: "",
+      avatarUrl: "",
+    };
     let isInstanceReady = () => false;
     let ensureReadyStatusText = () => {};
 
@@ -495,6 +500,14 @@
       }) || null;
     serverStatusUi?.init?.();
 
+    async function resyncAccountState() {
+      try {
+        const a = await safeInvoke("account:get");
+        accountState = a;
+        accountUi?.applyAccountToUi?.();
+      } catch {}
+    }
+
     const launchUi =
       LU?.createLaunchUi?.({
         ctx,
@@ -508,6 +521,7 @@
             gameRunning = Boolean(next.gameRunning);
         },
         ensureReadyStatusText,
+        resyncAccountState,
       }) || null;
 
     function setLauncherBusy(isBusy) {
