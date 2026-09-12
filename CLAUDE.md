@@ -33,3 +33,17 @@ Minecraft 模組伺服器的自製啟動器。Electron ＋ 原生 JS，無前端
 
 - 要寫得出測試的邏輯就放 `lib/`，`main/` 的檔只負責接電。`main/` 裡純函式性質的小檔（如 `format-eta-seconds.js`）同樣有測試。
 - 依賴放哪、發包產物、UI／CSS、本機打包的規則全在 `_notes/conventions.md`，不在本檔重述。
+
+## agent 執行環境（不是專案的毛病，也不是機器壞掉）
+
+Claude Code 跑指令用的 shell 帶著 `ELECTRON_RUN_AS_NODE=1`，繼承自其父行程——**非本專案設定**（使用者環境變數、系統環境變數、shell 啟動檔、Claude Code 的 shell snapshot、啟動指令，2026-09-12 逐一實測皆無）。**使用者自己在編輯器裡開的終端沒有這個變數**（同日實測：owner 終端 `npm start` 正常開啟視窗）。誰設的未查明，不指認。
+
+影響範圍只有一件事：**拿 `electron.exe` 跑程式**（`npm start`、`npx electron <script>`）。該模式下 Electron 以純 Node 行程啟動，不註冊內建的 `electron` 模組，於是：
+
+- 腳本在專案內 → `require("electron")` 回傳**執行檔路徑字串**，`const { app } = ...` 解出的 `app` 是 `undefined`，錯誤延後到第一個使用處才爆。實測：`main.js:12` 的 `app.whenReady()` 報 TypeError，真正的病灶在 `main.js:1`。
+- 腳本在專案外（如暫存區）→ `Cannot find module 'electron'`。
+
+**agent 跑 electron 時的解法**：`env -u ELECTRON_RUN_AS_NODE npx electron <script>`。
+
+不受影響〔2026-09-12 實測〕：`npm install`、`node <script>`、`npm test`（走 `node --test`）、git、rg／fd／jq。
+未驗：打包流程（`pack:win`／`dist:win`）是否會在內部呼叫 `electron.exe`。
