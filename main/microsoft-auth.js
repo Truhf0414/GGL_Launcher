@@ -7,6 +7,15 @@ const {
   getAccountPayloadForRenderer,
 } = require("./account-store");
 const { IPC } = require("../lib/ipc-channels");
+const {
+  ACCOUNT_STATE,
+  REFRESH_OUTCOME,
+  computeExpiresAt,
+} = require("../lib/account-secret");
+
+/** 整條換新鏈（MS refresh → XBL → XSTS → login_with_xbox）的總 deadline。
+ * 四段各自預設 25s，最壞相加約 100s；抓一點餘裕設 110s，不是四段之一額外再等。 */
+const REFRESH_CHAIN_DEADLINE_MS = 110_000;
 
 const defaultDeps = {
   msClientId: "",
@@ -100,6 +109,55 @@ async function exchangeMicrosoftCodeForToken({
   );
   if (!res.ok) throw new Error(`Microsoft token 交換失敗：HTTP ${res.status}`);
   return await res.json();
+}
+
+/**
+ * 用 refresh_token 換新的 Microsoft access_token（不必重開登入視窗）。
+ * 回傳結構化結果，不丟例外：呼叫端要分清楚「refresh_token 本身失效」
+ * 跟「網路／逾時／5xx」——前者才進 reauth-required，後者帳號狀態不變。
+ */
+async function exchangeMicrosoftRefreshToken(refreshToken) {
+  const clientId = String(deps.msClientId || "").trim();
+  const body = new URLSearchParams({
+    client_id: clientId,
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+  });
+
+  let res;
+  try {
+    res = await fetchDeadline("https://login.live.com/oauth20_token.srf", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+  } catch (e) {
+    return {
+      ok: false,
+      kind: REFRESH_OUTCOME.RETRYABLE,
+      detail: e?.message || String(e),
+    };
+  }
+
+  const data = await safeJson(res);
+  if (!res.ok) {
+    // 實測（2026-09-12，對同一 endpoint）：error 欄位可作分類依據，error_description 不可
+    // （無效 refresh_token 與無效 authorization_code 共用同一個 error 值）。
+    const errorCode = data && typeof data === "object" ? data.error : "";
+    if (errorCode === "invalid_grant") {
+      return {
+        ok: false,
+        kind: REFRESH_OUTCOME.INVALID_GRANT,
+        detail: data?.error_description || "invalid_grant",
+      };
+    }
+    return {
+      ok: false,
+      kind: REFRESH_OUTCOME.RETRYABLE,
+      detail: `HTTP ${res.status}`,
+    };
+  }
+  return { ok: true, data };
 }
 
 async function xblAuthenticate(msAccessToken) {
@@ -231,18 +289,94 @@ async function safeJson(res) {
   }
 }
 
-/** 啟動前檢查：現存 token 還能不能換到 profile。只回報，不改 account.json。 */
-async function checkStoredTokenStillValid(mcAccessToken) {
-  const token = String(mcAccessToken || "").trim();
-  if (!token) return { ok: false, reason: "not_logged_in" };
+/** race 一個總 deadline，逾時就當作可重試失敗；不強制中斷已發出的請求，各步驟自己的
+ * fetchDeadline 最終還是會收斂，這裡只是不讓呼叫端無限期等下去。 */
+async function withOverallDeadline(run, totalMs) {
+  let timeoutHandle;
+  const timeoutPromise = new Promise((resolve) => {
+    timeoutHandle = setTimeout(
+      () =>
+        resolve({
+          outcome: REFRESH_OUTCOME.RETRYABLE,
+          detail: `整條換新鏈超過 ${totalMs}ms`,
+        }),
+      totalMs,
+    );
+  });
   try {
-    await minecraftGetProfile(token);
-    return { ok: true };
-  } catch (e) {
-    const msg = String(e?.message || "");
-    if (/HTTP 401/.test(msg)) return { ok: false, reason: "expired" };
-    return { ok: false, reason: "network" };
+    return await Promise.race([run(), timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutHandle);
   }
+}
+
+/**
+ * 用現有 refresh_token 換一組新的 Minecraft token，不寫檔，只回報結果——
+ * 「整條鏈成功後才一次性寫檔」是呼叫端（IPC handler）的責任，這裡只負責換。
+ * 回傳 { outcome, account } 或 { outcome, detail }：
+ *   SUCCESS        → account 是完整更新後的帳號物件（含新 token／新 expiresAt）
+ *   INVALID_GRANT  → refresh_token 本身失效，呼叫端要把帳號轉 reauth-required
+ *   RETRYABLE      → 網路／逾時／Xbox 或 Minecraft 端問題，帳號狀態不動，可再試
+ */
+async function refreshMicrosoftAndMinecraftTokens(account) {
+  const refreshToken = String(account?.msRefreshToken || "").trim();
+  if (!refreshToken) {
+    return {
+      outcome: REFRESH_OUTCOME.INVALID_GRANT,
+      detail: "沒有 refresh token 可用",
+    };
+  }
+
+  return await withOverallDeadline(async () => {
+    const msResult = await exchangeMicrosoftRefreshToken(refreshToken);
+    if (!msResult.ok) {
+      return { outcome: msResult.kind, detail: msResult.detail };
+    }
+    const msAccessToken = msResult.data?.access_token;
+    if (!msAccessToken) {
+      return {
+        outcome: REFRESH_OUTCOME.RETRYABLE,
+        detail: "Microsoft access_token 為空",
+      };
+    }
+    // refresh token 會輪替：回應帶新的就覆寫，沒帶就保留舊值（舊值在换新成功前仍有效）
+    const nextRefreshToken = msResult.data?.refresh_token || refreshToken;
+
+    let mc;
+    try {
+      const xbl = await xblAuthenticate(msAccessToken);
+      const xsts = await xstsAuthorize(xbl.Token);
+      const userHash = xsts?.DisplayClaims?.xui?.[0]?.uhs;
+      if (!userHash) throw makeLoginError("XSTS_NO_UHS", "XSTS uhs 缺失");
+      mc = await minecraftLoginWithXbox(xsts.Token, userHash);
+    } catch (e) {
+      // MS 端的 refresh_token 已證實有效（前面拿到新 access_token 了），這裡失敗
+      // 多半是 Xbox／Minecraft 服務端或網路問題，不是帳號本身壞掉，歸類可重試。
+      return {
+        outcome: REFRESH_OUTCOME.RETRYABLE,
+        detail: e?.message || String(e),
+      };
+    }
+
+    const mcAccessToken = mc?.access_token;
+    if (!mcAccessToken || mc?.expires_in === undefined) {
+      return {
+        outcome: REFRESH_OUTCOME.RETRYABLE,
+        detail: "Minecraft 換新回應缺少 access_token 或 expires_in",
+      };
+    }
+
+    return {
+      outcome: REFRESH_OUTCOME.SUCCESS,
+      account: {
+        ...account,
+        state: ACCOUNT_STATE.ACTIVE,
+        mcAccessToken,
+        msRefreshToken: nextRefreshToken,
+        expiresAt: computeExpiresAt(Date.now(), mc.expires_in),
+      },
+    };
+  }, REFRESH_CHAIN_DEADLINE_MS);
 }
 
 async function loginMicrosoftAndMinecraft() {
@@ -466,7 +600,21 @@ async function loginMicrosoftAndMinecraft() {
   }
 
   const profile = await minecraftGetProfile(mcAccessToken);
-  return { name: profile.name, uuid: profile.id, mcAccessToken };
+
+  let expiresAt;
+  try {
+    expiresAt = computeExpiresAt(Date.now(), mc.expires_in);
+  } catch (e) {
+    throw makeLoginError("MC_EXPIRES_IN_MISSING", e?.message || String(e));
+  }
+
+  return {
+    name: profile.name,
+    uuid: profile.id,
+    mcAccessToken,
+    msRefreshToken: msToken.refresh_token || "",
+    expiresAt,
+  };
 }
 
 function registerAccountIpcHandlers(ipcMain) {
@@ -489,11 +637,13 @@ function registerAccountIpcHandlers(ipcMain) {
       throw new Error("登入進行中，請稍候再登出。");
     }
     await writeAccount({
-      loggedIn: false,
+      state: ACCOUNT_STATE.LOGGED_OUT,
       name: "",
       uuid: "",
       avatarUrl: "",
       mcAccessToken: "",
+      msRefreshToken: "",
+      expiresAt: null,
     });
     return true;
   });
@@ -525,11 +675,13 @@ function registerAccountIpcHandlers(ipcMain) {
         : "";
 
       await writeAccount({
-        loggedIn: true,
+        state: ACCOUNT_STATE.ACTIVE,
         name: result.name,
         uuid: result.uuid,
         avatarUrl,
         mcAccessToken: result.mcAccessToken,
+        msRefreshToken: result.msRefreshToken,
+        expiresAt: result.expiresAt,
       });
 
       const safe = {
@@ -549,5 +701,5 @@ function registerAccountIpcHandlers(ipcMain) {
 module.exports = {
   configureMicrosoftAuth,
   registerAccountIpcHandlers,
-  checkStoredTokenStillValid,
+  refreshMicrosoftAndMinecraftTokens,
 };
