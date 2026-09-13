@@ -38,7 +38,7 @@ Minecraft 模組伺服器的自製啟動器。Electron ＋ 原生 JS，無前端
 
 Claude Code 跑指令用的 shell 帶著 `ELECTRON_RUN_AS_NODE=1`，繼承自其父行程——**非本專案設定**（使用者環境變數、系統環境變數、shell 啟動檔、Claude Code 的 shell snapshot、啟動指令，2026-09-12 逐一實測皆無）。**使用者自己在編輯器裡開的終端沒有這個變數**（同日實測：owner 終端 `npm start` 正常開啟視窗）。誰設的未查明，不指認。
 
-影響範圍只有一件事：**拿 `electron.exe` 跑程式**（`npm start`、`npx electron <script>`）。該模式下 Electron 以純 Node 行程啟動，不註冊內建的 `electron` 模組，於是：
+已知受影響的是一件事：**拿 `electron.exe` 跑程式**（`npm start`、`npx electron <script>`）。該模式下 Electron 以純 Node 行程啟動，不註冊內建的 `electron` 模組，於是：
 
 - 腳本在專案內 → `require("electron")` 回傳**執行檔路徑字串**，`const { app } = ...` 解出的 `app` 是 `undefined`，錯誤延後到第一個使用處才爆。實測：`main.js:12` 的 `app.whenReady()` 報 TypeError，真正的病灶在 `main.js:1`。
 - 腳本在專案外（如暫存區）→ `Cannot find module 'electron'`。
