@@ -11,6 +11,12 @@ const accountStore = require("../main/account-store.js");
 const { registerMinecraftIpc } = require("../main/ipc/minecraft-ipc.js");
 const { IPC } = require("../lib/ipc-channels.js");
 const { ACCOUNT_STATE, REFRESH_OUTCOME } = require("../lib/account-secret.js");
+const {
+  makeFakeSafeStorage,
+  encryptedEnvelope,
+  UNDECRYPTABLE_ENVELOPE,
+  TEMPORARILY_UNAVAILABLE_ENVELOPE,
+} = require("./helpers/fake-safe-storage.cjs");
 
 function makeFakeIpcMain() {
   const handlers = new Map();
@@ -156,32 +162,6 @@ test("state 為 reauth-required：直接擋下，不呼叫換新也不啟動", a
 // ── 跨層：真 account-store＋暫存 account.json＋假 safeStorage ──────────────
 // 解不開的 token 不得走到啟動、換新或寫檔；寫檔與否以檔案雜湊判定，不看 calls。
 
-function makeFakeSafeStorage() {
-  return {
-    isEncryptionAvailable: () => true,
-    encryptString: (s) => Buffer.from(`ENC:${s}`, "utf8"),
-    decryptString: (buf) => {
-      const s = buf.toString("utf8");
-      if (!s.startsWith("ENC:")) throw new Error("解密失敗");
-      return s.slice(4);
-    },
-  };
-}
-
-function encryptedEnvelope(plaintext) {
-  return {
-    version: 1,
-    method: "safeStorage",
-    data: Buffer.from(`ENC:${plaintext}`, "utf8").toString("base64"),
-  };
-}
-
-const UNDECRYPTABLE_ENVELOPE = {
-  version: 1,
-  method: "safeStorage",
-  data: Buffer.from("garbage").toString("base64"),
-};
-
 const EXPIRED = () => Date.now() - 1000;
 const NOT_EXPIRED = () => Date.now() + 60 * 60 * 1000;
 
@@ -276,6 +256,20 @@ test("跨層：mc token envelope 的 data 為空字串 → 不啟動、不寫檔
 for (const [label, diskOverrides] of [
   ["mc 解不開、refresh 可讀", { mcAccessToken: UNDECRYPTABLE_ENVELOPE }],
   ["mc 可讀、refresh 解不開", { msRefreshToken: UNDECRYPTABLE_ENVELOPE }],
+  [
+    "mc 解不開、refresh 暫時不可用",
+    {
+      mcAccessToken: UNDECRYPTABLE_ENVELOPE,
+      msRefreshToken: TEMPORARILY_UNAVAILABLE_ENVELOPE,
+    },
+  ],
+  [
+    "mc 暫時不可用、refresh 解不開",
+    {
+      mcAccessToken: TEMPORARILY_UNAVAILABLE_ENVELOPE,
+      msRefreshToken: UNDECRYPTABLE_ENVELOPE,
+    },
+  ],
 ]) {
   test(`跨層：${label} → reauth-required、不啟動、不換新、不寫檔`, async (t) => {
     const setup = await setupRealStoreIpc(t, {
@@ -287,6 +281,36 @@ for (const [label, diskOverrides] of [
     await assertBlockedWithoutSideEffects(setup);
   });
 }
+
+for (const [label, diskOverrides] of [
+  ["mc token", { mcAccessToken: TEMPORARILY_UNAVAILABLE_ENVELOPE }],
+  ["refresh token", { msRefreshToken: TEMPORARILY_UNAVAILABLE_ENVELOPE }],
+]) {
+  test(`跨層：${label} 暫時不可用＋已過期 → 顯示稍後再試、不啟動、不換新、不寫檔`, async (t) => {
+    const setup = await setupRealStoreIpc(t, {
+      ...diskOverrides,
+      expiresAt: EXPIRED(),
+    });
+    const payload = await accountStore.getAccountPayloadForRenderer();
+    assert.equal(payload.state, ACCOUNT_STATE.ACTIVE); // 畫面顯示存檔裡的狀態
+    await assertBlockedWithoutSideEffects(setup);
+    const shownText = setup.calls.dialogs.map((d) => d.message).join(" ");
+    assert.ok(shownText.includes("稍後再試"), shownText);
+    assert.ok(!shownText.includes("重新登入"), shownText);
+  });
+}
+
+test("readAccount 丟非暫時不可用的錯誤 → 原錯誤照舊往外丟、不顯示稍後再試", async () => {
+  const boom = new Error("讀帳號時的其他錯誤");
+  const { ipcMain, calls } = setupIpc({
+    readAccount: async () => {
+      throw boom;
+    },
+  });
+  await assert.rejects(() => ipcMain.invoke(IPC.invoke.MINECRAFT_LAUNCH), boom);
+  assert.equal(calls.dialogs.length, 0);
+  assert.equal(calls.launch.length, 0);
+});
 
 test("跨層：refresh token 為 null、mc token 可讀＋已過期＋換新回 invalid_grant → 寫檔後 mc token 仍是可解回原值的 envelope", async (t) => {
   const { ipcMain, calls, filePath } = await setupRealStoreIpc(

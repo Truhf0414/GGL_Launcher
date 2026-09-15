@@ -2,6 +2,7 @@ const { IPC } = require("../../lib/ipc-channels");
 const {
   ACCOUNT_STATE,
   REFRESH_OUTCOME,
+  CredentialsTemporarilyUnavailableError,
   isRefreshDue,
 } = require("../../lib/account-secret");
 
@@ -23,6 +24,18 @@ function registerMinecraftIpc(ctx) {
       "偵測到尚未安裝或有更新，請先點擊『安裝/更新』完成同步後再啟動。",
     );
     throw new Error("需要安裝/更新。");
+  }
+
+  /** 只接 token 暫時不可用：顯示稍後再試後 reject；其他錯誤照舊往外丟。 */
+  async function readAccountOrThrow() {
+    try {
+      return await deps.readAccount();
+    } catch (e) {
+      if (!(e instanceof CredentialsTemporarilyUnavailableError)) throw e;
+      const msg = "暫時無法讀取登入憑證，請稍後再試。";
+      await showInfoDialog("無法啟動", msg);
+      throw new Error(msg);
+    }
   }
 
   /** state 非 active 時依狀態丟出對應的「需要登入」錯誤。 */
@@ -69,7 +82,7 @@ function registerMinecraftIpc(ctx) {
     const paths = deps.getPaths(settings);
     await requireUpToDateInstanceOrThrow(settings);
 
-    let acct = await deps.readAccount();
+    let acct = await readAccountOrThrow();
     await requireLoggedInOrThrow(acct);
     acct = await ensureActiveAccountOrThrow(acct);
 

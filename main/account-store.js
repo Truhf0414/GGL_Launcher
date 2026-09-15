@@ -7,10 +7,11 @@ const fsp = require("fs/promises");
 const {
   ACCOUNT_STATE,
   TOKEN_READ,
+  CredentialsTemporarilyUnavailableError,
   createTokenEnvelope,
   readTokenEnvelope,
   normalizeAccountState,
-  effectiveStateAfterTokenRead,
+  resolveAccountAfterTokenRead,
 } = require("../lib/account-secret");
 
 const defaultDeps = {
@@ -40,7 +41,8 @@ function emptyAccount() {
 
 /**
  * 讀檔失敗、JSON 壞掉 → logged-out。token 解不開不走這條：由 token 分類決定
- * 記憶體內的 state（見 effectiveStateAfterTokenRead），磁碟維持原樣。
+ * 記憶體內的 state（見 resolveAccountAfterTokenRead），磁碟維持原樣。
+ * token 暫時不可用 → 丟 CredentialsTemporarilyUnavailableError（帶不含 token 的快照）。
  */
 async function readAccount() {
   let parsed;
@@ -51,36 +53,46 @@ async function readAccount() {
   }
   if (!parsed || typeof parsed !== "object") return emptyAccount();
 
-  const mcRead = readTokenEnvelope(parsed.mcAccessToken, deps.safeStorage);
-  const msRead = readTokenEnvelope(parsed.msRefreshToken, deps.safeStorage);
-  return {
+  const profile = {
     // 沒有 state 欄位（含舊版 loggedIn 布林 schema）一律 normalize 成 logged-out，
     // 這就是「舊 account.json 直接丟棄、要求重登」裁決的落地方式。
-    state: effectiveStateAfterTokenRead(
-      normalizeAccountState(parsed.state),
-      mcRead,
-      msRead,
-    ),
+    state: normalizeAccountState(parsed.state),
     name: typeof parsed.name === "string" ? parsed.name : "",
     uuid: typeof parsed.uuid === "string" ? parsed.uuid : "",
     avatarUrl: typeof parsed.avatarUrl === "string" ? parsed.avatarUrl : "",
+  };
+  const mcRead = await readTokenEnvelope(
+    parsed.mcAccessToken,
+    deps.safeStorage,
+  );
+  const msRead = await readTokenEnvelope(
+    parsed.msRefreshToken,
+    deps.safeStorage,
+  );
+  const resolved = resolveAccountAfterTokenRead(profile.state, mcRead, msRead);
+  if (resolved.temporarilyUnavailable) {
+    throw new CredentialsTemporarilyUnavailableError(profile);
+  }
+  return {
+    ...profile,
+    state: resolved.state,
     mcAccessToken: mcRead.kind === TOKEN_READ.OK ? mcRead.value : "",
     msRefreshToken: msRead.kind === TOKEN_READ.OK ? msRead.value : "",
     expiresAt: typeof parsed.expiresAt === "number" ? parsed.expiresAt : null,
   };
 }
 
-function serializeAccountForDisk(next) {
+async function serializeAccountForDisk(next) {
   return {
     state: normalizeAccountState(next.state),
     name: typeof next.name === "string" ? next.name : "",
     uuid: typeof next.uuid === "string" ? next.uuid : "",
     avatarUrl: typeof next.avatarUrl === "string" ? next.avatarUrl : "",
     mcAccessToken: next.mcAccessToken
-      ? createTokenEnvelope(next.mcAccessToken, deps.safeStorage)
+      ? await createTokenEnvelope(next.mcAccessToken, deps.safeStorage)
       : null,
     msRefreshToken: next.msRefreshToken
-      ? createTokenEnvelope(next.msRefreshToken, deps.safeStorage)
+      ? await createTokenEnvelope(next.msRefreshToken, deps.safeStorage)
       : null,
     expiresAt: Number.isFinite(next.expiresAt) ? next.expiresAt : null,
   };
@@ -90,16 +102,25 @@ function serializeAccountForDisk(next) {
 async function writeAccount(next) {
   const filePath = deps.getAccountPath();
   await fsp.mkdir(path.dirname(filePath), { recursive: true });
-  const payload = serializeAccountForDisk(next);
+  const payload = await serializeAccountForDisk(next);
   const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
   await fsp.writeFile(tmpPath, JSON.stringify(payload, null, 2), "utf8");
   await fsp.rename(tmpPath, filePath);
   return next;
 }
 
-/** 給 renderer 的帳號快照：白名單，token／到期時間都不外洩；state 本身如實傳出（三態之一）。 */
+/**
+ * 給 renderer 的帳號快照：白名單，token／到期時間都不外洩；state 本身如實傳出（三態之一）。
+ * token 暫時不可用時回存檔裡的狀態——renderer 遇錯一律靜默顯示登出，不能讓錯誤丟到那邊。
+ */
 async function getAccountPayloadForRenderer() {
-  const acct = await readAccount();
+  let acct;
+  try {
+    acct = await readAccount();
+  } catch (e) {
+    if (!(e instanceof CredentialsTemporarilyUnavailableError)) throw e;
+    acct = e.account;
+  }
   return {
     state: acct.state,
     name: acct.name,
