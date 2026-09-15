@@ -39,8 +39,9 @@ async function withTempAccountFile(t, { safeStorage } = {}) {
     } catch {}
   });
   const filePath = path.join(root, "account.json");
+  const fakeSafeStorage = safeStorage ?? makeFakeSafeStorage();
   configureAccountStore({
-    safeStorage: safeStorage ?? makeFakeSafeStorage(),
+    getSafeStorage: () => fakeSafeStorage,
     getAccountPath: () => filePath,
   });
   return filePath;

@@ -191,8 +191,9 @@ async function setupRealStoreIpc(t, diskOverrides, depsOverrides = {}) {
     }),
     "utf8",
   );
+  const fakeSafeStorage = makeFakeSafeStorage();
   accountStore.configureAccountStore({
-    safeStorage: makeFakeSafeStorage(),
+    getSafeStorage: () => fakeSafeStorage,
     getAccountPath: () => filePath,
   });
   const hashBefore = await sha256OfFile(filePath);

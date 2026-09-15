@@ -5,7 +5,7 @@
 // <root>\jdk     -> 內建 Java（放入 JDK 解壓內容）
 // <root>\.temp   -> 暫存下載檔/中繼檔（避免下載中斷時破壞實例）
 // 實際根目錄來自 settings.launcherRootDir（經 normalizeRootDir）。
-const { app } = require("electron");
+// electron 在用到時才 require：測試會經 manifest-sync → settings 載入本檔（見 test/helpers/forbid-electron.cjs）
 const path = require("path");
 const {
   DEFAULT_LAUNCHER_ROOT_DIR,
@@ -15,14 +15,17 @@ const {
 } = require("../lib/paths-layout.js");
 
 function getSettingsPath() {
+  const { app } = require("electron");
   return path.join(app.getPath("userData"), "settings.json");
 }
 
 function getNotificationsDismissedPath() {
+  const { app } = require("electron");
   return path.join(app.getPath("userData"), "notifications.dismissed.json");
 }
 
 function resolveDefaultSettingsPath() {
+  const { app } = require("electron");
   const projectRoot = path.join(__dirname, "..");
   const base = app.isPackaged ? process.resourcesPath : projectRoot;
   return path.join(base, "assets", "default-settings.json");
