@@ -90,9 +90,22 @@ test("加密不可用：退明文仍可運作，不擋使用者", async (t) => {
   assert.equal(acct.msRefreshToken, "refresh-plain");
 });
 
-test("解密失敗（例如密文被搬到別台機器）：該欄位視為沒有 token，不炸掉整個讀取", async (t) => {
-  const filePath = await withTempAccountFile(t);
-  // 直接寫一個「用別把 safeStorage 加密」的 envelope，模擬搬機器後解不開
+function encryptedEnvelope(plaintext) {
+  return {
+    version: 1,
+    method: "safeStorage",
+    data: Buffer.from(`ENC:${plaintext}`, "utf8").toString("base64"),
+  };
+}
+
+// 「用別把 safeStorage 加密」的 envelope，模擬搬機器後解不開
+const UNDECRYPTABLE_ENVELOPE = {
+  version: 1,
+  method: "safeStorage",
+  data: Buffer.from("garbage").toString("base64"),
+};
+
+async function writeRawAccountFile(filePath, overrides) {
   await fsp.writeFile(
     filePath,
     JSON.stringify({
@@ -100,19 +113,54 @@ test("解密失敗（例如密文被搬到別台機器）：該欄位視為沒�
       name: "Steve",
       uuid: "uuid-1",
       avatarUrl: "",
-      mcAccessToken: {
-        version: 1,
-        method: "safeStorage",
-        data: Buffer.from("garbage").toString("base64"),
-      },
-      msRefreshToken: null,
+      mcAccessToken: encryptedEnvelope("mc-secret"),
+      msRefreshToken: encryptedEnvelope("refresh-secret"),
       expiresAt: 123,
+      ...overrides,
     }),
     "utf8",
   );
+}
+
+test("解密失敗（例如密文被搬到別台機器）：記憶體內視為 reauth-required，不假裝沒有 token", async (t) => {
+  const filePath = await withTempAccountFile(t);
+  await writeRawAccountFile(filePath, {
+    mcAccessToken: UNDECRYPTABLE_ENVELOPE,
+    msRefreshToken: null,
+  });
   const acct = await readAccount();
+  assert.equal(acct.state, ACCOUNT_STATE.REAUTH_REQUIRED);
   assert.equal(acct.mcAccessToken, "");
-  assert.equal(acct.state, ACCOUNT_STATE.ACTIVE); // state 本身不受 token 解密失敗影響
+  assert.equal(acct.name, "Steve"); // 帳號身分照舊帶出，畫面顯示「需要重新登入」而不是登出
+});
+
+test("active 但 mc token 為 null：記憶體內視為 reauth-required", async (t) => {
+  const filePath = await withTempAccountFile(t);
+  await writeRawAccountFile(filePath, { mcAccessToken: null });
+  const acct = await readAccount();
+  assert.equal(acct.state, ACCOUNT_STATE.REAUTH_REQUIRED);
+});
+
+test("active 且只有 refresh token 為 null：合法狀態，維持 active", async (t) => {
+  const filePath = await withTempAccountFile(t);
+  await writeRawAccountFile(filePath, { msRefreshToken: null });
+  const acct = await readAccount();
+  assert.equal(acct.state, ACCOUNT_STATE.ACTIVE);
+  assert.equal(acct.mcAccessToken, "mc-secret");
+  assert.equal(acct.msRefreshToken, "");
+});
+
+test("JSON 壞掉：logged-out（與 token 分類分開處理）", async (t) => {
+  const filePath = await withTempAccountFile(t);
+  await fsp.writeFile(filePath, "{ not json", "utf8");
+  const acct = await readAccount();
+  assert.equal(acct.state, ACCOUNT_STATE.LOGGED_OUT);
+});
+
+test("檔案不存在：logged-out", async (t) => {
+  await withTempAccountFile(t);
+  const acct = await readAccount();
+  assert.equal(acct.state, ACCOUNT_STATE.LOGGED_OUT);
 });
 
 test("舊明文 account.json（loggedIn 布林 + 裸字串 token）：讀回視為 logged-out、token 皆空", async (t) => {
@@ -129,6 +177,7 @@ test("舊明文 account.json（loggedIn 布林 + 裸字串 token）：讀回視�
     "utf8",
   );
   const acct = await readAccount();
+  // 裸字串 token 屬 unreadable，但只有 active 會被降成 reauth-required；logged-out 維持原判
   assert.equal(acct.state, ACCOUNT_STATE.LOGGED_OUT);
   assert.equal(acct.mcAccessToken, "");
 });
