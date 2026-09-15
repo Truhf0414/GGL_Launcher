@@ -6,9 +6,11 @@ const path = require("path");
 const fsp = require("fs/promises");
 const {
   ACCOUNT_STATE,
+  TOKEN_READ,
   createTokenEnvelope,
   readTokenEnvelope,
   normalizeAccountState,
+  effectiveStateAfterTokenRead,
 } = require("../lib/account-secret");
 
 const defaultDeps = {
@@ -36,26 +38,36 @@ function emptyAccount() {
   };
 }
 
+/**
+ * 讀檔失敗、JSON 壞掉 → logged-out。token 解不開不走這條：由 token 分類決定
+ * 記憶體內的 state（見 effectiveStateAfterTokenRead），磁碟維持原樣。
+ */
 async function readAccount() {
+  let parsed;
   try {
-    const raw = await fsp.readFile(deps.getAccountPath(), "utf8");
-    const parsed = JSON.parse(raw);
-    return {
-      // 沒有 state 欄位（含舊版 loggedIn 布林 schema）一律 normalize 成 logged-out，
-      // 這就是「舊 account.json 直接丟棄、要求重登」裁決的落地方式。
-      state: normalizeAccountState(parsed.state),
-      name: typeof parsed.name === "string" ? parsed.name : "",
-      uuid: typeof parsed.uuid === "string" ? parsed.uuid : "",
-      avatarUrl: typeof parsed.avatarUrl === "string" ? parsed.avatarUrl : "",
-      mcAccessToken:
-        readTokenEnvelope(parsed.mcAccessToken, deps.safeStorage) || "",
-      msRefreshToken:
-        readTokenEnvelope(parsed.msRefreshToken, deps.safeStorage) || "",
-      expiresAt: typeof parsed.expiresAt === "number" ? parsed.expiresAt : null,
-    };
+    parsed = JSON.parse(await fsp.readFile(deps.getAccountPath(), "utf8"));
   } catch {
     return emptyAccount();
   }
+  if (!parsed || typeof parsed !== "object") return emptyAccount();
+
+  const mcRead = readTokenEnvelope(parsed.mcAccessToken, deps.safeStorage);
+  const msRead = readTokenEnvelope(parsed.msRefreshToken, deps.safeStorage);
+  return {
+    // 沒有 state 欄位（含舊版 loggedIn 布林 schema）一律 normalize 成 logged-out，
+    // 這就是「舊 account.json 直接丟棄、要求重登」裁決的落地方式。
+    state: effectiveStateAfterTokenRead(
+      normalizeAccountState(parsed.state),
+      mcRead,
+      msRead,
+    ),
+    name: typeof parsed.name === "string" ? parsed.name : "",
+    uuid: typeof parsed.uuid === "string" ? parsed.uuid : "",
+    avatarUrl: typeof parsed.avatarUrl === "string" ? parsed.avatarUrl : "",
+    mcAccessToken: mcRead.kind === TOKEN_READ.OK ? mcRead.value : "",
+    msRefreshToken: msRead.kind === TOKEN_READ.OK ? msRead.value : "",
+    expiresAt: typeof parsed.expiresAt === "number" ? parsed.expiresAt : null,
+  };
 }
 
 function serializeAccountForDisk(next) {
