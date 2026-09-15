@@ -2,6 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const crypto = require("crypto");
 const fsp = require("fs/promises");
 const os = require("os");
 const path = require("path");
@@ -12,18 +13,22 @@ const {
   writeAccount,
   getAccountPayloadForRenderer,
 } = require("../main/account-store.js");
-const { ACCOUNT_STATE } = require("../lib/account-secret.js");
+const {
+  ACCOUNT_STATE,
+  CredentialsTemporarilyUnavailableError,
+} = require("../lib/account-secret.js");
+const {
+  makeFakeSafeStorage,
+  encryptedEnvelope,
+  UNDECRYPTABLE_ENVELOPE,
+  TEMPORARILY_UNAVAILABLE_ENVELOPE,
+} = require("./helpers/fake-safe-storage.cjs");
 
-function makeFakeSafeStorage({ available = true } = {}) {
-  return {
-    isEncryptionAvailable: () => available,
-    encryptString: (s) => Buffer.from(`ENC:${s}`, "utf8"),
-    decryptString: (buf) => {
-      const s = buf.toString("utf8");
-      if (!s.startsWith("ENC:")) throw new Error("解密失敗");
-      return s.slice(4);
-    },
-  };
+async function sha256OfFile(filePath) {
+  return crypto
+    .createHash("sha256")
+    .update(await fsp.readFile(filePath))
+    .digest("hex");
 }
 
 async function withTempAccountFile(t, { safeStorage } = {}) {
@@ -72,9 +77,9 @@ test("加密可用：寫入再讀回，token 明文一致；磁碟上不是明�
   assert.equal(decodedMc, "ENC:mc-secret");
 });
 
-test("加密不可用：退明文仍可運作，不擋使用者", async (t) => {
-  await withTempAccountFile(t, {
-    safeStorage: makeFakeSafeStorage({ available: false }),
+test("encryptStringAsync reject：退明文寫檔成功、讀回 ok，不擋使用者", async (t) => {
+  const filePath = await withTempAccountFile(t, {
+    safeStorage: makeFakeSafeStorage({ encryptRejects: true }),
   });
   await writeAccount({
     state: ACCOUNT_STATE.ACTIVE,
@@ -85,25 +90,14 @@ test("加密不可用：退明文仍可運作，不擋使用者", async (t) => {
     msRefreshToken: "refresh-plain",
     expiresAt: 999,
   });
+  const onDisk = JSON.parse(await fsp.readFile(filePath, "utf8"));
+  assert.equal(onDisk.mcAccessToken.method, "plaintext");
+  assert.equal(onDisk.msRefreshToken.method, "plaintext");
   const acct = await readAccount();
+  assert.equal(acct.state, ACCOUNT_STATE.ACTIVE);
   assert.equal(acct.mcAccessToken, "mc-plain");
   assert.equal(acct.msRefreshToken, "refresh-plain");
 });
-
-function encryptedEnvelope(plaintext) {
-  return {
-    version: 1,
-    method: "safeStorage",
-    data: Buffer.from(`ENC:${plaintext}`, "utf8").toString("base64"),
-  };
-}
-
-// 「用別把 safeStorage 加密」的 envelope，模擬搬機器後解不開
-const UNDECRYPTABLE_ENVELOPE = {
-  version: 1,
-  method: "safeStorage",
-  data: Buffer.from("garbage").toString("base64"),
-};
 
 async function writeRawAccountFile(filePath, overrides) {
   await fsp.writeFile(
@@ -148,6 +142,52 @@ test("active 且只有 refresh token 為 null：合法狀態，維持 active", a
   assert.equal(acct.state, ACCOUNT_STATE.ACTIVE);
   assert.equal(acct.mcAccessToken, "mc-secret");
   assert.equal(acct.msRefreshToken, "");
+});
+
+test("token 暫時不可用：readAccount 丟專屬錯誤，錯誤帶不含 token 的帳號快照；不寫檔", async (t) => {
+  const filePath = await withTempAccountFile(t);
+  await writeRawAccountFile(filePath, {
+    mcAccessToken: TEMPORARILY_UNAVAILABLE_ENVELOPE,
+  });
+  const hashBefore = await sha256OfFile(filePath);
+  const err = await readAccount().then(
+    () => assert.fail("readAccount 應該 reject"),
+    (e) => e,
+  );
+  assert.ok(err instanceof CredentialsTemporarilyUnavailableError);
+  assert.deepEqual(err.account, {
+    state: ACCOUNT_STATE.ACTIVE,
+    name: "Steve",
+    uuid: "uuid-1",
+    avatarUrl: "",
+  });
+  assert.equal(await sha256OfFile(filePath), hashBefore);
+});
+
+test("token 暫時不可用：renderer 快照照存檔狀態回傳，不顯示成登出", async (t) => {
+  const filePath = await withTempAccountFile(t);
+  await writeRawAccountFile(filePath, {
+    msRefreshToken: TEMPORARILY_UNAVAILABLE_ENVELOPE,
+  });
+  const payload = await getAccountPayloadForRenderer();
+  assert.deepEqual(payload, {
+    state: ACCOUNT_STATE.ACTIVE,
+    name: "Steve",
+    uuid: "uuid-1",
+    avatarUrl: "",
+  });
+});
+
+test("shouldReEncrypt 為 true：照樣讀回 token，讀取路徑不寫檔", async (t) => {
+  const filePath = await withTempAccountFile(t, {
+    safeStorage: makeFakeSafeStorage({ shouldReEncrypt: true }),
+  });
+  await writeRawAccountFile(filePath);
+  const hashBefore = await sha256OfFile(filePath);
+  const acct = await readAccount();
+  assert.equal(acct.state, ACCOUNT_STATE.ACTIVE);
+  assert.equal(acct.mcAccessToken, "mc-secret");
+  assert.equal(await sha256OfFile(filePath), hashBefore);
 });
 
 test("JSON 壞掉：logged-out（與 token 分類分開處理）", async (t) => {
