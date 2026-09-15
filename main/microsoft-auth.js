@@ -1,7 +1,7 @@
 // Microsoft / Xbox / Minecraft 正版登入（OAuth + PKCE + localhost callback）
 const http = require("http");
 const crypto = require("crypto");
-const { BrowserWindow, dialog } = require("electron");
+// electron 在用到時才 require：換新邏輯的測試會載入本檔（見 test/helpers/forbid-electron.cjs）
 const {
   writeAccount,
   getAccountPayloadForRenderer,
@@ -380,6 +380,7 @@ async function refreshMicrosoftAndMinecraftTokens(account) {
 }
 
 async function loginMicrosoftAndMinecraft() {
+  const { BrowserWindow, dialog } = require("electron");
   const codeVerifier = base64Url(crypto.randomBytes(32));
   const codeChallenge = base64Url(
     crypto.createHash("sha256").update(codeVerifier).digest(),
@@ -655,6 +656,7 @@ function registerAccountIpcHandlers(ipcMain) {
       return await getAccountPayloadForRenderer();
     }
     if (!msClientId || msClientId.includes("PUT_YOUR")) {
+      const { dialog } = require("electron");
       dialog.showMessageBox({
         type: "warning",
         title: "需要設定 Microsoft client id",

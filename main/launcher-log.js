@@ -1,5 +1,5 @@
 // Launcher log（避免被遊戲日誌洗掉）+ debug 開關（供主程序與 helper 參數使用）
-const { app } = require("electron");
+// electron 在用到時才 require：測試會經 manifest-sync → settings 載入本檔（見 test/helpers/forbid-electron.cjs）
 const path = require("path");
 const fsp = require("fs/promises");
 const {
@@ -17,6 +17,7 @@ function setDebugLoggingEnabled(enabled) {
 }
 
 function getLauncherLogPath() {
+  const { app } = require("electron");
   return path.join(app.getPath("desktop"), "launcher.log");
 }
 
@@ -36,6 +37,7 @@ async function appendLauncherLog(line) {
 async function appendRpcDiagLog(line) {
   if (!debugLoggingEnabled) return;
   try {
+    const { app } = require("electron");
     const p = path.join(app.getPath("userData"), "rpc-launch.log");
     const ts = new Date().toISOString();
     await fsp.mkdir(path.dirname(p), { recursive: true });
