@@ -9,6 +9,7 @@ const {
   normalizeRootDir,
   getPaths,
 } = require("../lib/paths-layout.js");
+const serverConfig = require("../lib/server-config.js");
 
 test("normalizeRootDir: blank falls back to default", () => {
   assert.equal(normalizeRootDir(""), DEFAULT_LAUNCHER_ROOT_DIR);
@@ -20,5 +21,8 @@ test("getPaths: layout under root", () => {
   const p = getPaths({ launcherRootDir: "H:\\Root" });
   assert.equal(p.root, "H:\\Root");
   assert.equal(p.groupDir, path.join("H:\\Root", "group"));
-  assert.equal(p.gameDir, path.join("H:\\Root", "group", "GGL", ".minecraft"));
+  assert.equal(
+    p.gameDir,
+    path.join("H:\\Root", "group", serverConfig.instanceId, ".minecraft"),
+  );
 });

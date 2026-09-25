@@ -4,7 +4,6 @@ const path = require("path");
 const {
   getSettingsPath,
   resolveDefaultSettingsPath,
-  DEFAULT_LAUNCHER_ROOT_DIR,
   normalizeRootDir,
 } = require("./paths");
 const {
@@ -18,19 +17,12 @@ async function readDefaultSettingsOrFallback() {
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
-    // minimal safe defaults (only fields used by launcher bootstrap / RPC)
+    // minimal safe defaults (only fields used by launcher bootstrap)
     return {
       minecraftVersion: "1.21.11",
-      launcherRootDir: DEFAULT_LAUNCHER_ROOT_DIR,
       memoryGb: 4,
       playerId: "Player001",
       debugLogging: false,
-      discordClientId: "1494225911321595945",
-      discordLargeImageKey: "ggl",
-      discordLargeImageText: "GGL",
-      discordStateText: "GGL3 麥塊模組伺服器",
-      discordButtonJoinServerUrl: "https://discord.gg/WaRn7fphSm",
-      discordButtonDownloadLauncherUrl: "",
     };
   }
 }
@@ -60,23 +52,16 @@ function normalizeNullableNumber(v) {
   return Number.isFinite(n) ? n : null;
 }
 
-function normalizeAllowedHosts(v) {
-  if (Array.isArray(v)) {
-    return v
-      .map((x) =>
-        String(x || "")
-          .trim()
-          .toLowerCase(),
-      )
-      .filter(Boolean);
-  }
-  const s = String(v || "").trim();
-  if (!s) return [];
-  return s
-    .split(/[,\s]+/g)
-    .map((x) => x.trim().toLowerCase())
-    .filter(Boolean);
-}
+/** 伺服器的值已搬到 lib/server-config.js；舊 settings.json 殘留的鍵在正規化時剔除（不主動回寫）。 */
+const REMOVED_SERVER_SETTING_KEYS = Object.freeze([
+  "discordClientId",
+  "discordLargeImageKey",
+  "discordLargeImageText",
+  "discordStateText",
+  "discordButtonJoinServerUrl",
+  "discordButtonDownloadLauncherUrl",
+  "discordAllowedButtonHosts",
+]);
 
 function normalizeSettingsObject(obj) {
   const o = obj && typeof obj === "object" ? obj : {};
@@ -131,27 +116,8 @@ function normalizeSettingsObject(obj) {
       : 0,
 
     minecraftVersion: normalizeString(o.minecraftVersion, "1.21.11"),
-
-    discordClientId:
-      typeof o.discordClientId === "string" ? o.discordClientId.trim() : "",
-    discordLargeImageKey: normalizeString(o.discordLargeImageKey, "ggl"),
-    discordLargeImageText: normalizeString(o.discordLargeImageText, "GGL"),
-    discordStateText: normalizeString(
-      o.discordStateText,
-      "GGL3 麥塊模組伺服器",
-    ),
-    discordButtonJoinServerUrl:
-      typeof o.discordButtonJoinServerUrl === "string"
-        ? o.discordButtonJoinServerUrl.trim()
-        : "",
-    discordButtonDownloadLauncherUrl:
-      typeof o.discordButtonDownloadLauncherUrl === "string"
-        ? o.discordButtonDownloadLauncherUrl.trim()
-        : "",
-    discordAllowedButtonHosts: normalizeAllowedHosts(
-      o.discordAllowedButtonHosts,
-    ),
   };
+  for (const k of REMOVED_SERVER_SETTING_KEYS) delete out[k];
 
   if (
     out.minMemoryGb !== null &&
@@ -259,4 +225,5 @@ module.exports = {
   writeSettings,
   normalizeSettingsObject,
   isExplicitNumberLike,
+  REMOVED_SERVER_SETTING_KEYS,
 };

@@ -16,8 +16,8 @@
     const ANIM_MS =
       input?.ANIM_MS ??
       (Number.isFinite(consts.ANIM_MS) ? consts.ANIM_MS : 280);
-    const DEFAULT_LAUNCHER_ROOT =
-      input?.DEFAULT_LAUNCHER_ROOT || consts.DEFAULT_LAUNCHER_ROOT;
+    const loadServerDefaults =
+      input?.loadServerDefaults || fx.loadServerDefaults;
     const computeMemoryUiModel =
       input?.computeMemoryUiModel || fx.computeMemoryUiModel || (() => ({}));
     const parseFiniteNumberOrUnset =
@@ -193,7 +193,8 @@
     function fillSettingsForm(settings) {
       const s = settings && typeof settings === "object" ? settings : {};
       if (inputInstallDir)
-        inputInstallDir.value = s.launcherRootDir ?? DEFAULT_LAUNCHER_ROOT;
+        // settings:get 回來的 launcherRootDir 已經過 main 的 normalizeRootDir，不會是空的
+        inputInstallDir.value = s.launcherRootDir ?? "";
       if (inputOfflinePlayerId)
         inputOfflinePlayerId.value = s.playerId ?? "Player001";
       if (memAutoHint) {
@@ -222,10 +223,14 @@
 
     async function pickInstallDir() {
       try {
-        const chosen = await safeInvoke(
-          "dialog:selectDirectory",
-          (inputInstallDir?.value || DEFAULT_LAUNCHER_ROOT).trim(),
-        );
+        let startDir = (inputInstallDir?.value ?? "").trim();
+        if (!startDir) {
+          // 欄位空白才拿伺服器預設當起點；取不到就傳空字串，由 main 退回 C:\
+          startDir = await loadServerDefaults()
+            .then((d) => String(d?.launcherRootDir || ""))
+            .catch(() => "");
+        }
+        const chosen = await safeInvoke("dialog:selectDirectory", startDir);
         if (chosen && inputInstallDir) inputInstallDir.value = chosen;
       } catch {
         // keep silent: directory picker failures shouldn't hard-block settings

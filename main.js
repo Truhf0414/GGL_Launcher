@@ -4,7 +4,7 @@
 // 2) 啟動時檢查伺服器端版本（不自動下載），點擊「安裝/更新」才同步實例
 // 3) Minecraft（Fabric）啟動流程（實作在 main/minecraft-launch.js）
 //
-// 可調常數在 main/launcher-config.js；`app.ready` 編排在 main/app-ready.js；Discord helper 見 main/discord-rpc.js。
+// 伺服器的值在 lib/server-config.js；`app.ready` 編排在 main/app-ready.js；Discord helper 見 main/discord-rpc.js。
 
 const { app } = require("electron");
 const { startMain } = require("./main/start-main");

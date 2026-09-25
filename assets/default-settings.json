@@ -4,7 +4,6 @@
   "minMemoryGb": null,
   "maxMemoryGb": null,
   "playerId": "Player001",
-  "launcherRootDir": "C:\\Games\\GGL",
   "debugLogging": false,
   "preferredJavaMirrorName": "",
   "preferredJavaMirrorUrl": "",
@@ -12,13 +11,5 @@
   "preferredMcMirrorName": "",
   "preferredMcMirrorBase": "",
   "preferredMcMirrorAt": 0,
-  "minecraftVersion": "1.21.11",
-
-  "discordClientId": "1494225911321595945",
-  "discordLargeImageKey": "ggl",
-  "discordLargeImageText": "GGL",
-  "discordStateText": "GGL3 麥塊模組伺服器",
-  "discordButtonJoinServerUrl": "https://discord.gg/WaRn7fphSm",
-  "discordButtonDownloadLauncherUrl": "",
-  "discordAllowedButtonHosts": []
+  "minecraftVersion": "1.21.11"
 }

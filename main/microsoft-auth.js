@@ -19,7 +19,7 @@ const REFRESH_CHAIN_DEADLINE_MS = 110_000;
 
 const defaultDeps = {
   msClientId: "",
-  loopbackPort: 49152,
+  loopbackPort: 0,
   getMainWindow: () => null,
   getAppIconPath: () => "",
   sendSyncStatus: () => {},
@@ -62,7 +62,12 @@ function base64Url(buf) {
 }
 
 async function startLoopbackServerFixedPort() {
-  const port = Number(deps.loopbackPort) || 49152;
+  const port = Number(deps.loopbackPort);
+  if (!Number.isInteger(port) || port <= 0) {
+    throw new Error(
+      "尚未設定登入回呼 port（lib/server-config.js 的 microsoftAuth.loopbackPort）。",
+    );
+  }
   return await new Promise((resolve, reject) => {
     const server = http.createServer();
     server.on("error", (err) => {
@@ -662,7 +667,7 @@ function registerAccountIpcHandlers(ipcMain) {
         title: "需要設定 Microsoft client id",
         message:
           "要做正版登入，需要先在 Azure 建立應用程式並填入 client_id。\n\n" +
-          "請到 main.js 的 msClientId 填入你的 Azure Client ID，然後重啟啟動器。",
+          "請到 lib/server-config.js 的 microsoftAuth.clientId 填入你的 Azure Client ID，然後重啟啟動器。",
       });
       throw new Error("尚未設定 msClientId。");
     }

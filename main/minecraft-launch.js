@@ -300,7 +300,7 @@ async function launchMinecraftFabric1211({
   runningMcProcess = p;
   sendMcRunning(true);
 
-  void launchDeps.tryStartDiscordRpcHelper({ settings, mcPid: p.pid });
+  void launchDeps.tryStartDiscordRpcHelper({ mcPid: p.pid });
 
   let finalized = false;
   const finalize = (code, reason) => {

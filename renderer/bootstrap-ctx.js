@@ -73,10 +73,9 @@
       setStatusVisibility,
       computeMemoryUiModel,
       parseFiniteNumberOrUnset,
+      loadServerDefaults,
       ui,
       ANIM_MS,
-      DEFAULT_LAUNCHER_ROOT,
-      DISCORD_INVITE_URL,
     } = input || {};
 
     const fx = {
@@ -95,12 +94,11 @@
       setStatusVisibility,
       computeMemoryUiModel,
       parseFiniteNumberOrUnset,
+      loadServerDefaults,
     };
 
     const consts = {
       ANIM_MS,
-      DEFAULT_LAUNCHER_ROOT,
-      DISCORD_INVITE_URL,
     };
 
     return { fx, ui, consts };
