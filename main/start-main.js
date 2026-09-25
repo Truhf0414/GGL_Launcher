@@ -69,19 +69,17 @@ const {
   tryStartDiscordRpcHelper,
 } = require("./discord-rpc");
 const { getSystemMemoryGb } = require("./system-memory");
+const serverConfig = require("../lib/server-config.js");
 const {
-  getRemoteManifestUrl,
-  serverStatusHost,
-  serverStatusPort,
-  serverStatusUrl,
-  msClientId,
-  loopbackPort,
-  fabricLoaderVersion,
-  isManifestUrlConfigured,
-} = require("./launcher-config");
+  isRemoteManifestUrlConfigured,
+} = require("../lib/manifest-url-configured.js");
 const { exportDiagnostics } = require("./diagnostics-export");
 const { runMainAppReady } = require("./app-ready");
 const { gglEvent, gglError } = require("../lib/ggl-structured-log");
+
+const getRemoteManifestUrl = () => serverConfig.manifestUrl;
+const isManifestUrlConfigured = () =>
+  isRemoteManifestUrlConfigured(serverConfig.manifestUrl);
 
 function createMainAppReadyContext({ app, appRoot }) {
   configureMainWindow({ appRoot });
@@ -130,6 +128,7 @@ function createMainAppReadyContext({ app, appRoot }) {
     getBroadcastNotificationsCached,
     readDismissedNotificationIds,
     writeDismissedNotificationIds,
+    serverConfig,
   });
 
   /** 回傳鍵須與 `main/app-ready.js` 的 `MAIN_APP_READY_KEYS` 一致（啟動時會先 assert）。 */
@@ -168,15 +167,10 @@ function createMainAppReadyContext({ app, appRoot }) {
     downloadToFile,
     getRemoteManifestUrl,
     isManifestUrlConfigured,
-    msClientId,
-    loopbackPort,
-    fabricLoaderVersion,
+    serverConfig,
     ensureMinecraftAndFabricRuntime,
     tryStartDiscordRpcHelper,
     ensureBundledJava,
-    serverStatusHost,
-    serverStatusPort,
-    serverStatusUrl,
     checkInstanceStatusAndNotify,
   };
 }

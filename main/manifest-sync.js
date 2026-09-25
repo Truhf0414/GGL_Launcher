@@ -920,7 +920,7 @@ async function installOrUpdateInstanceV2(settings, paths, index) {
 async function installOrUpdateInstance(settings) {
   if (!deps.isManifestUrlConfigured()) {
     throw new Error(
-      "尚未設定更新來源（manifest URL）。請先在 main/launcher-config.js 設定 remoteManifestUrl。",
+      "尚未設定更新來源（manifest URL）。請先在 lib/server-config.js 設定 manifestUrl。",
     );
   }
   const paths = getPaths(settings);

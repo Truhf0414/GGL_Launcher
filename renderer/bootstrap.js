@@ -191,14 +191,20 @@
     }
 
     const K = window.GglRendererConstants || {};
-    const DEFAULT_LAUNCHER_ROOT =
-      typeof K.DEFAULT_LAUNCHER_ROOT === "string" && K.DEFAULT_LAUNCHER_ROOT
-        ? K.DEFAULT_LAUNCHER_ROOT
-        : "C:\\Games\\GGL";
-    const DISCORD_INVITE_URL =
-      typeof K.DISCORD_INVITE_URL === "string" && K.DISCORD_INVITE_URL
-        ? K.DISCORD_INVITE_URL
-        : "https://discord.gg/WaRn7fphSm";
+
+    // 伺服器預設值（安裝路徑、Discord 邀請）從 main 的 lib/server-config.js 來；成功才快取，失敗下次再抓
+    let serverDefaultsPromise = null;
+    const loadServerDefaults = () => {
+      if (!serverDefaultsPromise) {
+        serverDefaultsPromise = safeInvoke("serverConfig:getDefaults").catch(
+          (e) => {
+            serverDefaultsPromise = null;
+            throw e;
+          },
+        );
+      }
+      return serverDefaultsPromise;
+    };
 
     const BG = getModule(MODULES.BG.name, {
       requiredFns: MODULES.BG.requiredFns,
@@ -351,8 +357,7 @@
         memAutoHint,
       },
       ANIM_MS,
-      DEFAULT_LAUNCHER_ROOT,
-      DISCORD_INVITE_URL,
+      loadServerDefaults,
     });
     try {
       window.GglStructuredLog?.gglEvent?.("renderer", "bootstrap_ctx_ready", {

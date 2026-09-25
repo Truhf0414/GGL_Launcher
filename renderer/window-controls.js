@@ -5,15 +5,14 @@
     const ctx = input?.ctx || null;
     const fx = ctx?.fx || {};
     const ui = ctx?.ui || {};
-    const consts = ctx?.consts || {};
 
     const safeInvokeSilent = input?.safeInvokeSilent || fx.safeInvokeSilent;
     const onDom = input?.onDom || fx.onDom;
+    const loadServerDefaults =
+      input?.loadServerDefaults || fx.loadServerDefaults;
     const btnMinimize = input?.btnMinimize || ui.btnMinimize;
     const btnClose = input?.btnClose || ui.btnClose;
     const btnDiscord = input?.btnDiscord || ui.btnDiscord;
-    const discordInviteUrl =
-      input?.discordInviteUrl || consts.DISCORD_INVITE_URL;
 
     function init() {
       const bind =
@@ -31,8 +30,12 @@
 
       bind(btnMinimize, "click", () => safeInvokeSilent("window:minimize"));
       bind(btnClose, "click", () => safeInvokeSilent("window:close"));
-      bind(btnDiscord, "click", () => {
-        safeInvokeSilent("openExternal", discordInviteUrl);
+      // 邀請連結按下才向 main 取；取不到就不動作（見 renderer/bootstrap.js 的 loadServerDefaults）
+      bind(btnDiscord, "click", async () => {
+        try {
+          const defaults = await loadServerDefaults();
+          safeInvokeSilent("openExternal", defaults?.discordInviteUrl);
+        } catch {}
       });
     }
 

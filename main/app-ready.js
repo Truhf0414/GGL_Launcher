@@ -43,28 +43,15 @@ const MAIN_APP_READY_KEYS = [
   "downloadToFile",
   "getRemoteManifestUrl",
   "isManifestUrlConfigured",
-  "msClientId",
-  "loopbackPort",
-  "fabricLoaderVersion",
+  "serverConfig",
   "ensureMinecraftAndFabricRuntime",
   "tryStartDiscordRpcHelper",
   "ensureBundledJava",
-  "serverStatusHost",
-  "serverStatusPort",
-  "serverStatusUrl",
   "checkInstanceStatusAndNotify",
 ];
 
-/** 其餘欄位必須為 function（Electron `app` 為 object）。 */
-const MAIN_APP_READY_NON_FN_KEYS = new Set([
-  "app",
-  "msClientId",
-  "loopbackPort",
-  "fabricLoaderVersion",
-  "serverStatusHost",
-  "serverStatusPort",
-  "serverStatusUrl",
-]);
+/** 其餘欄位必須為 function（Electron `app` 與 `serverConfig` 為 object）。 */
+const MAIN_APP_READY_NON_FN_KEYS = new Set(["app", "serverConfig"]);
 
 function assertMainAppReadyContext(ctx) {
   const missing = [];
@@ -90,7 +77,7 @@ function assertMainAppReadyContext(ctx) {
   }
   if (badType.length > 0) {
     throw new Error(
-      `runMainAppReady: ctx fields must be functions (except app / launcher constants): ${badType.join(", ")}`,
+      `runMainAppReady: ctx fields must be functions (except app / serverConfig): ${badType.join(", ")}`,
     );
   }
 }
@@ -137,15 +124,10 @@ async function runMainAppReady(ctx) {
     downloadToFile,
     getRemoteManifestUrl,
     isManifestUrlConfigured,
-    msClientId,
-    loopbackPort,
-    fabricLoaderVersion,
+    serverConfig,
     ensureMinecraftAndFabricRuntime,
     tryStartDiscordRpcHelper,
     ensureBundledJava,
-    serverStatusHost,
-    serverStatusPort,
-    serverStatusUrl,
     checkInstanceStatusAndNotify,
   } = ctx;
 
@@ -181,8 +163,8 @@ async function runMainAppReady(ctx) {
     sendMirrorStatus: safeSendSyncStatus,
   });
   configureMicrosoftAuth({
-    msClientId,
-    loopbackPort,
+    msClientId: serverConfig.microsoftAuth.clientId,
+    loopbackPort: serverConfig.microsoftAuth.loopbackPort,
     getMainWindow,
     getAppIconPath,
     sendSyncStatus,
@@ -199,7 +181,7 @@ async function runMainAppReady(ctx) {
     sendMcRunning,
     getMainWindow,
     tryStartDiscordRpcHelper,
-    fabricLoaderVersion,
+    fabricLoaderVersion: serverConfig.legacy.fabricLoaderVersion,
     ensureMinecraftAndFabricRuntime,
   });
   configureNotifications({
@@ -228,11 +210,11 @@ async function runMainAppReady(ctx) {
   });
   configureServerStatus({
     sendServerStatus,
-    serverStatusHost,
-    serverStatusPort,
-    serverStatusUrl,
+    serverStatusHost: serverConfig.serverStatus.host,
+    serverStatusPort: serverConfig.serverStatus.port,
+    serverStatusUrl: serverConfig.serverStatus.url,
   });
-  configureDiscordRpc({ getMainWindow });
+  configureDiscordRpc({ getMainWindow, discord: serverConfig.discord });
   setupMainIpc();
   startServerStatusPolling();
   startNotificationsBroadcastPolling();

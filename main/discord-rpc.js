@@ -4,7 +4,7 @@ const fsp = require("fs/promises");
 const fs = require("fs");
 const { spawn } = require("child_process");
 const { app } = require("electron");
-const { filterButtonUrl } = require("../lib/discord-button-url.js");
+const { buildDiscordHelperArgs } = require("../lib/discord-helper-args.js");
 const {
   getDebugLoggingEnabled,
   appendLauncherLog,
@@ -14,10 +14,15 @@ const mainWindowModule = require("./main-window");
 
 /** @type {() => import("electron").BrowserWindow | null} */
 let getMainWindow = () => mainWindowModule.getMainWindow();
+/** server-config 的 discord 區塊；未注入時為 null，此時不啟動 helper */
+let discordConfig = null;
 
 function configureDiscordRpc(deps = {}) {
   if (typeof deps.getMainWindow === "function") {
     getMainWindow = deps.getMainWindow;
+  }
+  if (deps.discord && typeof deps.discord === "object") {
+    discordConfig = deps.discord;
   }
 }
 
@@ -37,27 +42,38 @@ function resolveDiscordRpcHelperExePath() {
   return path.join(base, "assets", "rpc-helper.exe");
 }
 
-function getDiscordClientIdFromEnvOrSettings(settings) {
-  const env = String(process.env.GGL_DISCORD_CLIENT_ID || "").trim();
-  if (env) return env;
-  return String(settings?.discordClientId || "").trim();
-}
-
-async function tryStartDiscordRpcHelper({ settings, mcPid }) {
+async function tryStartDiscordRpcHelper({ mcPid }) {
   const pid = Number(mcPid);
   if (!Number.isFinite(pid) || pid <= 0) {
     void appendRpcDiagLog(`skip: invalid mcPid=${String(mcPid)}`);
     return;
   }
+  if (!discordConfig) {
+    void appendRpcDiagLog("skip: discord config not injected");
+    return;
+  }
 
-  const clientId = getDiscordClientIdFromEnvOrSettings(settings);
-  if (!clientId) {
+  const userData = app.getPath("userData");
+  const helperLogPath = path.join(userData, "rpc-helper.log");
+  const lockPath = path.join(userData, "rpc-helper.lock");
+  const statusPath = path.join(userData, "rpc-helper.status.json");
+  const built = buildDiscordHelperArgs({
+    discord: discordConfig,
+    envClientId: process.env.GGL_DISCORD_CLIENT_ID,
+    pid,
+    debug: getDebugLoggingEnabled(),
+    lockPath,
+    helperLogPath,
+    statusPath,
+  });
+  if (!built.ok) {
     void appendRpcDiagLog(
-      "skip: missing discordClientId (or env GGL_DISCORD_CLIENT_ID)",
+      "skip: missing discord.clientId (lib/server-config.js) and env GGL_DISCORD_CLIENT_ID",
     );
     sendRpcNotice("Discord 狀態未啟用（未設定 Client ID）");
     return;
   }
+  const { args } = built;
 
   const helperExe = resolveDiscordRpcHelperExePath();
   try {
@@ -70,46 +86,8 @@ async function tryStartDiscordRpcHelper({ settings, mcPid }) {
     return;
   }
 
-  const userData = app.getPath("userData");
-  const helperLogPath = path.join(userData, "rpc-helper.log");
-  const lockPath = path.join(userData, "rpc-helper.lock");
-  const statusPath = path.join(userData, "rpc-helper.status.json");
-  const joinUrl = filterButtonUrl(
-    settings?.discordButtonJoinServerUrl || "",
-    settings?.discordAllowedButtonHosts,
-  );
-  const dlUrl = filterButtonUrl(
-    settings?.discordButtonDownloadLauncherUrl || "",
-    settings?.discordAllowedButtonHosts,
-  );
-  const debugRpc = getDebugLoggingEnabled();
-  const args = [
-    "--clientId",
-    clientId,
-    "--pid",
-    String(pid),
-    "--stateText",
-    String(settings?.discordStateText || "GGL3 麥塊模組伺服器"),
-    "--largeImageKey",
-    String(settings?.discordLargeImageKey || "ggl"),
-    "--largeImageText",
-    String(settings?.discordLargeImageText || "GGL"),
-    "--button1Label",
-    "加入伺服器",
-    "--button1Url",
-    String(joinUrl || ""),
-    "--button2Label",
-    "下載啟動器",
-    "--button2Url",
-    String(dlUrl || ""),
-    "--lockPath",
-    lockPath,
-    "--debug",
-    debugRpc ? "1" : "0",
-    ...(debugRpc
-      ? ["--selfLogPath", helperLogPath, "--statusPath", statusPath]
-      : []),
-  ];
+  // 只在 debug logging 開啟時寫檔（appendRpcDiagLog 自己判斷）；驗收時對這行看按鈕網址
+  void appendRpcDiagLog(`argv ${JSON.stringify(args)}`);
 
   try {
     const p = spawn(helperExe, args, {
