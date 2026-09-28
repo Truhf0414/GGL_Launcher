@@ -22,6 +22,7 @@
     "check:renderer-scripts": "node scripts/check-renderer-scripts.cjs",
     "check:packaged-artifacts": "node scripts/check-packaged-artifacts.cjs",
     "test": "node --require ./test/helpers/forbid-electron.cjs --test \"test/*.test.cjs\"",
+    "publish": "node scripts/publish.js",
     "release:v2": "node scripts/release-v2.js",
     "preflight:release:v2": "node scripts/preflight-release-v2.js",
     "verify:site:v2:bootstrap": "node scripts/verify-site-files-v2.js --kind bootstrap",
