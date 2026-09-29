@@ -97,6 +97,44 @@ test("checkStrictRelPath：兩種模式都拒絕", () => {
   }
 });
 
+test("checkStrictRelPath：Windows 別名與保留名，兩種模式都拒絕", () => {
+  const cases = [
+    ["SCREEN~1/a.png", "short-name"],
+    ["mods/ABCDE~12.JAR", "short-name"],
+    ["a/X~1", "short-name"],
+    ["saves./x", "trailing-dot-space"],
+    ["mods/a.jar.", "trailing-dot-space"],
+    ["mods/a.jar ", "trailing-dot-space"],
+    ["mods/CON", "reserved-name"],
+    ["mods/nul.jar", "reserved-name"],
+    ["mods/Aux .txt", "reserved-name"],
+    ["COM1/x", "reserved-name"],
+    ["mods/LPT¹", "reserved-name"],
+  ];
+  for (const pattern of [false, true]) {
+    for (const [input, code] of cases) {
+      assert.deepEqual(
+        checkStrictRelPath(input, { pattern }),
+        { ok: false, code },
+        `${JSON.stringify(input)} pattern=${pattern}`,
+      );
+    }
+  }
+});
+
+test("checkStrictRelPath：像別名或保留名但不是的，放行", () => {
+  for (const input of [
+    "mods/abc~1x.jar",
+    "mods/abcdefghi~1.jar",
+    "a~1.toml.bak",
+    "mods/console.txt",
+    "mods/com10.jar",
+    "mods/.hidden",
+  ]) {
+    assert.deepEqual(checkStrictRelPath(input), { ok: true, path: input }, input);
+  }
+});
+
 test("checkStrictRelPath pattern:false：實體檔路徑", () => {
   assert.deepEqual(checkStrictRelPath("mods/"), { ok: false, code: "trailing-slash" });
   assert.deepEqual(checkStrictRelPath("mods/*.jar"), { ok: false, code: "illegal-char" });

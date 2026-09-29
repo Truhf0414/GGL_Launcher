@@ -10,6 +10,7 @@ const {
   validateGate,
   validateNotice,
   validateRelease,
+  fileListError,
   resolveSiteUrls,
   compareVersionCore,
 } = require("../lib/sync/site-format.js");
@@ -129,6 +130,19 @@ test("release：files 重複、只差大小寫、上下層衝突 ⇒ 各自 erro
   assertErrorAt(validateRelease(goodRelease({ files: [f("mods/A.jar"), f("mods/a.jar")] })), "release.files");
   assertErrorAt(validateRelease(goodRelease({ files: [f("a/b"), f("a/b/c.toml")] })), "release.files");
   assertErrorAt(validateRelease(goodRelease({ files: [f("mods/a.jar"), f("mods/a.jar")] })), "release.files");
+});
+
+test("fileListError：withSize 決定每筆要不要 size；label 當訊息開頭", () => {
+  const noSize = [{ path: "mods/a.jar", sha256: SHA }];
+  assert.equal(fileListError(noSize, "record.files", { withSize: false }), null);
+  assert.equal(
+    fileListError(noSize, "release.files", { withSize: true }),
+    "release.files[0].size: 必須是 ≥0 的整數",
+  );
+  assert.equal(
+    fileListError([...noSize, ...noSize], "record.files", { withSize: false }),
+    "record.files: path 重複（mods/a.jar）",
+  );
 });
 
 test("isBlobName", () => {
