@@ -47,3 +47,14 @@ Claude Code 跑指令用的 shell 帶著 `ELECTRON_RUN_AS_NODE=1`，繼承自其
 
 不受影響〔2026-09-12 實測〕：`npm install`、`node <script>`、`npm test`（走 `node --test`）、git、rg／fd／jq。
 未驗：打包流程（`pack:win`／`dist:win`）是否會在內部呼叫 `electron.exe`。
+
+### Bash 工具的指令會被 MSYS 無聲改寫
+
+Bash 工具把整段指令當成一個 `bash -c` 參數交給 Git Bash，這條路要經過 MSYS 解析 Windows 命令列，結果有兩個問題：
+
+- **超過約 8K 字元會被截斷。** 截斷點落在引號中間，會報 `unexpected EOF while looking for matching '`，整段不執行。落在 heredoc 中間則只有一行 warning、exit 0，**內容已經殘缺**。
+- **每個 `\\` 會被減半成 `\`**，連單引號裡的也一樣。單一反斜線（`\.`、`\$`、`\"`）不受影響。
+
+heredoc 救不了，因為它也在同一個參數裡。**解法**：寫檔一律用 Write 工具；長腳本先用 Write 寫成檔，再 `bash 檔名` 或 `python 檔名` 執行；也可以從 stdin 餵給 bash。
+
+〔2026-09-29 實測：不經過 Claude Code，用 Python 直接 `bash -c` 也重現了截斷和減半；寫成檔、走 stdin 都完整（20000 字元＋`\\`）。這個 session 裡包裝後超過 8000 字元的指令恰好就是失敗的那兩道。〕
