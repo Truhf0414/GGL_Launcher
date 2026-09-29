@@ -1,7 +1,7 @@
 // HTTP / 下載：fetch 包裝、重試、斷點續傳、鏡像 fallback、hash 驗證
 const fs = require("fs");
 const fsp = require("fs/promises");
-const { ensureDirForFile, hashFile } = require("./manifest-sync");
+const { ensureDirForFile, hashFile } = require("./fs-utils");
 
 const defaultNetDeps = {
   /** 下載 / fetch 重試時給 UI 的提示（例如 sendSyncStatus + sendMcStatus） */

@@ -26,3 +26,9 @@ test("getPaths: layout under root", () => {
     path.join("H:\\Root", "group", serverConfig.instanceId, ".minecraft"),
   );
 });
+
+test("getPaths: sync record and in-progress marker live in instanceDir", () => {
+  const p = getPaths({ launcherRootDir: "H:\Root" });
+  assert.equal(p.syncRecordPath, path.join(p.instanceDir, "sync-record.json"));
+  assert.equal(p.syncInProgressPath, path.join(p.instanceDir, "sync-in-progress"));
+});

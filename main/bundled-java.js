@@ -2,7 +2,7 @@
 const fs = require("fs");
 const fsp = require("fs/promises");
 const path = require("path");
-const { copyDir } = require("./manifest-sync");
+const { copyDir } = require("./fs-utils");
 const {
   fetchWithNiceError,
   downloadToFile,
