@@ -1,0 +1,388 @@
+"use strict";
+
+const test = require("node:test");
+const assert = require("node:assert/strict");
+
+const { startServer } = require("./helpers/local-http.cjs");
+const {
+  createSiteClient,
+  SITE_TIMEOUT_MS,
+} = require("../main/sync/site-client.js");
+const { summarizeManifestFetchFailure } = require("../lib/manifest-network.js");
+
+const SHORT = 300; // 期限注入短值；斷言「在期限 × 3 內返回」
+// 退步時（例如期限在 headers 到手就解除）這些案例會永遠等下去；設上限讓它變成紅燈而不是卡住整個 npm test
+const HANG_LIMIT_MS = 5000;
+
+const INDEX = {
+  format: 3,
+  gate: "gate.json",
+  notice: "notice.json",
+  release: "release.json",
+  files: "files/",
+};
+const GATE = { maintenance: { enabled: false, message: "" } };
+const RELEASE = {
+  version: "GGL3.1.02",
+  publishedAt: "2026-09-19T12:00:00+08:00",
+  minecraft: "1.21.11",
+  loader: { type: "fabric", version: "0.19.3" },
+  playerEditable: ["config/"],
+  files: [{ path: "mods/a.jar", sha256: "a".repeat(64), size: 1 }],
+};
+const NOTICE = {
+  notice: { title: "T", logUrl: "" },
+  notifications: [{ id: "n1" }],
+};
+
+function json(res, body, status = 200) {
+  res.writeHead(status, { "content-type": "application/json" });
+  res.end(JSON.stringify(body));
+}
+
+/** 路徑 → handler；沒列的一律 404 */
+async function site(t, routes) {
+  const srv = await startServer((req, res) => {
+    const h = routes[req.url];
+    if (h) h(req, res);
+    else json(res, { error: "nope" }, 404);
+  });
+  t.after(() => srv.close());
+  return srv;
+}
+
+const okSite = {
+  "/s/manifest.json": (q, r) => json(r, INDEX),
+  "/s/gate.json": (q, r) => json(r, GATE),
+  "/s/release.json": (q, r) => json(r, RELEASE),
+  "/s/notice.json": (q, r) => json(r, NOTICE),
+};
+
+const hits = (srv, p) => srv.requests.filter((r) => r.url === p).length;
+
+async function timed(p) {
+  const t0 = Date.now();
+  const v = await p;
+  return { v, ms: Date.now() - t0 };
+}
+
+// ── 分類（上層 §行為契約「抓取結果的分類」） ──
+
+test("classify: HTTP 530 ⇒ unreachable/http with status and detail", async (t) => {
+  const srv = await site(t, { "/m": (q, r) => json(r, {}, 530) });
+  const r = await createSiteClient({ timeoutMs: SHORT }).fetchIndex(
+    `${srv.url}/m`,
+  );
+  assert.deepEqual(r, {
+    side: "unreachable",
+    reason: "http",
+    detail: "HTTP 530",
+    status: 530,
+  });
+});
+
+test("classify: HTTP 404 ⇒ invalid/http", async (t) => {
+  const srv = await site(t, {});
+  const r = await createSiteClient({ timeoutMs: SHORT }).fetchIndex(
+    `${srv.url}/m`,
+  );
+  assert.deepEqual(r, {
+    side: "invalid",
+    reason: "http",
+    detail: "HTTP 404",
+    status: 404,
+  });
+});
+
+test("classify: 2xx but not JSON ⇒ invalid/parse", async (t) => {
+  const srv = await site(t, {
+    "/m": (q, r) => (r.writeHead(200), r.end("<html>")),
+  });
+  const r = await createSiteClient({ timeoutMs: SHORT }).fetchIndex(
+    `${srv.url}/m`,
+  );
+  assert.deepEqual(r, {
+    side: "invalid",
+    reason: "parse",
+    detail: "內容不是 JSON",
+    status: 200,
+  });
+});
+
+test("classify: 2xx JSON that fails validation ⇒ invalid/invalid with the validator's message", async (t) => {
+  const srv = await site(t, {
+    "/m": (q, r) => json(r, { ...INDEX, format: 2 }),
+  });
+  const r = await createSiteClient({ timeoutMs: SHORT }).fetchIndex(
+    `${srv.url}/m`,
+  );
+  assert.equal(r.side, "invalid");
+  assert.equal(r.reason, "invalid");
+  assert.match(r.detail, /^index\.format/);
+});
+
+test("classify: 3xx that reaches us (no Location) ⇒ unreachable/http (D13)", async (t) => {
+  const srv = await site(t, { "/m": (q, r) => (r.writeHead(302), r.end()) });
+  const r = await createSiteClient({ timeoutMs: SHORT }).fetchIndex(
+    `${srv.url}/m`,
+  );
+  assert.equal(r.side, "unreachable");
+  assert.equal(r.status, 302);
+});
+
+test("classify: status 0 ⇒ unreachable", async () => {
+  const fetchImpl = async () => ({ status: 0, text: async () => "" });
+  const r = await createSiteClient({ fetchImpl }).fetchIndex("https://x/m");
+  assert.equal(r.side, "unreachable");
+  assert.equal(r.reason, "http");
+});
+
+test("classify: connection refused ⇒ unreachable/network, detail from summarizeManifestFetchFailure", async (t) => {
+  const srv = await startServer(() => {});
+  const url = `${srv.url}/m`;
+  await srv.close(); // 埠關掉 ⇒ 拒絕連線
+  const r = await createSiteClient({ timeoutMs: SHORT }).fetchIndex(url);
+  assert.equal(r.side, "unreachable");
+  assert.equal(r.reason, "network");
+  assert.equal(r.status, undefined);
+  assert.equal(typeof r.detail, "string");
+  assert.ok(r.detail.length > 0);
+});
+
+test(
+  "classify: headers then body stalls ⇒ unreachable within the deadline",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const srv = await site(t, {
+      "/m": (q, r) => {
+        r.writeHead(200, {
+          "content-type": "application/json",
+          "content-length": "999",
+        });
+        r.write('{"format":');
+      },
+    });
+    const { v, ms } = await timed(
+      createSiteClient({ timeoutMs: SHORT }).fetchIndex(`${srv.url}/m`),
+    );
+    assert.equal(v.side, "unreachable");
+    assert.equal(v.reason, "network");
+    assert.equal(
+      v.detail,
+      summarizeManifestFetchFailure(new Error("aborted")).hint,
+    );
+    assert.ok(ms < SHORT * 3, `took ${ms} ms`);
+  },
+);
+
+test(
+  "classify: no headers at all ⇒ unreachable within the deadline",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const srv = await site(t, { "/m": () => {} });
+    const { v, ms } = await timed(
+      createSiteClient({ timeoutMs: SHORT }).fetchIndex(`${srv.url}/m`),
+    );
+    assert.equal(v.side, "unreachable");
+    assert.ok(ms < SHORT * 3, `took ${ms} ms`);
+  },
+);
+
+test("timeoutMs defaults to SITE_TIMEOUT_MS = 5000 (D11)", () => {
+  assert.equal(SITE_TIMEOUT_MS, 5000);
+  assert.equal(createSiteClient().timeoutMs, 5000);
+});
+
+// ── 索引與快取 ──
+
+test("fetchIndex: ok value is the four URLs resolved against the manifest URL (D12)", async (t) => {
+  const srv = await site(t, okSite);
+  const r = await createSiteClient().fetchIndex(`${srv.url}/s/manifest.json`);
+  assert.deepEqual(r, {
+    side: "ok",
+    value: {
+      gate: `${srv.url}/s/gate.json`,
+      notice: `${srv.url}/s/notice.json`,
+      release: `${srv.url}/s/release.json`,
+      files: `${srv.url}/s/files/`,
+    },
+  });
+});
+
+test("fetchIndex: a successful index is fetched only once per client", async (t) => {
+  const srv = await site(t, okSite);
+  const c = createSiteClient();
+  await c.fetchIndex(`${srv.url}/s/manifest.json`);
+  const second = await c.fetchIndex(`${srv.url}/s/manifest.json`);
+  assert.equal(second.side, "ok");
+  assert.equal(hits(srv, "/s/manifest.json"), 1);
+});
+
+test("fetchIndex: a failure is not cached — the next call really refetches", async (t) => {
+  let n = 0;
+  const srv = await site(t, {
+    "/s/manifest.json": (q, r) =>
+      ++n === 1 ? json(r, {}, 530) : json(r, INDEX),
+  });
+  const c = createSiteClient();
+  assert.equal(
+    (await c.fetchIndex(`${srv.url}/s/manifest.json`)).side,
+    "unreachable",
+  );
+  assert.equal((await c.fetchIndex(`${srv.url}/s/manifest.json`)).side, "ok");
+  assert.equal(hits(srv, "/s/manifest.json"), 2);
+});
+
+// ── fetchSite／fetchNotice ──
+
+test("fetchSite: index unreachable or invalid ⇒ zero further requests, gate/release undefined", async () => {
+  let calls = 0;
+  const fetchImpl = async () => {
+    calls++;
+    throw new Error("should not fetch");
+  };
+  const c = createSiteClient({ fetchImpl });
+  for (const index of [
+    { side: "unreachable", reason: "network", detail: "x" },
+    { side: "invalid", reason: "http", detail: "HTTP 404", status: 404 },
+  ]) {
+    assert.deepEqual(await c.fetchSite(index), {
+      gate: undefined,
+      release: undefined,
+      notice: null,
+    });
+    assert.equal(await c.fetchNotice(index), null);
+  }
+  assert.equal(calls, 0);
+});
+
+test("fetchSite: all ok", async (t) => {
+  const srv = await site(t, okSite);
+  const c = createSiteClient();
+  const s = await c.fetchSite(await c.fetchIndex(`${srv.url}/s/manifest.json`));
+  assert.equal(s.gate.side, "ok");
+  assert.equal(s.release.side, "ok");
+  assert.equal(s.release.value.version, "GGL3.1.02");
+  assert.equal(s.notice.notice.title, "T");
+  assert.deepEqual(s.notice.notifications, [{ id: "n1" }]);
+});
+
+test("fetchSite: a broken gate does not affect release", async (t) => {
+  const srv = await site(t, {
+    ...okSite,
+    "/s/gate.json": (q, r) => json(r, { maintenance: 1 }),
+  });
+  const c = createSiteClient();
+  const s = await c.fetchSite(await c.fetchIndex(`${srv.url}/s/manifest.json`));
+  assert.equal(s.gate.side, "invalid");
+  assert.equal(s.release.side, "ok");
+});
+
+test("fetchSite: a broken notice ⇒ notice null, gate/release unaffected", async (t) => {
+  const srv = await site(t, {
+    ...okSite,
+    "/s/notice.json": (q, r) => json(r, {}, 500),
+  });
+  const c = createSiteClient();
+  const s = await c.fetchSite(await c.fetchIndex(`${srv.url}/s/manifest.json`));
+  assert.equal(s.notice, null);
+  assert.equal(s.gate.side, "ok");
+  assert.equal(s.release.side, "ok");
+});
+
+test("fetchNotice: does not request release", async (t) => {
+  const srv = await site(t, okSite);
+  const c = createSiteClient();
+  await c.fetchNotice(await c.fetchIndex(`${srv.url}/s/manifest.json`));
+  assert.equal(hits(srv, "/s/release.json"), 0);
+  assert.equal(hits(srv, "/s/notice.json"), 1);
+});
+
+test(
+  "fetchNotice: logUrl stalls ⇒ returns within the deadline, other fields intact, log empty",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const srv = await site(t, {
+      ...okSite,
+      "/s/notice.json": (q, r) =>
+        json(r, {
+          notice: { title: "T", logUrl: `http://${q.headers.host}/log` },
+        }),
+      "/log": (q, r) => {
+        r.writeHead(200, { "content-length": "999" });
+        r.write("line1\n");
+      },
+    });
+    const c = createSiteClient({ timeoutMs: SHORT });
+    const index = await c.fetchIndex(`${srv.url}/s/manifest.json`);
+    const { v, ms } = await timed(c.fetchNotice(index));
+    assert.equal(v.notice.title, "T");
+    assert.deepEqual(v.notice.log, []);
+    assert.ok(ms < SHORT * 3 * 2, `took ${ms} ms`); // notice.json 與 logUrl 各一個期限
+  },
+);
+
+test("fetchNotice: inline log present ⇒ logUrl not requested", async (t) => {
+  const srv = await site(t, {
+    ...okSite,
+    "/s/notice.json": (q, r) =>
+      json(r, {
+        notice: {
+          title: "T",
+          log: ["a"],
+          logUrl: `http://${q.headers.host}/log`,
+        },
+      }),
+    "/log": (q, r) => (r.writeHead(200), r.end("remote")),
+  });
+  const c = createSiteClient();
+  const v = await c.fetchNotice(
+    await c.fetchIndex(`${srv.url}/s/manifest.json`),
+  );
+  assert.deepEqual(v.notice.log, ["a"]);
+  assert.equal(hits(srv, "/log"), 0);
+});
+
+test("fetchNotice: logUrl is not refetched within 60 s", async (t) => {
+  const srv = await site(t, {
+    ...okSite,
+    "/s/notice.json": (q, r) =>
+      json(r, {
+        notice: { title: "T", logUrl: `http://${q.headers.host}/log` },
+      }),
+    "/log": (q, r) => (r.writeHead(200), r.end("x\ny")),
+  });
+  const c = createSiteClient();
+  const index = await c.fetchIndex(`${srv.url}/s/manifest.json`);
+  const first = await c.fetchNotice(index);
+  const second = await c.fetchNotice(index);
+  assert.deepEqual(first.notice.log, ["x", "y"]);
+  assert.deepEqual(second.notice.log, ["x", "y"]);
+  assert.equal(hits(srv, "/log"), 1);
+  assert.equal(hits(srv, "/s/notice.json"), 2);
+});
+
+test(
+  "non-2xx with a body that never ends ⇒ classified, and the connection is released",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    let closed;
+    const socketClosed = new Promise((r) => (closed = r));
+    const srv = await site(t, {
+      "/m": (q, r) => {
+        r.on("close", closed);
+        r.writeHead(404, { "content-length": "999" });
+        r.write("not found, and still sending");
+      },
+    });
+    const v = await createSiteClient({ timeoutMs: SHORT }).fetchIndex(
+      `${srv.url}/m`,
+    );
+    assert.equal(v.side, "invalid");
+    const released = await Promise.race([
+      socketClosed.then(() => true),
+      new Promise((r) => setTimeout(() => r(false), 1000)),
+    ]);
+    assert.equal(released, true, "未讀的 body 沒被丟掉，連線一直掛著");
+  },
+);

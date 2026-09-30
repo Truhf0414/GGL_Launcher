@@ -67,37 +67,28 @@ function formatFetchCause(err) {
   return parts.join(" | ");
 }
 
+// 逾時只管到 headers；外部 signal 要一路管到 body 讀完，所以兩者合成一個直接交給 fetch，
+// headers 到手只清逾時計時器。以前是轉接外部 signal、在 headers 到手時拆掉，
+// 之後的 abort 傳不到正在讀的 body，看門狗形同虛設（→ _notes/plans/instance-sync-v3-commit3a2.md §上層沒列 4）。
 async function fetchWithNiceError(url, options = {}) {
-  const ac = new AbortController();
+  const timeoutAc = new AbortController();
   const timeoutMs = Number.isFinite(options.timeoutMs)
     ? options.timeoutMs
     : 15000;
 
-  const outerSignal = options.signal;
-  const abortOuter = () => {
-    try {
-      ac.abort();
-    } catch {}
-  };
-  if (outerSignal && typeof outerSignal.addEventListener === "function") {
-    if (outerSignal.aborted) abortOuter();
-    else outerSignal.addEventListener("abort", abortOuter, { once: true });
-  }
+  const { signal: outerSignal, ...rest } = options || {};
+  const signal = outerSignal
+    ? AbortSignal.any([outerSignal, timeoutAc.signal])
+    : timeoutAc.signal;
 
-  const t = setTimeout(() => ac.abort(), timeoutMs);
+  const t = setTimeout(() => timeoutAc.abort(), timeoutMs);
   try {
-    const { signal: _ignored, ...rest } = options || {};
-    return await fetch(url, { ...rest, signal: ac.signal });
+    return await fetch(url, { ...rest, signal });
   } catch (e) {
     const detail = formatFetchCause(e) || "fetch failed";
     throw new Error(`連線失敗：${url}\n${detail}`);
   } finally {
     clearTimeout(t);
-    if (outerSignal && typeof outerSignal.removeEventListener === "function") {
-      try {
-        outerSignal.removeEventListener("abort", abortOuter);
-      } catch {}
-    }
   }
 }
 
@@ -146,6 +137,21 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
   const sig = options?.signal;
   const label = typeof options?.label === "string" ? options.label.trim() : "";
 
+  // .part 已滿（寫完、改名前當掉）時續傳的 Range 越界，站台回 416，每次重跑都一樣。
+  // 知道預期大小就先處理：等於 ⇒ 當成下載完成（內容對不對由呼叫端驗 hash）；大於 ⇒ 丟掉重下。
+  const expectedSize = options?.expectedSize;
+  if (resume && Number.isFinite(expectedSize)) {
+    const partPath = absPath + ".part";
+    const st = await fsp.stat(partPath).catch(() => null);
+    if (st?.isFile() && st.size === expectedSize) {
+      await fsp.rename(partPath, absPath);
+      return;
+    }
+    if (st?.isFile() && st.size > expectedSize) {
+      await fsp.rm(partPath, { force: true });
+    }
+  }
+
   return await withRetries(
     async (attempt) => {
       const partPath = resume ? absPath + ".part" : absPath + ".tmp";
@@ -164,6 +170,7 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
         cache: "no-store",
         signal: sig,
         headers,
+        timeoutMs: options?.timeoutMs,
       });
       if (!res.ok) throw new Error(`下載失敗：HTTP ${res.status}`);
 
@@ -196,8 +203,9 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
             if (done) break;
             if (!value) continue;
 
-            received += value.byteLength || value.length || 0;
-            if (onChunk) onChunk({ received, total: totalOverall });
+            const bytes = value.byteLength || value.length || 0;
+            received += bytes;
+            if (onChunk) onChunk({ received, total: totalOverall, bytes });
 
             await new Promise((resolve, reject) => {
               file.write(Buffer.from(value), (err) =>
@@ -244,7 +252,8 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
 
         body.on("data", (chunk) => {
           received += chunk.length;
-          if (onChunk) onChunk({ received, total: totalOverall });
+          if (onChunk)
+            onChunk({ received, total: totalOverall, bytes: chunk.length });
         });
         body.on("error", reject);
         file.on("error", reject);
@@ -271,6 +280,72 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
       },
     },
   );
+}
+
+const STALL_WINDOW_MS = 30_000;
+const STALL_MIN_BYTES = 1024 * 1024;
+
+/**
+ * 帶停滯看門狗的下載：每 windowMs 收到的新 bytes 少於 minBytes ⇒ 中斷（連 headers 都等不到也算），
+ * 同一個 URL 再試 stallRetries 次（resume 時接著 .part）；用完丟 code GGL_DOWNLOAD_STALLED。
+ * 其他錯誤的重試照舊交給 downloadToFile 內部。
+ */
+async function downloadToFileWithStallGuard(
+  url,
+  absPath,
+  onChunk,
+  {
+    resume = false,
+    expectedSize,
+    windowMs = STALL_WINDOW_MS,
+    minBytes = STALL_MIN_BYTES,
+    stallRetries = 1,
+    stallMessage = `下載停滯：${windowMs / 1000} 秒內收到不到 ${minBytes / (1024 * 1024)} MB`,
+  } = {},
+) {
+  for (let attempt = 0; ; attempt++) {
+    const stalled = Object.assign(new Error(stallMessage), {
+      code: "GGL_DOWNLOAD_STALLED",
+    });
+    const ac = new AbortController();
+    // 只算這次新收到的量（bytes），不用 received：它含續傳前已有的 .part
+    let gained = 0;
+    let windowStartAt = Date.now();
+    let windowStartGained = 0;
+    const tick = setInterval(
+      () => {
+        const now = Date.now();
+        if (now - windowStartAt < windowMs) return;
+        if (gained - windowStartGained < minBytes) {
+          ac.abort(stalled);
+          return;
+        }
+        windowStartAt = now;
+        windowStartGained = gained;
+      },
+      Math.min(1000, windowMs / 4),
+    );
+    const countingOnChunk = (info) => {
+      gained += info.bytes;
+      if (onChunk) onChunk(info);
+    };
+    try {
+      await downloadToFile(url, absPath, countingOnChunk, {
+        resume,
+        expectedSize,
+        signal: ac.signal,
+        // headers 階段只讓看門狗管：內層逾時（預設 15 秒）若比窗口短，
+        // 等不到 headers 時丟出來的會是「連線失敗」還是「停滯」要看誰先到
+        timeoutMs: windowMs * 2,
+      });
+      return;
+    } catch (e) {
+      if (!ac.signal.aborted) throw e;
+      if (attempt >= stallRetries) throw stalled;
+    } finally {
+      clearInterval(tick);
+    }
+  }
 }
 
 function normalizeDownloadSources(sources) {
@@ -313,60 +388,21 @@ async function downloadToFileWithFallback(
         netDeps.sendMirrorStatus(`正在嘗試鏡像：${src.name}`);
       } catch {}
 
-      const ac = new AbortController();
-      const SPEED_WINDOW_MS = 30_000;
-      const MIN_BYTES_PER_WINDOW = 1 * 1024 * 1024;
-      let windowStartAt = Date.now();
-      let windowStartBytes = 0;
-      let lastBytes = 0;
+      // .part 是哪個來源寫的無從得知（這次換過來源、或上次排序不同），各來源不是同一份檔，
+      // 接上去會拼出壞檔；續傳只留在同一個來源內 downloadToFile 自己的重試
+      // （→ _notes/plans/instance-sync-v3-commit3a2.md §上層沒列 7）
+      await fsp.rm(absPath + ".part", { force: true });
 
-      const wrappedOnChunk = (info) => {
-        const received = Number(info?.received || 0);
-        lastBytes = received;
-
-        const now = Date.now();
-        if (now - windowStartAt >= SPEED_WINDOW_MS) {
-          const delta = received - windowStartBytes;
-          if (delta < MIN_BYTES_PER_WINDOW) {
-            try {
-              ac.abort();
-            } catch {}
-            return;
-          }
-          windowStartAt = now;
-          windowStartBytes = received;
-        }
-        if (onChunk) onChunk(info);
-      };
-
-      const tick = setInterval(() => {
-        const now = Date.now();
-        if (now - windowStartAt >= SPEED_WINDOW_MS) {
-          const delta = lastBytes - windowStartBytes;
-          if (delta < MIN_BYTES_PER_WINDOW) {
-            try {
-              ac.abort();
-            } catch {}
-          } else {
-            windowStartAt = now;
-            windowStartBytes = lastBytes;
-          }
-        }
-      }, 1000);
-
-      try {
-        await downloadToFile(src.url, absPath, wrappedOnChunk, {
-          signal: ac.signal,
-          resume: Boolean(options?.resume),
-        });
-      } finally {
-        clearInterval(tick);
-      }
+      await downloadToFileWithStallGuard(src.url, absPath, onChunk, {
+        resume: Boolean(options?.resume),
+        stallRetries: 0, // 停滯就換下一個來源
+        windowMs: options?.windowMs,
+        minBytes: options?.minBytes,
+      });
       return src;
     } catch (e) {
       lastErr = e;
-      const msg = String(e?.message ?? e);
-      const isAbort = msg.includes("下載中止（切換鏡像）");
+      const isAbort = e?.code === "GGL_DOWNLOAD_STALLED";
       if (isAbort) lowSpeedAbortCount += 1;
 
       try {
@@ -462,6 +498,9 @@ module.exports = {
   fetchWithNiceError,
   downloadToFile,
   downloadToFileWithFallback,
+  downloadToFileWithStallGuard,
+  STALL_WINDOW_MS,
+  STALL_MIN_BYTES,
   downloadIfMissing,
   ensureFileValid,
   verifyFileSha256IfProvided,
