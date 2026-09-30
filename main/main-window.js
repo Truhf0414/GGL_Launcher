@@ -94,6 +94,8 @@ function createMainWindow() {
   }
 
   mainWindow.loadFile(path.join(appRoot, "index.html"));
+  // main/single-instance.js 依賴這裡的 show() 取得焦點（視窗顯示前的 second-instance 不另補）；
+  // 改成 showInactive 或延後顯示的話，那邊要一起改。
   mainWindow.once("ready-to-show", () => {
     try {
       const w = getMainWindow();

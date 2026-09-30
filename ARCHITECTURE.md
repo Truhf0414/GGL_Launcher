@@ -34,7 +34,7 @@ Security posture:
 
 ## Key files
 
-- `main.js`: app bootstrap、IPC bridge 接線、`app.whenReady` / `window-all-closed`；`whenReady` 本體在 `main/app-ready.js`；伺服器的值在 `lib/server-config.js`；主視窗在 `main/main-window.js`
+- `main.js`: 單一實例（拿不到鎖就結束，其餘不載入）、app bootstrap、IPC bridge 接線、`app.whenReady` / `window-all-closed`、啟動失敗接 `main/startup-failure.js`；`whenReady` 本體在 `main/app-ready.js`；伺服器的值在 `lib/server-config.js`；主視窗在 `main/main-window.js`
 - `main/ipc-handlers.js`: `ipcMain.handle` 與 `sendSync*` / `sendMc*` 等推播（見 **Main process module map**）
 - `main/minecraft-launch.js`: Fabric / Java 啟動、`ensureRuntimeAndLaunch`、MC 子行程狀態（見 **Main process module map**）
 - `main/*.js`: other extracted main-process helpers（見下表）
@@ -72,7 +72,9 @@ Use this table to find code after splits. **When you add or extract a new `main/
 | `main/discord-rpc.js` | `tryStartDiscordRpcHelper({ mcPid })`（spawn `assets/rpc-helper.exe`；argv 由 `lib/discord-helper-args.js` 組，含按鈕 URL 白名單）、`rpc:notice` 推播；`configureDiscordRpc({ getMainWindow, discord })`（`discord`＝`lib/server-config.js` 的同名區塊） 由 `main.js` 在 `setupMainIpc` 前注入（供 `minecraft-launch` 注入的 callback 使用） |
 | `main/system-memory.js` | `getSystemMemoryGb`（供記憶體 UI / IPC bridge） |
 | `main/app-ready.js` | `runMainAppReady(ctx)`：`app.ready` 後初始化設定與 log、主視窗、各 `configure*`、`setupMainIpc`、輪詢與延遲版本檢查；**`ctx` 全部由 `main.js` 注入**；`MAIN_APP_READY_KEYS` + `assertMainAppReadyContext` 啟動前檢查鍵名／型別（與 `main.js` 的 `getMainAppReadyContext` 對齊） |
-| `main.js` (remainder)   | `configureMainWindow` 與 `createMainIpcBridge` 接線、`app.whenReady(() => runMainAppReady({...}))`、`window-all-closed`；**伺服器的值** 在 `lib/server-config.js`；**IPC** 已拆至 `ipc-handlers.js`，**遊戲啟動** 至 `minecraft-launch.js`，**伺服器 Online 輪詢** 至 `server-status.js`，**主視窗** 至 `main-window.js`，**Discord helper** 至 `discord-rpc.js`，**記憶體讀取** 至 `system-memory.js` |
+| `main/single-instance.js` | `acquireSingleInstance({ app, getMainWindow })`：搶單一實例鎖，拿不到就 `app.quit()`；`second-instance` 時以 `focusPrimaryWindow` 還原並聚焦主視窗（視窗還沒顯示就不做事，靠 `main-window.js` 的 `show()` 給焦點）。不 require electron |
+| `main/startup-failure.js` | `reportStartupFailure({ app, showErrorBox, err })`：啟動失敗時跳錯誤框（直接放錯誤內容）再 `app.quit()`，不留沒有視窗卻握著鎖的行程。不 require electron |
+| `main.js` (remainder)   | 單一實例與啟動失敗的接線（`main/single-instance.js`、`main/startup-failure.js`）、`configureMainWindow` 與 `createMainIpcBridge` 接線、`app.whenReady(() => runMainAppReady({...}))`、`window-all-closed`；**伺服器的值** 在 `lib/server-config.js`；**IPC** 已拆至 `ipc-handlers.js`，**遊戲啟動** 至 `minecraft-launch.js`，**伺服器 Online 輪詢** 至 `server-status.js`，**主視窗** 至 `main-window.js`，**Discord helper** 至 `discord-rpc.js`，**記憶體讀取** 至 `system-memory.js` |
 
 ## Packaged asset paths
 

@@ -175,7 +175,11 @@ function createMainAppReadyContext({ app, appRoot }) {
   };
 }
 
-async function startMain({ app, appRoot }) {
+/**
+ * @param {{ app: Electron.App, appRoot: string, onStartupFailed: (err: unknown) => void }} opts
+ *   onStartupFailed：啟動失敗時呼叫（main.js 接 main/startup-failure.js：錯誤框＋結束行程）
+ */
+async function startMain({ app, appRoot, onStartupFailed }) {
   gglEvent("main", "start_main_begin", {
     node: process.version,
     platform: process.platform,
@@ -187,9 +191,9 @@ async function startMain({ app, appRoot }) {
   } catch (err) {
     gglError("main", "start_main_failed", err, {});
     console.error("[MAIN_APP_READY]", err);
-    try {
-      void appendLauncherLog(`BOOT failed: ${String(err?.stack ?? err)}`);
-    } catch {}
+    // 等 log 寫完再報：接下來會結束行程（appendLauncherLog 自己吞錯）
+    await appendLauncherLog(`BOOT failed: ${String(err?.stack ?? err)}`);
+    onStartupFailed(err);
   }
 }
 
