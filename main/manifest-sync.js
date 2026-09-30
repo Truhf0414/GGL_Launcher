@@ -15,6 +15,7 @@ const {
   readManifestContentSequence,
   parseManifestNoticeFields,
 } = require("../lib/manifest-fields.js");
+const { parseNoticeLogText, assembleNotice } = require("../lib/sync/notice.js");
 const { readSettings } = require("./settings");
 const { getPaths, INSTANCE_ID } = require("./paths");
 const {
@@ -166,33 +167,10 @@ async function fetchNoticeLogLines(logUrl) {
       timeoutMs: 8000,
     });
     if (!res.ok) return [];
-    const ct = String(res.headers.get("content-type") || "").toLowerCase();
-    const text = await res.text();
-
-    let lines = [];
-    if (
-      ct.includes("application/json") ||
-      text.trim().startsWith("[") ||
-      text.trim().startsWith("{")
-    ) {
-      try {
-        const j = JSON.parse(text);
-        if (Array.isArray(j)) lines = j.map((x) => String(x));
-        else if (Array.isArray(j?.log)) lines = j.log.map((x) => String(x));
-        else if (Array.isArray(j?.lines)) lines = j.lines.map((x) => String(x));
-      } catch {
-        // fallback to plaintext split
-      }
-    }
-    if (lines.length === 0) {
-      lines = text
-        .split(/\r?\n/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-    }
-
-    // UI 會用可捲動區塊顯示，這裡保留較多行數
-    lines = lines.slice(0, 150);
+    const lines = parseNoticeLogText(
+      await res.text(),
+      res.headers.get("content-type"),
+    );
     noticeLogCache.set(url, { ts: now, lines });
     return lines;
   } catch {
@@ -412,11 +390,10 @@ async function normalizeManifestNotice(manifest) {
     parseManifestNoticeFields(manifest);
   const remoteLog =
     inlineLog.length === 0 ? await fetchNoticeLogLines(logUrl) : [];
-  const log = inlineLog.length ? inlineLog : remoteLog;
-
-  if (!title && !subtitle && !imageUrl && !logUrl && log.length === 0)
-    return null;
-  return { title, subtitle, imageUrl, logUrl, log };
+  return assembleNotice(
+    { title, subtitle, imageUrl, logUrl, inlineLog },
+    remoteLog,
+  );
 }
 
 function validateV2IndexManifest(manifest) {
