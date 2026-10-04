@@ -14,6 +14,7 @@ const { isDeepStrictEqual } = require("node:util");
 const { compileGlob } = require("../../lib/sync/glob.js");
 const {
   MANIFEST_FORMAT,
+  isPlainObject,
   isBlobName,
   validateIndex,
   validateRelease,
@@ -237,18 +238,47 @@ const LEGACY_MANIFEST_FIELDS = [
   "notifications",
 ];
 
+const refusedManifest = (message, newer = false) => ({
+  isV3: false,
+  legacyFields: null,
+  refused: newer ? { message, newer } : { message },
+});
+
+/**
+ * 站台上的索引走白名單（R9、R13）：沒有、v3、v2 舊索引（沒有 format 鍵且 schemaVersion 是 2，A4）三種，
+ * 其餘一律帶 refused——不替認不得的索引收拾。不丟錯；拒發由發版計畫接（退版、--list 不寫索引，照常用）。
+ * @returns {Promise<{ isV3: boolean, legacyFields: object | null, refused?: { message: string, newer?: true } }>}
+ */
 async function readManifest(siteRoot) {
   const r = await readJson(path.join(siteRoot, "manifest.json"));
   if (r.state === "missing") return { isV3: false, legacyFields: null };
-  if (r.state === "ok" && validateIndex(r.value).ok)
-    return { isV3: true, legacyFields: null };
-  const legacyFields = {};
-  if (r.state === "ok" && r.value && typeof r.value === "object") {
-    for (const k of LEGACY_MANIFEST_FIELDS) {
-      if (r.value[k] !== undefined) legacyFields[k] = r.value[k];
+  if (r.state === "invalid") return refusedManifest(r.error);
+  const value = r.value;
+  if (isPlainObject(value) && Object.hasOwn(value, "format")) {
+    const checked = validateIndex(value);
+    if (checked.ok) return { isV3: true, legacyFields: null };
+    if (checked.newer) {
+      return refusedManifest(
+        `站台的索引格式（format ${value.format}）比這個發版工具新，請用新版發版工具`,
+        true,
+      );
     }
+    return refusedManifest(checked.error);
   }
-  return { isV3: false, legacyFields };
+  // 只認數字 2 與字串 "2"：Number() 會把 [2]、"2.0" 也算成 2
+  if (
+    isPlainObject(value) &&
+    (value.schemaVersion === 2 || value.schemaVersion === "2")
+  ) {
+    const legacyFields = {};
+    for (const k of LEGACY_MANIFEST_FIELDS) {
+      if (value[k] !== undefined) legacyFields[k] = value[k];
+    }
+    return { isV3: false, legacyFields };
+  }
+  return refusedManifest(
+    "認不出這份索引：沒有 format 鍵，也不是 v2 舊索引（schemaVersion 不是 2）；v3 索引請檢查 format 有沒有拼錯",
+  );
 }
 
 async function exists(absPath) {
@@ -447,6 +477,23 @@ function brokenReleaseMessage(siteRoot, error, sourceDir) {
   ].join("\n");
 }
 
+/** 站台索引認不得（R9、R13）：照 B4 印成可照抄的修法；newer 不給「刪掉」——會把站台降回 3（A6） */
+function manifestErrors(manifest, siteRoot, sourceDir) {
+  if (!manifest.refused) return [];
+  const { message: cause, newer } = manifest.refused;
+  const manifestPath = path.join(siteRoot, "manifest.json");
+  const message = newer
+    ? `manifest.json：${cause}`
+    : [
+        `manifest.json 認不得（${cause}），不能發版。修法擇一：`,
+        "  ① 修好它",
+        "  ② 刪掉再重發（會寫一份標準索引）：",
+        `       PowerShell：Remove-Item -LiteralPath "${manifestPath}"`,
+        `       然後：node scripts/publish.js "${sourceDir}" --site-root "${siteRoot}" --apply`,
+      ].join("\n");
+  return [{ code: "manifest-invalid", path: "manifest.json", message }];
+}
+
 /** Windows 不分大小寫：`X.JSON` 跟 `x.json` 是同一個位置（rename 會直接蓋掉） */
 const samePlace = (a, b) =>
   a.replace(/\/$/, "").toLowerCase() === b.replace(/\/$/, "").toLowerCase();
@@ -601,7 +648,11 @@ async function planPublish(opts) {
       : site.manifest.legacyFields,
     excluded: source.build ? source.build.excluded : [],
   });
-  summary.errors.push(...source.errors, ...siteLinkErrors(site));
+  summary.errors.push(
+    ...source.errors,
+    ...siteLinkErrors(site),
+    ...manifestErrors(site.manifest, siteRoot, sourceDir),
+  );
   const next = source.build && source.build.release;
   if (!next) return { summary };
 

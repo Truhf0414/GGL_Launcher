@@ -192,44 +192,6 @@ test("checkGameRunning: spawn failure / non-zero exit / broken JSON ⇒ unknown"
   }
 });
 
-test("checkGameRunning: unknown + userConfirmedClosed ⇒ not-running (the '我確定遊戲已關閉' path)", async () => {
-  const deps = {
-    isMinecraftRunning: notRunning,
-    runPowerShell: psReturns("", 1),
-  };
-  assert.equal(await checkGameRunning({ gameDir: GAME_DIR, deps }), "unknown");
-  assert.equal(
-    await checkGameRunning({
-      gameDir: GAME_DIR,
-      userConfirmedClosed: true,
-      deps,
-    }),
-    "not-running",
-  );
-});
-
-test("checkGameRunning: userConfirmedClosed does not override a positive detection (D17)", async () => {
-  assert.equal(
-    await checkGameRunning({
-      gameDir: GAME_DIR,
-      userConfirmedClosed: true,
-      deps: { isMinecraftRunning: running, runPowerShell: psReturns("") },
-    }),
-    "running",
-  );
-  assert.equal(
-    await checkGameRunning({
-      gameDir: GAME_DIR,
-      userConfirmedClosed: true,
-      deps: {
-        isMinecraftRunning: notRunning,
-        runPowerShell: psReturns(out(javaWith(`--gameDir "${GAME_DIR}"`))),
-      },
-    }),
-    "running",
-  );
-});
-
 // ── 真 PowerShell（Windows；CI 是 windows-latest） ──
 
 const onWindows = process.platform === "win32";

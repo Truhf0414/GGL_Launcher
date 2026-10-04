@@ -1,7 +1,8 @@
 "use strict";
 
-// v3 站台抓取：索引、gate、release、公告。每一支回三態 SiteResult，分類的白名單只住這裡
-// （→ _notes/plans/instance-sync-v3.md §行為契約「抓取結果的分類」）。
+// v3 站台抓取：索引、gate、release、公告。每一支回三態 SiteResult，索引另多一態 newer（站台格式比這版新）；
+// 分類的白名單只住這裡（→ _notes/plans/instance-sync-v3.md §行為契約「抓取結果的分類」；
+// newer、驗證丟錯、公告離開 fetchSite → _notes/plans/instance-sync-v3-commit3b1.md 與 instance-sync-v3-commit3b1a.md）。
 // 每個請求各自一個期限，包住連線＋讀完 body＋解析；不用 fetchWithNiceError，它的逾時到 headers 就解除。
 
 const {
@@ -80,8 +81,20 @@ function createSiteClient({
       } catch {
         return miss("invalid", "parse", "內容不是 JSON", status);
       }
-      const v = validate(json);
-      return v.ok ? ok(v.value) : miss("invalid", "invalid", v.error, status);
+      let v;
+      try {
+        v = validate(json);
+      } catch (e) {
+        return miss(
+          "invalid",
+          "invalid",
+          `驗證時發生錯誤：${e?.message ?? e}`,
+          status,
+        );
+      }
+      if (v.ok) return ok(v.value);
+      if (v.newer) return { side: "newer", reason: "format", detail: v.error };
+      return miss("invalid", "invalid", v.error, status);
     }
     // 4xx＝站台在、檔不在（配置錯）；其餘（5xx、530、沒被跟隨的 3xx、0）一律 unreachable
     if (status >= 400 && status < 500)
@@ -92,11 +105,15 @@ function createSiteClient({
   async function fetchIndex(manifestUrl) {
     const cached = indexCache.get(manifestUrl);
     if (cached) return cached;
-    const r = await fetchClassified(manifestUrl, validateIndex);
-    if (r.side !== "ok") return r;
-    const result = ok(resolveSiteUrls(manifestUrl, r.value));
-    indexCache.set(manifestUrl, result);
-    return result;
+    // 解析網址也算驗證：丟錯同樣落在 invalid
+    const r = await fetchClassified(manifestUrl, (json) => {
+      const v = validateIndex(json);
+      return v.ok
+        ? { ok: true, value: resolveSiteUrls(manifestUrl, v.value) }
+        : v;
+    });
+    if (r.side === "ok") indexCache.set(manifestUrl, r);
+    return r;
   }
 
   async function fetchLogLines(logUrl) {
@@ -128,15 +145,14 @@ function createSiteClient({
     };
   }
 
+  // 公告不在這裡抓：它的 logUrl 會把整支拖過期限（→ plans/instance-sync-v3-commit3b1.md R3）
   async function fetchSite(index) {
-    if (index?.side !== "ok")
-      return { gate: undefined, release: undefined, notice: null };
-    const [gate, release, notice] = await Promise.all([
+    if (index?.side !== "ok") return { gate: undefined, release: undefined };
+    const [gate, release] = await Promise.all([
       fetchClassified(index.value.gate, validateGate),
       fetchClassified(index.value.release, validateRelease),
-      fetchNotice(index),
     ]);
-    return { gate, release, notice };
+    return { gate, release };
   }
 
   return { fetchIndex, fetchSite, fetchNotice, timeoutMs };
