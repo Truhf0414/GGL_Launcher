@@ -249,7 +249,6 @@ test("fetchSite: index unreachable or invalid ⇒ zero further requests, gate/re
     assert.deepEqual(await c.fetchSite(index), {
       gate: undefined,
       release: undefined,
-      notice: null,
     });
     assert.equal(await c.fetchNotice(index), null);
   }
@@ -263,8 +262,6 @@ test("fetchSite: all ok", async (t) => {
   assert.equal(s.gate.side, "ok");
   assert.equal(s.release.side, "ok");
   assert.equal(s.release.value.version, "GGL3.1.02");
-  assert.equal(s.notice.notice.title, "T");
-  assert.deepEqual(s.notice.notifications, [{ id: "n1" }]);
 });
 
 test("fetchSite: a broken gate does not affect release", async (t) => {
@@ -278,16 +275,75 @@ test("fetchSite: a broken gate does not affect release", async (t) => {
   assert.equal(s.release.side, "ok");
 });
 
-test("fetchSite: a broken notice ⇒ notice null, gate/release unaffected", async (t) => {
+test("fetchNotice: notice.json HTTP 500 ⇒ null", async (t) => {
   const srv = await site(t, {
     ...okSite,
     "/s/notice.json": (q, r) => json(r, {}, 500),
   });
   const c = createSiteClient();
+  const index = await c.fetchIndex(`${srv.url}/s/manifest.json`);
+  assert.equal(await c.fetchNotice(index), null);
+  assert.equal(hits(srv, "/s/notice.json"), 1);
+});
+
+test("fetchNotice: all ok ⇒ notice and notifications", async (t) => {
+  const srv = await site(t, okSite);
+  const c = createSiteClient();
+  const n = await c.fetchNotice(
+    await c.fetchIndex(`${srv.url}/s/manifest.json`),
+  );
+  assert.equal(n.notice.title, "T");
+  assert.deepEqual(n.notifications, [{ id: "n1" }]);
+});
+
+test("N30 fetchSite: notice.json is not requested; neither path returns a notice key", async (t) => {
+  const srv = await site(t, okSite);
+  const c = createSiteClient();
   const s = await c.fetchSite(await c.fetchIndex(`${srv.url}/s/manifest.json`));
-  assert.equal(s.notice, null);
   assert.equal(s.gate.side, "ok");
   assert.equal(s.release.side, "ok");
+  assert.equal("notice" in s, false);
+  assert.equal(hits(srv, "/s/notice.json"), 0);
+  const miss = await c.fetchSite({
+    side: "unreachable",
+    reason: "network",
+    detail: "x",
+  });
+  assert.equal("notice" in miss, false);
+});
+
+test("N30 fetchIndex: format 4 ⇒ side newer, gate/release never requested, not cached", async (t) => {
+  const srv = await site(t, {
+    ...okSite,
+    "/s/manifest.json": (q, r) => json(r, { ...INDEX, format: 4 }),
+  });
+  const c = createSiteClient();
+  const r = await c.fetchIndex(`${srv.url}/s/manifest.json`);
+  assert.equal(r.side, "newer");
+  assert.equal(r.reason, "format");
+  assert.match(r.detail, /請下載新版啟動器/);
+  assert.deepEqual(await c.fetchSite(r), {
+    gate: undefined,
+    release: undefined,
+  });
+  assert.equal(hits(srv, "/s/gate.json"), 0);
+  assert.equal(hits(srv, "/s/release.json"), 0);
+  assert.equal(
+    (await c.fetchIndex(`${srv.url}/s/manifest.json`)).side,
+    "newer",
+  );
+  assert.equal(hits(srv, "/s/manifest.json"), 2);
+});
+
+test("N30 fetchIndex: an error thrown while validating (relative manifest URL) ⇒ invalid, not a rejection", async () => {
+  const fetchImpl = async () => ({
+    status: 200,
+    text: async () => JSON.stringify(INDEX),
+    headers: { get: () => "application/json" },
+  });
+  const r = await createSiteClient({ fetchImpl }).fetchIndex("manifest.json");
+  assert.equal(r.side, "invalid");
+  assert.match(r.detail, /^驗證時發生錯誤：/);
 });
 
 test("fetchNotice: does not request release", async (t) => {

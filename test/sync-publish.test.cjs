@@ -1246,3 +1246,223 @@ test("B4 修法②：刪掉 release.json 後重發 ⇒ 走首發、保留集內�
   for (const v of ["v2", "v3", "v4"])
     assert.equal(site.blobs.has(sha256(v)), true, v);
 });
+
+// ── N32 站台索引的白名單（R9、R13）：認得的只有「沒有」「v3」「v2 舊索引」，其餘拒發 ──
+
+const V3_INDEX = {
+  format: 3,
+  gate: "gate.json",
+  notice: "notice.json",
+  release: "release.json",
+  files: "files/",
+};
+const asJson = (x) => JSON.stringify(x);
+const LEGACY_LINE = /舊 manifest 欄位/;
+
+/** 換掉站台的 manifest.json；內容結尾 / ＝放一個同名資料夾 */
+async function putManifest(siteRoot, content) {
+  await fsp.rm(path.join(siteRoot, "manifest.json"), {
+    recursive: true,
+    force: true,
+  });
+  if (content === null) return;
+  if (content === "/") await writeTree(siteRoot, { "manifest.json/": "" });
+  else await writeTree(siteRoot, { "manifest.json": content });
+}
+
+// [名稱, manifest.json 內容, 訊息前半要含的成因, 有沒有修法（newer 沒有）]
+const MANIFEST_REFUSALS = [
+  [
+    'v3 索引 gate 寫成 "http://"',
+    asJson({ ...V3_INDEX, gate: "http://" }),
+    /index\.gate/,
+    true,
+  ],
+  ["format 4", asJson({ ...V3_INDEX, format: 4 }), /比這個發版工具新/, false],
+  [
+    'format 字串 "3"',
+    asJson({ ...V3_INDEX, format: "3" }),
+    /index\.format/,
+    true,
+  ],
+  [
+    "合法 v3 另把 gate 寫壞、帶 schemaVersion 2",
+    asJson({ ...V3_INDEX, gate: "http://", schemaVersion: 2 }),
+    /index\.gate/,
+    true,
+  ],
+  [
+    "{ format: null, schemaVersion: 2 }",
+    asJson({ format: null, schemaVersion: 2 }),
+    /index\.format/,
+    true,
+  ],
+  ["不是合法 JSON（多一個逗號）", '{ "format": 3, }', /JSON 解析失敗/, true],
+  ["manifest.json 是資料夾", "/", /讀取失敗/, true],
+  ["內容是 []", "[]", /認不出這份索引/, true],
+  ["內容是 null", "null", /認不出這份索引/, true],
+  ["內容是 3", "3", /認不出這份索引/, true],
+  ['內容是 "str"', '"str"', /認不出這份索引/, true],
+  ["內容是 true", "true", /認不出這份索引/, true],
+  [
+    "format 拼成 fromat",
+    asJson({
+      fromat: 3,
+      gate: "gate.json",
+      notice: "notice.json",
+      release: "release.json",
+      files: "files/",
+    }),
+    /拼錯/,
+    true,
+  ],
+  ["{}", "{}", /認不出這份索引/, true],
+  [
+    "{ schemaVersion: 1 }",
+    asJson({ schemaVersion: 1 }),
+    /認不出這份索引/,
+    true,
+  ],
+  [
+    "{ schemaVersion: 3 }",
+    asJson({ schemaVersion: 3 }),
+    /認不出這份索引/,
+    true,
+  ],
+  // v2 只認數字 2 與字串 "2"：Number() 會把 [2]、"2.0" 也算成 2（owner 2026-10-04 裁收緊）
+  [
+    "{ schemaVersion: [2] }",
+    asJson({ schemaVersion: [2] }),
+    /認不出這份索引/,
+    true,
+  ],
+  [
+    '{ schemaVersion: "2.0" }',
+    asJson({ schemaVersion: "2.0" }),
+    /認不出這份索引/,
+    true,
+  ],
+];
+
+test("N32 拒發表共 18 格", () => {
+  assert.equal(MANIFEST_REFUSALS.length, 18);
+});
+
+for (const [name, content, cause, fixable] of MANIFEST_REFUSALS) {
+  test(`N32 拒發：${name} ⇒ 乾跑、--apply、--apply --force 都拒，整站不變`, async (t) => {
+    const { siteRoot, srcRoot, run } = await newSite(t, "manifest-refuse");
+    await putManifest(siteRoot, content);
+    const src = await makeSource(srcRoot, "v1", V1_FILES);
+    const before = await snapshot(siteRoot);
+    for (const extra of [
+      { apply: false },
+      { apply: true },
+      { apply: true, force: true },
+    ]) {
+      const r = await run(src, at(20), extra);
+      const where = `${name} ${JSON.stringify(extra)}`;
+      assert.equal(r.ok, false, where);
+      const e = r.summary.errors.find((x) => x.code === "manifest-invalid");
+      assert.ok(e, `${where}：${JSON.stringify(r.summary.errors)}`);
+      assert.equal(e.path, "manifest.json");
+      assert.match(e.message, cause, where);
+      if (fixable) {
+        assert.ok(
+          e.message.includes(
+            `Remove-Item -LiteralPath "${path.join(siteRoot, "manifest.json")}"`,
+          ),
+          e.message,
+        );
+        assert.ok(
+          e.message.includes(
+            `node scripts/publish.js "${src}" --site-root "${siteRoot}" --apply`,
+          ),
+          e.message,
+        );
+      } else {
+        assert.equal(e.message.includes("Remove-Item"), false, e.message);
+      }
+      assert.deepEqual(await snapshot(siteRoot), before, where);
+      const report = r.report.join("\n");
+      assert.doesNotMatch(report, LEGACY_LINE, where);
+      assert.match(report, /拒絕發版，站台未動/, where);
+    }
+  });
+}
+
+test("N32 放行：沒有 manifest.json ⇒ --apply 寫出標準索引", async (t) => {
+  const { siteRoot, srcRoot, run } = await newSite(t, "manifest-none");
+  await putManifest(siteRoot, null);
+  await publishOk(run, await makeSource(srcRoot, "v1", V1_FILES), at(20));
+  const written = JSON.parse(
+    await fsp.readFile(path.join(siteRoot, "manifest.json"), "utf8"),
+  );
+  assert.deepEqual(written, V3_INDEX);
+});
+
+for (const [label, schemaVersion] of [
+  ["數字 2", 2],
+  ['字串 "2"', "2"],
+]) {
+  test(`N32 放行：v2 舊索引 schemaVersion ${label} ⇒ 報告列舊欄位、--apply 寫出標準索引`, async (t) => {
+    const { siteRoot, srcRoot, run } = await newSite(t, "manifest-v2");
+    await putManifest(siteRoot, asJson({ ...V2_MANIFEST, schemaVersion }));
+    const r = await publishOk(
+      run,
+      await makeSource(srcRoot, "v1", V1_FILES),
+      at(20),
+    );
+    assert.match(r.report.join("\n"), LEGACY_LINE);
+    const written = JSON.parse(
+      await fsp.readFile(path.join(siteRoot, "manifest.json"), "utf8"),
+    );
+    assert.deepEqual(written, V3_INDEX);
+  });
+}
+
+test("N32 放行：合法的 v3 索引（gate 換別的檔名）⇒ --apply 之後一個位元組都沒變", async (t) => {
+  const { siteRoot, srcRoot, run } = await newSite(t, "manifest-v3");
+  const text = asJson({ ...V3_INDEX, gate: "gate-custom.json" });
+  await putManifest(siteRoot, text);
+  await publishOk(run, await makeSource(srcRoot, "v1", V1_FILES), at(20));
+  assert.equal(
+    await fsp.readFile(path.join(siteRoot, "manifest.json"), "utf8"),
+    text,
+  );
+});
+
+for (const [label, content] of [
+  ["format 4", asJson({ ...V3_INDEX, format: 4 })],
+  ["null", "null"],
+]) {
+  test(`N32 退版不受影響：站台索引是 ${label} ⇒ --list 照常、--rollback --to 1 --apply 成功、索引不變`, async (t) => {
+    const { siteRoot } = await threeReleases(t, "manifest-rollback");
+    await putManifest(siteRoot, content);
+    const list = await listReleases({ siteRoot });
+    assert.equal(list.current.release.version, "v3");
+    assert.deepEqual(
+      list.others.map((a) => a.release.version),
+      ["v2", "v1"],
+    );
+    const rb = await rollback({ siteRoot, to: 1, apply: true });
+    assert.equal(rb.ok, true, rb.report.join("\n"));
+    assert.equal((await readRelease(siteRoot)).version, "v2");
+    assert.equal(
+      await fsp.readFile(path.join(siteRoot, "manifest.json"), "utf8"),
+      content,
+    );
+  });
+}
+
+test("N32 修法走得通：被拒之後刪掉 manifest.json 再發 ⇒ 成功、寫出標準索引", async (t) => {
+  const { siteRoot, srcRoot, run } = await newSite(t, "manifest-fix");
+  await putManifest(siteRoot, "{}");
+  const src = await makeSource(srcRoot, "v1", V1_FILES);
+  assert.equal((await run(src, at(20))).ok, false);
+  await fsp.rm(path.join(siteRoot, "manifest.json"));
+  await publishOk(run, src, at(20));
+  const written = JSON.parse(
+    await fsp.readFile(path.join(siteRoot, "manifest.json"), "utf8"),
+  );
+  assert.deepEqual(written, V3_INDEX);
+});

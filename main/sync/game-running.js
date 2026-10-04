@@ -1,8 +1,8 @@
 "use strict";
 
 // 「遊戲是否在跑」：A＝啟動器自己 spawn 的程序（注入），B＝PowerShell 查所有 java 程序的命令列。
-// B 失敗（spawn 失敗、逾時、非 0 exit、輸出壞）⇒ 無法確認；玩家按「我確定遊戲已關閉」才放行，
-// 那個確認只蓋得過「無法確認」，蓋不過明確偵測到的 running（→ _notes/plans/instance-sync-v3-commit3a2.md D17）。
+// B 失敗（spawn 失敗、逾時、非 0 exit、輸出壞）⇒ unknown。這支只回三值；unknown 時怎麼問玩家由中樞的確認回呼處理
+// （→ _notes/plans/instance-sync-v3-commit3b1.md R2、instance-sync-v3-commit3b1a.md §設計「遊戲偵測」）。
 
 const { execFile } = require("child_process");
 const {
@@ -31,20 +31,13 @@ function runPowerShell(command, { timeoutMs = POWERSHELL_TIMEOUT_MS } = {}) {
 /**
  * @param {{
  *   gameDir: string,
- *   userConfirmedClosed?: boolean,
  *   deps: { isMinecraftRunning: () => boolean, runPowerShell?: typeof runPowerShell, filter?: string },
  * }} input
  * @returns {Promise<"running" | "not-running" | "unknown">}
  */
-async function checkGameRunning({
-  gameDir,
-  userConfirmedClosed = false,
-  deps,
-}) {
+async function checkGameRunning({ gameDir, deps }) {
   if (deps.isMinecraftRunning()) return "running";
-  const result = await detectFromProcessList(gameDir, deps);
-  if (result === "unknown" && userConfirmedClosed) return "not-running";
-  return result;
+  return detectFromProcessList(gameDir, deps);
 }
 
 async function detectFromProcessList(gameDir, deps) {

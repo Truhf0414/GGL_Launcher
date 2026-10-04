@@ -37,13 +37,67 @@ function assertErrorAt(result, fieldPrefix) {
   );
 }
 
-test("index：標準形狀 ok；format ≠ 3 ⇒ error", () => {
-  const index = { format: 3, gate: "gate.json", notice: "notice.json", release: "release.json", files: "files/" };
+const INDEX = { format: 3, gate: "gate.json", notice: "notice.json", release: "release.json", files: "files/" };
+const INDEX_URL_KEYS = ["gate", "notice", "release", "files"];
+
+test("index：標準形狀 ok；format 2 ⇒ error、不是 newer", () => {
   assert.equal(MANIFEST_FORMAT, 3);
-  assert.equal(validateIndex(index).ok, true);
-  assertErrorAt(validateIndex({ ...index, format: 2 }), "index.format");
-  assertErrorAt(validateIndex({ ...index, files: "files" }), "index.files");
-  assertErrorAt(validateIndex({ ...index, release: "" }), "index.release");
+  assert.equal(validateIndex(INDEX).ok, true);
+  assertErrorAt(validateIndex({ ...INDEX, format: 2 }), "index.format");
+  assertErrorAt(validateIndex({ ...INDEX, files: "files" }), "index.files");
+  assertErrorAt(validateIndex({ ...INDEX, release: "" }), "index.release");
+});
+
+test("N29 index：format 4（整數、較新）⇒ ok:false、newer:true、叫人下載新版啟動器、不帶欄位路徑", () => {
+  const r = validateIndex({ ...INDEX, format: 4 });
+  assert.equal(r.ok, false);
+  assert.equal(r.newer, true);
+  assert.match(r.error, /format 4/);
+  assert.match(r.error, /請下載新版啟動器/);
+  // 照原樣顯示給玩家，不帶欄位路徑
+  assert.equal(r.error.startsWith("index."), false, r.error);
+});
+
+const NOT_NEWER_FORMATS = [
+  ["2", 2],
+  ['字串 "3"', "3"],
+  ['字串 "4"', "4"],
+  ["3.5", 3.5],
+  ["缺", undefined],
+];
+for (const [label, format] of NOT_NEWER_FORMATS) {
+  test(`N29 index：format ${label} ⇒ ok:false、沒有 newer`, () => {
+    const r = validateIndex({ ...INDEX, format });
+    assertErrorAt(r, "index.format");
+    assert.equal("newer" in r, false);
+  });
+}
+
+for (const key of INDEX_URL_KEYS) {
+  test(`N29 index：${key} 寫成 "http://" ⇒ ok:false、訊息點名 index.${key}`, () => {
+    assertErrorAt(validateIndex({ ...INDEX, [key]: "http://" }), `index.${key}`);
+  });
+}
+
+const BAD_SCHEME_URLS = ["ftp://example.com/x/", "file:///C:/x/", "javascript:alert(1)/", "data:text/plain,x/"];
+for (const url of BAD_SCHEME_URLS) {
+  test(`N29 index：絕對網址 ${url.slice(0, url.indexOf(":") + 1)} ⇒ ok:false`, () => {
+    for (const key of INDEX_URL_KEYS) {
+      assertErrorAt(validateIndex({ ...INDEX, [key]: url }), `index.${key}`);
+    }
+  });
+}
+
+test("N29 index：相對路徑與 https 絕對網址 ⇒ ok", () => {
+  assert.equal(validateIndex({ ...INDEX, gate: "sub/gate.json", files: "../files/" }).ok, true);
+  const abs = {
+    format: 3,
+    gate: "https://example.com/g.json",
+    notice: "https://example.com/n.json",
+    release: "https://example.com/r.json",
+    files: "https://cdn.example.com/files/",
+  };
+  assert.deepEqual(validateIndex(abs), { ok: true, value: abs });
 });
 
 test("resolveSiteUrls：相對於 manifest 自己的 URL", () => {
