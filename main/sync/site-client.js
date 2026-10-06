@@ -31,11 +31,13 @@ const miss = (side, reason, detail, status) =>
     : { side, reason, detail, status };
 
 /**
- * @param {{ fetchImpl?: typeof fetch, timeoutMs?: number }} [opts]
+ * @param {{ fetchImpl?: typeof fetch, timeoutMs?: number, now?: () => number }} [opts]
+ *   now：log 快取判斷用的時鐘（測試注入）
  */
 function createSiteClient({
   fetchImpl = fetch,
   timeoutMs = SITE_TIMEOUT_MS,
+  now = Date.now,
 } = {}) {
   const indexCache = new Map(); // manifestUrl → ok 的 SiteResult；失敗不進來
   const logCache = new Map(); // logUrl → { ts, lines }
@@ -116,18 +118,21 @@ function createSiteClient({
     return r;
   }
 
+  // 抓失敗 ⇒ 沿用上一次成功的（過期的也用），不更新快取時間，下次照樣重抓；從沒成功過才是空的
+  // （→ _notes/plans/instance-sync-v3-commit3b2.md R6）
   async function fetchLogLines(logUrl) {
     if (!/^https?:\/\//i.test(logUrl)) return [];
     const cached = logCache.get(logUrl);
-    if (cached && Date.now() - cached.ts < LOG_CACHE_MS) return cached.lines;
+    if (cached && now() - cached.ts < LOG_CACHE_MS) return cached.lines;
+    const fallback = cached?.lines ?? [];
     try {
       const { status, text, contentType } = await fetchText(logUrl);
-      if (status < 200 || status >= 300) return [];
+      if (status < 200 || status >= 300) return fallback;
       const lines = parseNoticeLogText(text, contentType);
-      logCache.set(logUrl, { ts: Date.now(), lines });
+      logCache.set(logUrl, { ts: now(), lines });
       return lines;
     } catch {
-      return [];
+      return fallback;
     }
   }
 
