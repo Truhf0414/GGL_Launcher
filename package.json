@@ -28,7 +28,8 @@
     "verify:site:v2:bootstrap": "node scripts/verify-site-files-v2.js --kind bootstrap",
     "verify:site:v2:patch": "node scripts/verify-site-files-v2.js --kind patch",
     "video:bg:downscale": "node scripts/downscale-bg-video.cjs",
-    "prepare": "husky"
+    "prepare": "husky",
+    "lint": "eslint ."
   },
   "dependencies": {
     "extract-zip": "^2.0.1"
@@ -37,6 +38,8 @@
     "@tailwindcss/cli": "^4.1.12",
     "electron": "^44.3.0",
     "electron-builder": "^26.0.12",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
     "husky": "^9.1.7",
     "pkg": "^5.8.1",
     "png-to-ico": "^2.1.1",
