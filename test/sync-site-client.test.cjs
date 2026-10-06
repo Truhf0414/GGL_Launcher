@@ -418,6 +418,87 @@ test("fetchNotice: logUrl is not refetched within 60 s", async (t) => {
   assert.equal(hits(srv, "/s/notice.json"), 2);
 });
 
+// ── logUrl 抓失敗沿用上一次成功的（③b-2 R6） ──
+
+/** /log 的行為由 logMode.value 決定：ok（回 lines）、500、stall（只送一半） */
+async function logSite(t, logMode) {
+  return site(t, {
+    ...okSite,
+    "/s/notice.json": (q, r) =>
+      json(r, {
+        notice: { title: "T", logUrl: `http://${q.headers.host}/log` },
+      }),
+    "/log": (q, r) => {
+      if (logMode.value === "500") return json(r, {}, 500);
+      if (logMode.value === "stall") {
+        r.writeHead(200, { "content-length": "999" });
+        return r.write("half\n");
+      }
+      r.writeHead(200);
+      r.end(logMode.lines.join("\n"));
+    },
+  });
+}
+
+const LOG_EXPIRE_MS = 60_001; // site-client 的 log 快取是 60 秒
+
+test("L1 logUrl ok once, cache expired, then 500 ⇒ previous lines", async (t) => {
+  const logMode = { value: "ok", lines: ["x", "y"] };
+  const srv = await logSite(t, logMode);
+  let clock = 1_000_000;
+  const c = createSiteClient({ timeoutMs: SHORT, now: () => clock });
+  const index = await c.fetchIndex(`${srv.url}/s/manifest.json`);
+  assert.deepEqual((await c.fetchNotice(index)).notice.log, ["x", "y"]);
+  await c.fetchNotice(index); // 注入的時鐘沒前進 ⇒ 用快取、不重抓
+  assert.equal(hits(srv, "/log"), 1);
+  clock += LOG_EXPIRE_MS;
+  logMode.value = "500";
+  assert.deepEqual((await c.fetchNotice(index)).notice.log, ["x", "y"]);
+  assert.equal(hits(srv, "/log"), 2);
+});
+
+test(
+  "L2 logUrl ok once, cache expired, then stalls past the deadline ⇒ previous lines",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const logMode = { value: "ok", lines: ["x", "y"] };
+    const srv = await logSite(t, logMode);
+    let clock = 1_000_000;
+    const c = createSiteClient({ timeoutMs: SHORT, now: () => clock });
+    const index = await c.fetchIndex(`${srv.url}/s/manifest.json`);
+    await c.fetchNotice(index);
+    clock += LOG_EXPIRE_MS;
+    logMode.value = "stall";
+    assert.deepEqual((await c.fetchNotice(index)).notice.log, ["x", "y"]);
+    assert.equal(hits(srv, "/log"), 2);
+  },
+);
+
+test("L3 after falling back, the next call refetches; success replaces the lines", async (t) => {
+  const logMode = { value: "ok", lines: ["x", "y"] };
+  const srv = await logSite(t, logMode);
+  let clock = 1_000_000;
+  const c = createSiteClient({ timeoutMs: SHORT, now: () => clock });
+  const index = await c.fetchIndex(`${srv.url}/s/manifest.json`);
+  await c.fetchNotice(index);
+  clock += LOG_EXPIRE_MS;
+  logMode.value = "500";
+  await c.fetchNotice(index); // 沿用；快取時間不更新
+  logMode.value = "ok";
+  logMode.lines = ["new"];
+  assert.deepEqual((await c.fetchNotice(index)).notice.log, ["new"]);
+  assert.equal(hits(srv, "/log"), 3);
+});
+
+test("L4 logUrl never succeeded and returns 500 ⇒ empty log", async (t) => {
+  const srv = await logSite(t, { value: "500", lines: [] });
+  const c = createSiteClient({ timeoutMs: SHORT });
+  const index = await c.fetchIndex(`${srv.url}/s/manifest.json`);
+  const v = await c.fetchNotice(index);
+  assert.equal(v.notice.title, "T");
+  assert.deepEqual(v.notice.log, []);
+});
+
 test(
   "non-2xx with a body that never ends ⇒ classified, and the connection is released",
   { timeout: HANG_LIMIT_MS },
