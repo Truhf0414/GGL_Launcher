@@ -8,7 +8,6 @@ const {
   parseIsoDateToMs,
   notifKeyFor,
   normalizeBroadcastNotifications,
-  computeBroadcastNotifHash,
 } = require("../lib/notifications-broadcast.js");
 
 test("computeBroadcastNotifId: explicit id wins", () => {
@@ -75,14 +74,4 @@ test("normalizeBroadcastNotifications: startsAt vs expiresAt tie clears expires"
     now,
   );
   assert.equal(items.length, 1);
-});
-
-test("computeBroadcastNotifHash: stable for same items", () => {
-  const items = [
-    { id: "1", key: "k", priority: 0, title: "t", body: "", timeText: "" },
-  ];
-  assert.equal(
-    computeBroadcastNotifHash(items),
-    computeBroadcastNotifHash(items),
-  );
 });

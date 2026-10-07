@@ -53,7 +53,7 @@ This repository contains the launcher application (UI + update + launch logic).
 
 ## What it does
 
-- **Instance update**: checks a remote `manifest.json` and installs/updates the instance (zip or file-diff mode)
+- **Instance update**: reads the v3 site (`manifest.json` index + `release.json` file list) and installs/updates/repairs only the files whose sha256 differ
 - **Runtime bootstrap**: can download/ensure required Minecraft/Fabric runtime files and assets for offline play
 - **Launch**: launches Minecraft (Fabric) with configurable JVM memory (Xms/Xmx)
 - **Discord Rich Presence (optional)**: shows `GGL` + image + single/multiplayer status via an external helper exe
@@ -64,7 +64,7 @@ This repository contains the launcher application (UI + update + launch logic).
 
 - **No external analytics**: this launcher does not intentionally send analytics/telemetry to our own servers
 - **Network usage** is limited to:
-  - downloading update files from the configured update source (`manifest.json`, `instance.zip`, etc.)
+  - downloading update files from the configured update source (`manifest.json`, `gate.json`, `notice.json`, `release.json`, `files/…`)
   - downloading official runtime/assets from Mojang/Fabric/Adoptium when needed
   - optional Microsoft/Xbox/Minecraft authentication calls when sign-in is enabled
 - **Local storage only**:
@@ -114,68 +114,31 @@ npm run build:rpc-helper
 啟動器第一次執行若偵測不到 `userData/settings.json`，會自動複製這份預設檔到使用者的 AppData，
 之後使用者自行修改的設定不會被覆蓋。
 
-## Instance update (manifest-driven)
+## Instance update（v3 站台）
 
-這個啟動器以「manifest 驅動」同步實例（URL 在 `main/launcher-config.js` 的 `remoteManifestUrl`）：
+啟動器從一個靜態站台同步實例，站台網址在 `lib/server-config.js` 的 `manifestUrl`。
 
-- 啟動時：只做版本檢查（不下載）
-- 使用者點「安裝 / 更新」：才會同步實例（mods/config 等）
+- 啟動時：只檢查狀態，不下載
+- 玩家按「安裝／更新」，或在設定按「檢查並修復檔案」：才會同步
 
-## 推薦做法：用 GitHub Releases 發佈一個 `instance.zip`
+站台根目錄：
 
-### 1) 建立更新倉庫
+- `manifest.json`：索引，指向下面三支檔與 `files/`
+- `gate.json`：維護開關與最低啟動器版本（服主手改）
+- `notice.json`：公告與鈴鐺通知（服主手改，啟動器每 30 秒重抓）
+- `release.json`：這一版的完整檔案清單（發版工具寫）
+- `files/`：檔案本體，以 sha256 命名
 
-建立一個新 repo，例如：`ggl3-instance`
+格式細節暫見 `_notes/plans/instance-sync-v3.md` §站台格式（③b-3 搬到 `docs/site-format.md`）。
 
-### 2) 準備 zip 內容
+### 發版
 
-把你要給玩家的檔案打包成 zip，**建議只放以下資料夾**（放在 zip 根目錄或 `.minecraft/` 底下都可以）：
-
-- `mods/`
-- `config/`
-- `resourcepacks/`
-- `shaderpacks/`
-- `scripts/`
-- `kubejs/`
-- `configureddefaults/`（若有用到預設選項／服主自訂預設檔）
-
-> 啟動器會套用 zip 內容到實例資料夾；若你希望由啟動器自動建構 runtime/assets，也可以只打包 mods/config 等核心內容。
-
-### 3) 發佈 Release
-
-在 GitHub 建立一個 Release（tag 例如 `v2026.04.14-1`），上傳：
-
-- `instance.zip`
-- `manifest.json`
-
-`manifest.json` 範例（zip 模式）：
-
-```json
-{
-  "version": "2026.04.14-1",
-  "mode": "zip",
-  "zipUrl": "https://github.com/<owner>/<repo>/releases/download/v2026.04.14-1/instance.zip"
-}
+```bash
+node scripts/publish.js <版本資料夾>              # 乾跑：列出新增／變更／刪除
+node scripts/publish.js <版本資料夾> --apply      # 寫入站台
+node scripts/publish.js --list                    # 列出可退的版本
+node scripts/publish.js --rollback --to <編號> --apply
 ```
 
-### 4) 在啟動器設定 manifest URL
-
-打開 `main/launcher-config.js`，把 `remoteManifestUrl` 改成 GitHub 的 raw 連結（建議放在 repo 裡固定的路徑，例如 `manifest.json` 在預設分支）：
-
-- `https://raw.githubusercontent.com/<owner>/<repo>/<branch>/manifest.json`
-
-之後玩家每次開啟啟動器都會比對版本，按「安裝/更新」就會下載 zip 並套用。
-
-## 進階做法：用檔案清單（files 模式）
-
-如果你想做到「精準比對每個檔案 hash，只下載差異」，可以用 `files` 模式。
-
-### 產生 manifest（內建腳本）
-
-```powershell
-node scripts/build-instance-manifest.js --input "D:\Your\.minecraft" --version "2026.04.14-1" --out "manifest.json" --baseUrl "https://raw.githubusercontent.com/<owner>/<repo>/<branch>/"
-```
-
-然後把 `manifest.json` 跟對應的檔案（`mods/...`、`config/...`）一起放進 GitHub repo。
-
-> 注意：`raw.githubusercontent.com` 對大量小檔案會比較慢；實務上通常用 Release zip 更穩。
+版本資料夾的名稱就是版本號，裡面要有 `mmc-pack.json`；站台根目錄與來源根目錄的預設值在 `scripts/publish-config.js`。
+Windows 上站台的檔案若被編輯器開著，換檔會失敗（`EPERM`）；關掉後重跑同一道指令即可。

@@ -33,7 +33,7 @@
         }
       })();
 
-      // Notifications indicator: refresh on startup / focus / main push.
+      // Notifications indicator: refresh on startup / focus / 公告模組推送（notice:changed）.
       void notifUi?.refreshNotifIndicator?.(btnBell);
       onDom(
         window,
@@ -45,7 +45,7 @@
       );
       try {
         onIpc(
-          "notifications:changed",
+          "notice:changed",
           () => void notifUi?.refreshNotifIndicator?.(btnBell),
         );
       } catch {}

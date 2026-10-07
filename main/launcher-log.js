@@ -69,16 +69,30 @@ const _logThrottle = {
   syncPctBucket: -1,
 };
 
+function clampPercent(progress01) {
+  return Math.max(0, Math.min(1, Number(progress01) || 0)) * 100;
+}
+
+// progress01 為 null＝這一步沒有可算的比例（例：verify），只記文字，不寫成 0.0%
+function formatSyncProgressLog(text, progress01) {
+  if (progress01 === null) return `SYNC ${text}`;
+  return `SYNC ${text} ${clampPercent(progress01).toFixed(1)}%`;
+}
+
+// 節流的分桶：每 5% 一桶；null 自成一桶（同一段文字只記一次），不能和 0% 同桶
+function syncProgressBucket(progress01) {
+  return progress01 === null ? null : Math.floor(clampPercent(progress01) / 5);
+}
+
 function logSyncProgressThrottled(text, progress01) {
-  const pct = Math.max(0, Math.min(1, Number(progress01) || 0)) * 100;
-  const bucket = Math.floor(pct / 5);
+  const bucket = syncProgressBucket(progress01);
   if (
     String(text) !== _logThrottle.syncText ||
     bucket !== _logThrottle.syncPctBucket
   ) {
     _logThrottle.syncText = String(text);
     _logThrottle.syncPctBucket = bucket;
-    void appendLauncherLog(`SYNC ${text} ${pct.toFixed(1)}%`);
+    void appendLauncherLog(formatSyncProgressLog(text, progress01));
   }
 }
 
@@ -89,5 +103,7 @@ module.exports = {
   appendLauncherLog,
   appendRpcDiagLog,
   rotateLauncherLogIfTooLarge,
+  formatSyncProgressLog,
+  syncProgressBucket,
   logSyncProgressThrottled,
 };

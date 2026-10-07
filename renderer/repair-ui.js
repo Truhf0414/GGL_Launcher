@@ -1,0 +1,135 @@
+// Renderer UI helpers: repair flow (settings「檢查並修復檔案」and the launch button's「安裝」).
+// Loaded before renderer.js via index.html.
+// 這條流程的 busy 只有它一個擁有者：從列清單外 jar 到修復回來，finally 放掉（B17）。
+(function () {
+  function createRepairUi(input) {
+    const ctx = input?.ctx || null;
+    const fx = ctx?.fx || {};
+    const ui = ctx?.ui || {};
+
+    const safeInvoke = input?.safeInvoke || fx.safeInvoke;
+    const setStatus = input?.setStatus || fx.setStatus || (() => {});
+    const setStatusError =
+      input?.setStatusError || fx.setStatusError || (() => {});
+    const openOverlay = input?.openOverlay || fx.openOverlay || (() => {});
+    const closeOverlay = input?.closeOverlay || fx.closeOverlay || (() => {});
+    const onDom = input?.onDom || fx.onDom;
+    const doc = input?.doc || window.document;
+
+    const repairModal = input?.repairModal || ui.repairModal;
+    const repairBackdrop = input?.repairBackdrop || ui.repairBackdrop;
+    const repairList = input?.repairList || ui.repairList;
+    const repairEmpty = input?.repairEmpty || ui.repairEmpty;
+    const btnRepairConfirm = input?.btnRepairConfirm || ui.btnRepairConfirm;
+    const btnRepairCancel = input?.btnRepairCancel || ui.btnRepairCancel;
+    const btnRepair = input?.btnRepair || ui.btnRepair;
+
+    const getInstanceStatus = input?.getInstanceStatus || (() => null);
+    const getBusyState = input?.getBusyState || (() => ({}));
+    const setLauncherBusy = input?.setLauncherBusy || (() => {});
+    const closeSettingsModal = input?.closeSettingsModal || (() => {});
+
+    /** 視窗開著時，等使用者選擇的 resolve；確認 ⇒ 勾選的路徑，取消 ⇒ null */
+    let pendingChoice = null;
+
+    function renderChoices(stray) {
+      const items = stray.map((rel) => {
+        const label = doc.createElement("label");
+        label.className = "repair-item";
+        const box = doc.createElement("input");
+        box.type = "checkbox";
+        box.checked = false;
+        box.value = rel;
+        const name = doc.createElement("span");
+        name.textContent = rel;
+        label.append(box, name);
+        return label;
+      });
+      repairList.replaceChildren(...items);
+      repairList.classList.toggle("hidden", items.length === 0);
+      repairEmpty.classList.toggle("hidden", items.length > 0);
+    }
+
+    function askWhichToRemove(stray) {
+      renderChoices(stray);
+      openOverlay(repairModal);
+      return new Promise((resolve) => {
+        pendingChoice = resolve;
+      });
+    }
+
+    function finishChoice(result) {
+      const resolve = pendingChoice;
+      pendingChoice = null;
+      closeOverlay(repairModal);
+      resolve?.(result);
+    }
+
+    function confirmChoice() {
+      const chosen = Array.from(repairList.children)
+        .map((label) => label.children[0])
+        .filter((box) => box.checked)
+        .map((box) => box.value);
+      finishChoice(chosen);
+    }
+
+    /** @param {{ entry: "install" | "settings" }} opts */
+    async function startRepairFlow({ entry }) {
+      if (getBusyState().launcherBusy) return;
+      setLauncherBusy(true);
+      try {
+        setStatus("檢查 mods 資料夾…", null);
+        const stray = await safeInvoke("instance:listStrayJars");
+        let strayJarsToRemove = [];
+        // 首裝而 mods 裡沒有別的檔：沒什麼可選，直接開始（Q1）
+        if (!(entry === "install" && stray.length === 0)) {
+          const chosen = await askWhichToRemove(stray);
+          if (chosen === null) return;
+          strayJarsToRemove = chosen;
+        }
+        setStatus(entry === "install" ? "開始安裝…" : "開始修復…", 0);
+        await safeInvoke("instance:repair", { strayJarsToRemove });
+      } catch (e) {
+        // main 端的錯誤一律是寫給玩家看的普通 Error：原樣顯示
+        setStatusError(String(e?.message ?? e));
+      } finally {
+        setLauncherBusy(false);
+      }
+    }
+
+    function updateRepairButton() {
+      if (!btnRepair) return;
+      const { launcherBusy, gameRunning } = getBusyState();
+      const allowed = getInstanceStatus()?.allowed?.repair === true;
+      btnRepair.disabled = !allowed || launcherBusy || gameRunning;
+    }
+
+    function init() {
+      const bind =
+        typeof onDom === "function"
+          ? onDom
+          : (target, type, handler, options) => {
+              if (!target?.addEventListener) return () => {};
+              target.addEventListener(type, handler, options);
+              return () => {
+                try {
+                  target.removeEventListener(type, handler, options);
+                } catch {}
+              };
+            };
+
+      bind(btnRepairConfirm, "click", confirmChoice);
+      bind(btnRepairCancel, "click", () => finishChoice(null));
+      bind(repairBackdrop, "click", () => finishChoice(null));
+      bind(btnRepair, "click", () => {
+        closeSettingsModal();
+        void startRepairFlow({ entry: "settings" });
+      });
+      updateRepairButton();
+    }
+
+    return { init, startRepairFlow, updateRepairButton };
+  }
+
+  window.GglRendererRepairUi = { createRepairUi };
+})();

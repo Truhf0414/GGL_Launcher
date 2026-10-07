@@ -62,6 +62,7 @@
       },
       SU: { name: "GglRendererSyncUi", requiredFns: ["createSyncUi"] },
       IU: { name: "GglRendererInstanceUi", requiredFns: ["createInstanceUi"] },
+      RU: { name: "GglRendererRepairUi", requiredFns: ["createRepairUi"] },
       ST: { name: "GglRendererStartup", requiredFns: ["createStartup"] },
     };
 
@@ -225,6 +226,8 @@
       progressRoot,
       accountName,
       instanceStatusText,
+      instanceStatusNote,
+      btnCopyErrorDetail,
       noticeTitle,
       noticeDate,
       noticeLog,
@@ -237,6 +240,13 @@
       btnSettingsClose,
       btnSaveSettings,
       btnExportDiagnostics,
+      btnRepair,
+      repairModal,
+      repairBackdrop,
+      repairList,
+      repairEmpty,
+      btnRepairConfirm,
+      btnRepairCancel,
       inputInstallDir,
       btnPickDir,
       inputOfflinePlayerId,
@@ -330,6 +340,8 @@
         progressRoot,
         accountName,
         instanceStatusText,
+        instanceStatusNote,
+        btnCopyErrorDetail,
         noticeTitle,
         noticeDate,
         noticeLog,
@@ -348,6 +360,13 @@
         btnSettingsClose,
         btnSaveSettings,
         btnExportDiagnostics,
+        btnRepair,
+        repairModal,
+        repairBackdrop,
+        repairList,
+        repairEmpty,
+        btnRepairConfirm,
+        btnRepairCancel,
         inputInstallDir,
         btnPickDir,
         inputOfflinePlayerId,
@@ -440,15 +459,8 @@
     let isInstanceReady = () => false;
     let ensureReadyStatusText = () => {};
 
-    // Launch state
-    let currentInstanceState = {
-      needsInstall: true,
-      needsUpdate: false,
-      noUpdateSource: false,
-      fetchFailed: false,
-      launchBlocked: false,
-      needsFullReinstall: false,
-    };
+    // Launch state：中樞送來的最後一筆 instance:status（還沒收到是 null）
+    let currentInstanceStatus = null;
     let launcherBusy = false;
     let gameRunning = false;
 
@@ -473,6 +485,9 @@
     const IU = getModule(MODULES.IU.name, {
       requiredFns: MODULES.IU.requiredFns,
     });
+    const RU = getModule(MODULES.RU.name, {
+      requiredFns: MODULES.RU.requiredFns,
+    });
     const ST = getModule(MODULES.ST.name, {
       requiredFns: MODULES.ST.requiredFns,
     });
@@ -494,7 +509,7 @@
         ctx,
         statusGuard,
         getBusyState: () => ({ launcherBusy, gameRunning }),
-        getInstanceState: () => currentInstanceState,
+        getInstanceStatus: () => currentInstanceStatus,
       }) || null;
     isInstanceReady = readyStatus?.isInstanceReady || (() => false);
     ensureReadyStatusText = readyStatus?.ensureReadyStatusText || (() => {});
@@ -513,11 +528,16 @@
       } catch {}
     }
 
+    // 修復流程與啟動鈕互相要用：用函式晚綁定
+    let repairUi = null;
+
     const launchUi =
       LU?.createLaunchUi?.({
         ctx,
         getAccountState: () => accountState,
-        getInstanceState: () => currentInstanceState,
+        getInstanceStatus: () => currentInstanceStatus,
+        startRepairFlow: (opts) => repairUi?.startRepairFlow?.(opts),
+        onButtonUpdated: () => repairUi?.updateRepairButton?.(),
         getBusyState: () => ({ launcherBusy, gameRunning }),
         setBusyState: (next) => {
           if (Object.prototype.hasOwnProperty.call(next, "launcherBusy"))
@@ -542,10 +562,19 @@
 
     launchUi?.init?.();
 
+    repairUi =
+      RU?.createRepairUi?.({
+        ctx,
+        getInstanceStatus: () => currentInstanceStatus,
+        getBusyState: () => ({ launcherBusy, gameRunning }),
+        setLauncherBusy,
+        closeSettingsModal: () => settingsModalUi?.close?.(),
+      }) || null;
+    repairUi?.init?.();
+
     const syncUi =
       SU?.createSyncUi?.({
         ctx,
-        setLauncherBusy,
         ensureReadyStatusText,
         statusGuard,
         getBusyState: () => ({ gameRunning }),
@@ -555,7 +584,7 @@
     const minecraftUi =
       MU?.createMinecraftUi?.({
         ctx,
-        setLauncherBusy,
+        updateLaunchButtonUi,
         ensureReadyStatusText,
         isInstanceReady,
         getBusyState: () => ({ launcherBusy, gameRunning }),
@@ -574,15 +603,8 @@
         setInstanceStatus,
         updateLaunchButtonUi,
         ensureReadyStatusText,
-        setInstanceState: (next) => {
-          currentInstanceState = {
-            needsInstall: Boolean(next?.needsInstall),
-            needsUpdate: Boolean(next?.needsUpdate),
-            noUpdateSource: Boolean(next?.noUpdateSource),
-            fetchFailed: Boolean(next?.fetchFailed),
-            launchBlocked: Boolean(next?.launchBlocked),
-            needsFullReinstall: Boolean(next?.needsFullReinstall),
-          };
+        setInstanceStatusPayload: (payload) => {
+          currentInstanceStatus = payload;
         },
       }) || null;
     instanceUi?.init?.();
@@ -605,6 +627,11 @@
         accountUi?.teardown?.();
       } catch {}
     });
+
+    // 所有 onIpc 都在上面同步掛好了：請 main 把狀態事件的最後一筆重送一次（B10）。
+    // 必須留在 start() 最後；之後若有非同步才掛的監聽，要掛在它之前。
+    safeInvokeSilent("renderer:ready");
+    updateLaunchButtonUi();
   }
 
   window.GglRendererBootstrap = { start };
