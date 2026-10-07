@@ -27,6 +27,7 @@ const expected = [
   "./renderer/sync-ui.js",
   "./renderer/server-status-ui.js",
   "./renderer/instance-ui.js",
+  "./renderer/repair-ui.js",
   "./renderer/startup.js",
   "./renderer/ready-status.js",
   "./renderer/bootstrap-ctx.js",

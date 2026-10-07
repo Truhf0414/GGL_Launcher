@@ -19,25 +19,16 @@ const {
   isExplicitNumberLike,
 } = require("./settings");
 const {
-  configureNotifications,
   readDismissedNotificationIds,
   writeDismissedNotificationIds,
-  getBroadcastNotificationsCached,
-  startNotificationsBroadcastPolling,
 } = require("./notifications");
-const {
-  configureManifestSync,
-  checkInstanceStatus,
-  checkInstanceStatusAndNotify,
-  installOrUpdateInstance,
-  readInstanceMeta,
-} = require("./manifest-sync");
-const {
-  configureNetFetch,
-  fetchJson,
-  fetchWithNiceError,
-  downloadToFile,
-} = require("./net-fetch");
+const { configureNetFetch, fetchJson } = require("./net-fetch");
+const { createInstanceSync } = require("./sync/index.js");
+const { createSiteClient } = require("./sync/site-client.js");
+const { createNoticeFeed } = require("./sync/notice-feed.js");
+const { readRecord: readSyncRecord } = require("./sync/instance-record.js");
+const { createConfirmGameClosed } = require("./game-closed-dialog");
+const { describeProgress } = require("../lib/sync/status-text.js");
 const {
   configureMinecraftBootstrap,
   ensureMinecraftAndFabricRuntime,
@@ -82,19 +73,36 @@ const isManifestUrlConfigured = () =>
   isRemoteManifestUrlConfigured(serverConfig.manifestUrl);
 
 function createMainAppReadyContext({ app, appRoot }) {
-  configureMainWindow({ appRoot });
+  // 中樞與公告模組共用一個 site-client 與同一個 serverConfig。
+  // 送畫面的函式來自之後才建的 bridge：晚綁定（bridge 的 handler 又要用中樞）。
+  let bridge = null;
+  const siteClient = createSiteClient();
+  const instanceSync = createInstanceSync({
+    readSettings,
+    isMinecraftRunning,
+    ensureBundledJava,
+    sendInstanceStatus: (status) => bridge.sendInstanceStatus(status),
+    confirmGameClosed: createConfirmGameClosed({
+      dialog: require("electron").dialog,
+      getMainWindow,
+    }),
+    launcherVersion: String(require("../package.json").version || "").trim(),
+    siteClient,
+    serverConfig,
+    // describeProgress 永不丟錯：進度回呼丟錯會打斷套用
+    onProgress: (p) => {
+      const { text, progress01 } = describeProgress(p);
+      bridge.sendSyncProgress(text, progress01);
+    },
+  });
+  const noticeFeed = createNoticeFeed({
+    siteClient,
+    serverConfig,
+    onChange: (snapshot) => bridge.sendNotice(snapshot),
+    log: (err) => appendLauncherLog("NOTICE_ERROR " + (err?.stack ?? err)),
+  });
 
-  const {
-    sendSyncStatus,
-    sendSyncProgress,
-    sendSyncDone,
-    sendMcStatus,
-    sendMcProgress,
-    sendMcRunning,
-    sendInstanceStatus,
-    sendServerStatus,
-    setupMainIpc,
-  } = createMainIpcBridge({
+  bridge = createMainIpcBridge({
     getMainWindow,
     appendLauncherLog,
     logSyncProgressThrottled,
@@ -108,28 +116,40 @@ function createMainAppReadyContext({ app, appRoot }) {
     isExplicitNumberLike,
     getSystemMemoryGb,
     getPaths,
-    checkInstanceStatus,
     ensureRuntimeAndLaunch,
     isMinecraftRunning,
-    installOrUpdateInstance,
-    checkInstanceStatusAndNotify,
-    isManifestUrlConfigured,
-    getRemoteManifestUrl,
-    fetchJson,
+    getInstanceStatus: instanceSync.getInstanceStatus,
+    updateInstance: instanceSync.updateInstance,
+    repairInstance: instanceSync.repairInstance,
+    listStrayJars: instanceSync.listStrayJars,
+    withLaunchLock: instanceSync.withLaunchLock,
+    getLockHolder: instanceSync.getLockHolder,
     exportDiagnostics: () =>
       exportDiagnostics({
         readSettings,
         getPaths,
-        readInstanceMeta,
+        readSyncRecord,
         getRemoteManifestUrl,
         isManifestUrlConfigured,
         fetchJson,
       }),
-    getBroadcastNotificationsCached,
+    getNotifications: () => noticeFeed.get().notifications,
     readDismissedNotificationIds,
     writeDismissedNotificationIds,
     serverConfig,
   });
+  const {
+    sendSyncStatus,
+    sendSyncProgress,
+    sendSyncDone,
+    sendMcStatus,
+    sendMcProgress,
+    sendMcRunning,
+    sendServerStatus,
+    sendWindowPower,
+    setupMainIpc,
+  } = bridge;
+  configureMainWindow({ appRoot, sendWindowPower });
 
   /** 回傳鍵須與 `main/app-ready.js` 的 `MAIN_APP_READY_KEYS` 一致（啟動時會先 assert）。 */
   return {
@@ -145,33 +165,24 @@ function createMainAppReadyContext({ app, appRoot }) {
     configureMicrosoftAuth,
     configureMinecraftBootstrap,
     configureMinecraftLaunch,
-    configureNotifications,
-    configureManifestSync,
     configureServerStatus,
     configureDiscordRpc,
     setupMainIpc,
     startServerStatusPolling,
-    startNotificationsBroadcastPolling,
+    startNoticeFeed: noticeFeed.start,
+    getInstanceStatus: instanceSync.getInstanceStatus,
     sendSyncStatus,
     sendMcStatus,
     sendSyncProgress,
     sendSyncDone,
     sendMcProgress,
     sendMcRunning,
-    sendInstanceStatus,
     sendServerStatus,
     getMainWindow,
     getAppIconPath,
-    fetchJson,
-    fetchWithNiceError,
-    downloadToFile,
-    getRemoteManifestUrl,
-    isManifestUrlConfigured,
     serverConfig,
     ensureMinecraftAndFabricRuntime,
     tryStartDiscordRpcHelper,
-    ensureBundledJava,
-    checkInstanceStatusAndNotify,
   };
 }
 

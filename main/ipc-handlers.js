@@ -14,7 +14,10 @@ function createMainIpcBridge(deps) {
     sendMcProgress,
     sendMcRunning,
     sendInstanceStatus,
+    sendNotice,
     sendServerStatus,
+    sendWindowPower,
+    replayLatest,
   } = createIpcBridgeSenders(deps);
 
   const showInfoDialog = createShowInfoDialog(deps.getMainWindow);
@@ -26,6 +29,7 @@ function createMainIpcBridge(deps) {
     showInfoDialog,
     sendSyncStatus,
     sendSyncDone,
+    replayLatest,
   });
 
   function setupMainIpc() {
@@ -40,7 +44,9 @@ function createMainIpcBridge(deps) {
     sendMcProgress,
     sendMcRunning,
     sendInstanceStatus,
+    sendNotice,
     sendServerStatus,
+    sendWindowPower,
     setupMainIpc,
   };
 }

@@ -17,6 +17,11 @@ const {
   UNDECRYPTABLE_ENVELOPE,
   TEMPORARILY_UNAVAILABLE_ENVELOPE,
 } = require("./helpers/fake-safe-storage.cjs");
+const { createInstanceSync, SyncStateError } = require("../main/sync/index.js");
+const { writeRecord } = require("../main/sync/instance-record.js");
+const { getPaths } = require("../lib/paths-layout.js");
+const { registerSettingsIpc } = require("../main/ipc/settings-ipc.js");
+const { normalizeSettingsObject } = require("../main/settings.js");
 
 function makeFakeIpcMain() {
   const handlers = new Map();
@@ -44,15 +49,14 @@ function baseAccount(overrides = {}) {
 }
 
 function setupIpc(depsOverrides = {}) {
-  const calls = { refresh: 0, write: [], launch: [], dialogs: [] };
+  const calls = { refresh: 0, write: [], launch: [], dialogs: [], lock: 0 };
   const deps = {
     readSettings: async () => ({}),
     getPaths: () => ({}),
-    checkInstanceStatus: async () => ({
-      launchBlocked: false,
-      needsInstall: false,
-      needsUpdate: false,
-    }),
+    withLaunchLock: async (fn) => {
+      calls.lock += 1;
+      return fn({ kind: "up-to-date" });
+    },
     readAccount: async () => baseAccount(),
     writeAccount: async (acct) => {
       calls.write.push(acct);
@@ -337,4 +341,285 @@ test("跨層：refresh token 為 null、mc token 可讀＋已過期＋換新回 
     Buffer.from(onDisk.mcAccessToken.data, "base64").toString("utf8"),
     "ENC:mc-secret",
   );
+});
+
+// ── 啟動閘（③b-2b）：plan → _notes/plans/instance-sync-v3-commit3b2b.md §測試 W15–W18 ──
+
+const LAUNCH_HANDLERS = [
+  IPC.invoke.MINECRAFT_LAUNCH,
+  IPC.invoke.MINECRAFT_LAUNCH_OFFLINE,
+];
+
+async function rejectsWith(promise, check) {
+  let caught;
+  try {
+    await promise;
+  } catch (e) {
+    caught = e;
+  }
+  assert.ok(caught, "應該要 reject");
+  check(caught);
+}
+
+test("W15 gate blocks launching ⇒ 無法啟動 dialog with the status text, no launch, plain Error", async () => {
+  const blocked = {
+    kind: "offline",
+    localReady: false,
+    ui: {
+      button: { action: "retry", label: "重試", note: null },
+      canLaunch: false,
+    },
+    allowed: { update: false, repair: false },
+    syncReasons: ["interrupted"],
+    errorTexts: ["manifest.json：連線逾時"],
+    errorDetail: null,
+    gateMessages: [],
+    localVersion: "1.0",
+    remoteVersion: "",
+  };
+  for (const channel of LAUNCH_HANDLERS) {
+    const original = new SyncStateError(
+      "GGL_SYNC_LAUNCH_BLOCKED",
+      "目前無法啟動（狀態：offline）。",
+      { status: blocked },
+    );
+    const { ipcMain, calls } = setupIpc({
+      withLaunchLock: async () => {
+        throw original;
+      },
+    });
+    await rejectsWith(ipcMain.invoke(channel), (e) => {
+      assert.equal(e.constructor, Error, channel);
+      assert.equal(e.message, original.message, channel);
+    });
+    assert.deepEqual(
+      calls.dialogs,
+      [
+        {
+          title: "無法啟動",
+          message:
+            "連不上更新伺服器，而且本機還不能啟動（上次同步沒有完成），請連上網路後重試\n" +
+            "manifest.json：連線逾時",
+        },
+      ],
+      channel,
+    );
+    assert.equal(calls.launch.length, 0, channel);
+  }
+});
+
+test("W16a GGL_SYNC_BUSY ⇒ no dialog, plain Error with the original message", async () => {
+  for (const channel of LAUNCH_HANDLERS) {
+    const original = new SyncStateError(
+      "GGL_SYNC_BUSY",
+      "更新或修復進行中，請等它完成。",
+    );
+    const { ipcMain, calls } = setupIpc({
+      withLaunchLock: async () => {
+        throw original;
+      },
+    });
+    await rejectsWith(ipcMain.invoke(channel), (e) => {
+      assert.equal(e.constructor, Error, channel);
+      assert.equal(e.message, original.message, channel);
+    });
+    assert.deepEqual(calls.dialogs, [], channel);
+  }
+});
+
+test("W16b logged-out ⇒ login dialog, launch lock never taken", async () => {
+  const { ipcMain, calls } = setupIpc({
+    readAccount: async () => baseAccount({ state: ACCOUNT_STATE.LOGGED_OUT }),
+  });
+  await assert.rejects(() => ipcMain.invoke(IPC.invoke.MINECRAFT_LAUNCH));
+  assert.deepEqual(calls.dialogs, [
+    { title: "需要登入", message: "正版啟動需要先登入 Microsoft 帳號。" },
+  ]);
+  assert.equal(calls.lock, 0);
+});
+
+test("W16c readAccount fails with a non-temporary error ⇒ rejects, launch lock never taken", async () => {
+  const { ipcMain, calls } = setupIpc({
+    readAccount: async () => {
+      throw new Error("讀帳號時的其他錯誤");
+    },
+  });
+  await rejectsWith(ipcMain.invoke(IPC.invoke.MINECRAFT_LAUNCH), (e) => {
+    assert.equal(e.message, "讀帳號時的其他錯誤");
+  });
+  assert.equal(calls.lock, 0);
+});
+
+test("W16d expired token and refresh RETRYABLE ⇒ dialog, launch lock never taken", async () => {
+  const { ipcMain, calls } = setupIpc({
+    readAccount: async () => baseAccount({ expiresAt: Date.now() - 1000 }),
+    refreshMicrosoftAndMinecraftTokens: async () => ({
+      outcome: REFRESH_OUTCOME.RETRYABLE,
+      detail: "HTTP 503",
+    }),
+  });
+  await assert.rejects(() => ipcMain.invoke(IPC.invoke.MINECRAFT_LAUNCH));
+  assert.equal(calls.dialogs.length, 1);
+  assert.equal(calls.lock, 0);
+});
+
+test("W16e game already running ⇒ both handlers refuse inside the lock; not running ⇒ launches", async () => {
+  for (const channel of LAUNCH_HANDLERS) {
+    const { ipcMain, calls } = setupIpc({ isMinecraftRunning: () => true });
+    await rejectsWith(ipcMain.invoke(channel), (e) => {
+      assert.equal(e.constructor, Error, channel);
+      assert.equal(e.message, "遊戲已在執行中", channel);
+    });
+    assert.equal(calls.launch.length, 0, channel);
+  }
+  for (const channel of LAUNCH_HANDLERS) {
+    const { ipcMain, calls } = setupIpc({ isMinecraftRunning: () => false });
+    await ipcMain.invoke(channel);
+    assert.equal(calls.launch.length, 1, channel);
+  }
+});
+
+// 接真的中樞：假站台只回物件（中樞的狀態只看記錄、標記、Java 與三支 json，不比對檔案）
+const HUB_RELEASE = {
+  version: "1.0",
+  publishedAt: "2026-10-06T00:00:00.000Z",
+  minecraft: "1.21.11",
+  loader: { type: "fabric", version: "0.19.3" },
+  playerEditable: [],
+  files: [{ path: "mods/a.jar", sha256: "a".repeat(64), size: 1 }],
+};
+
+async function setupRealHub(t, ipcDepsOverrides = {}) {
+  const root = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-launch-hub-"));
+  t.after(() => fsp.rm(root, { recursive: true, force: true }));
+  const settings = normalizeSettingsObject({ launcherRootDir: root });
+  const paths = getPaths(settings);
+  await writeRecord(paths, {
+    format: 3,
+    version: HUB_RELEASE.version,
+    appliedAt: "2026-10-01T00:00:00.000Z",
+    files: HUB_RELEASE.files.map((f) => ({ path: f.path, sha256: f.sha256 })),
+  });
+  const site = { online: true };
+  const sync = createInstanceSync({
+    readSettings: async () => settings,
+    isMinecraftRunning: () => false,
+    ensureBundledJava: async () => {},
+    sendInstanceStatus: () => {},
+    confirmGameClosed: async () => false,
+    launcherVersion: "1.0.0",
+    serverConfig: {
+      manifestUrl: "https://ggl.test/manifest.json",
+      protectedPaths: [],
+    },
+    siteClient: {
+      fetchIndex: async () =>
+        site.online
+          ? { side: "ok", value: { format: 3 } }
+          : { side: "unreachable", reason: "network", detail: "連不上" },
+      fetchSite: async () => ({
+        gate: { side: "ok", value: {} },
+        release: { side: "ok", value: HUB_RELEASE },
+      }),
+    },
+    hasBundledJava: async () => true,
+  });
+  const ipc = setupIpc({
+    readSettings: async () => settings,
+    getPaths,
+    withLaunchLock: sync.withLaunchLock,
+    ...ipcDepsOverrides,
+  });
+  return { sync, site, settings, paths, ...ipc };
+}
+
+async function assertLockReleased(sync) {
+  assert.equal(sync.getLockHolder(), null);
+  let code = null;
+  try {
+    await sync.updateInstance();
+  } catch (e) {
+    code = e?.code;
+  }
+  assert.notEqual(code, "GGL_SYNC_BUSY");
+}
+
+test("W17 real hub: launch failure and gate refusal both release the lock", async (t) => {
+  // (甲) 閘放行、啟動本身丟錯
+  {
+    let launches = 0;
+    const h = await setupRealHub(t, {
+      ensureRuntimeAndLaunch: async () => {
+        launches++;
+        throw new Error("boom launch");
+      },
+    });
+    assert.equal((await h.sync.getInstanceStatus()).kind, "up-to-date");
+    await rejectsWith(
+      h.ipcMain.invoke(IPC.invoke.MINECRAFT_LAUNCH_OFFLINE),
+      (e) => assert.equal(e.message, "boom launch"),
+    );
+    assert.equal(launches, 1);
+    await assertLockReleased(h.sync);
+  }
+  // (乙) 離線＋沒有記錄 ⇒ 閘不放行
+  {
+    let launches = 0;
+    const h = await setupRealHub(t, {
+      ensureRuntimeAndLaunch: async () => {
+        launches++;
+      },
+    });
+    h.site.online = false;
+    await fsp.rm(h.paths.syncRecordPath);
+    await rejectsWith(
+      h.ipcMain.invoke(IPC.invoke.MINECRAFT_LAUNCH_OFFLINE),
+      (e) => assert.equal(e.message, "目前無法啟動（狀態：offline）。"),
+    );
+    assert.equal(launches, 0);
+    await assertLockReleased(h.sync);
+  }
+});
+
+test("W18 real hub: while launching the lock is held and changing the root dir is refused", async (t) => {
+  let entered;
+  const enteredP = new Promise((r) => (entered = r));
+  let finishLaunch = () => {};
+  t.after(() => finishLaunch());
+  const h = await setupRealHub(t, {
+    ensureRuntimeAndLaunch: () => {
+      entered();
+      return new Promise((r) => (finishLaunch = r));
+    },
+  });
+  const launching = h.ipcMain.invoke(IPC.invoke.MINECRAFT_LAUNCH_OFFLINE);
+  await enteredP;
+  await new Promise((r) => setImmediate(r));
+  assert.equal(h.sync.getLockHolder(), "launch");
+
+  const handlers = new Map();
+  let writes = 0;
+  registerSettingsIpc({
+    ipcMain: { handle: (ch, fn) => handlers.set(ch, fn) },
+    deps: {
+      readSettings: async () => h.settings,
+      normalizeSettingsObject,
+      getLockHolder: h.sync.getLockHolder,
+      writeSettings: async () => {
+        writes++;
+      },
+    },
+  });
+  await rejectsWith(
+    handlers.get(IPC.invoke.SETTINGS_SET)(
+      { sender: {} },
+      { launcherRootDir: path.join(h.settings.launcherRootDir, "other") },
+    ),
+    (e) => assert.equal(e.message, "同步或啟動進行中，請稍後再改"),
+  );
+  assert.equal(writes, 0);
+
+  finishLaunch();
+  await launching;
+  assert.equal(h.sync.getLockHolder(), null);
 });

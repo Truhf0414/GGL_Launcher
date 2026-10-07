@@ -11,11 +11,18 @@ let appIconPath = "";
 /** @type {import("electron").BrowserWindow | null} */
 let mainWindow = null;
 
+/** @type {(minimized: boolean) => void} 由 ipc-bridge 送出並記住（renderer:ready 時重送） */
+let sendWindowPower = () => {};
+
 /**
- * 必須在 `createMainIpcBridge` / `createMainWindow` 之前呼叫一次，讓 `getAppIconPath()` 與
+ * 必須在 `createMainWindow` 之前呼叫一次，讓 `getAppIconPath()` 與
  * `preload` / `index.html` 路徑以啟動入口目錄為準（`main.js` 傳 `__dirname`）。
+ * `sendWindowPower` 來自 `createMainIpcBridge`，所以要在它之後呼叫。
  */
 function configureMainWindow(deps = {}) {
+  if (typeof deps.sendWindowPower === "function") {
+    sendWindowPower = deps.sendWindowPower;
+  }
   const root =
     typeof deps.appRoot === "string" && deps.appRoot.trim()
       ? path.resolve(deps.appRoot.trim())
@@ -72,12 +79,13 @@ function createMainWindow() {
   // 平常不掛，避免噪音與 deprecated 警告
   if (getDebugLoggingEnabled()) {
     try {
-      // Electron 新版事件會以單一 params 物件傳入
-      mainWindow.webContents.on("console-message", (_e, params) => {
-        const lvl = Number(params?.level ?? 0);
-        const message = String(params?.message ?? "");
-        const line = Number(params?.lineNumber ?? 0);
-        const sourceId = String(params?.sourceId ?? "");
+      // 欄位掛在第一個參數（事件本身）上；level 是 info／warning／error／debug 字串
+      // 〔electron.d.ts WebContentsConsoleMessageEventParams〕。讀第二個參數會拿到舊式的數字，訊息全空
+      mainWindow.webContents.on("console-message", (details) => {
+        const lvl = String(details?.level ?? "");
+        const message = String(details?.message ?? "");
+        const line = Number(details?.lineNumber ?? 0);
+        const sourceId = String(details?.sourceId ?? "");
         console.log(`[RENDERER:${lvl}] ${message} (${sourceId}:${line})`);
       });
       mainWindow.webContents.on("render-process-gone", (_e, details) => {
@@ -108,11 +116,7 @@ function createMainWindow() {
   });
 
   function sendWindowPowerState() {
-    try {
-      mainWindow?.webContents?.send("window:power", {
-        minimized: Boolean(mainWindow?.isMinimized?.()),
-      });
-    } catch {}
+    sendWindowPower(Boolean(mainWindow?.isMinimized?.()));
   }
 
   // Renderer can pause background video more accurately with window state.
@@ -122,8 +126,6 @@ function createMainWindow() {
   mainWindow.on("hide", sendWindowPowerState);
   mainWindow.on("focus", sendWindowPowerState);
   mainWindow.on("blur", sendWindowPowerState);
-  // initial
-  mainWindow.webContents.on("did-finish-load", sendWindowPowerState);
 }
 
 module.exports = {

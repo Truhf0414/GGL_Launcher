@@ -39,7 +39,7 @@ async function safeCopyFile(src, dest) {
  * @param {{
  *  readSettings: () => Promise<any>;
  *  getPaths: (settings:any) => any;
- *  readInstanceMeta: (settings:any) => Promise<any>;
+ *  readSyncRecord: (paths:any) => Promise<any>;
  *  getRemoteManifestUrl: () => string;
  *  isManifestUrlConfigured: () => boolean;
  *  fetchJson: (url:string) => Promise<any>;
@@ -51,7 +51,17 @@ async function exportDiagnostics(deps) {
 
   const settings = await deps.readSettings();
   const paths = deps.getPaths(settings);
-  const instanceMeta = await deps.readInstanceMeta(settings);
+  // 讀不到記錄也要把診斷匯出來：錯誤訊息放進報告
+  const syncRecord = { version: "", fileCount: null, readError: "" };
+  try {
+    const record = await deps.readSyncRecord(paths);
+    syncRecord.version = String(record?.version || "");
+    syncRecord.fileCount = Array.isArray(record?.files)
+      ? record.files.length
+      : null;
+  } catch (e) {
+    syncRecord.readError = String(e?.message ?? e);
+  }
 
   let indexManifest = null;
   let indexFetchError = "";
@@ -76,16 +86,14 @@ async function exportDiagnostics(deps) {
     paths: {
       launcherRootDir: String(settings?.launcherRootDir || ""),
       gameDir: String(paths?.gameDir || ""),
-      instanceMetaPath: String(paths?.instanceMetaPath || ""),
+      syncRecordPath: String(paths?.syncRecordPath || ""),
       tempDir: String(paths?.tempDir || ""),
     },
-    instance: {
-      localVersion: String(instanceMeta?.localVersion || ""),
-      localContentSequence: instanceMeta?.localContentSequence,
-      launchVersionId: String(instanceMeta?.launchVersionId || ""),
-    },
+    syncRecord,
     remote: {
-      manifestUrl: deps.isManifestUrlConfigured() ? deps.getRemoteManifestUrl() : "",
+      manifestUrl: deps.isManifestUrlConfigured()
+        ? deps.getRemoteManifestUrl()
+        : "",
       indexFetchError,
       indexManifest,
     },
@@ -98,8 +106,11 @@ async function exportDiagnostics(deps) {
   );
 
   // Snapshot a few local files (best-effort)
-  if (paths?.instanceMetaPath) {
-    await safeCopyFile(paths.instanceMetaPath, path.join(outDir, "instance.json"));
+  if (paths?.syncRecordPath) {
+    await safeCopyFile(
+      paths.syncRecordPath,
+      path.join(outDir, "sync-record.json"),
+    );
   }
 
   // settings.json lives under userData
@@ -122,4 +133,3 @@ async function exportDiagnostics(deps) {
 }
 
 module.exports = { exportDiagnostics };
-

@@ -230,6 +230,18 @@
               >
                 正在檢查實例版本…
               </div>
+              <div
+                id="instanceStatusNote"
+                class="instance-status instance-status__note hidden"
+              ></div>
+              <!-- 文字須與 lib/sync/status-text.js 的 COPY_ERROR_DETAIL_LABEL 一致 -->
+              <button
+                id="btnCopyErrorDetail"
+                class="instance-status__copy hidden"
+                type="button"
+              >
+                複製錯誤詳情
+              </button>
             </div>
           </div>
         </section>
@@ -413,12 +425,59 @@
             <button id="btnExportDiagnostics" class="ctl" type="button">
               <span class="btn-label">匯出診斷報告</span>
             </button>
+            <button id="btnRepair" class="ctl" type="button">
+              <span class="btn-label">檢查並修復檔案</span>
+            </button>
             <button
               id="btnSaveSettings"
               class="primary ctl ctl--primary"
               type="button"
             >
               <span class="btn-label btn-label--save">儲存</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 修復視窗（設定的「檢查並修復檔案」與首裝時 mods 裡有其他檔案時開啟） -->
+    <div
+      id="repairModal"
+      class="modal hidden no-drag"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="repairTitle"
+    >
+      <div class="modal-backdrop" id="repairBackdrop"></div>
+      <div class="modal-panel" tabindex="-1">
+        <div class="modal-header">
+          <div class="modal-title" id="repairTitle">檢查並修復檔案</div>
+        </div>
+
+        <div class="modal-body">
+          <div class="hint">
+            會把遊戲檔案換回伺服器上的版本；你可以自己改的設定不會動。
+          </div>
+          <div class="hint">
+            mods
+            資料夾裡不在伺服器清單上的檔案會列在下面：勾選的會被刪除，沒勾的保留。
+          </div>
+          <div id="repairEmpty" class="hint hidden">
+            mods 資料夾裡沒有這類檔案。
+          </div>
+          <div id="repairList" class="repair-list hidden"></div>
+
+          <div class="modal-actions">
+            <button id="btnRepairCancel" class="ctl" type="button">
+              <span class="btn-label">取消</span>
+            </button>
+            <button
+              id="btnRepairConfirm"
+              class="primary ctl ctl--primary"
+              type="button"
+            >
+              <span class="btn-label">繼續</span>
             </button>
           </div>
         </div>
@@ -500,6 +559,7 @@
     <script src="./renderer/sync-ui.js"></script>
     <script src="./renderer/server-status-ui.js"></script>
     <script src="./renderer/instance-ui.js"></script>
+    <script src="./renderer/repair-ui.js"></script>
     <script src="./renderer/startup.js"></script>
     <script src="./renderer/ready-status.js"></script>
 

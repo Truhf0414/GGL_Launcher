@@ -9,7 +9,8 @@
     const onIpc = input?.onIpc || fx.onIpc;
     const trackInterval =
       input?.trackInterval || fx.trackInterval || ((x) => x);
-    const setLauncherBusy = input?.setLauncherBusy || (() => {});
+    // 遊戲期間的按鈕由 gameRunning 管，不寫 busy（B17）
+    const updateLaunchButtonUi = input?.updateLaunchButtonUi || (() => {});
     const setStatus = input?.setStatus || fx.setStatus || (() => {});
     const ensureReadyStatusText = input?.ensureReadyStatusText || (() => {});
     const isInstanceReady = input?.isInstanceReady || (() => false);
@@ -41,7 +42,8 @@
             const isRunning = await safeInvoke("minecraft:isRunning");
             if (!isRunning) {
               setBusyState({ gameRunning: false });
-              setLauncherBusy(false);
+              updateLaunchButtonUi();
+              ensureReadyStatusText();
               stopMcWatchdog();
             }
           } catch {
@@ -55,37 +57,32 @@
       onIpc("minecraft:status", (payload) => {
         const text = String(payload?.text ?? "").trim();
         const looksEnded = /已(?:結束|退出|關閉)/.test(text);
-        const looksLaunching = /(正在|啟動|準備)/.test(text);
 
         if (looksEnded) {
-          setLauncherBusy(false);
           if (!isInstanceReady()) setStatus(text || "遊戲已結束");
           return;
         }
 
         const { gameRunning } = getBusyState();
         if (gameRunning) return;
-        if (looksLaunching) setLauncherBusy(true);
         setStatus(text || "啟動中…");
       });
 
       onIpc("minecraft:progress", (payload) => {
         const { gameRunning } = getBusyState();
         if (gameRunning) return;
-        setLauncherBusy(true);
         setStatus(payload?.text ?? "準備中…", payload?.progress01 ?? 0);
       });
 
       onIpc("minecraft:running", (payload) => {
         const running = Boolean(payload?.isRunning);
         setBusyState({ gameRunning: running });
+        updateLaunchButtonUi();
         if (running) {
-          setLauncherBusy(true);
           setStatus("", null);
           setStatusVisibility(false);
           startMcWatchdog();
         } else {
-          setLauncherBusy(false);
           stopMcWatchdog();
           ensureReadyStatusText();
         }

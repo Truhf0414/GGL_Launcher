@@ -6,7 +6,6 @@ const { spawn } = require("child_process");
 const { dialog } = require("electron");
 const {
   ensureWritableTree,
-  readInstanceMeta,
   detectLaunchVersionId,
 } = require("./manifest-sync");
 const {
@@ -37,9 +36,6 @@ function sendMcStatus(text) {
 function sendMcRunning(isRunning) {
   launchDeps.sendMcRunning(isRunning);
 }
-
-/** 避免連點 / 雙 IPC 同時跑完整「bootstrap + launch」 */
-let launchBusy = false;
 
 async function showMcDialog(opts) {
   const win = launchDeps.getMainWindow?.();
@@ -102,30 +98,23 @@ function cleanupStaleMcProcessIfNeeded() {
   return false;
 }
 
+// 連點／兩個 IPC 同時啟動由呼叫端的啟動鎖擋（main/sync 的 withLaunchLock）
 async function ensureRuntimeAndLaunch({ settings, paths, auth }) {
-  if (launchBusy) {
-    throw new Error("啟動流程進行中，請稍候再試。");
-  }
-  launchBusy = true;
-  try {
-    await launchDeps.ensureMinecraftAndFabricRuntime({
-      gameDir: paths.gameDir,
-      mcVersion: settings.minecraftVersion,
-      loaderVersion: launchDeps.fabricLoaderVersion,
-      jdkDir: paths.jdkDir,
-    });
+  await launchDeps.ensureMinecraftAndFabricRuntime({
+    gameDir: paths.gameDir,
+    mcVersion: settings.minecraftVersion,
+    loaderVersion: launchDeps.fabricLoaderVersion,
+    jdkDir: paths.jdkDir,
+  });
 
-    await launchMinecraftFabric1211({
-      settings,
-      gameDir: paths.gameDir,
-      memoryGb: settings.memoryGb,
-      auth,
-      minecraftVersion: settings.minecraftVersion,
-      jdkDir: paths.jdkDir,
-    });
-  } finally {
-    launchBusy = false;
-  }
+  await launchMinecraftFabric1211({
+    settings,
+    gameDir: paths.gameDir,
+    memoryGb: settings.memoryGb,
+    auth,
+    minecraftVersion: settings.minecraftVersion,
+    jdkDir: paths.jdkDir,
+  });
 }
 
 function mbFromGb(gb) {
@@ -180,16 +169,15 @@ async function launchMinecraftFabric1211({
       type: "warning",
       title: "找不到 Java",
       message:
-        "找不到內建 Java。請先按『安裝/更新』讓啟動器自動安裝 Java 依賴。",
+        "找不到內建 Java。請到設定按『檢查並修復檔案』讓啟動器重新安裝 Java。",
     });
     throw new Error("找不到 Java。");
   }
 
-  const meta = await readInstanceMeta(settings);
-  let launchVersionId = String(meta.launchVersionId || "").trim();
-  if (!launchVersionId) {
-    launchVersionId = await detectLaunchVersionId(gameDir, minecraftVersion);
-  }
+  const launchVersionId = await detectLaunchVersionId(
+    gameDir,
+    minecraftVersion,
+  );
 
   if (!launchVersionId) {
     await showMcDialog({
@@ -197,7 +185,7 @@ async function launchMinecraftFabric1211({
       title: "找不到可啟動版本",
       message:
         "在實例資料夾中找不到可啟動的版本檔（versions/*/*.json）。\n\n" +
-        "請確認你的 instance.zip 內包含完整的 .minecraft 結構（至少要有 versions/ 與對應的 libraries/）。",
+        "請到設定按『檢查並修復檔案』；仍不行請匯出診斷回報。",
     });
     throw new Error("找不到可啟動版本。");
   }

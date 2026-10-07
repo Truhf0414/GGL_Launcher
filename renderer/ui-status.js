@@ -175,6 +175,8 @@
     }
 
     setStatusStacked(statusText, primary, secondary);
+    // 畫面上會被 … 截斷：滑鼠移上去看全文（R3 的檔名與原因）
+    if (statusText) statusText.title = s;
     // 有些狀態來源可能會讓 primary 為空但 secondary 有值；
     // 可見性判斷必須包含兩行，避免 UI 看起來「卡住不更新」。
     const visibleText = [primary, secondary].filter(Boolean).join(" ").trim();

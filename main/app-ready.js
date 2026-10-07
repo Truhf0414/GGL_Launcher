@@ -1,5 +1,5 @@
 /**
- * `app.whenReady` 本體：設定檔、主視窗、各子模組 `configure*`、IPC、輪詢與延遲版本檢查。
+ * `app.whenReady` 本體：設定檔、主視窗、各子模組 `configure*`、IPC、輪詢與第一次狀態檢查。
  * 依賴全部由 `main.js` 注入，避免此檔與其它 main 模組形成難控的 require 順序／循環。
  *
  * @param {object} ctx
@@ -21,33 +21,24 @@ const MAIN_APP_READY_KEYS = [
   "configureMicrosoftAuth",
   "configureMinecraftBootstrap",
   "configureMinecraftLaunch",
-  "configureNotifications",
-  "configureManifestSync",
   "configureServerStatus",
   "configureDiscordRpc",
   "setupMainIpc",
   "startServerStatusPolling",
-  "startNotificationsBroadcastPolling",
+  "startNoticeFeed",
+  "getInstanceStatus",
   "sendSyncStatus",
   "sendMcStatus",
   "sendSyncProgress",
   "sendSyncDone",
   "sendMcProgress",
   "sendMcRunning",
-  "sendInstanceStatus",
   "sendServerStatus",
   "getMainWindow",
   "getAppIconPath",
-  "fetchJson",
-  "fetchWithNiceError",
-  "downloadToFile",
-  "getRemoteManifestUrl",
-  "isManifestUrlConfigured",
   "serverConfig",
   "ensureMinecraftAndFabricRuntime",
   "tryStartDiscordRpcHelper",
-  "ensureBundledJava",
-  "checkInstanceStatusAndNotify",
 ];
 
 /** 其餘欄位必須為 function（Electron `app` 與 `serverConfig` 為 object）。 */
@@ -102,33 +93,24 @@ async function runMainAppReady(ctx) {
     configureMicrosoftAuth,
     configureMinecraftBootstrap,
     configureMinecraftLaunch,
-    configureNotifications,
-    configureManifestSync,
     configureServerStatus,
     configureDiscordRpc,
     setupMainIpc,
     startServerStatusPolling,
-    startNotificationsBroadcastPolling,
+    startNoticeFeed,
+    getInstanceStatus,
     sendSyncStatus,
     sendMcStatus,
     sendSyncProgress,
     sendSyncDone,
     sendMcProgress,
     sendMcRunning,
-    sendInstanceStatus,
     sendServerStatus,
     getMainWindow,
     getAppIconPath,
-    fetchJson,
-    fetchWithNiceError,
-    downloadToFile,
-    getRemoteManifestUrl,
-    isManifestUrlConfigured,
     serverConfig,
     ensureMinecraftAndFabricRuntime,
     tryStartDiscordRpcHelper,
-    ensureBundledJava,
-    checkInstanceStatusAndNotify,
   } = ctx;
 
   const safeSendSyncStatus = (text) => {
@@ -184,30 +166,6 @@ async function runMainAppReady(ctx) {
     fabricLoaderVersion: serverConfig.legacy.fabricLoaderVersion,
     ensureMinecraftAndFabricRuntime,
   });
-  configureNotifications({
-    getMainWindow,
-    fetchJson,
-    getRemoteManifestUrl,
-    isManifestUrlConfigured,
-  });
-  configureManifestSync({
-    getRemoteManifestUrl,
-    isManifestUrlConfigured,
-    fetchJson,
-    fetchWithNiceError,
-    downloadToFile,
-    sendSyncStatus,
-    sendSyncProgress,
-    sendSyncDone,
-    sendInstanceStatus,
-    ensureBundledJava,
-    isJavaGameProcessRunningForSync: () => {
-      const { isBlockingJavaProcessForSync } = require("./minecraft-jvm-block");
-      return isBlockingJavaProcessForSync();
-    },
-    getLauncherVersionString: () =>
-      String(require("../package.json").version || "").trim(),
-  });
   configureServerStatus({
     sendServerStatus,
     serverStatusHost: serverConfig.serverStatus.host,
@@ -217,29 +175,13 @@ async function runMainAppReady(ctx) {
   configureDiscordRpc({ getMainWindow, discord: serverConfig.discord });
   setupMainIpc();
   startServerStatusPolling();
-  startNotificationsBroadcastPolling();
+  startNoticeFeed();
   gglEvent("main", "app_ready_wired", { ipc: true });
 
-  // 啟動時：只做「版本檢查」，不自動下載
+  // 啟動時：只檢查狀態，不自動下載。中樞的計算不會 reject（出錯會送 internal-error）；
+  // 畫面若還沒在聽，renderer:ready 時會重送
   setTimeout(() => {
-    checkInstanceStatusAndNotify().catch((e) => {
-      const msg = String(e?.message ?? e);
-      sendSyncStatus(`版本檢查失敗：${msg}`);
-      try {
-        sendSyncDone("版本檢查失敗");
-      } catch {}
-      sendInstanceStatus({
-        state: "error",
-        fetchFailed: true,
-        needsInstall: true,
-        needsUpdate: false,
-        noUpdateSource: false,
-        localVersion: "",
-        remoteVersion: "",
-        notice: null,
-        text: "版本檢查失敗（可按「重試連線」再試）",
-      });
-    });
+    void getInstanceStatus();
   }, 350);
 }
 

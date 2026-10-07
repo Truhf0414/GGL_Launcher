@@ -5,25 +5,56 @@ const {
   CredentialsTemporarilyUnavailableError,
   isRefreshDue,
 } = require("../../lib/account-secret");
+const { describeStatus } = require("../../lib/sync/status-text.js");
 
 function registerMinecraftIpc(ctx) {
   const { ipcMain, deps, showInfoDialog } = ctx || {};
-  async function requireUpToDateInstanceOrThrow(settings) {
-    const status = await deps.checkInstanceStatus(settings);
-    if (status.launchBlocked) {
-      const msg =
-        typeof status.text === "string" && status.text.trim()
-          ? status.text.trim()
-          : "目前無法啟動（伺服器維護或啟動器版本不符等）。請稍後再試。";
-      await showInfoDialog("無法啟動", msg);
-      throw new Error(msg);
+
+  // Electron 跨 IPC 只帶得過 message，自訂類別的名稱還會黏在畫面上：一律換成普通 Error、訊息照原文
+  async function withPlainErrors(fn) {
+    try {
+      return await fn();
+    } catch (e) {
+      throw new Error(String(e?.message ?? e), { cause: e });
     }
-    if (!status.needsInstall && !status.needsUpdate) return status;
-    await showInfoDialog(
-      "需要安裝/更新",
-      "偵測到尚未安裝或有更新，請先點擊『安裝/更新』完成同步後再啟動。",
-    );
-    throw new Error("需要安裝/更新。");
+  }
+
+  async function explainLaunchBlocked(status) {
+    let text;
+    try {
+      const { headline, details } = describeStatus(status);
+      text = [headline, ...details].join("\n");
+    } catch {
+      text = `目前無法啟動（狀態：${status?.kind}）。`;
+    }
+    await showInfoDialog("無法啟動", text);
+  }
+
+  /**
+   * 鎖只包跟檔案有關的那段：閘（中樞在鎖內當場算）、讀設定、備妥 runtime 並啟動。
+   * 帳號的讀取與換新由呼叫端在鎖外先做完，對微軟的網路請求不必在鎖裡等。
+   */
+  async function launchThroughGate(authOf) {
+    try {
+      await deps.withLaunchLock(async () => {
+        // 成功啟動時「遊戲執行中」事件與 handler 回覆到畫面的先後沒有保證，連按兩次在這裡擋
+        if (await deps.isMinecraftRunning()) {
+          throw new Error("遊戲已在執行中");
+        }
+        const settings = await deps.readSettings();
+        const paths = deps.getPaths(settings);
+        await deps.ensureRuntimeAndLaunch({
+          settings,
+          paths,
+          auth: authOf(settings),
+        });
+      });
+    } catch (e) {
+      if (e?.code === "GGL_SYNC_LAUNCH_BLOCKED") {
+        await explainLaunchBlocked(e.status);
+      }
+      throw e;
+    }
   }
 
   /** 只接 token 暫時不可用：顯示稍後再試後 reject；其他錯誤照舊往外丟。 */
@@ -77,36 +108,25 @@ function registerMinecraftIpc(ctx) {
     throw new Error(msg);
   }
 
-  ipcMain.handle(IPC.invoke.MINECRAFT_LAUNCH, async () => {
-    const settings = await deps.readSettings();
-    const paths = deps.getPaths(settings);
-    await requireUpToDateInstanceOrThrow(settings);
+  ipcMain.handle(IPC.invoke.MINECRAFT_LAUNCH, () =>
+    withPlainErrors(async () => {
+      let acct = await readAccountOrThrow();
+      await requireLoggedInOrThrow(acct);
+      acct = await ensureActiveAccountOrThrow(acct);
 
-    let acct = await readAccountOrThrow();
-    await requireLoggedInOrThrow(acct);
-    acct = await ensureActiveAccountOrThrow(acct);
-
-    await deps.ensureRuntimeAndLaunch({
-      settings,
-      paths,
-      auth: {
+      await launchThroughGate(() => ({
         name: acct.name,
         uuid: acct.uuid,
         accessToken: acct.mcAccessToken,
-      },
-    });
-  });
+      }));
+    }),
+  );
 
-  ipcMain.handle(IPC.invoke.MINECRAFT_LAUNCH_OFFLINE, async () => {
-    const settings = await deps.readSettings();
-    const paths = deps.getPaths(settings);
-    await requireUpToDateInstanceOrThrow(settings);
-    await deps.ensureRuntimeAndLaunch({
-      settings,
-      paths,
-      auth: { name: settings.playerId },
-    });
-  });
+  ipcMain.handle(IPC.invoke.MINECRAFT_LAUNCH_OFFLINE, () =>
+    withPlainErrors(() =>
+      launchThroughGate((settings) => ({ name: settings.playerId })),
+    ),
+  );
 
   ipcMain.handle(IPC.invoke.MINECRAFT_IS_RUNNING, async () =>
     deps.isMinecraftRunning(),

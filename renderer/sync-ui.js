@@ -11,7 +11,6 @@
     const setStatusVisibility =
       input?.setStatusVisibility || fx.setStatusVisibility || (() => {});
 
-    const setLauncherBusy = input?.setLauncherBusy || (() => {});
     const ensureReadyStatusText = input?.ensureReadyStatusText || (() => {});
     const statusGuard = input?.statusGuard || {
       isErrorGuardActive: () => false,
@@ -47,11 +46,12 @@
         setStatus(payload?.text ?? "...");
       });
 
+      // busy 由送出請求的那一方管（launch-ui／repair-ui），這裡只顯示。
+      // progress01 為 null ⇒ setStatus 不動進度條（下載途中的 verify）
       onIpc("sync:progress", (payload) => {
-        setLauncherBusy(true);
         if (statusGuard.isErrorGuardActive()) return;
         statusGuard.resetToNormal();
-        setStatus(payload?.text ?? "同步中…", payload?.progress01 ?? 0);
+        setStatus(payload?.text ?? "同步中…", payload?.progress01);
       });
 
       onIpc("sync:done", (payload) => {
@@ -64,7 +64,6 @@
             ensureReadyStatusText();
           }, 900),
         );
-        trackTimeout(setTimeout(() => setLauncherBusy(false), 950));
       });
 
       onIpc("rpc:notice", (payload) => {

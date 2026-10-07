@@ -11,6 +11,7 @@ function createIpcRuntime({
   showInfoDialog,
   sendSyncStatus,
   sendSyncDone,
+  replayLatest,
 }) {
   let registered = false;
 
@@ -26,6 +27,7 @@ function createIpcRuntime({
       showInfoDialog,
       sendSyncStatus,
       sendSyncDone,
+      replayLatest,
       shell,
       dialog,
     });
@@ -35,4 +37,3 @@ function createIpcRuntime({
 }
 
 module.exports = { createIpcRuntime };
-

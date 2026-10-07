@@ -5,7 +5,7 @@ function registerNotificationsIpc(ctx) {
   ipcMain.handle(IPC.invoke.NOTIFICATIONS_GET, async (_e, opts) => {
     const lastSeenKey =
       opts && typeof opts === "object" ? String(opts.lastSeenKey || "") : "";
-    const broadcast = await deps.getBroadcastNotificationsCached();
+    const broadcast = deps.getNotifications();
     if (broadcast.length === 0) return { items: [], unreadCount: 0 };
     const dismissed = await deps.readDismissedNotificationIds();
     const items = broadcast
@@ -32,7 +32,7 @@ function registerNotificationsIpc(ctx) {
   });
 
   ipcMain.handle(IPC.invoke.NOTIFICATIONS_CLEAR, async () => {
-    const broadcast = await deps.getBroadcastNotificationsCached();
+    const broadcast = deps.getNotifications();
     if (broadcast.length === 0) return true;
     const dismissed = await deps.readDismissedNotificationIds();
     for (const n of broadcast) dismissed.add(String(n.id || ""));
@@ -42,4 +42,3 @@ function registerNotificationsIpc(ctx) {
 }
 
 module.exports = { registerNotificationsIpc };
-

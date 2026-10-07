@@ -34,19 +34,21 @@ This project uses a plain `<script>`-based renderer (no bundler). Most renderer 
 - `renderer/account-ui.js`
   - avatar loading + account menu + login/logout UX
 - `renderer/launch-ui.js`
-  - launch button state machine + install/update/launch actions
+  - launch button: label/enabled from `instance:status` `ui.button`; launch/update/retry actions own busy, install hands off to `repair-ui`
+- `renderer/repair-ui.js`
+  - install/repair flow: list stray jars → choose → `instance:repair`; sole busy owner of that flow
 - `renderer/minecraft-ui.js`
   - `minecraft:*` IPC handlers + watchdog polling
 - `renderer/sync-ui.js`
-  - `sync:*` IPC handlers + transient notices
+  - `sync:*` IPC handlers + transient notices (display only; `progress01: null` keeps the bar)
 - `renderer/server-status-ui.js`
   - server status dot/text updates
 - `renderer/instance-ui.js`
-  - `instance:status` handling + notice/changelog rendering
+  - `instance:status` handling (status text from main) + `notice:changed` notice/changelog rendering
 - `renderer/startup.js`
   - startup wiring: initial status text + account preload + notif hooks
 - `renderer/ready-status.js`
-  - shared “ready status” policy used by multiple modules
+  - shared “ready status” policy: launchable ⇒ “準備就緒”, otherwise clear the line
 
 ## Guardrails / “too far” line
 
