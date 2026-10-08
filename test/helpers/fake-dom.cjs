@@ -13,7 +13,11 @@ function makeEl(tag = "div") {
     type: "",
     value: "",
     title: "",
-    style: {},
+    style: {
+      setProperty(name, value) {
+        this[name] = String(value);
+      },
+    },
     dataset: {},
     attrs: {},
     children: [],
@@ -57,7 +61,10 @@ function makeEl(tag = "div") {
   return el;
 }
 
-const fakeDocument = { createElement: (tag) => makeEl(tag) };
+const fakeDocument = {
+  createElement: (tag) => makeEl(tag),
+  documentElement: makeEl("html"),
+};
 
 /** 每個測試重新載入：IIFE 掛在 window 上，require 快取要清掉 */
 function loadRendererModule(relPath, windowProps = {}) {
