@@ -4,7 +4,7 @@ const fsp = require("fs/promises");
 const path = require("path");
 const { spawn } = require("child_process");
 const { readSettings } = require("./settings");
-const { detectLaunchVersionId } = require("./manifest-sync");
+const { detectLaunchVersionId } = require("./launch-version-detect");
 const {
   fetchJson,
   downloadToFile,

@@ -4,10 +4,8 @@ const fsp = require("fs/promises");
 const path = require("path");
 const { spawn } = require("child_process");
 const { dialog } = require("electron");
-const {
-  ensureWritableTree,
-  detectLaunchVersionId,
-} = require("./manifest-sync");
+const { ensureWritableTree } = require("./fs-utils");
+const { detectLaunchVersionId } = require("./launch-version-detect");
 const {
   resolveVersionChain,
   buildClasspath,

@@ -24,7 +24,7 @@ Minecraft 模組伺服器的自製啟動器。Electron ＋ 原生 JS，無前端
 | `lib/` | 純邏輯——不 `require("electron")`，所以 `node --test` 測得動 |
 | `renderer.js`／`renderer/`／`index.html`／`styles.css` | 畫面（動之前先讀 `_notes/conventions.md` §UI / CSS） |
 | `preload.js` | 主程序與畫面之間的橋 |
-| `scripts/` | 發包（`release-v2.js`）與各種檢查工具 |
+| `scripts/` | 發包（`publish.js`）與各種檢查工具 |
 | `test/` | `node --test` 的測試檔 |
 | `rpc-helper/` | 獨立外掛程序，有自己的 `package.json` 與依賴 |
 | `docs/` | 對外／操作文件（發包流程、IPC 索引、audit） |

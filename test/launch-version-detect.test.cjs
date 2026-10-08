@@ -6,7 +6,7 @@ const fsp = require("fs/promises");
 const os = require("os");
 const path = require("path");
 
-const { detectLaunchVersionId } = require("../main/manifest-sync.js");
+const { detectLaunchVersionId } = require("../main/launch-version-detect.js");
 
 async function writeJson(p, body) {
   await fsp.mkdir(path.dirname(p), { recursive: true });

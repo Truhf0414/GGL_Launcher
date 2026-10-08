@@ -38,4 +38,4 @@ if (
   });
 }
 
-// manifest.json 範例與欄位說明：見 ARCHITECTURE.md；同步實作在 main/manifest-sync.js。
+// 站台格式（manifest.json 等）見 README §Instance update；同步實作在 main/sync/。

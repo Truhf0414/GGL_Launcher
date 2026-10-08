@@ -1,5 +1,5 @@
 // Launcher log（避免被遊戲日誌洗掉）+ debug 開關（供主程序與 helper 參數使用）
-// electron 在用到時才 require：測試會經 manifest-sync → settings 載入本檔（見 test/helpers/forbid-electron.cjs）
+// electron 在用到時才 require：測試會載入本檔（見 test/helpers/forbid-electron.cjs）
 const path = require("path");
 const fsp = require("fs/promises");
 const {

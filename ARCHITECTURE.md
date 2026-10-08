@@ -57,7 +57,7 @@ Use this table to find code after splits. **When you add or extract a new `main/
 | `main/account-store.js` | `account.json` read/write, safe payload for renderer (strips `mcAccessToken`)                                                                               |
 | `main/settings.js`      | `settings.json` init/merge, `readSettings` / `readSettingsRaw` / `writeSettings`, `normalizeSettingsObject`, memory-field meta helpers                      |
 | `main/notifications.js` | 鈴鐺的已讀紀錄（dismissed 檔）；公告與通知的抓取、輪詢在 `main/sync/notice-feed.js` |
-| `main/manifest-sync.js` | v2 同步。③b-2b 起沒有人呼叫，③b-3 刪 |
+| `main/launch-version-detect.js` | 從 `versions/` 挑要啟動的版本 id（fabric-loader 優先）；commit ④ 改成跟 release 的 loader 走時刪 |
 | `main/sync/index.js` | 同步中樞：一把鎖包住更新、修復、啟動（`withLaunchLock`）；算實例狀態並經 `sendInstanceStatus` 送出；更新／修復流程；遊戲判不出來時呼叫注入的 `confirmGameClosed` |
 | `main/sync/site-client.js` | v3 站台抓取：`manifest.json` 索引、`gate.json`、`release.json`、`notice.json`；每支回三態（ok／invalid／unreachable），每個請求 5 秒期限 |
 | `main/sync/apply.js` | 套用同步計畫：同步中標記 → 下載到暫存 → 擋路檢查 → 寫檔 → 寫本機記錄 |

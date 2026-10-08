@@ -7,7 +7,6 @@ const os = require("os");
 const path = require("path");
 
 const fsUtils = require("../main/fs-utils.js");
-const manifestSync = require("../main/manifest-sync.js");
 
 test("hashFile: known content gives known sha256", async (t) => {
   const root = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-fsutils-"));
@@ -18,18 +17,6 @@ test("hashFile: known content gives known sha256", async (t) => {
     await fsUtils.hashFile(file, "sha256"),
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
   );
-});
-
-test("manifest-sync re-exports the same functions as fs-utils", () => {
-  for (const name of [
-    "hashFile",
-    "ensureDirForFile",
-    "ensureWritableTree",
-    "copyDir",
-  ]) {
-    assert.equal(typeof fsUtils[name], "function", name);
-    assert.strictEqual(manifestSync[name], fsUtils[name], name);
-  }
 });
 
 test("net-fetch and bundled-java load after the import move", () => {
