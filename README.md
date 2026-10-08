@@ -129,7 +129,7 @@ npm run build:rpc-helper
 - `release.json`：這一版的完整檔案清單（發版工具寫）
 - `files/`：檔案本體，以 sha256 命名
 
-格式細節暫見 `_notes/plans/instance-sync-v3.md` §站台格式（③b-3 搬到 `docs/site-format.md`）。
+格式細節（每支檔的欄位、寫錯會怎樣）見 `docs/site-format.md`。
 
 ### 發版
 

@@ -38,4 +38,4 @@ if (
   });
 }
 
-// 站台格式（manifest.json 等）見 README §Instance update；同步實作在 main/sync/。
+// 站台格式（manifest.json 等）見 docs/site-format.md；同步實作在 main/sync/。
