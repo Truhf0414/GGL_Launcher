@@ -8,11 +8,6 @@ const {
   parseNoticeLogText,
   assembleNotice,
 } = require("../lib/sync/notice.js");
-const { parseManifestNoticeFields } = require("../lib/manifest-fields.js");
-
-test("parseNoticeFields: manifest-fields re-exports the same function (one copy)", () => {
-  assert.equal(parseManifestNoticeFields, parseNoticeFields);
-});
 
 test("parseNoticeFields: trims strings, caps inline log at 150, ignores a non-object notice", () => {
   const f = parseNoticeFields({

@@ -1,4 +1,4 @@
-// 內建 JRE 21：多來源 zip + Mojang runtime 備援（manifest-sync 會呼叫 ensureBundledJava）
+// 內建 JRE 21：多來源 zip + Mojang runtime 備援（ensureBundledJava 由同步的 prepareRuntime（main/sync/index.js）呼叫）
 const fs = require("fs");
 const fsp = require("fs/promises");
 const path = require("path");
