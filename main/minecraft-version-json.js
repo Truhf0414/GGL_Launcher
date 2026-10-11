@@ -1,33 +1,11 @@
 // 純邏輯：版本 JSON 繼承鏈、classpath、啟動參數（供 bootstrap 與 launch 共用）
 const fsp = require("fs/promises");
 const path = require("path");
+const { mergeLibraries } = require("../lib/library-filter.js");
 
 async function readJsonFile(p) {
   const raw = await fsp.readFile(p, "utf8");
   return JSON.parse(raw);
-}
-
-function libraryKey(lib) {
-  const name = lib?.name;
-  if (typeof name === "string" && name.trim()) return `name:${name.trim()}`;
-  const artPath = lib?.downloads?.artifact?.path;
-  if (typeof artPath === "string" && artPath.trim())
-    return `path:${artPath.trim()}`;
-  return `json:${JSON.stringify(lib)}`;
-}
-
-function mergeLibraries(parentLibs, childLibs) {
-  const m = new Map();
-  const combined = [
-    ...(Array.isArray(parentLibs) ? parentLibs : []),
-    ...(Array.isArray(childLibs) ? childLibs : []),
-  ];
-  for (const lib of combined) {
-    const k = libraryKey(lib);
-    if (m.has(k)) m.delete(k);
-    m.set(k, lib);
-  }
-  return [...m.values()];
 }
 
 async function resolveVersionChain({ gameDir, versionId }) {

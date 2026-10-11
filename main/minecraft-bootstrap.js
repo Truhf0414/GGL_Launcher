@@ -19,6 +19,7 @@ const {
   getMcMirrorDecision,
 } = require("./mc-mirror");
 const { formatEtaSeconds } = require("./format-eta-seconds");
+const { isLibraryAllowedOnWindows } = require("../lib/library-filter.js");
 const {
   resolveVersionChain,
   readJsonFile,
@@ -56,23 +57,6 @@ function sendMcStatus(text) {
 }
 function sendMcProgress(text, progress01) {
   boot.sendMcProgress(text, progress01);
-}
-
-function platformKey() {
-  return "windows";
-}
-
-function isLibraryAllowedOnWindows(rules) {
-  if (!Array.isArray(rules) || rules.length === 0) return true;
-  let allowed = false;
-  for (const r of rules) {
-    const action = String(r?.action || "").toLowerCase();
-    const osName = r?.os?.name ? String(r.os.name).toLowerCase() : "";
-    if (osName && osName !== platformKey()) continue;
-    if (action === "allow") allowed = true;
-    if (action === "disallow") allowed = false;
-  }
-  return allowed;
 }
 
 async function ensureMinecraftAndFabricRuntime({
