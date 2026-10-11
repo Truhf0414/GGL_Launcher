@@ -73,6 +73,11 @@ Use this table to find code after splits. **When you add or extract a new `main/
 | `main/minecraft-bootstrap.js` | 啟動前：`ensureMinecraftAndFabricRuntime`（原版 jar、Fabric installer **含逾時**、libraries+assets）；`configureMinecraftBootstrap` 一併注入 `bundled-java` 的 sync UI |
 | `main/mc-mirror.js` | BMCL / 自訂 / 官方鏡像、`rankSourcesByQuickProbe`、`getMcMirrorDecision`（TTL + 併發 single-flight） |
 | `main/bundled-java.js` | `ensureBundledJava` / Mojang runtime 備援、`configureBundledJava` 注入 sync 進度 |
+| `main/runtime/download.js` | runtime 安裝的下載底層：整段有期限的 json／文字抓取、候選網址逐台下載並逐台驗 hash、來源健康度（停滯過的排最後）、第一個錯就全停且等全部停下的池。尚未接電（commit ④c 接） |
+| `main/runtime/minecraft.js` | 候選清單（鏡像／官方／Fabric 三台）、原版與 Fabric 兩份 version json（本機有效就沿用）、版本 jar／library／asset index／objects 的安裝與進度。尚未接電 |
+| `main/runtime/java.js` | 依大版本把 Java 裝到 `<root>/runtime/java-<major>`：zip 主路徑任何一步失敗就走 Mojang runtime 退路，暫存區驗過 `-version` 才經 `.old` 換上。尚未接電 |
+| `main/runtime/prepare.js` | `prepareRuntime`：兩份 json → Java → 檔案串成一條，鏡像測速 lazy。尚未接電 |
+| `lib/runtime-json.js` | 原版與 Fabric version json 的驗證（`checkVanillaJson`／`checkFabricJson`），本機讀到的與網路抓到的都用它；不支援 classifiers 式 natives。不 require electron |
 | `main/minecraft-version-json.js` | `resolveVersionChain`、`buildClasspath`、`buildGameArgsFromVersionJson`、`ensureRequiredGameArgs`（供 launch） |
 | `main/minecraft-launch.js` | `launchMinecraftFabric1211`、`ensureRuntimeAndLaunch`（併發由中樞的 `withLaunchLock` 擋）、JVM 參數（`-Xmx` 上限）、`runningMcProcess` / `cleanupStaleMcProcessIfNeeded` / `isMinecraftRunning`（供 `minecraft:isRunning` IPC）；`configureMinecraftLaunch({...})` 注入 `sendMcStatus`、`sendMcRunning`、`getMainWindow`（對話框父視窗）、`tryStartDiscordRpcHelper`（實作在 `discord-rpc.js`）、`fabricLoaderVersion`（值在 `lib/server-config.js` 的 `legacy`）、`ensureMinecraftAndFabricRuntime` |
 | `main/format-eta-seconds.js` | 下載 ETA 字串（bootstrap / bundled-java 共用） |

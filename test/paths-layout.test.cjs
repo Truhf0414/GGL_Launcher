@@ -9,6 +9,7 @@ const {
   normalizeRootDir,
   getPaths,
   javaDirFor,
+  javaExeFor,
 } = require("../lib/paths-layout.js");
 const serverConfig = require("../lib/server-config.js");
 
@@ -40,5 +41,17 @@ test("T10 javaDirFor：<root>/runtime/java-<major>；major 不是正整數 ⇒ �
   assert.equal(javaDirFor(p, 21), path.join("H:\\Root", "runtime", "java-21"));
   for (const bad of [0, -1, 21.5, "21"]) {
     assert.throws(() => javaDirFor(p, bad), /major 必須是正整數/, String(bad));
+  }
+});
+
+// → _notes/plans/instance-sync-v3-commit4b.md T1
+test("T1 javaExeFor：<root>/runtime/java-<major>/bin/java.exe；major 不是正整數 ⇒ 丟錯", () => {
+  const p = getPaths({ launcherRootDir: "H:\\Root" });
+  assert.equal(
+    javaExeFor(p, 21),
+    path.join("H:\\Root", "runtime", "java-21", "bin", "java.exe"),
+  );
+  for (const bad of [0, -1, 21.5, "21"]) {
+    assert.throws(() => javaExeFor(p, bad), /major 必須是正整數/, String(bad));
   }
 });

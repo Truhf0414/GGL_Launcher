@@ -112,7 +112,12 @@ function isRetryableError(err) {
 
 async function withRetries(
   fn,
-  { retries = 1, baseDelayMs = 650, onRetry = null } = {},
+  {
+    retries = 1,
+    baseDelayMs = 650,
+    onRetry = null,
+    shouldRetry = isRetryableError,
+  } = {},
 ) {
   let lastErr = null;
   for (let i = 0; i <= retries; i++) {
@@ -120,7 +125,7 @@ async function withRetries(
       return await fn(i);
     } catch (e) {
       lastErr = e;
-      if (i >= retries || !isRetryableError(e)) break;
+      if (i >= retries || !shouldRetry(e)) break;
       try {
         if (typeof onRetry === "function") onRetry(i + 1, retries, e);
       } catch {}
@@ -271,6 +276,8 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
     {
       retries: 1,
       baseDelayMs: 650,
+      // 已中止的下載（外部取消、看門狗）再試也是立刻失敗，只白睡一段重試等待
+      shouldRetry: (e) => !sig?.aborted && isRetryableError(e),
       onRetry: (tryNo, maxTry, e) => {
         const msg = String(e?.message ?? e);
         notifyRetryToUi(makeRetryNotice(label, tryNo, maxTry));
@@ -301,6 +308,7 @@ async function downloadToFileWithStallGuard(
     minBytes = STALL_MIN_BYTES,
     stallRetries = 1,
     stallMessage = `下載停滯：${windowMs / 1000} 秒內收到不到 ${minBytes / (1024 * 1024)} MB`,
+    signal,
   } = {},
 ) {
   for (let attempt = 0; ; attempt++) {
@@ -333,14 +341,16 @@ async function downloadToFileWithStallGuard(
       await downloadToFile(url, absPath, countingOnChunk, {
         resume,
         expectedSize,
-        signal: ac.signal,
+        // 外部中止時 ac 沒被中止 ⇒ 下面的 catch 原樣往外丟，不當停滯重試
+        signal: signal ? AbortSignal.any([ac.signal, signal]) : ac.signal,
         // headers 階段只讓看門狗管：內層逾時（預設 15 秒）若比窗口短，
         // 等不到 headers 時丟出來的會是「連線失敗」還是「停滯」要看誰先到
         timeoutMs: windowMs * 2,
       });
       return;
     } catch (e) {
-      if (!ac.signal.aborted) throw e;
+      // 外部中止優先：看門狗先停、外部隨後也中止時，不報成停滯也不重試
+      if (signal?.aborted || !ac.signal.aborted) throw e;
       if (attempt >= stallRetries) throw stalled;
     } finally {
       clearInterval(tick);
