@@ -15,6 +15,7 @@ const {
   downloadToFileWithFallback,
   STALL_WINDOW_MS,
   STALL_MIN_BYTES,
+  withRetries,
 } = require("../main/net-fetch.js");
 
 /** p 在 ms 內沒結果 ⇒ 回 "pending"；有結果 ⇒ { ok, value | error } */
@@ -192,9 +193,9 @@ test(
       }),
       { code: "GGL_DOWNLOAD_STALLED" },
     );
-    // downloadToFile 內部對「連線失敗」有一次 650 ms 的重試等待；signal 已中斷，重試立刻失敗
+    // signal 已中止的下載不再重試（④b R#28），沒有 650 ms 的重試等待
     assert.ok(
-      Date.now() - t0 < GUARD.windowMs * 3 + 650,
+      Date.now() - t0 < GUARD.windowMs * 3,
       `took ${Date.now() - t0} ms`,
     );
     assert.equal(srv.requests.length, 1);
@@ -362,3 +363,108 @@ test(
     assert.ok(Date.now() - t0 < 2000, `took ${Date.now() - t0} ms`);
   },
 );
+
+// ── 看門狗收外部 signal、中止後不重試 → _notes/plans/instance-sync-v3-commit4b.md T2、T3 ──
+
+test(
+  "T2a stall guard: external abort mid-body ⇒ not reported as stalled, one request",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const srv = await startServer(stallAfterHeaders);
+    t.after(() => srv.close());
+    const target = await tempTarget(t);
+
+    const outer = new AbortController();
+    const p = downloadToFileWithStallGuard(srv.url, target, null, {
+      windowMs: 60_000,
+      minBytes: 1,
+      stallRetries: 1,
+      signal: outer.signal,
+    });
+    setTimeout(() => outer.abort(), 200);
+    await assert.rejects(p, (e) => e.code !== "GGL_DOWNLOAD_STALLED");
+    assert.equal(srv.requests.length, 1);
+  },
+);
+
+test(
+  "T2b stall guard: external abort while waiting for headers ⇒ rejects within 300 ms, no retry",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const srv = await startServer(() => {}); // 永不回 headers
+    t.after(() => srv.close());
+    const target = await tempTarget(t);
+
+    const outer = new AbortController();
+    const p = downloadToFileWithStallGuard(srv.url, target, null, {
+      windowMs: 60_000,
+      minBytes: 1,
+      signal: outer.signal,
+    });
+    let abortedAt = 0;
+    setTimeout(() => {
+      abortedAt = Date.now();
+      outer.abort();
+    }, 200);
+    await assert.rejects(p);
+    assert.ok(
+      Date.now() - abortedAt < 300,
+      `rejected ${Date.now() - abortedAt} ms after abort`,
+    );
+    assert.equal(srv.requests.length, 1);
+  },
+);
+
+test(
+  "stall guard: watchdog fires and the external signal aborts in the same tick ⇒ not reported as stalled (Codex #3)",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const srv = await startServer(stallAfterHeaders);
+    t.after(() => srv.close());
+    const target = await tempTarget(t);
+    // 只換看門狗用的 setInterval 與 Date；fetch 自己的 setTimeout 照真的走
+    t.mock.timers.enable({ apis: ["setInterval", "Date"] });
+
+    const outer = new AbortController();
+    const p = downloadToFileWithStallGuard(srv.url, target, null, {
+      windowMs: 1000,
+      minBytes: 1,
+      stallRetries: 0,
+      signal: outer.signal,
+    });
+    while (srv.requests.length === 0) await new Promise((r) => setImmediate(r));
+    t.mock.timers.tick(1000); // 看門狗中止
+    outer.abort(); // 同一個 tick 裡外部也中止
+    await assert.rejects(p, (e) => e.code !== "GGL_DOWNLOAD_STALLED");
+  },
+);
+
+test("T3 withRetries: shouldRetry () => false ⇒ a retryable error is tried once", async () => {
+  let calls = 0;
+  await assert.rejects(
+    withRetries(
+      async () => {
+        calls += 1;
+        throw new Error("下載失敗：HTTP 503");
+      },
+      { retries: 3, baseDelayMs: 1, shouldRetry: () => false },
+    ),
+    /HTTP 503/,
+  );
+  assert.equal(calls, 1);
+});
+
+test("T3 withRetries: without shouldRetry the default still retries a retryable error", async () => {
+  let calls = 0;
+  await assert.rejects(
+    withRetries(
+      async () => {
+        calls += 1;
+        throw new Error("下載失敗：HTTP 503");
+      },
+      { retries: 1, baseDelayMs: 1 },
+    ),
+    /HTTP 503/,
+  );
+  assert.equal(calls, 2);
+});
