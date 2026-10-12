@@ -1,7 +1,8 @@
 // 純邏輯：版本 JSON 繼承鏈、classpath、啟動參數（供 bootstrap 與 launch 共用）
 const fsp = require("fs/promises");
 const path = require("path");
-const { mergeLibraries } = require("../lib/library-filter.js");
+const { mergeLibraries, mavenRelPath } = require("../lib/library-filter.js");
+const { isSingleSegment } = require("../lib/runtime-target.js");
 
 async function readJsonFile(p) {
   const raw = await fsp.readFile(p, "utf8");
@@ -13,6 +14,8 @@ async function resolveVersionChain({ gameDir, versionId }) {
 
   async function load(id) {
     if (!id) throw new Error("versionId 為空");
+    // id 會拼成 versions/<id>/<id>.json：每一層都要是單一路徑段（④c R#24）
+    if (!isSingleSegment(id)) throw new Error(`版本 id 不能當資料夾名：${id}`);
     if (visited.has(id)) throw new Error(`版本繼承循環：${id}`);
     visited.add(id);
 
@@ -75,14 +78,9 @@ function buildClasspath({ gameDir, versionJarPath, libraries }) {
       const abs = path.join(gameDir, "libraries", artifactPath);
       parts.push(abs);
     } else if (typeof lib?.name === "string") {
-      const m = lib.name.split(":");
-      if (m.length >= 3) {
-        const group = m[0].replace(/\./g, "/");
-        const artifact = m[1];
-        const ver = m[2];
-        const file = `${artifact}-${ver}.jar`;
-        parts.push(path.join(gameDir, "libraries", group, artifact, ver, file));
-      }
+      // 與就緒、安裝同一個推法（含 classifier，④c R#26）；推不出來就丟——啟動前就緒已驗過每一支
+      const rel = mavenRelPath(lib.name);
+      parts.push(path.join(gameDir, "libraries", ...rel.split("/")));
     }
   }
   parts.push(versionJarPath);

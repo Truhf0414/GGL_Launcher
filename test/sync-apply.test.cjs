@@ -30,6 +30,8 @@ const B = Buffer.from("mod B ".repeat(300));
 const C = Buffer.from("config C ".repeat(50));
 const blobs = new Map([A, B, C].map((b) => [sha(b), b]));
 const entry = (p, buf) => ({ path: p, sha256: sha(buf), size: buf.length });
+// ④c 起 prepareRuntime 回三欄、併進記錄（→ _notes/plans/instance-sync-v3-commit4c.md §設計「同步端」）
+const RUNTIME = () => ({ minecraft: "1.21.11", loader: { type: "fabric", version: "0.19.3" }, javaMajor: 21 });
 
 /** 每個測試一個乾淨的根目錄與站台；behave(req, res, shaHex, n) 可覆寫單一 blob 的回法 */
 async function setup(t, { behave } = {}) {
@@ -100,7 +102,7 @@ function deps(extra = {}) {
   const progress = [];
   return {
     progress,
-    prepareRuntime: async () => {},
+    prepareRuntime: async () => RUNTIME(),
     download: (url, target, onChunk, opts) =>
       downloadToFileWithStallGuard(url, target, onChunk, {
         ...opts,
@@ -145,7 +147,70 @@ test("success: files placed, record written, marker cleared, staging removed", a
   assert.equal(rec.appliedAt, new Date(2026, 8, 30, 14, 30, 0).toISOString());
   assert.equal(await isInProgress(ctx.paths), false);
   assert.equal(await exists(stagingDir(ctx.paths)), false);
-  assert.deepEqual(result, { movedAside: [] });
+  assert.deepEqual(result, { movedAside: [], record: rec });
+});
+
+test("C4 寫入的記錄帶 prepareRuntime 的三欄；回傳值多帶的 files／version 不准蓋掉記錄", async (t) => {
+  const ctx = await setup(t);
+  const next = [entry("mods/a.jar", A)];
+  await run(ctx, {
+    next,
+    depsOverride: { prepareRuntime: async () => ({ ...RUNTIME(), files: [], version: "x" }) },
+  });
+  const rec = await readRecord(ctx.paths);
+  assert.deepEqual(
+    { minecraft: rec.minecraft, loader: rec.loader, javaMajor: rec.javaMajor },
+    RUNTIME(),
+  );
+  assert.deepEqual(rec.files, recordFor(next).files);
+  assert.equal(rec.version, "v2");
+});
+
+test("C4 prepareRuntime 回傳值不合法 ⇒ 丟錯、標記留著，下載／改名／刪除／寫記錄一次都沒有", async (t) => {
+  const bad = [
+    undefined,
+    { ...RUNTIME(), minecraft: undefined },
+    { ...RUNTIME(), loader: undefined },
+    { ...RUNTIME(), javaMajor: undefined },
+    { ...RUNTIME(), javaMajor: "21" },
+    { ...RUNTIME(), loader: { type: "forge", version: "1" } },
+  ];
+  for (const value of bad) {
+    const ctx = await setup(t);
+    await put(ctx.paths, "mods/old.jar", "old");
+    const count = { download: 0, rename: 0, rm: 0, unlink: 0, writeRecord: 0 };
+    const spyFsp = {
+      ...fsp,
+      rename: async (...a) => (count.rename++, fsp.rename(...a)),
+      rm: async (...a) => (count.rm++, fsp.rm(...a)),
+      unlink: async (...a) => (count.unlink++, fsp.unlink(...a)),
+    };
+    await assert.rejects(
+      run(ctx, {
+        previous: [{ path: "mods/old.jar", sha256: "0".repeat(64) }],
+        next: [entry("mods/a.jar", A)],
+        depsOverride: {
+          // 開頭清殘留本來就會 rm：只算 prepareRuntime 回來之後的
+          prepareRuntime: async () => {
+            for (const k of Object.keys(count)) count[k] = 0;
+            return value;
+          },
+          download: async () => {
+            count.download++;
+          },
+          writeRecord: async () => {
+            count.writeRecord++;
+          },
+          fsp: spyFsp,
+        },
+      }),
+      /runtime 回傳值不合法/,
+      JSON.stringify(value),
+    );
+    assert.deepEqual(count, { download: 0, rename: 0, rm: 0, unlink: 0, writeRecord: 0 }, JSON.stringify(value));
+    assert.equal(await isInProgress(ctx.paths), true);
+    assert.equal(await exists(abs(ctx.paths, "mods/old.jar")), true);
+  }
 });
 
 test("prepareRuntime is called while the in-progress marker exists", async (t) => {
@@ -154,7 +219,10 @@ test("prepareRuntime is called while the in-progress marker exists", async (t) =
   await run(ctx, {
     next: [entry("mods/a.jar", A)],
     depsOverride: {
-      prepareRuntime: async () => (markerSeen = await isInProgress(ctx.paths)),
+      prepareRuntime: async () => {
+        markerSeen = await isInProgress(ctx.paths);
+        return RUNTIME();
+      },
     },
   });
   assert.equal(markerSeen, true);
@@ -380,7 +448,10 @@ test("stale staging entries (not in this plan) are cleared at the start", async 
   await run(ctx, {
     next: [entry("mods/a.jar", A)],
     depsOverride: {
-      prepareRuntime: async () => (seen = await listStaging(ctx.paths)),
+      prepareRuntime: async () => {
+        seen = await listStaging(ctx.paths);
+        return RUNTIME();
+      },
     },
   });
   assert.deepEqual(seen, []);
@@ -424,8 +495,10 @@ test("leftover cleanup only touches .<name>.ggl-tmp where <name> is in next", as
   await run(ctx, {
     next: [entry("mods/a.jar", A)],
     depsOverride: {
-      prepareRuntime: async () =>
-        (seen = await exists(abs(ctx.paths, "mods/.a.jar.ggl-tmp"))),
+      prepareRuntime: async () => {
+        seen = await exists(abs(ctx.paths, "mods/.a.jar.ggl-tmp"));
+        return RUNTIME();
+      },
     },
   });
   assert.equal(seen, false); // 開頭就清掉了

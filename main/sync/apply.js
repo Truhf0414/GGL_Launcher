@@ -10,6 +10,7 @@ const instanceRecord = require("./instance-record.js");
 const { hashFile } = require("../fs-utils.js");
 const { downloadToFileWithStallGuard } = require("../net-fetch.js");
 const { findBlockers } = require("../../lib/sync/blocking.js");
+const { pickRuntimeFields } = require("../../lib/runtime-target.js");
 
 class SyncApplyError extends Error {
   constructor(code, message, filePath) {
@@ -44,12 +45,13 @@ function sameFiles(a, b) {
 /**
  * @param {{
  *   plan: { download: {path,sha256,size}[], remove: string[], removeFirst: string[], rename: {from,to}[] },
- *   record: { format: 3, version: string, files: {path,sha256}[] },   // 成功時要寫的記錄（D5）
+ *   record: { format: 3, version: string, files: {path,sha256}[] },   // 成功時要寫的記錄（D5）；runtime 三欄由 prepareRuntime 補
  *   paths: ReturnType<import("../../lib/paths-layout.js").getPaths>,
  *   filesBaseUrl: string,
  *   deps: object,
  * }} input
- * @returns {Promise<{ movedAside: { from: string, to: string }[] }>}
+ * deps.prepareRuntime() 回 { minecraft, loader, javaMajor }（④c，→ _notes/plans/instance-sync-v3-commit4c.md §設計「同步端」）
+ * @returns {Promise<{ movedAside: { from: string, to: string }[], record: object }>}  record＝實際寫入的那份
  */
 async function applyPlan({ plan, record, paths, filesBaseUrl, deps: given }) {
   const deps = {
@@ -70,7 +72,8 @@ async function applyPlan({ plan, record, paths, filesBaseUrl, deps: given }) {
 
   await clearLeftovers({ fsp, abs, record, plan, stagingDir });
   await deps.markInProgress(paths);
-  await deps.prepareRuntime();
+  // 一回來就驗、只取三欄：不合法時一個同步檔都還沒動；回傳物件多帶的 files／version 不准蓋掉記錄（R#19）
+  const runtime = pickRuntimeFields(await deps.prepareRuntime());
 
   await downloadAll({ plan, record, filesBaseUrl, stagingDir, deps });
 
@@ -112,10 +115,8 @@ async function applyPlan({ plan, record, paths, filesBaseUrl, deps: given }) {
     if (!firstKeys.has(rel)) await removeFile(fsp, abs, rel);
   }
 
-  await deps.writeRecord(paths, {
-    ...record,
-    appliedAt: deps.now().toISOString(),
-  });
+  const written = { ...record, ...runtime, appliedAt: deps.now().toISOString() };
+  await deps.writeRecord(paths, written);
   // 記錄寫成功＝這次更新成功；之後的清理失敗留給下一次開頭處理
   try {
     await deps.clearInProgress(paths);
@@ -123,7 +124,7 @@ async function applyPlan({ plan, record, paths, filesBaseUrl, deps: given }) {
   try {
     await fsp.rm(stagingDir, { recursive: true, force: true });
   } catch {}
-  return { movedAside };
+  return { movedAside, record: written };
 }
 
 /** 只清 next 裡每個 path 同目錄的 .<name>.ggl-tmp，與不屬於本次下載的 staging 檔 */

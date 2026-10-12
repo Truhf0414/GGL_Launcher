@@ -150,10 +150,10 @@ test("S4 update-available reasons", () => {
     "需要更新：有新版本 2.0.0（目前 1.0.0）",
   );
   assert.equal(ua(["interrupted"]), "需要更新：上次同步沒有完成");
-  assert.equal(ua(["runtime-missing"]), "需要更新：缺少 Java");
+  assert.equal(ua(["runtime-missing"]), "需要更新：遊戲執行環境不完整");
   assert.equal(
     ua(["interrupted", "runtime-missing"]),
-    "需要更新：上次同步沒有完成、缺少 Java",
+    "需要更新：上次同步沒有完成、遊戲執行環境不完整",
   );
   assert.equal(
     ua(["release-differs"], { localVersion: "2.0.0" }),
@@ -170,7 +170,7 @@ test("S5 not-ready rows list only the reasons that block launching", () => {
   );
   assert.equal(
     off(["interrupted", "runtime-missing"]),
-    "連不上更新伺服器，而且本機還不能啟動（上次同步沒有完成、缺少 Java），請連上網路後重試",
+    "連不上更新伺服器，而且本機還不能啟動（上次同步沒有完成、遊戲執行環境不完整），請連上網路後重試",
   );
   assert.equal(
     off(["release-differs", "interrupted"]),
@@ -183,15 +183,15 @@ test("S5 not-ready rows list only the reasons that block launching", () => {
   const rm = { syncReasons: ["runtime-missing"] };
   assert.equal(
     headline("maintenance", false, rm),
-    "伺服器維護中，維護結束後才能安裝或更新（缺少 Java）",
+    "伺服器維護中，維護結束後才能安裝或更新（遊戲執行環境不完整）",
   );
   assert.equal(
     headline("launcher-too-old", false, rm),
-    "啟動器版本過舊，請下載新版啟動器（缺少 Java）",
+    "啟動器版本過舊，請下載新版啟動器（遊戲執行環境不完整）",
   );
   assert.equal(
     headline("invalid", false, rm),
-    "伺服器上的版本資料有誤，暫時無法安裝或更新（缺少 Java）",
+    "伺服器上的版本資料有誤，暫時無法安裝或更新（遊戲執行環境不完整）",
   );
 });
 
@@ -331,4 +331,48 @@ test("S8 progress boundaries and inputs that must not throw", () => {
     });
   }
   assert.doesNotThrow(() => describeProgress({ phase: "download" }));
+});
+
+// → _notes/plans/instance-sync-v3-commit4c.md §設計「畫面文字」（④b 的 runtime 進度物件）
+test("C11 runtime 進度：每一種物件的文字與比例；total 為 0 不出 NaN", () => {
+  const rt = (o) => describeProgress({ phase: "runtime", ...o });
+  assert.deepEqual(rt({ step: "vanilla-json" }), { text: "取得 Minecraft 版本資訊…", progress01: null });
+  assert.deepEqual(rt({ step: "loader-json" }), { text: "取得 Fabric 版本資訊…", progress01: null });
+  assert.deepEqual(rt({ step: "java", stage: "download", received: MiB, total: 4 * MiB }), {
+    text: "下載 Java 1.0 MB / 4.0 MB",
+    progress01: 0.25,
+  });
+  assert.deepEqual(rt({ step: "java", stage: "download", received: MiB, total: 0 }), {
+    text: "下載 Java 1.0 MB",
+    progress01: null,
+  });
+  for (const [stage, text] of [
+    ["extract", "解壓 Java…"],
+    ["verify", "檢查 Java…"],
+    ["install", "安裝 Java…"],
+  ]) {
+    assert.deepEqual(rt({ step: "java", stage, received: 0, total: 0 }), { text, progress01: null });
+  }
+  const files = (group, done, total, receivedBytes, totalBytes) =>
+    rt({ step: "files", group, done, total, receivedBytes, totalBytes });
+  assert.deepEqual(files("version-jar", 0, 1, 0, 2 * MiB), {
+    text: "下載遊戲本體 0/1，0.0 MB / 2.0 MB",
+    progress01: 0,
+  });
+  assert.deepEqual(files("libraries", 3, 83, MiB, 4 * MiB), {
+    text: "下載函式庫 3/83，1.0 MB / 4.0 MB",
+    progress01: 0.25,
+  });
+  assert.deepEqual(files("asset-index", 1, 1, MiB, MiB), {
+    text: "下載資源索引 1/1，1.0 MB / 1.0 MB",
+    progress01: 1,
+  });
+  assert.deepEqual(files("assets", 10, 4591, 0, 0), {
+    text: "下載遊戲資源 10/4591，0.0 MB / 0.0 MB",
+    progress01: 0,
+  });
+  for (const p of [rt({}), rt({ step: "java" }), rt({ step: "files" })]) {
+    assert.equal(typeof p.text, "string");
+    assert.ok(!p.text.includes("NaN") && !p.text.includes("undefined"), p.text);
+  }
 });

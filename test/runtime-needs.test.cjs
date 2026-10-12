@@ -78,15 +78,21 @@ test("T8 原版 json 讀不到 ⇒ vanilla-json；兩份都壞 ⇒ 兩項都在�
 });
 
 test("T9 父子同 name 的 library ⇒ 只出現一次、取子那支", () => {
+  // ④c 起兩份 json 要過 runtime-json 的完整驗證，從 fixture 加料，不再手刻最小 json
   const lib = (p) => ({
     name: "g:a:1",
-    downloads: { artifact: { path: p, url: "https://x/", sha1: "", size: 1 } },
+    downloads: {
+      artifact: { path: p, url: "https://x/", sha1: "0".repeat(40), size: 1 },
+    },
   });
+  const v = fx.vanilla();
+  const f = fx.fabric();
   const r = needs({
-    target: ok({ inheritsFrom: "1.21.11", libraries: [lib("p/child.jar")] }),
-    vanilla: ok({ libraries: [lib("p/parent.jar")], assetIndex: { id: "29" } }),
+    target: ok({ ...f, libraries: [...f.libraries, lib("p/child.jar")] }),
+    vanilla: ok({ ...v, libraries: [...v.libraries, lib("p/parent.jar")] }),
   });
-  const libs = r.files.filter((f) => f.item === "library").map((f) => f.rel);
+  assert.deepEqual(r.problems, []);
+  const libs = r.files.filter((x) => x.rel.startsWith("libraries/p/")).map((x) => x.rel);
   assert.deepEqual(libs, ["libraries/p/child.jar"]);
 });
 
@@ -114,4 +120,32 @@ test("T12 library 推不出路徑 ⇒ 判那份 json 壞掉，不丟例外", () 
 test("T14 asset index id 跳出資料夾 ⇒ vanilla-json", () => {
   const v = { ...fx.vanilla(), assetIndex: { id: "../29" } };
   assert.deepEqual(needs({ vanilla: ok(v) }).problems, ["vanilla-json"]);
+});
+
+// → _notes/plans/instance-sync-v3-commit4c.md §設計「就緒六項」「版本 id 的路徑邊界」（SPR R#14、R#24）
+const { recordComplete } = require("../lib/runtime-needs.js");
+
+test("C1 recordComplete：三欄齊、fabric、minecraft 與 launchId 各自是單一路徑段才 true", () => {
+  assert.equal(recordComplete(record()), true);
+  const bad = [
+    null,
+    undefined,
+    { format: 3, version: "v", appliedAt: "x", files: [] },
+    record({ javaMajor: undefined }),
+    record({ javaMajor: 0 }),
+    record({ loader: { type: "forge", version: "1" } }),
+    record({ loader: { type: "fabric", version: "" } }),
+    record({ loader: { type: "fabric", version: "0.19.3/../../x" } }),
+    record({ minecraft: ".." }),
+    record({ minecraft: "a/b" }),
+  ];
+  for (const r of bad) assert.equal(recordComplete(r), false, JSON.stringify(r));
+});
+
+test("C1 兩份 json 改用安裝期的驗證：Fabric 少 mainClass ⇒ version-json；原版 id 不是記錄的 ⇒ vanilla-json", () => {
+  const { mainClass, ...noMain } = fx.fabric();
+  void mainClass;
+  assert.deepEqual(needs({ target: ok(noMain) }), { problems: ["version-json"], files: [] });
+  const v = { ...fx.vanilla(), id: "1.21.10" };
+  assert.deepEqual(needs({ vanilla: ok(v) }), { problems: ["vanilla-json"], files: [] });
 });

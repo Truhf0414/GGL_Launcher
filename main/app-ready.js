@@ -37,7 +37,6 @@ const MAIN_APP_READY_KEYS = [
   "getMainWindow",
   "getAppIconPath",
   "serverConfig",
-  "ensureMinecraftAndFabricRuntime",
   "tryStartDiscordRpcHelper",
 ];
 
@@ -109,7 +108,6 @@ async function runMainAppReady(ctx) {
     getMainWindow,
     getAppIconPath,
     serverConfig,
-    ensureMinecraftAndFabricRuntime,
     tryStartDiscordRpcHelper,
   } = ctx;
 
@@ -161,10 +159,8 @@ async function runMainAppReady(ctx) {
   configureMinecraftLaunch({
     sendMcStatus,
     sendMcRunning,
-    getMainWindow,
     tryStartDiscordRpcHelper,
-    fabricLoaderVersion: serverConfig.legacy.fabricLoaderVersion,
-    ensureMinecraftAndFabricRuntime,
+    log: appendLauncherLog,
   });
   configureServerStatus({
     sendServerStatus,
