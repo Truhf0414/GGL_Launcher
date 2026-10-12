@@ -168,3 +168,34 @@ test("findAssetIndexUrlFromChain: walks inheritsFrom", async () => {
 
   await fsp.rm(root, { recursive: true, force: true });
 });
+
+// → _notes/plans/instance-sync-v3-commit4c.md §測試 C15（SPR R#24、R#26）
+test("C15 buildClasspath：四段 name（帶 classifier）的路徑跟就緒／安裝算的同一條", () => {
+  const { libraryArtifact } = require("../lib/library-filter.js");
+  const lib = { name: "org.lwjgl:lwjgl:3.3.3:natives-windows", url: "https://libraries.minecraft.net/" };
+  const gameDir = "G:/game";
+  const cp = buildClasspath({ gameDir, versionJarPath: "G:/game/v.jar", libraries: [lib] });
+  const expected = path.join(gameDir, "libraries", ...libraryArtifact(lib).rel.split("/"));
+  assert.equal(cp.split(";")[0], expected);
+  assert.ok(expected.endsWith("lwjgl-3.3.3-natives-windows.jar"));
+});
+
+test("C15 resolveVersionChain：起始 id 或 inheritsFrom 不是單一路徑段 ⇒ 丟錯、不讀 versions/ 外的檔", async (t) => {
+  const root = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-mcver-"));
+  t.after(() => fsp.rm(root, { recursive: true, force: true }));
+  const gameDir = path.join(root, "g");
+  const write = async (id, json) => {
+    const p = path.join(gameDir, "versions", id, `${id}.json`);
+    await fsp.mkdir(path.dirname(p), { recursive: true });
+    await fsp.writeFile(p, JSON.stringify(json), "utf8");
+  };
+  await write("ok", { id: "ok", mainClass: "M", libraries: [] });
+  for (const parent of ["../x", "a/b", ".."]) {
+    await write("child", { id: "child", inheritsFrom: parent, mainClass: "M", libraries: [] });
+    await assert.rejects(resolveVersionChain({ gameDir, versionId: "child" }), /版本 id 不能當資料夾名/, parent);
+  }
+  for (const id of ["../g", "versions/ok"]) {
+    await assert.rejects(resolveVersionChain({ gameDir, versionId: id }), /版本 id 不能當資料夾名/, id);
+  }
+  assert.equal((await resolveVersionChain({ gameDir, versionId: "ok" })).mainClass, "M");
+});

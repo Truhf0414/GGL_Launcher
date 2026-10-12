@@ -1,11 +1,15 @@
 // Minecraft 啟動（Fabric）、JVM 參數、detached spawn、執行中 PID 狀態
+// ④c 起只讀本機記錄、不連網、不裝 runtime、不跳對話框（對話框在 main/ipc/minecraft-ipc.js 依 code 跳）；
+// 不 require electron（→ _notes/plans/instance-sync-v3-commit4c.md §設計「啟動」）。
 const fs = require("fs");
 const fsp = require("fs/promises");
 const path = require("path");
 const { spawn } = require("child_process");
-const { dialog } = require("electron");
 const { ensureWritableTree } = require("./fs-utils");
-const { detectLaunchVersionId } = require("./launch-version-detect");
+const { appendLauncherLog } = require("./launcher-log");
+const { launchIdFor } = require("../lib/runtime-target.js");
+const { recordComplete } = require("../lib/runtime-needs.js");
+const { javaExeFor } = require("../lib/paths-layout.js");
 const {
   resolveVersionChain,
   buildClasspath,
@@ -13,13 +17,21 @@ const {
   buildGameArgsFromVersionJson,
 } = require("./minecraft-version-json");
 
+class LaunchError extends Error {
+  constructor(code, message, options) {
+    super(message, options);
+    this.name = "LaunchError";
+    this.code = code;
+  }
+}
+
 const defaultLaunchDeps = {
   sendMcStatus: () => {},
   sendMcRunning: () => {},
-  getMainWindow: () => null,
   tryStartDiscordRpcHelper: async () => {},
-  fabricLoaderVersion: "0.19.1",
-  ensureMinecraftAndFabricRuntime: async () => {},
+  spawn,
+  // 預設就接 launcher log：選填加空函式＝忘了接 argv log 就靜默消失（R#27）
+  log: appendLauncherLog,
 };
 
 let launchDeps = { ...defaultLaunchDeps };
@@ -33,19 +45,6 @@ function sendMcStatus(text) {
 }
 function sendMcRunning(isRunning) {
   launchDeps.sendMcRunning(isRunning);
-}
-
-async function showMcDialog(opts) {
-  const win = launchDeps.getMainWindow?.();
-  try {
-    if (win && typeof win.isDestroyed === "function" && !win.isDestroyed()) {
-      await dialog.showMessageBox(win, opts);
-    } else {
-      await dialog.showMessageBox(opts);
-    }
-  } catch {
-    // 視窗已關等情況：略過，改由 throw 路徑讓 UI 知道失敗
-  }
 }
 
 let runningMcProcess = null;
@@ -96,25 +95,6 @@ function cleanupStaleMcProcessIfNeeded() {
   return false;
 }
 
-// 連點／兩個 IPC 同時啟動由呼叫端的啟動鎖擋（main/sync 的 withLaunchLock）
-async function ensureRuntimeAndLaunch({ settings, paths, auth }) {
-  await launchDeps.ensureMinecraftAndFabricRuntime({
-    gameDir: paths.gameDir,
-    mcVersion: settings.minecraftVersion,
-    loaderVersion: launchDeps.fabricLoaderVersion,
-    jdkDir: paths.jdkDir,
-  });
-
-  await launchMinecraftFabric1211({
-    settings,
-    gameDir: paths.gameDir,
-    memoryGb: settings.memoryGb,
-    auth,
-    minecraftVersion: settings.minecraftVersion,
-    jdkDir: paths.jdkDir,
-  });
-}
-
 function mbFromGb(gb) {
   const n = Number(gb);
   if (!Number.isFinite(n) || n <= 0) return 4096;
@@ -146,52 +126,66 @@ function buildOptimizedJvmArgs({ minMemoryMb, maxMemoryMb, nativesDir }) {
   ];
 }
 
-async function launchMinecraftFabric1211({
-  settings,
-  gameDir,
-  memoryGb,
-  auth,
-  minecraftVersion,
-  jdkDir,
-}) {
-  sendMcStatus("正在準備啟動參數…");
+/** 給 log 的副本：token 以子字串取代（json 可能寫成 --x=${auth_access_token}，R#15）；交給 spawn 的不動 */
+function maskedArgv(argv, token) {
+  const hide = typeof token === "string" && token !== "" && token !== "0";
+  return argv.map((s) => (hide ? String(s).split(token).join("***") : String(s)));
+}
+
+/** 等 child 真的起來（spawn 事件）才算數；鎖由呼叫端持有到這裡（假設 16-8，R#22） */
+function waitSpawned(p) {
+  return new Promise((resolve, reject) => {
+    const onSpawn = () => {
+      p.off("error", onError);
+      resolve();
+    };
+    const onError = (err) => {
+      p.off("spawn", onSpawn);
+      reject(
+        new LaunchError("GGL_LAUNCH_SPAWN_FAILED", `啟動失敗：${String(err?.message ?? err)}`, {
+          cause: err,
+        }),
+      );
+    };
+    p.once("spawn", onSpawn);
+    p.once("error", onError);
+  });
+}
+
+/**
+ * 連點／兩個 IPC 同時啟動由呼叫端的啟動鎖擋（main/sync 的 withLaunchLock）；
+ * record 是閘那次計算讀到的那份（④c A1）。
+ * @param {{ settings: object, paths: object, record: object, auth?: object, deps?: object }} input
+ */
+async function launchMinecraft({ settings, paths, record, auth, deps }) {
+  const d = { ...launchDeps, ...deps };
+  // 閘已擋過不就緒；這裡只防記錄不完整（第二道）
+  if (!recordComplete(record)) {
+    throw new LaunchError("GGL_LAUNCH_NOT_READY", "本機記錄不完整，請先按更新。");
+  }
+  const gameDir = paths.gameDir;
+  const launchId = launchIdFor(record);
+  d.sendMcStatus("正在準備啟動參數…");
 
   await fsp.mkdir(gameDir, { recursive: true });
   await ensureWritableTree(gameDir);
 
-  const javaExe = path.join(jdkDir, "bin", "java.exe");
+  const javaExe = javaExeFor(paths, record.javaMajor);
   try {
     await fsp.access(javaExe, fs.constants.F_OK);
   } catch {
-    await showMcDialog({
-      type: "warning",
-      title: "找不到 Java",
-      message:
-        "找不到內建 Java。請到設定按『檢查並修復檔案』讓啟動器重新安裝 Java。",
-    });
-    throw new Error("找不到 Java。");
+    throw new LaunchError("GGL_LAUNCH_NO_JAVA", "找不到 Java。");
   }
 
-  const launchVersionId = await detectLaunchVersionId(
-    gameDir,
-    minecraftVersion,
-  );
-
-  if (!launchVersionId) {
-    await showMcDialog({
-      type: "info",
-      title: "找不到可啟動版本",
-      message:
-        "在實例資料夾中找不到可啟動的版本檔（versions/*/*.json）。\n\n" +
-        "請到設定按『檢查並修復檔案』；仍不行請匯出診斷回報。",
-    });
-    throw new Error("找不到可啟動版本。");
+  let resolved;
+  try {
+    resolved = await resolveVersionChain({ gameDir, versionId: launchId });
+  } catch (e) {
+    if (e?.code === "ENOENT") {
+      throw new LaunchError("GGL_LAUNCH_NO_VERSION", "找不到可啟動版本。", { cause: e });
+    }
+    throw e;
   }
-
-  const resolved = await resolveVersionChain({
-    gameDir,
-    versionId: launchVersionId,
-  });
   const mainClass = String(resolved.mainClass || "").trim();
   if (!mainClass) throw new Error("版本 JSON 缺少 mainClass。");
 
@@ -201,16 +195,13 @@ async function launchMinecraftFabric1211({
     resolved.id,
     `${resolved.id}.jar`,
   );
-  const baseId = String(resolved.baseJarId || minecraftVersion || "").trim();
-  const baseJar = baseId
-    ? path.join(gameDir, "versions", baseId, `${baseId}.jar`)
-    : "";
+  const baseId = String(resolved.baseJarId || record.minecraft).trim();
+  const baseJar = path.join(gameDir, "versions", baseId, `${baseId}.jar`);
 
   let versionJarPath = preferredJar;
   try {
     await fsp.access(preferredJar, fs.constants.F_OK);
   } catch {
-    if (!baseJar) throw new Error(`找不到版本 jar：${preferredJar}`);
     versionJarPath = baseJar;
     try {
       await fsp.access(baseJar, fs.constants.F_OK);
@@ -229,7 +220,7 @@ async function launchMinecraftFabric1211({
 
   const maxMb = settings?.maxMemoryGb
     ? mbFromGb(settings.maxMemoryGb)
-    : mbFromGb(memoryGb);
+    : mbFromGb(settings?.memoryGb);
   const minMb = settings?.minMemoryGb ? mbFromGb(settings.minMemoryGb) : 0;
   const online = Boolean(auth?.uuid && auth?.accessToken);
   const placeholders = {
@@ -237,10 +228,8 @@ async function launchMinecraftFabric1211({
     version_name: resolved.id,
     game_directory: gameDir,
     assets_root: path.join(gameDir, "assets"),
-    // --assetIndex 須用 version json 的 id（如 "29"）；勿誤用 minecraftVersion 字串
-    assets_index_name: String(
-      resolved.assetIndex || minecraftVersion || "1.21.11",
-    ),
+    // --assetIndex 須用 version json 的 id（如 "29"）；退路是記錄的 minecraft
+    assets_index_name: String(resolved.assetIndex || record.minecraft),
     auth_uuid: online ? auth.uuid : "00000000-0000-0000-0000-000000000000",
     auth_access_token: online ? auth.accessToken : "0",
     // 版本 json 若帶這兩個 token，我們沒有真值可填；填空字串而非留原始 ${...}
@@ -264,42 +253,54 @@ async function launchMinecraftFabric1211({
   );
   const args = [...jvmArgs, "-cp", cp, mainClass, ...gameArgs];
 
-  sendMcStatus("正在啟動遊戲…");
+  d.sendMcStatus("正在啟動遊戲…");
 
   cleanupStaleMcProcessIfNeeded();
   if (runningMcProcess && runningMcProcess.exitCode === null) {
     throw new Error("遊戲已在執行中，請先關閉遊戲後再啟動。");
   }
+  // 完整 argv（⑤ 的基準）；時間戳由 appendLauncherLog 加
+  await d.log(
+    `MC_LAUNCH launchId=${launchId} argv=${JSON.stringify(
+      maskedArgv([javaExe, ...args], placeholders.auth_access_token),
+    )}`,
+  );
   let p;
   try {
-    p = spawn(javaExe, args, {
+    p = d.spawn(javaExe, args, {
       cwd: gameDir,
       windowsHide: false,
       detached: true,
       stdio: "ignore",
     });
   } catch (e) {
-    sendMcStatus(`啟動失敗：${String(e?.message ?? e)}`);
+    d.sendMcStatus(`啟動失敗：${String(e?.message ?? e)}`);
+    throw e;
+  }
+  try {
+    await waitSpawned(p);
+  } catch (e) {
+    d.sendMcStatus(e.message);
     throw e;
   }
   p.unref();
   runningMcProcess = p;
-  sendMcRunning(true);
+  d.sendMcRunning(true);
 
-  void launchDeps.tryStartDiscordRpcHelper({ mcPid: p.pid });
+  void d.tryStartDiscordRpcHelper({ mcPid: p.pid });
 
   let finalized = false;
   const finalize = (code, reason) => {
     if (finalized) return;
     finalized = true;
     runningMcProcess = null;
-    sendMcRunning(false);
+    d.sendMcRunning(false);
     if (typeof code === "number") {
-      sendMcStatus(code === 0 ? "遊戲已結束" : `遊戲已結束（code=${code}）`);
+      d.sendMcStatus(code === 0 ? "遊戲已結束" : `遊戲已結束（code=${code}）`);
     } else if (reason) {
-      sendMcStatus(`遊戲已結束（${reason}）`);
+      d.sendMcStatus(`遊戲已結束（${reason}）`);
     } else {
-      sendMcStatus("遊戲已結束");
+      d.sendMcStatus("遊戲已結束");
     }
   };
 
@@ -312,9 +313,9 @@ async function launchMinecraftFabric1211({
 }
 
 module.exports = {
+  LaunchError,
   configureMinecraftLaunch,
-  ensureRuntimeAndLaunch,
-  launchMinecraftFabric1211,
+  launchMinecraft,
   cleanupStaleMcProcessIfNeeded,
   isMinecraftRunning,
 };

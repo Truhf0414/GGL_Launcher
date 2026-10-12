@@ -19,6 +19,19 @@ function registerMinecraftIpc(ctx) {
     }
   }
 
+  // 啟動本體不跳框（④c：minecraft-launch.js 不 require electron），依 code 在這裡跳；文字照搬 ④c 前
+  const LAUNCH_ERROR_DIALOGS = {
+    GGL_LAUNCH_NO_JAVA: [
+      "找不到 Java",
+      "找不到內建 Java。請到設定按『檢查並修復檔案』讓啟動器重新安裝 Java。",
+    ],
+    GGL_LAUNCH_NO_VERSION: [
+      "找不到可啟動版本",
+      "在實例資料夾中找不到可啟動的版本檔（versions/*/*.json）。\n\n" +
+        "請到設定按『檢查並修復檔案』；仍不行請匯出診斷回報。",
+    ],
+  };
+
   async function explainLaunchBlocked(status) {
     let text;
     try {
@@ -31,27 +44,28 @@ function registerMinecraftIpc(ctx) {
   }
 
   /**
-   * 鎖只包跟檔案有關的那段：閘（中樞在鎖內當場算）、讀設定、備妥 runtime 並啟動。
+   * 鎖只包跟檔案有關的那段：閘（中樞在鎖內當場算）與啟動。設定、路徑、記錄用閘那次讀到的（④c A1）。
    * 帳號的讀取與換新由呼叫端在鎖外先做完，對微軟的網路請求不必在鎖裡等。
    */
   async function launchThroughGate(authOf) {
     try {
-      await deps.withLaunchLock(async () => {
+      await deps.withLaunchLock(async (_status, { settings, paths, record }) => {
         // 成功啟動時「遊戲執行中」事件與 handler 回覆到畫面的先後沒有保證，連按兩次在這裡擋
         if (await deps.isMinecraftRunning()) {
           throw new Error("遊戲已在執行中");
         }
-        const settings = await deps.readSettings();
-        const paths = deps.getPaths(settings);
-        await deps.ensureRuntimeAndLaunch({
+        await deps.launchMinecraft({
           settings,
           paths,
+          record,
           auth: authOf(settings),
         });
       });
     } catch (e) {
       if (e?.code === "GGL_SYNC_LAUNCH_BLOCKED") {
         await explainLaunchBlocked(e.status);
+      } else if (LAUNCH_ERROR_DIALOGS[e?.code]) {
+        await showInfoDialog(...LAUNCH_ERROR_DIALOGS[e.code]);
       }
       throw e;
     }

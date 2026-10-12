@@ -2,7 +2,7 @@
 //
 // 目錄結構（預設根 DEFAULT_LAUNCHER_ROOT_DIR）：
 // <root>\group   -> Minecraft 實例（每個實例一個資料夾）
-// <root>\jdk     -> 內建 Java（放入 JDK 解壓內容）
+// <root>\runtime -> 內建 Java（runtime\java-<major>，依 Minecraft 版本要的大版本）
 // <root>\.temp   -> 暫存下載檔/中繼檔（避免下載中斷時破壞實例）
 // 實際根目錄來自 settings.launcherRootDir（經 normalizeRootDir）。
 // electron 在用到時才 require：測試會載入本檔（見 test/helpers/forbid-electron.cjs）

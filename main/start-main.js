@@ -29,14 +29,10 @@ const { createNoticeFeed } = require("./sync/notice-feed.js");
 const { readRecord: readSyncRecord } = require("./sync/instance-record.js");
 const { createConfirmGameClosed } = require("./game-closed-dialog");
 const { describeProgress } = require("../lib/sync/status-text.js");
-const {
-  configureMinecraftBootstrap,
-  ensureMinecraftAndFabricRuntime,
-  ensureBundledJava,
-} = require("./minecraft-bootstrap");
+const { configureMinecraftBootstrap } = require("./minecraft-bootstrap");
 const {
   configureMinecraftLaunch,
-  ensureRuntimeAndLaunch,
+  launchMinecraft,
   isMinecraftRunning,
 } = require("./minecraft-launch");
 const {
@@ -80,7 +76,7 @@ function createMainAppReadyContext({ app, appRoot }) {
   const instanceSync = createInstanceSync({
     readSettings,
     isMinecraftRunning,
-    ensureBundledJava,
+    log: appendLauncherLog,
     sendInstanceStatus: (status) => bridge.sendInstanceStatus(status),
     confirmGameClosed: createConfirmGameClosed({
       dialog: require("electron").dialog,
@@ -116,7 +112,7 @@ function createMainAppReadyContext({ app, appRoot }) {
     isExplicitNumberLike,
     getSystemMemoryGb,
     getPaths,
-    ensureRuntimeAndLaunch,
+    launchMinecraft,
     isMinecraftRunning,
     getInstanceStatus: instanceSync.getInstanceStatus,
     updateInstance: instanceSync.updateInstance,
@@ -181,7 +177,6 @@ function createMainAppReadyContext({ app, appRoot }) {
     getMainWindow,
     getAppIconPath,
     serverConfig,
-    ensureMinecraftAndFabricRuntime,
     tryStartDiscordRpcHelper,
   };
 }

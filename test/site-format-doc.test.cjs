@@ -31,6 +31,7 @@ const { createSiteClient } = require("../main/sync/site-client.js");
 const { createNoticeFeed } = require("../main/sync/notice-feed.js");
 const { createInstanceSync } = require("../main/sync/index.js");
 const { writeRecord } = require("../main/sync/instance-record.js");
+const { RUNTIME, installRuntime } = require("./helpers/installed-runtime.cjs");
 const {
   registerNotificationsIpc,
 } = require("../main/ipc/notifications-ipc.js");
@@ -66,12 +67,14 @@ const NOW = Date.parse("2026-10-08T12:00:00+08:00");
 const LAUNCHER = "1.0.0";
 const SHA = "a".repeat(64);
 const FILES = [{ path: "mods/a.jar", sha256: SHA, size: 1 }];
-const RELEASE = { version: "v1", files: FILES };
+// ④c 起「相同」也比 minecraft／loader，記錄帶 runtime 三欄（→ instance-sync-v3-commit4c.md）
+const RELEASE = { version: "v1", files: FILES, minecraft: RUNTIME.minecraft, loader: RUNTIME.loader };
 const RECORD = {
   format: 3,
   version: "v1",
   appliedAt: "2026-10-01T00:00:00.000Z",
   files: [{ path: "mods/a.jar", sha256: SHA }],
+  ...RUNTIME,
 };
 
 // JSON 能寫出來的每一種值（undefined＝那個鍵沒寫）；型別規定逐格斷言
@@ -215,7 +218,10 @@ async function hub(t, { installed }) {
   const root = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-sf-doc-"));
   t.after(() => fsp.rm(root, { recursive: true, force: true }));
   const settings = { launcherRootDir: root };
-  if (installed) await writeRecord(getPaths(settings), RECORD);
+  if (installed) {
+    await writeRecord(getPaths(settings), RECORD);
+    await installRuntime(getPaths(settings));
+  }
   const site = {
     gate: {
       side: "ok",
@@ -234,10 +240,9 @@ async function hub(t, { installed }) {
     launcherVersion: LAUNCHER,
     serverConfig: { manifestUrl: MANIFEST_URL, protectedPaths: [] },
     siteClient,
-    hasBundledJava: async () => true,
     readSettings: async () => settings,
     isMinecraftRunning: async () => false,
-    ensureBundledJava: async () => {},
+    log: () => {},
     sendInstanceStatus: () => {},
     confirmGameClosed: async () => true,
   });

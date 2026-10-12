@@ -22,6 +22,8 @@ const { writeRecord } = require("../main/sync/instance-record.js");
 const { getPaths } = require("../lib/paths-layout.js");
 const { registerSettingsIpc } = require("../main/ipc/settings-ipc.js");
 const { normalizeSettingsObject } = require("../main/settings.js");
+const { RUNTIME, installRuntime } = require("./helpers/installed-runtime.cjs");
+const { LaunchError } = require("../main/minecraft-launch.js");
 
 function makeFakeIpcMain() {
   const handlers = new Map();
@@ -51,11 +53,10 @@ function baseAccount(overrides = {}) {
 function setupIpc(depsOverrides = {}) {
   const calls = { refresh: 0, write: [], launch: [], dialogs: [], lock: 0 };
   const deps = {
-    readSettings: async () => ({}),
-    getPaths: () => ({}),
+    // ④c：閘把那次讀到的 settings／paths／record 交給 fn（A1）
     withLaunchLock: async (fn) => {
       calls.lock += 1;
-      return fn({ kind: "up-to-date" });
+      return fn({ kind: "up-to-date" }, { settings: { playerId: "P" }, paths: {}, record: { ...RUNTIME } });
     },
     readAccount: async () => baseAccount(),
     writeAccount: async (acct) => {
@@ -65,7 +66,7 @@ function setupIpc(depsOverrides = {}) {
       calls.refresh += 1;
       return { outcome: REFRESH_OUTCOME.SUCCESS, account: acct };
     },
-    ensureRuntimeAndLaunch: async (args) => {
+    launchMinecraft: async (args) => {
       calls.launch.push(args);
     },
     isMinecraftRunning: () => false,
@@ -499,12 +500,14 @@ async function setupRealHub(t, ipcDepsOverrides = {}) {
     version: HUB_RELEASE.version,
     appliedAt: "2026-10-01T00:00:00.000Z",
     files: HUB_RELEASE.files.map((f) => ({ path: f.path, sha256: f.sha256 })),
+    ...RUNTIME,
   });
+  await installRuntime(paths);
   const site = { online: true };
   const sync = createInstanceSync({
     readSettings: async () => settings,
     isMinecraftRunning: () => false,
-    ensureBundledJava: async () => {},
+    log: () => {},
     sendInstanceStatus: () => {},
     confirmGameClosed: async () => false,
     launcherVersion: "1.0.0",
@@ -522,11 +525,8 @@ async function setupRealHub(t, ipcDepsOverrides = {}) {
         release: { side: "ok", value: HUB_RELEASE },
       }),
     },
-    hasBundledJava: async () => true,
   });
   const ipc = setupIpc({
-    readSettings: async () => settings,
-    getPaths,
     withLaunchLock: sync.withLaunchLock,
     ...ipcDepsOverrides,
   });
@@ -549,7 +549,7 @@ test("W17 real hub: launch failure and gate refusal both release the lock", asyn
   {
     let launches = 0;
     const h = await setupRealHub(t, {
-      ensureRuntimeAndLaunch: async () => {
+      launchMinecraft: async () => {
         launches++;
         throw new Error("boom launch");
       },
@@ -566,7 +566,7 @@ test("W17 real hub: launch failure and gate refusal both release the lock", asyn
   {
     let launches = 0;
     const h = await setupRealHub(t, {
-      ensureRuntimeAndLaunch: async () => {
+      launchMinecraft: async () => {
         launches++;
       },
     });
@@ -587,7 +587,7 @@ test("W18 real hub: while launching the lock is held and changing the root dir i
   let finishLaunch = () => {};
   t.after(() => finishLaunch());
   const h = await setupRealHub(t, {
-    ensureRuntimeAndLaunch: () => {
+    launchMinecraft: () => {
       entered();
       return new Promise((r) => (finishLaunch = r));
     },
@@ -622,4 +622,42 @@ test("W18 real hub: while launching the lock is held and changing the root dir i
   finishLaunch();
   await launching;
   assert.equal(h.sync.getLockHolder(), null);
+});
+
+// → _notes/plans/instance-sync-v3-commit4c.md §測試 C10、C14
+test("C10 啟動丟 LaunchError ⇒ 找不到 Java／版本跳對應的框，其他 code 不跳；錯誤照丟", async () => {
+  const cases = [
+    ["GGL_LAUNCH_NO_JAVA", "找不到 Java"],
+    ["GGL_LAUNCH_NO_VERSION", "找不到可啟動版本"],
+    ["GGL_LAUNCH_NOT_READY", null],
+    ["GGL_LAUNCH_SPAWN_FAILED", null],
+  ];
+  for (const [code, title] of cases) {
+    const { ipcMain, calls } = await setupIpc({
+      launchMinecraft: async () => {
+        throw new LaunchError(code, `msg ${code}`);
+      },
+    });
+    await rejectsWith(ipcMain.invoke(IPC.invoke.MINECRAFT_LAUNCH_OFFLINE), (e) =>
+      assert.equal(e.message, `msg ${code}`),
+    );
+    assert.deepEqual(calls.dialogs.map((d) => d.title), title ? [title] : [], code);
+  }
+});
+
+test("C14 real hub：launchMinecraft 拿到閘那次的 settings／paths／record，離線帳號名取自那份 settings", async (t) => {
+  let got;
+  const h = await setupRealHub(t, {
+    launchMinecraft: async (args) => {
+      got = args;
+    },
+  });
+  await h.ipcMain.invoke(IPC.invoke.MINECRAFT_LAUNCH_OFFLINE);
+  assert.equal(got.settings, h.settings);
+  assert.deepEqual(got.paths, h.paths);
+  assert.deepEqual(
+    { minecraft: got.record.minecraft, loader: got.record.loader, javaMajor: got.record.javaMajor },
+    RUNTIME,
+  );
+  assert.equal(got.auth.name, h.settings.playerId);
 });

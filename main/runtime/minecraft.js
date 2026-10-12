@@ -15,8 +15,7 @@ const {
   libraryArtifact,
 } = require("../../lib/library-filter.js");
 const { profileJsonUrls, mavenUrlCandidates } = require("../../lib/fabric-meta.js");
-const { launchIdFor } = require("../../lib/runtime-target.js");
-const { checkStrictRelPath } = require("../../lib/sync/rel-path.js");
+const { launchIdFor, isSingleSegment } = require("../../lib/runtime-target.js");
 const { checkVanillaJson, checkFabricJson } = require("../../lib/runtime-json.js");
 const {
   safeLog,
@@ -185,10 +184,7 @@ async function ensureVersionJsons({
   const launchId = launchIdFor({ minecraft, loader });
   // 各自必須是單一路徑段：loader.version 帶 "/" 拼出來的路徑仍過 checkStrictRelPath，只是多一層
   for (const id of [minecraft, launchId]) {
-    const c = checkStrictRelPath(id);
-    if (!c.ok || id.includes("/")) {
-      throw new Error(`版本 id 不能當資料夾名（${c.ok ? "slash" : c.code}）：${id}`);
-    }
+    if (!isSingleSegment(id)) throw new Error(`版本 id 不能當資料夾名：${id}`);
   }
   const vanillaRel = `versions/${minecraft}/${minecraft}.json`;
   const targetRel = `versions/${launchId}/${launchId}.json`;

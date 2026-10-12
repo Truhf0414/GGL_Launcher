@@ -30,13 +30,16 @@ const invalid = (reason = "invalid", detail) => ({
 const gateOk = ({ maintenance = null, min = null } = {}) =>
   ok({ maintenance, minLauncherVersion: min });
 const REL_FILES = [{ path: "mods/a.jar", sha256: A, size: 1 }];
-const releaseOk = (files = REL_FILES, version = "GGL3.1.02") =>
-  ok({ version, files });
-const recordOf = (files = REL_FILES, version = "GGL3.1.01") => ({
+// ④c 起「相同」也比 minecraft／loader：兩邊預設同一套 runtime
+const RUNTIME = { minecraft: "1.21.11", loader: { type: "fabric", version: "0.19.3" } };
+const releaseOk = (files = REL_FILES, version = "GGL3.1.02", runtime = RUNTIME) =>
+  ok({ version, files, ...runtime });
+const recordOf = (files = REL_FILES, version = "GGL3.1.01", runtime = { ...RUNTIME, javaMajor: 21 }) => ({
   format: 3,
   version,
   appliedAt: "2026-09-29T12:00:00+08:00",
   files: files.map(({ path, sha256 }) => ({ path, sha256 })),
+  ...runtime,
 });
 
 const unreadable = (detail = "EACCES: permission denied") => ({
@@ -601,4 +604,21 @@ test("N28 索引 newer ⇒ launcher-too-old、叫人下載新版、本機齊就�
 test("N28 gate 同時維護中與版本過舊 ⇒ maintenance", () => {
   const g = gateOk({ maintenance: { enabled: true, message: "" }, min: "2.0.0" });
   assert.equal(kindOf({ site: { gate: g } }), "maintenance");
+});
+
+// → _notes/plans/instance-sync-v3-commit4c.md §測試 C3
+test("C3 只改 loader／只改 minecraft ⇒ update-available 且含 release-differs；③ 的記錄（沒三欄）同", () => {
+  const cases = [
+    releaseOk(REL_FILES, "GGL3.1.02", { ...RUNTIME, loader: { type: "fabric", version: "0.19.4" } }),
+    releaseOk(REL_FILES, "GGL3.1.02", { ...RUNTIME, minecraft: "1.21.12" }),
+  ];
+  for (const release of cases) {
+    const r = computeStatusKind(input({ site: { release } }));
+    assert.equal(r.kind, "update-available");
+    assert.deepEqual(r.syncReasons, ["release-differs"]);
+  }
+  const old = recordOf(REL_FILES, "GGL3.1.01", {});
+  const r = computeStatusKind(input({ record: old }));
+  assert.equal(r.kind, "update-available");
+  assert.ok(r.syncReasons.includes("release-differs"));
 });

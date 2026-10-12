@@ -23,11 +23,13 @@ const {
   assertRemovableStrayJars,
 } = require("../../lib/sync/plan.js");
 const { checkRuntimeReady } = require("../../lib/runtime-readiness.js");
+const { pickRuntimeFields, sameRuntimeTarget } = require("../../lib/runtime-target.js");
 const instanceRecord = require("./instance-record.js");
 const { createSiteClient } = require("./site-client.js");
 const { checkGameRunning } = require("./game-running.js");
+const { makeRuntimeProbe } = require("./runtime-probe.js");
+const { removeStaleRuntime } = require("./runtime-cleanup.js");
 const { hashFile } = require("../fs-utils.js");
-const { getBundledJavaExe } = require("../bundled-java.js");
 
 class SyncStateError extends Error {
   constructor(code, message, extra = {}) {
@@ -61,7 +63,7 @@ const notAllowedError = (who, kind) =>
 const REQUIRED_FUNCTIONS = [
   "readSettings",
   "isMinecraftRunning",
-  "ensureBundledJava",
+  "log", // ④c：runtime 安裝與 D2 清理的紀錄（appendLauncherLog），A2
   "sendInstanceStatus",
   "confirmGameClosed",
 ];
@@ -135,9 +137,10 @@ function createInstanceSync(deps) {
     deps.serverConfig ?? require("../../lib/server-config.js");
   const siteClient = deps.siteClient ?? createSiteClient();
   const applyPlan = deps.applyPlan ?? require("./apply.js").applyPlan;
-  const hasBundledJava =
-    deps.hasBundledJava ??
-    (async (paths) => Boolean(await getBundledJavaExe(paths)));
+  const prepareRuntime =
+    deps.prepareRuntime ?? require("../runtime/prepare.js").prepareRuntime;
+  const runtimeProbeFor = deps.makeRuntimeProbe ?? makeRuntimeProbe;
+  const cleanupFs = deps.cleanupFs; // 測試換掉 D2 用的 fs（R#17）；預設＝fs/promises
   const onProgress = deps.onProgress ?? (() => {});
   const gameDeps = { isMinecraftRunning: deps.isMinecraftRunning };
   if (deps.runPowerShell) gameDeps.runPowerShell = deps.runPowerShell;
@@ -177,15 +180,16 @@ function createInstanceSync(deps) {
     );
     if (!inProgress.ok)
       return { side: "unreadable", detail: inProgress.detail };
-    const { ready } = await checkRuntimeReady({
-      record: record.value,
-      probe: { hasBundledJava: () => hasBundledJava(paths) },
-    });
+    // 就緒讀的檔被擋（帶 syscall）與記錄被擋同一條路：local-unreadable（R#23）
+    const runtime = await readLocalFile(paths.gameDir, () =>
+      checkRuntimeReady({ record: record.value, probe: runtimeProbeFor(paths) }),
+    );
+    if (!runtime.ok) return { side: "unreadable", detail: runtime.detail };
     return {
       side: "ok",
       record: record.value,
       inProgress: inProgress.value,
-      runtimeReady: ready,
+      runtimeReady: runtime.value.ready,
     };
   }
 
@@ -214,11 +218,13 @@ function createInstanceSync(deps) {
     };
   }
 
+  /** 狀態與算出它的那份輸入一起回：啟動拿同一份去開遊戲（A1、R#21）；算不出來 ⇒ inputs 為 null */
   async function compute(syncing) {
     try {
-      return derive(await gather(), syncing);
+      const inputs = await gather();
+      return { status: derive(inputs, syncing), inputs };
     } catch (err) {
-      return internalErrorStatus(err);
+      return { status: internalErrorStatus(err), inputs: null };
     }
   }
 
@@ -233,10 +239,14 @@ function createInstanceSync(deps) {
 
   /** 序號與「同步中」都在開始時拿，與呼叫端前一行（例如放鎖）在同一個同步段 */
   async function computeAndSend() {
+    return (await computeAndSendWithInputs()).status;
+  }
+
+  async function computeAndSendWithInputs() {
     const seq = ++lastSeq;
-    const status = await compute(lock?.phase === "applying");
-    send(seq, status);
-    return status;
+    const r = await compute(lock?.phase === "applying");
+    send(seq, r.status);
+    return r;
   }
 
   /** 前置檢查：當場算，不用上一次送出的；過了這關 local、索引、release 必為 ok */
@@ -271,7 +281,7 @@ function createInstanceSync(deps) {
     return precheck(who);
   }
 
-  async function buildPlan(who, inputs, strayJars) {
+  async function buildPlan(inputs, strayJars, verifyAll) {
     const { paths, local, release } = inputs;
     const plan = await planSync({
       previous: local.record?.files ?? null,
@@ -280,7 +290,7 @@ function createInstanceSync(deps) {
       probe: makeProbe(paths.gameDir),
       playerEditable: release.value.playerEditable,
       protectedPaths: serverConfig.protectedPaths,
-      verifyAll: who === "repair" || local.inProgress, // H7
+      verifyAll,
       onHashProgress: ({ done, total }) =>
         onProgress({ phase: "check", done, total }),
     });
@@ -307,8 +317,10 @@ function createInstanceSync(deps) {
     lock = { who, phase: "applying" };
     send(++lastSeq, derive(inputs, true));
 
-    const plan = await buildPlan(who, inputs, strayJars);
-    return applyPlan({
+    const verifyAll = who === "repair" || inputs.local.inProgress; // H7；runtime 用同一個值（④b 承接）
+    const plan = await buildPlan(inputs, strayJars, verifyAll);
+    const { minecraft, loader } = release.value;
+    const result = await applyPlan({
       plan,
       record: {
         format: 3,
@@ -321,7 +333,26 @@ function createInstanceSync(deps) {
       paths,
       filesBaseUrl: index.value.files,
       deps: {
-        prepareRuntime: () => deps.ensureBundledJava({ settings, paths }),
+        prepareRuntime: async () => {
+          const fields = pickRuntimeFields(
+            await prepareRuntime({
+              settings,
+              paths,
+              minecraft,
+              loader,
+              verifyAll,
+              reinstallJava: who === "repair", // ④b E3
+              onProgress,
+              deps: { log: deps.log },
+            }),
+          );
+          if (!sameRuntimeTarget(fields, release.value)) {
+            throw new Error(
+              `裝好的 runtime 不是這次要的（要 ${minecraft}／${loader.version}，得到 ${fields.minecraft}／${fields.loader.version}）`,
+            );
+          }
+          return fields;
+        },
         // blob 404 時判站台是不是換版了；每次呼叫都重抓（H9）
         fetchReleaseFiles: async () => {
           const { release: r } = await siteClient.fetchSite(index);
@@ -330,6 +361,14 @@ function createInstanceSync(deps) {
         sendSyncProgress: onProgress,
       },
     });
+    // 記錄已寫＝更新成功；清舊 runtime 失敗只寫 log（D2、D4），仍在鎖內
+    await removeStaleRuntime({
+      paths,
+      record: result.record,
+      log: deps.log,
+      ...(cleanupFs && { fsp: cleanupFs }),
+    });
+    return { movedAside: result.movedAside }; // 對外形狀不變（IPC 只用 movedAside）
   }
 
   /** 取鎖之後的每一個出口都放鎖、重算並送出，等重算完才回；重算不蓋掉本身的結果或錯誤 */
@@ -378,11 +417,11 @@ function createInstanceSync(deps) {
     });
   }
 
-  /** 啟動閘在鎖內當場算（送畫面）；不可啟動就不呼叫 fn（H3） */
+  /** 啟動閘在鎖內當場算（送畫面）；不可啟動就不呼叫 fn（H3）；可啟動 ⇒ fn 拿到閘那次讀到的輸入（A1） */
   async function withLaunchLock(fn) {
     acquire({ who: "launch" });
     try {
-      const status = await computeAndSend();
+      const { status, inputs } = await computeAndSendWithInputs();
       if (!status.ui.canLaunch) {
         throw new SyncStateError(
           "GGL_SYNC_LAUNCH_BLOCKED",
@@ -390,7 +429,8 @@ function createInstanceSync(deps) {
           { status },
         );
       }
-      return await fn(status);
+      const { settings, paths, local } = inputs;
+      return await fn(status, { settings, paths, record: local.record });
     } finally {
       lock = null;
     }
