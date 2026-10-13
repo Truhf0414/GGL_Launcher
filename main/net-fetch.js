@@ -1,15 +1,13 @@
-// HTTP / 下載：fetch 包裝、重試、斷點續傳、鏡像 fallback、hash 驗證
+// HTTP / 下載：fetch 包裝、重試、斷點續傳、停滯看門狗
 const fs = require("fs");
 const fsp = require("fs/promises");
-const { ensureDirForFile, hashFile } = require("./fs-utils");
+const { ensureDirForFile } = require("./fs-utils");
 
 const defaultNetDeps = {
   /** 下載 / fetch 重試時給 UI 的提示（例如 sendSyncStatus + sendMcStatus） */
   onRetryNotify: () => {},
   /** 與 launcher-log 的 appendLauncherLog 相同簽名即可 */
   appendLauncherLog: async () => {},
-  /** 鏡像切換、低速切換時的狀態列（通常用 sendSyncStatus） */
-  sendMirrorStatus: () => {},
 };
 
 /** @type {typeof defaultNetDeps} */
@@ -358,166 +356,16 @@ async function downloadToFileWithStallGuard(
   }
 }
 
-function normalizeDownloadSources(sources) {
-  const arr = Array.isArray(sources) ? sources : [];
-  const out = [];
-  for (const s of arr) {
-    if (!s) continue;
-    if (typeof s === "string") {
-      const url = s.trim();
-      if (!url) continue;
-      out.push({ name: "mirror", url });
-      continue;
-    }
-    if (typeof s === "object") {
-      const url = String(s.url || "").trim();
-      if (!url) continue;
-      const name = String(s.name || "mirror").trim() || "mirror";
-      const sha256 = String(s.sha256 || "").trim();
-      out.push({ name, url, sha256 });
-    }
-  }
-  return out;
-}
-
-async function downloadToFileWithFallback(
-  sources,
-  absPath,
-  onChunk,
-  options = {},
-) {
-  const list = normalizeDownloadSources(sources);
-  if (list.length === 0)
-    throw new Error("下載失敗：沒有可用的下載來源（sources 為空）");
-
-  let lastErr = null;
-  let lowSpeedAbortCount = 0;
-  for (const src of list) {
-    try {
-      try {
-        netDeps.sendMirrorStatus(`正在嘗試鏡像：${src.name}`);
-      } catch {}
-
-      // .part 是哪個來源寫的無從得知（這次換過來源、或上次排序不同），各來源不是同一份檔，
-      // 接上去會拼出壞檔；續傳只留在同一個來源內 downloadToFile 自己的重試
-      // （→ _notes/plans/instance-sync-v3-commit3a2.md §上層沒列 7）
-      await fsp.rm(absPath + ".part", { force: true });
-
-      await downloadToFileWithStallGuard(src.url, absPath, onChunk, {
-        resume: Boolean(options?.resume),
-        stallRetries: 0, // 停滯就換下一個來源
-        windowMs: options?.windowMs,
-        minBytes: options?.minBytes,
-      });
-      return src;
-    } catch (e) {
-      lastErr = e;
-      const isAbort = e?.code === "GGL_DOWNLOAD_STALLED";
-      if (isAbort) lowSpeedAbortCount += 1;
-
-      try {
-        netDeps.sendMirrorStatus(
-          isAbort
-            ? `鏡像過慢（${src.name}），切換中…`
-            : `鏡像失敗（${src.name}），切換中…`,
-        );
-      } catch {}
-    }
-  }
-
-  if (lowSpeedAbortCount >= list.length) {
-    const names = list.map((x) => x.name).join(", ");
-    throw new Error(
-      `所有鏡像下載速度都過慢（30 秒 < 1MB）。\n鏡像：${names}\n你可以稍後再試，或設定 GGL_JAVA_MIRROR_URL 使用較快的鏡像。`,
-    );
-  }
-  throw lastErr || new Error("下載失敗：所有鏡像皆失敗");
-}
-
-async function verifyFileSha256IfProvided(absPath, sha256) {
-  const expected = String(sha256 || "")
-    .trim()
-    .toLowerCase();
-  if (!expected) return;
-  if (!/^[a-f0-9]{64}$/.test(expected)) return;
-  const got = String(await hashFile(absPath, "sha256"))
-    .trim()
-    .toLowerCase();
-  if (got !== expected) {
-    throw new Error(
-      `檔案驗證失敗（sha256 不符）\nexpected=${expected}\ngot=${got}`,
-    );
-  }
-}
-
-async function verifyFileSha1IfProvided(absPath, sha1) {
-  const expected = String(sha1 || "")
-    .trim()
-    .toLowerCase();
-  if (!expected) return;
-  if (!/^[a-f0-9]{40}$/.test(expected)) return;
-  const got = String(await hashFile(absPath, "sha1"))
-    .trim()
-    .toLowerCase();
-  if (got !== expected) {
-    throw new Error(
-      `檔案驗證失敗（sha1 不符）\nexpected=${expected}\ngot=${got}`,
-    );
-  }
-}
-
-async function downloadIfMissing(
-  url,
-  absPath,
-  { sha1 = "", resume = true, verifyExisting = false } = {},
-) {
-  try {
-    await fsp.access(absPath, fs.constants.F_OK);
-    if (verifyExisting) {
-      await verifyFileSha1IfProvided(absPath, sha1);
-    }
-    return false;
-  } catch {}
-  await downloadToFile(String(url), absPath, null, { resume });
-  await verifyFileSha1IfProvided(absPath, sha1);
-  return true;
-}
-
-async function ensureFileValid(
-  url,
-  absPath,
-  { sha1 = "", resume = true } = {},
-) {
-  try {
-    await fsp.access(absPath, fs.constants.F_OK);
-    await verifyFileSha1IfProvided(absPath, sha1);
-    return false;
-  } catch (e) {
-    try {
-      await fsp.rm(absPath, { force: true });
-    } catch {}
-  }
-  await downloadToFile(String(url), absPath, null, { resume });
-  await verifyFileSha1IfProvided(absPath, sha1);
-  return true;
-}
-
 module.exports = {
   configureNetFetch,
   fetchJson,
   fetchWithNiceError,
   downloadToFile,
-  downloadToFileWithFallback,
   downloadToFileWithStallGuard,
   STALL_WINDOW_MS,
   STALL_MIN_BYTES,
-  downloadIfMissing,
-  ensureFileValid,
-  verifyFileSha256IfProvided,
-  verifyFileSha1IfProvided,
   formatFetchCause,
   isRetryableError,
-  normalizeDownloadSources,
   makeRetryNotice,
   withRetries,
 };

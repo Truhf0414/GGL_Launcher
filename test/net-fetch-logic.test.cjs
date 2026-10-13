@@ -6,7 +6,6 @@ const assert = require("node:assert/strict");
 const {
   formatFetchCause,
   isRetryableError,
-  normalizeDownloadSources,
   makeRetryNotice,
   withRetries,
 } = require("../main/net-fetch.js");
@@ -43,19 +42,6 @@ test("isRetryableError: HTTP 503 retryable", () => {
 
 test("isRetryableError: HTTP 404 not retryable", () => {
   assert.equal(isRetryableError(new Error("HTTP 404")), false);
-});
-
-test("normalizeDownloadSources: strings and objects", () => {
-  assert.deepEqual(normalizeDownloadSources(null), []);
-  assert.deepEqual(normalizeDownloadSources([" https://a "]), [
-    { name: "mirror", url: "https://a" },
-  ]);
-  assert.deepEqual(
-    normalizeDownloadSources([
-      { name: " M1 ", url: " https://b ", sha256: " abc " },
-    ]),
-    [{ name: "M1", url: "https://b", sha256: "abc" }],
-  );
 });
 
 test("withRetries: succeeds after retryable failure", async () => {

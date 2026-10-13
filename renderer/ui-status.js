@@ -68,7 +68,7 @@
 
     const pct = (s.match(/\b(\d{1,3})%\b/) || [])[0] || "";
     const speed = (s.match(/\b\d+(?:\.\d+)?\s*MB\/s\b/i) || [])[0] || "";
-    // main.js 的 formatEtaSeconds 會產生：12s / 3m05s
+    // 認得的時間格式：12s / 3m05s
     // 也容忍：01:23 / 1:23:45 等格式
     const time =
       (s.match(/\b\d+h\d{1,2}m\d{2}s\b/i) || [])[0] ||

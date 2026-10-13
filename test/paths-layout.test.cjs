@@ -55,3 +55,16 @@ test("T1 javaExeFor：<root>/runtime/java-<major>/bin/java.exe；major 不是正
     assert.throws(() => javaExeFor(p, bad), /major 必須是正整數/, String(bad));
   }
 });
+
+// → _notes/plans/instance-sync-v3-commit4d.md K2
+test("K2 getPaths 的鍵：等於明列清單（多一個、少一個都紅）", () => {
+  assert.deepEqual(Object.keys(getPaths({ launcherRootDir: "H:\\Root" })).sort(), [
+    "gameDir",
+    "groupDir",
+    "instanceDir",
+    "root",
+    "syncInProgressPath",
+    "syncRecordPath",
+    "tempDir",
+  ]);
+});

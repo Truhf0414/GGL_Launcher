@@ -142,7 +142,7 @@ async function downloadRuntimeFile({
   health,
   deps = {},
 }) {
-  // 格式不對就丟：不能落到 verifyFileSha1IfProvided 那種「格式不對就跳過不驗」
+  // 格式不對就丟：不能「格式不對就跳過不驗」
   if (!isHexOrEmpty(sha1, 40)) throw new Error(`sha1 不合法（${sha1}）：${dest}`);
   for (const c of candidates) {
     if (!isHexOrEmpty(c.sha256 ?? "", 64)) {
