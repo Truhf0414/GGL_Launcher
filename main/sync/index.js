@@ -200,7 +200,8 @@ function createInstanceSync(deps) {
       side: "ok",
       record: record.value,
       inProgress: inProgress.value,
-      runtimeReady: runtime.value.ready,
+      // 就緒的結果原樣：status-kind 看 ready，啟動拿 launch（⑤c C3、P2′）
+      runtime: runtime.value,
     };
   }
 
@@ -442,7 +443,13 @@ function createInstanceSync(deps) {
         );
       }
       const { settings, paths, local } = inputs;
-      return await fn(status, { settings, paths, record: local.record });
+      // 啟動用的成品就是這次閘的就緒算出來的那份，不另讀 json（⑤c P2′）
+      return await fn(status, {
+        settings,
+        paths,
+        record: local.record,
+        launch: local.runtime.launch,
+      });
     } finally {
       lock = null;
     }

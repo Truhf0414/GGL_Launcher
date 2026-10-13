@@ -22,7 +22,7 @@ const { writeRecord } = require("../main/sync/instance-record.js");
 const { getPaths } = require("../lib/paths-layout.js");
 const { registerSettingsIpc } = require("../main/ipc/settings-ipc.js");
 const { normalizeSettingsObject } = require("../main/settings.js");
-const { RUNTIME, installRuntime } = require("./helpers/installed-runtime.cjs");
+const { RUNTIME, LAUNCH_ID, installRuntime } = require("./helpers/installed-runtime.cjs");
 const { LaunchError } = require("../main/minecraft-launch.js");
 
 function makeFakeIpcMain() {
@@ -625,10 +625,9 @@ test("W18 real hub: while launching the lock is held and changing the root dir i
 });
 
 // → _notes/plans/instance-sync-v3-commit4c.md §測試 C10、C14
-test("C10 啟動丟 LaunchError ⇒ 找不到 Java／版本跳對應的框，其他 code 不跳；錯誤照丟", async () => {
+test("C10 啟動丟 LaunchError ⇒ 找不到 Java 跳對應的框，其他 code 不跳；錯誤照丟（⑤c 起啟動不讀 json，沒有「找不到版本」）", async () => {
   const cases = [
     ["GGL_LAUNCH_NO_JAVA", "找不到 Java"],
-    ["GGL_LAUNCH_NO_VERSION", "找不到可啟動版本"],
     ["GGL_LAUNCH_NOT_READY", null],
     ["GGL_LAUNCH_SPAWN_FAILED", null],
   ];
@@ -645,7 +644,7 @@ test("C10 啟動丟 LaunchError ⇒ 找不到 Java／版本跳對應的框，其
   }
 });
 
-test("C14 real hub：launchMinecraft 拿到閘那次的 settings／paths／record，離線帳號名取自那份 settings", async (t) => {
+test("C14 real hub：launchMinecraft 拿到閘那次的 settings／paths／record／成品（⑤c S5），離線帳號名取自那份 settings", async (t) => {
   let got;
   const h = await setupRealHub(t, {
     launchMinecraft: async (args) => {
@@ -660,4 +659,5 @@ test("C14 real hub：launchMinecraft 拿到閘那次的 settings／paths／recor
     RUNTIME,
   );
   assert.equal(got.auth.name, h.settings.playerId);
+  assert.equal(got.launch.merged.id, LAUNCH_ID);
 });

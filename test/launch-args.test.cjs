@@ -18,6 +18,8 @@ const {
   buildLaunchArgv,
   windowsEnv,
   assertEnv,
+  launchPlaceholders,
+  checkLaunchable,
 } = require("../lib/launch-args.js");
 const { libraryArtifact } = require("../lib/library-filter.js");
 const fx = require("./helpers/runtime-fixtures.cjs");
@@ -505,4 +507,133 @@ test("K8 assertEnv：形狀對 ⇒ 不丟；缺 os.version、features 是 null �
   assert.throws(() => assertEnv(undefined), TypeError);
   assert.throws(() => assertEnv({ os: { name: "windows", arch: "x86_64" }, features: {} }), TypeError);
   assert.throws(() => assertEnv({ ...ENV, features: null }), TypeError);
+});
+
+// → _notes/plans/instance-sync-v3-commit5c.md N3、N3b、N3c（D1：一把尺）
+
+const LAUNCHER = { name: "GGL_launcher", version: "1.0.0" };
+const ONLINE = { name: "Steve", uuid: "uuid-1", accessToken: "TOKEN" };
+const phInput = (over = {}) => ({
+  merged: mergedFixtures(),
+  gameDir: GAME,
+  nativesDir: NATIVES,
+  classpath: "CP",
+  auth: ONLINE,
+  launcher: LAUNCHER,
+  ...over,
+});
+const NULL_KEYS = [
+  "auth_xuid",
+  "clientid",
+  "quickPlayMultiplayer",
+  "quickPlayPath",
+  "quickPlayRealms",
+  "quickPlaySingleplayer",
+  "resolution_height",
+  "resolution_width",
+];
+
+test("N3b launchPlaceholders：20 個 key 全給、沒值的 8 個是 null；線上／離線；type 不對 ⇒ 資料錯", () => {
+  const p = launchPlaceholders(phInput());
+  assert.deepEqual(Object.keys(p).sort(), [...PLACEHOLDER_KEYS].sort());
+  assert.deepEqual(Object.keys(p).filter((k) => p[k] === null).sort(), NULL_KEYS);
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(p).filter(([, v]) => v !== null)),
+    {
+      auth_player_name: "Steve",
+      auth_uuid: "uuid-1",
+      auth_access_token: "TOKEN",
+      version_name: "fabric-loader-0.19.3-1.21.11",
+      version_type: "release",
+      game_directory: GAME,
+      assets_root: `${GAME}\\assets`,
+      assets_index_name: "29",
+      natives_directory: NATIVES,
+      launcher_name: "GGL_launcher",
+      launcher_version: "1.0.0",
+      classpath: "CP",
+    },
+  );
+  const off = launchPlaceholders(phInput({ auth: { name: "Alex" } }));
+  assert.deepEqual(
+    [off.auth_player_name, off.auth_uuid, off.auth_access_token],
+    ["Alex", "00000000-0000-0000-0000-000000000000", "0"],
+  );
+  assert.equal(launchPlaceholders(phInput({ auth: undefined })).auth_player_name, "Player001");
+
+  const m = mergedFixtures();
+  for (const type of ["", undefined, 5]) {
+    assert.throws(
+      () => launchPlaceholders(phInput({ merged: { ...m, type } })),
+      bad(/type/),
+      String(type),
+    );
+  }
+  assert.throws(
+    () => launchPlaceholders(phInput({ launcher: { name: "", version: "1" } })),
+    misuse(/launcher/),
+  );
+  assert.throws(() => launchPlaceholders(phInput({ classpath: "" })), misuse(/classpath/));
+});
+
+const notOk = (r, re) => {
+  assert.equal(r.ok, false, JSON.stringify(r));
+  assert.match(r.error, re);
+};
+const withArgs = (json, side, extra) => ({
+  ...json,
+  arguments: { ...json.arguments, [side]: [...json.arguments[side], ...extra] },
+});
+const dropType = (json) => {
+  const { type, ...rest } = json;
+  void type;
+  return rest;
+};
+
+test("N3 checkLaunchable：fixture 過；就緒驗的＝啟動用的（type、null 嵌字串、classpath 套 rules 後、mainClass）", () => {
+  const check = (v, f) => checkLaunchable(mergeVersionChain([v, f]), ENV);
+  const v = fx.vanilla();
+  const f = fx.fabric();
+  assert.deepEqual(check(v, f), { ok: true });
+  // 合併的 type 子層優先：只拿掉 Fabric 的會退回原版的 release；兩份都拿掉才壞
+  assert.deepEqual(check(v, dropType(f)), { ok: true });
+  notOk(check(dropType(v), dropType(f)), /type/);
+  notOk(check(v, withArgs(f, "game", ["--xuid=${auth_xuid}"])), /auth_xuid/);
+  notOk(check(v, withArgs(f, "jvm", ["${classpath}"])), /classpath/);
+  // 唯一的 ${classpath} 放進 windows 上不成立的 rule：套過 rules 後 0 個
+  const osxOnly = {
+    ...v,
+    arguments: {
+      ...v.arguments,
+      jvm: v.arguments.jvm.map((x) =>
+        x === "${classpath}"
+          ? { rules: [{ action: "allow", os: { name: "osx" } }], value: x }
+          : x,
+      ),
+    },
+  };
+  notOk(check(osxOnly, f), /classpath/);
+  notOk(checkLaunchable({ ...mergeVersionChain([v, f]), mainClass: "" }, ENV), /mainClass/);
+  // 啟動器沒有值的 key 無條件出現 ⇒ 整組省略、不算壞（R-l）
+  assert.deepEqual(check(v, withArgs(f, "game", ["--width", "${resolution_width}"])), { ok: true });
+  // 程式錯照丟，不轉成「資料壞了」：env 在 try 外驗；merged 給錯是在 try 裡面丟的（突變 M4）
+  assert.throws(() => checkLaunchable(mergeVersionChain([v, f]), null), TypeError);
+  assert.throws(() => checkLaunchable(null, ENV), misuse(/merged/));
+});
+
+test("N3c buildLaunchArgv：${classpath} 套過 rules 才數——多一個不成立的不算", () => {
+  const input = goldenInput();
+  const m = input.merged;
+  const merged = {
+    ...m,
+    arguments: {
+      ...m.arguments,
+      jvm: [
+        ...m.arguments.jvm,
+        { rules: [{ action: "allow", os: { name: "osx" } }], value: "${classpath}" },
+      ],
+    },
+  };
+  const expected = JSON.parse(fs.readFileSync(GOLDEN, "utf8"));
+  assert.deepEqual(buildLaunchArgv({ ...input, merged }), expected);
 });

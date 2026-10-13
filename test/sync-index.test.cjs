@@ -25,7 +25,7 @@ const { createSiteClient } = require("../main/sync/site-client.js");
 const { applyPlan: realApplyPlan } = require("../main/sync/apply.js");
 const { createInstanceSync } = require("../main/sync/index.js");
 const { makeRuntimeProbe } = require("../main/sync/runtime-probe.js");
-const { RUNTIME, installRuntime, runtimeFileRels } = require("./helpers/installed-runtime.cjs");
+const { RUNTIME, LAUNCH_ID, installRuntime, runtimeFileRels } = require("./helpers/installed-runtime.cjs");
 
 const HANG_LIMIT_MS = 10_000;
 const LAUNCHER_VERSION = "1.0.0";
@@ -2189,6 +2189,42 @@ test("C14 A1：fn 拿到閘那次的 settings／paths／record；一次啟動只
   assert.deepEqual(got.inputs.paths, getPaths(first));
   assert.deepEqual(got.inputs.record, await readRecord(h.paths));
   assertKind(got.status, "up-to-date");
+});
+
+// → _notes/plans/instance-sync-v3-commit5c.md S5（P2′ 閘交出成品；C8 當場重算；C9 成品不送畫面）
+test("S5 fn 拿到就緒的成品；狀態算過之後 json 才改 ⇒ 拿到的是新的；送畫面的 status 不帶成品", async (t) => {
+  const h = await setup(t, { installed: { release: REL_1 } });
+  await h.sync.getInstanceStatus();
+  const edit = async (rel, change) => {
+    const p = path.join(h.paths.gameDir, ...rel.split("/"));
+    const json = JSON.parse(await fsp.readFile(p, "utf8"));
+    change(json);
+    await fsp.writeFile(p, JSON.stringify(json));
+  };
+  // 兩份都要是當場讀的：type 取 Fabric 那層，jvm 參數多的那個在原版
+  const mc = RUNTIME.minecraft;
+  await edit(`versions/${LAUNCH_ID}/${LAUNCH_ID}.json`, (j) => {
+    j.type = "snapshot";
+  });
+  await edit(`versions/${mc}/${mc}.json`, (j) => {
+    j.arguments.jvm.push("-Dggl.check=1");
+  });
+
+  let got;
+  await h.sync.withLaunchLock(async (_status, inputs) => {
+    got = inputs;
+  });
+  assert.equal(got.launch.merged.id, LAUNCH_ID);
+  assert.deepEqual(got.launch.env, windowsEnv(os.release()));
+  assert.equal(got.launch.merged.type, "snapshot");
+  assert.ok(got.launch.merged.arguments.jvm.includes("-Dggl.check=1"));
+
+  assert.ok(h.sent.length >= 2);
+  for (const s of h.sent) {
+    assert.equal("runtime" in s, false);
+    assert.equal("launch" in s, false);
+    assert.equal(JSON.stringify(s).includes("merged"), false);
+  }
 });
 
 // ── 全檔收尾：必須是最後一個案例 ──

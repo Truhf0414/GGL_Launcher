@@ -657,3 +657,12 @@ test("T17 log：換台 RUNTIME_SOURCE、降級 RUNTIME_DEMOTE、池子中止 RUN
   assert.match(text, /^RUNTIME_SOURCE .*\.jar mirror → mojang$/m);
   assert.match(text, /^RUNTIME_ABORT assets /m);
 });
+
+// → _notes/plans/instance-sync-v3-commit5c.md N6（D1：安裝與就緒同一把尺，否則「更新成功、就緒判壞」會無聲循環）
+test("N6 兩份 json 合起來試組 argv 不過 ⇒ 丟錯、訊息帶原因，一個檔案請求都沒發", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const fake = await startFakeRuntime(t);
+  const gameDir = await tempDir(t);
+  fake.fabric.arguments.jvm.push("${classpath}");
+  await assert.rejects(installRuntimeFiles(installArgs(fake, gameDir)), /classpath/);
+  assert.equal(fake.requests.length, 0);
+});

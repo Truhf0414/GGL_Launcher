@@ -47,13 +47,13 @@ const unreadable = (detail = "EACCES: permission denied") => ({
   detail,
 });
 
-// record／inProgress／runtimeReady 組成 local；直接給 local 則以它為準（例如讀不到）
+// record／inProgress／runtimeOk 組成 local（runtimeOk ⇒ local.runtime.ready，⑤c C3）；直接給 local 則以它為準（例如讀不到）
 function input(overrides = {}) {
   const {
     site = {},
     record = recordOf(),
     inProgress = false,
-    runtimeReady = true,
+    runtimeOk = true,
     local,
     ...rest
   } = overrides;
@@ -61,7 +61,7 @@ function input(overrides = {}) {
     configured: true,
     syncing: false,
     site: { index: ok({}), gate: gateOk(), release: releaseOk(), ...site },
-    local: local ?? { side: "ok", record, inProgress, runtimeReady },
+    local: local ?? { side: "ok", record, inProgress, runtime: { ready: runtimeOk } },
     launcherVersion: "1.0.0",
     ...rest,
   };
@@ -227,10 +227,10 @@ test("「相同」只比內容：只改 version ⇒ up-to-date；多一筆、少
   );
 });
 
-test("runtimeReady=false：線上相同 ⇒ update-available；離線有記錄 ⇒ localReady=false、重試連線", () => {
-  assert.equal(kindOf({ runtimeReady: false }), "update-available");
+test("runtime.ready=false：線上相同 ⇒ update-available；離線有記錄 ⇒ localReady=false、重試連線", () => {
+  assert.equal(kindOf({ runtimeOk: false }), "update-available");
   const r = computeStatusKind(
-    input({ runtimeReady: false, site: { release: unreachable() } }),
+    input({ runtimeOk: false, site: { release: unreachable() } }),
   );
   assert.equal(r.kind, "offline");
   assert.equal(r.localReady, false);
@@ -288,7 +288,7 @@ test("維護中＋release invalid＋有記錄 ⇒ maintenance、canLaunch 隨 lo
   assert.equal(deriveUi(r.kind, r.localReady).canLaunch, true);
   assert.deepEqual(r.errorTexts, ["release.json：release.files: 必須是陣列"]);
   const notReady = computeStatusKind(
-    input({ runtimeReady: false, site: { gate: m, release: invalid() } }),
+    input({ runtimeOk: false, site: { gate: m, release: invalid() } }),
   );
   assert.equal(deriveUi(notReady.kind, notReady.localReady).canLaunch, false);
   assert.deepEqual(gateMessages(m, "1.0.0"), ["伺服器維護中"]);
@@ -412,13 +412,13 @@ test("N26 記錄＝release＋標記 ⇒ [interrupted]", () => {
 });
 
 test("N26 有記錄、三個都中 ⇒ 整個陣列照固定順序", () => {
-  const r = statusOf({ record: DIFF_RECORD, inProgress: true, runtimeReady: false });
+  const r = statusOf({ record: DIFF_RECORD, inProgress: true, runtimeOk: false });
   assert.equal(r.kind, "update-available");
   assert.deepEqual(r.syncReasons, ["release-differs", "interrupted", "runtime-missing"]);
 });
 
 test("N26 沒有記錄＋標記＋沒有 runtime ⇒ not-installed、三項各報各的", () => {
-  const r = statusOf({ record: null, inProgress: true, runtimeReady: false });
+  const r = statusOf({ record: null, inProgress: true, runtimeOk: false });
   assert.equal(r.kind, "not-installed");
   assert.deepEqual(r.syncReasons, ["no-record", "interrupted", "runtime-missing"]);
 });
@@ -448,7 +448,7 @@ test("N26 維護中＋沒有記錄 ⇒ maintenance、含 no-record", () => {
 });
 
 test("N26 啟動器太舊＋runtime 不在 ⇒ 含 runtime-missing", () => {
-  const r = statusOf({ runtimeReady: false, site: { gate: TOO_OLD } });
+  const r = statusOf({ runtimeOk: false, site: { gate: TOO_OLD } });
   assert.equal(r.kind, "launcher-too-old");
   assert.ok(r.syncReasons.includes("runtime-missing"), String(r.syncReasons));
 });
@@ -471,7 +471,7 @@ test("N26 沒設定更新來源（site 三格明寫 undefined）＋沒有記錄 
     configured: false,
     syncing: false,
     site: NO_SITE,
-    local: { side: "ok", record: null, inProgress: false, runtimeReady: true },
+    local: { side: "ok", record: null, inProgress: false, runtime: { ready: true } },
     launcherVersion: "1.0.0",
   });
   assert.equal(r.kind, "unconfigured");
@@ -516,17 +516,17 @@ test("N26 原因清單與 localReady 對照輸入的事實（240 格）", () => 
   for (const [siteLabel, siteOverrides, comparable] of SITES) {
     for (const [recordLabel, record] of RECORDS) {
       for (const inProgress of [false, true]) {
-        for (const runtimeReady of [true, false]) {
+        for (const runtimeOk of [true, false]) {
           for (const syncing of [false, true]) {
             const expected = [];
             if (record === null) expected.push("no-record");
             if (recordLabel === "不同" && comparable) expected.push("release-differs");
             if (inProgress) expected.push("interrupted");
-            if (!runtimeReady) expected.push("runtime-missing");
-            const r = statusOf({ ...siteOverrides, record, inProgress, runtimeReady, syncing });
-            const at = `${siteLabel}／記錄${recordLabel}／標記 ${inProgress}／runtime ${runtimeReady}／syncing ${syncing}`;
+            if (!runtimeOk) expected.push("runtime-missing");
+            const r = statusOf({ ...siteOverrides, record, inProgress, runtimeOk, syncing });
+            const at = `${siteLabel}／記錄${recordLabel}／標記 ${inProgress}／runtime ${runtimeOk}／syncing ${syncing}`;
             assert.deepEqual(r.syncReasons, expected, at);
-            assert.equal(r.localReady, record !== null && !inProgress && runtimeReady, at);
+            assert.equal(r.localReady, record !== null && !inProgress && runtimeOk, at);
             cells++;
           }
         }

@@ -8,14 +8,21 @@ const { spawn } = require("child_process");
 const { ensureWritableTree } = require("./fs-utils");
 const { appendLauncherLog } = require("./launcher-log");
 const { launchIdFor } = require("../lib/runtime-target.js");
-const { recordComplete } = require("../lib/runtime-needs.js");
+const {
+  recordComplete,
+  assertLaunchBundle,
+} = require("../lib/runtime-needs.js");
 const { javaExeFor } = require("../lib/paths-layout.js");
 const {
-  resolveVersionChain,
   buildClasspath,
-  ensureRequiredGameArgs,
-  buildGameArgsFromVersionJson,
-} = require("./minecraft-version-json");
+  buildLaunchArgv,
+  launchPlaceholders,
+} = require("../lib/launch-args.js");
+// 只用打包後還在的欄位：打包後的 package.json 沒有 build（→ _notes/plans/instance-sync-v3-commit5c.md R-c、G1）
+const {
+  name: LAUNCHER_NAME,
+  version: LAUNCHER_VERSION,
+} = require("../package.json");
 
 class LaunchError extends Error {
   constructor(code, message, options) {
@@ -101,7 +108,8 @@ function mbFromGb(gb) {
   return Math.round(n * 1024);
 }
 
-function buildOptimizedJvmArgs({ minMemoryMb, maxMemoryMb, nativesDir }) {
+/** 手寫的只剩記憶體與 GC；其餘照 version json（→ _notes/plans/instance-sync-v3-commit5c.md §設計「手寫 jvm 旗標的去留」） */
+function memoryAndGcFlags({ minMemoryMb, maxMemoryMb }) {
   const MAX_HEAP_MB = 64 * 1024;
   const xmx = Math.min(
     MAX_HEAP_MB,
@@ -114,8 +122,6 @@ function buildOptimizedJvmArgs({ minMemoryMb, maxMemoryMb, nativesDir }) {
   return [
     `-Xms${xms}M`,
     `-Xmx${xmx}M`,
-    "-Dfile.encoding=UTF-8",
-    `-Djava.library.path=${nativesDir}`,
 
     "-XX:+UseG1GC",
     "-XX:+ParallelRefProcEnabled",
@@ -160,18 +166,26 @@ function waitSpawned(p) {
 
 /**
  * 連點／兩個 IPC 同時啟動由呼叫端的啟動鎖擋（main/sync 的 withLaunchLock）；
- * record 是閘那次計算讀到的那份（④c A1）。
- * @param {{ settings: object, paths: object, record: object, auth?: object, deps?: object }} input
+ * record、launch 是閘那次計算的那份（④c A1）；launch＝就緒交出的成品，啟動不讀 json、不重算（⑤c P2′）。
+ * @param {{ settings: object, paths: object, record: object, launch: object, auth?: object, deps?: object }} input
  */
-async function launchMinecraft({ settings, paths, record, auth, deps }) {
+async function launchMinecraft({
+  settings,
+  paths,
+  record,
+  launch,
+  auth,
+  deps,
+}) {
   const d = { ...launchDeps, ...deps };
-  // 閘已擋過不就緒；這裡只防記錄不完整（第二道）
-  if (!recordComplete(record)) {
+  // 閘已擋過不就緒；這裡只防記錄不完整、沒有成品（第二道）
+  if (!recordComplete(record) || launch === null || launch === undefined) {
     throw new LaunchError(
       "GGL_LAUNCH_NOT_READY",
-      "本機記錄不完整，請先按更新。",
+      "本機記錄或檔案不完整，請先按更新。",
     );
   }
+  assertLaunchBundle(launch);
   const gameDir = paths.gameDir;
   const launchId = launchIdFor(record);
   d.sendMcStatus("正在準備啟動參數…");
@@ -186,45 +200,12 @@ async function launchMinecraft({ settings, paths, record, auth, deps }) {
     throw new LaunchError("GGL_LAUNCH_NO_JAVA", "找不到 Java。");
   }
 
-  let resolved;
-  try {
-    resolved = await resolveVersionChain({ gameDir, versionId: launchId });
-  } catch (e) {
-    if (e?.code === "ENOENT") {
-      throw new LaunchError("GGL_LAUNCH_NO_VERSION", "找不到可啟動版本。", {
-        cause: e,
-      });
-    }
-    throw e;
-  }
-  const mainClass = String(resolved.mainClass || "").trim();
-  if (!mainClass) throw new Error("版本 JSON 缺少 mainClass。");
+  const abs = (rel) => path.join(gameDir, ...rel.split("/"));
 
-  const preferredJar = path.join(
-    gameDir,
-    "versions",
-    resolved.id,
-    `${resolved.id}.jar`,
-  );
-  const baseId = String(resolved.baseJarId || record.minecraft).trim();
-  const baseJar = path.join(gameDir, "versions", baseId, `${baseId}.jar`);
-
-  let versionJarPath = preferredJar;
-  try {
-    await fsp.access(preferredJar, fs.constants.F_OK);
-  } catch {
-    versionJarPath = baseJar;
-    try {
-      await fsp.access(baseJar, fs.constants.F_OK);
-    } catch {
-      throw new Error(`找不到版本 jar：\n${preferredJar}\n或\n${baseJar}`);
-    }
-  }
-
-  const cp = buildClasspath({
-    gameDir,
-    versionJarPath,
-    libraries: resolved.libraries,
+  const classpath = buildClasspath({
+    libraries: launch.libraries,
+    librariesDir: path.join(gameDir, "libraries"),
+    versionJarPath: abs(launch.versionJarRel),
   });
   const nativesDir = path.join(gameDir, "natives");
   await fsp.mkdir(nativesDir, { recursive: true });
@@ -233,36 +214,26 @@ async function launchMinecraft({ settings, paths, record, auth, deps }) {
     ? mbFromGb(settings.maxMemoryGb)
     : mbFromGb(settings?.memoryGb);
   const minMb = settings?.minMemoryGb ? mbFromGb(settings.minMemoryGb) : 0;
-  const online = Boolean(auth?.uuid && auth?.accessToken);
-  const placeholders = {
-    auth_player_name: auth?.name || "Player001",
-    version_name: resolved.id,
-    game_directory: gameDir,
-    assets_root: path.join(gameDir, "assets"),
-    // --assetIndex 須用 version json 的 id（如 "29"）；退路是記錄的 minecraft
-    assets_index_name: String(resolved.assetIndex || record.minecraft),
-    auth_uuid: online ? auth.uuid : "00000000-0000-0000-0000-000000000000",
-    auth_access_token: online ? auth.accessToken : "0",
-    // 版本 json 若帶這兩個 token，我們沒有真值可填；填空字串而非留原始 ${...}
-    // 字面文字，避免那串帶括號的假值被當成參數值直接傳給遊戲。
-    auth_xuid: "",
-    clientid: "",
-    user_type: online ? "msa" : "legacy",
-    version_type: "release",
-    natives_directory: nativesDir,
-    classpath: cp,
-  };
-  const jvmArgs = buildOptimizedJvmArgs({
-    minMemoryMb: minMb,
-    maxMemoryMb: maxMb,
+  const placeholders = launchPlaceholders({
+    merged: launch.merged,
+    gameDir,
     nativesDir,
+    classpath,
+    auth,
+    launcher: { name: LAUNCHER_NAME, version: LAUNCHER_VERSION },
   });
-
-  const gameArgs = ensureRequiredGameArgs(
-    buildGameArgsFromVersionJson(resolved, placeholders),
+  // 沒有 log4j 設定檔 ⇒ 不給這個鍵（給 null 會被當成用錯）
+  const logArg =
+    launch.logConfigRel === null
+      ? {}
+      : { logConfigPath: abs(launch.logConfigRel) };
+  const args = buildLaunchArgv({
+    merged: launch.merged,
+    env: launch.env,
     placeholders,
-  );
-  const args = [...jvmArgs, "-cp", cp, mainClass, ...gameArgs];
+    extras: memoryAndGcFlags({ minMemoryMb: minMb, maxMemoryMb: maxMb }),
+    ...logArg,
+  });
 
   d.sendMcStatus("正在啟動遊戲…");
 

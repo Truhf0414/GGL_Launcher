@@ -160,3 +160,14 @@ for (const [name, breakIt] of Object.entries(launchSpecBreakers.fabric)) {
     assert.match(r.error, /^啟動資料：/);
   });
 }
+
+// → _notes/plans/instance-sync-v3-commit5c.md N4（C2：asset index 只認原版那份）
+test("N4 Fabric 帶 assetIndex ⇒ ok:false；null 或沒有這個鍵 ⇒ ok", () => {
+  assert.equal(checkFabricJson(fixtures.fabric(), fabricCtx).ok, true);
+  const j = fixtures.fabric();
+  j.assetIndex = { ...fixtures.vanilla().assetIndex, id: "99" };
+  const r = checkFabricJson(j, fabricCtx);
+  assert.equal(r.ok, false);
+  assert.match(r.error, /assetIndex/);
+  assert.equal(checkFabricJson({ ...fixtures.fabric(), assetIndex: null }, fabricCtx).ok, true);
+});

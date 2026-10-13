@@ -60,10 +60,15 @@ function installed({ target = fx.fabric(), vanilla = fx.vanilla(), drop = [], di
 }
 
 const check = (rec, inst) => checkRuntimeReady({ record: rec, probe: inst.probe, env: ENV });
+/** 就緒：ready／missing 之外帶著成品（⑤c P2′）；成品內容由 N1、N2 驗 */
+const assertReady = (r) => {
+  assert.deepEqual({ ready: r.ready, missing: r.missing }, { ready: true, missing: [] });
+  assert.equal(typeof r.launch, "object");
+};
 
 test("C1 全部在 ⇒ ready；java 問的是 root 底下那支", async () => {
   const inst = installed();
-  assert.deepEqual(await check(record(), inst), { ready: true, missing: [] });
+  assertReady(await check(record(), inst));
   assert.ok(inst.calls.some(([fn, base, rel]) => fn === "isFile" && base === "root" && rel === JAVA_REL));
 });
 
@@ -113,7 +118,7 @@ test("C1 缺兩支 library ⇒ library 只列一次", async () => {
 test("C1 osx／linux-only library 本機沒有 ⇒ 仍就緒（installed 本來就只放 windows 那些）", async () => {
   const osx = fx.vanilla().libraries.filter((l) => l.rules?.some((x) => x.os?.name === "osx"));
   assert.ok(osx.length > 0);
-  assert.deepEqual(await check(record(), installed()), { ready: true, missing: [] });
+  assertReady(await check(record(), installed()));
 });
 
 test("C1 Fabric 以 name 推的路徑缺一支 ⇒ library", async () => {
@@ -150,4 +155,16 @@ test("K8 checkRuntimeReady 沒給 env ⇒ TypeError：記錄是 null（一個檔
   for (const rec of [record(), null]) {
     await assert.rejects(checkRuntimeReady({ record: rec, probe: installed().probe }), TypeError);
   }
+});
+
+// → _notes/plans/instance-sync-v3-commit5c.md N2（P2′：就緒交出成品）
+test("N2 就緒 ⇒ 帶 launch（runtimeNeeds 那份、env 原物件）；不就緒 ⇒ 整包只有 ready／missing", async () => {
+  const r = await check(record(), installed());
+  assertReady(r);
+  assert.equal(r.launch.merged.id, LAUNCH_ID);
+  assert.equal(r.launch.env, ENV);
+  assert.deepEqual(await check(record(), installed({ drop: [`gameDir:${LOG_REL}`] })), {
+    ready: false,
+    missing: ["log-config"],
+  });
 });
