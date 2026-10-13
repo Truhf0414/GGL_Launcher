@@ -39,17 +39,18 @@ async function prepareRuntime({
       (deps.mirrorDecision ?? getMcMirrorDecision)(settings),
     ));
 
-  const { vanilla, target, javaMajor, component } = await steps.ensureVersionJsons({
-    gameDir: paths.gameDir,
-    minecraft,
-    loader,
-    verifyAll,
-    getMirror,
-    health,
-    signal,
-    onProgress,
-    deps,
-  });
+  const { vanilla, target, javaMajor, component } =
+    await steps.ensureVersionJsons({
+      gameDir: paths.gameDir,
+      minecraft,
+      loader,
+      verifyAll,
+      getMirror,
+      health,
+      signal,
+      onProgress,
+      deps,
+    });
   await steps.installJava({
     paths,
     major: javaMajor,

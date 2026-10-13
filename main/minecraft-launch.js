@@ -129,7 +129,9 @@ function buildOptimizedJvmArgs({ minMemoryMb, maxMemoryMb, nativesDir }) {
 /** 給 log 的副本：token 以子字串取代（json 可能寫成 --x=${auth_access_token}，R#15）；交給 spawn 的不動 */
 function maskedArgv(argv, token) {
   const hide = typeof token === "string" && token !== "" && token !== "0";
-  return argv.map((s) => (hide ? String(s).split(token).join("***") : String(s)));
+  return argv.map((s) =>
+    hide ? String(s).split(token).join("***") : String(s),
+  );
 }
 
 /** 等 child 真的起來（spawn 事件）才算數；鎖由呼叫端持有到這裡（假設 16-8，R#22） */
@@ -142,9 +144,13 @@ function waitSpawned(p) {
     const onError = (err) => {
       p.off("spawn", onSpawn);
       reject(
-        new LaunchError("GGL_LAUNCH_SPAWN_FAILED", `啟動失敗：${String(err?.message ?? err)}`, {
-          cause: err,
-        }),
+        new LaunchError(
+          "GGL_LAUNCH_SPAWN_FAILED",
+          `啟動失敗：${String(err?.message ?? err)}`,
+          {
+            cause: err,
+          },
+        ),
       );
     };
     p.once("spawn", onSpawn);
@@ -161,7 +167,10 @@ async function launchMinecraft({ settings, paths, record, auth, deps }) {
   const d = { ...launchDeps, ...deps };
   // 閘已擋過不就緒；這裡只防記錄不完整（第二道）
   if (!recordComplete(record)) {
-    throw new LaunchError("GGL_LAUNCH_NOT_READY", "本機記錄不完整，請先按更新。");
+    throw new LaunchError(
+      "GGL_LAUNCH_NOT_READY",
+      "本機記錄不完整，請先按更新。",
+    );
   }
   const gameDir = paths.gameDir;
   const launchId = launchIdFor(record);
@@ -182,7 +191,9 @@ async function launchMinecraft({ settings, paths, record, auth, deps }) {
     resolved = await resolveVersionChain({ gameDir, versionId: launchId });
   } catch (e) {
     if (e?.code === "ENOENT") {
-      throw new LaunchError("GGL_LAUNCH_NO_VERSION", "找不到可啟動版本。", { cause: e });
+      throw new LaunchError("GGL_LAUNCH_NO_VERSION", "找不到可啟動版本。", {
+        cause: e,
+      });
     }
     throw e;
   }

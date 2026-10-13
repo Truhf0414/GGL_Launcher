@@ -42,7 +42,11 @@ async function fetchTextWithDeadline(
   const timer = setTimeout(() => ac.abort(deadline), deadlineMs);
   const combined = signal ? AbortSignal.any([signal, ac.signal]) : ac.signal;
   try {
-    const res = await fetchImpl(url, { cache: "no-store", signal: combined, headers });
+    const res = await fetchImpl(url, {
+      cache: "no-store",
+      signal: combined,
+      headers,
+    });
     if (!res.ok) {
       await res.body?.cancel().catch(() => {});
       throw new Error(`HTTP ${res.status}：${url}`);
@@ -116,7 +120,8 @@ async function runPoolUntilFirstError(items, concurrency, worker) {
   if (failed) throw firstError;
 }
 
-const isHexOrEmpty = (s, len) => s === "" || new RegExp(`^[0-9a-f]{${len}}$`, "i").test(s);
+const isHexOrEmpty = (s, len) =>
+  s === "" || new RegExp(`^[0-9a-f]{${len}}$`, "i").test(s);
 
 async function verifyHash(file, algo, expected, hash) {
   if (!expected) return;
@@ -143,7 +148,8 @@ async function downloadRuntimeFile({
   deps = {},
 }) {
   // 格式不對就丟：不能「格式不對就跳過不驗」
-  if (!isHexOrEmpty(sha1, 40)) throw new Error(`sha1 不合法（${sha1}）：${dest}`);
+  if (!isHexOrEmpty(sha1, 40))
+    throw new Error(`sha1 不合法（${sha1}）：${dest}`);
   for (const c of candidates) {
     if (!isHexOrEmpty(c.sha256 ?? "", 64)) {
       throw new Error(`sha256 不合法（${c.sha256}）：${c.url}`);
@@ -152,7 +158,10 @@ async function downloadRuntimeFile({
   if (candidates.length === 0) throw new Error(`沒有下載來源：${dest}`);
 
   const download = deps.download ?? downloadToFileWithStallGuard;
-  const stall = deps.stall ?? { windowMs: STALL_WINDOW_MS, minBytes: STALL_MIN_BYTES };
+  const stall = deps.stall ?? {
+    windowMs: STALL_WINDOW_MS,
+    minBytes: STALL_MIN_BYTES,
+  };
   const fs = deps.fsp ?? fsp;
   const hash = deps.hashFile ?? hashFile;
   const list = health ? health.order(candidates) : candidates;
@@ -175,12 +184,18 @@ async function downloadRuntimeFile({
     } catch (e) {
       await fs.rm(dest, { force: true });
       if (signal?.aborted) throw e;
-      failures.push(`${c.source} ${c.url}：${String(e?.message ?? e).split("\n")[0]}`);
+      failures.push(
+        `${c.source} ${c.url}：${String(e?.message ?? e).split("\n")[0]}`,
+      );
       if (e?.code === "GGL_DOWNLOAD_STALLED" && health?.demote(c.source)) {
         safeLog(deps.log, `RUNTIME_DEMOTE ${c.source}`);
       }
       const nextSrc = list[i + 1];
-      if (nextSrc) safeLog(deps.log, `RUNTIME_SOURCE ${dest} ${c.source} → ${nextSrc.source}`);
+      if (nextSrc)
+        safeLog(
+          deps.log,
+          `RUNTIME_SOURCE ${dest} ${c.source} → ${nextSrc.source}`,
+        );
     }
   }
   throw Object.assign(

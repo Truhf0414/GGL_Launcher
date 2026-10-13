@@ -7,16 +7,26 @@
 const fsp = require("fs/promises");
 const path = require("path");
 
-const { mcUrlFor, rewriteLibraryUrlToMirror, stripTrailingSlashes } = require("../mc-mirror.js");
+const {
+  mcUrlFor,
+  rewriteLibraryUrlToMirror,
+  stripTrailingSlashes,
+} = require("../mc-mirror.js");
 const { hashFile } = require("../fs-utils.js");
 const {
   isLibraryAllowedOnWindows,
   mergeLibraries,
   libraryArtifact,
 } = require("../../lib/library-filter.js");
-const { profileJsonUrls, mavenUrlCandidates } = require("../../lib/fabric-meta.js");
+const {
+  profileJsonUrls,
+  mavenUrlCandidates,
+} = require("../../lib/fabric-meta.js");
 const { launchIdFor, isSingleSegment } = require("../../lib/runtime-target.js");
-const { checkVanillaJson, checkFabricJson } = require("../../lib/runtime-json.js");
+const {
+  checkVanillaJson,
+  checkFabricJson,
+} = require("../../lib/runtime-json.js");
 const {
   safeLog,
   fetchJsonWithDeadline,
@@ -24,7 +34,8 @@ const {
   downloadRuntimeFile,
 } = require("./download.js");
 
-const MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
+const MANIFEST_URL =
+  "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 const RESOURCES_BASE = "https://resources.download.minecraft.net";
 const POOL_CONCURRENCY = 6;
 const PROGRESS_THROTTLE_MS = 180;
@@ -42,18 +53,30 @@ function runtimeCandidates(kind, info, mirror) {
     const official = { source: "mojang", url: info.url };
     if (!base) return [official];
     return [
-      { source: "mirror", url: mcUrlFor({ mirrorBase: base, kind: "clientJar", value: info.minecraft }) },
+      {
+        source: "mirror",
+        url: mcUrlFor({
+          mirrorBase: base,
+          kind: "clientJar",
+          value: info.minecraft,
+        }),
+      },
       official,
     ];
   }
   if (kind === "vanilla-library") {
     const official = { source: "mojang", url: info.url };
-    const rewritten = base ? rewriteLibraryUrlToMirror(info.url, base) : info.url;
+    const rewritten = base
+      ? rewriteLibraryUrlToMirror(info.url, base)
+      : info.url;
     if (rewritten === info.url) return [official];
     return [{ source: "mirror", url: rewritten }, official];
   }
   if (kind === "fabric-library") {
-    return mavenUrlCandidates(info.url).map((url, i) => ({ source: `fabric-${i + 1}`, url }));
+    return mavenUrlCandidates(info.url).map((url, i) => ({
+      source: `fabric-${i + 1}`,
+      url,
+    }));
   }
   if (kind === "asset-object") {
     const rel = `${info.hash.slice(0, 2)}/${info.hash}`;
@@ -63,7 +86,10 @@ function runtimeCandidates(kind, info, mirror) {
     };
     if (!base) return [official];
     return [
-      { source: "mirror", url: mcUrlFor({ mirrorBase: base, kind: "assetObject", value: rel }) },
+      {
+        source: "mirror",
+        url: mcUrlFor({ mirrorBase: base, kind: "assetObject", value: rel }),
+      },
       official,
     ];
   }
@@ -73,7 +99,12 @@ function runtimeCandidates(kind, info, mirror) {
 const firstLine = (e) => String(e?.message ?? e).split("\n")[0];
 
 /** 候選逐一抓、過 check 才算成功；全部失敗 ⇒ 丟錯，訊息列每個候選的原因 */
-async function fetchFirstValidJson(label, candidates, check, { signal, deps = {} }) {
+async function fetchFirstValidJson(
+  label,
+  candidates,
+  check,
+  { signal, deps = {} },
+) {
   const failures = [];
   for (const c of candidates) {
     if (signal?.aborted) throw signal.reason ?? new Error("已中止");
@@ -98,23 +129,36 @@ async function fetchFirstValidJson(label, candidates, check, { signal, deps = {}
 /**
  * 鏡像（有才有）→ 官方。官方網址要先抓 manifest 才知道，只在輪到官方時才抓（R#43）。
  */
-async function fetchVanillaVersionJson({ minecraft, getMirror, health, signal, deps = {} }) {
+async function fetchVanillaVersionJson({
+  minecraft,
+  getMirror,
+  health,
+  signal,
+  deps = {},
+}) {
   const mirror = await getMirror();
   const candidates = [];
   if (stripTrailingSlashes(mirror?.base)) {
     candidates.push({
       source: "mirror",
-      url: mcUrlFor({ mirrorBase: mirror.base, kind: "versionJson", value: minecraft }),
+      url: mcUrlFor({
+        mirrorBase: mirror.base,
+        kind: "versionJson",
+        value: minecraft,
+      }),
     });
   }
   candidates.push({
     source: "mojang",
     url: async () => {
-      const manifest = await fetchJsonWithDeadline(deps.manifestUrl ?? MANIFEST_URL, {
-        signal,
-        deadlineMs: deps.deadlineMs,
-        fetchImpl: deps.fetchImpl,
-      });
+      const manifest = await fetchJsonWithDeadline(
+        deps.manifestUrl ?? MANIFEST_URL,
+        {
+          signal,
+          deadlineMs: deps.deadlineMs,
+          fetchImpl: deps.fetchImpl,
+        },
+      );
       const entry = Array.isArray(manifest?.versions)
         ? manifest.versions.find((v) => v?.id === minecraft)
         : undefined;
@@ -132,8 +176,17 @@ async function fetchVanillaVersionJson({ minecraft, getMirror, health, signal, d
   );
 }
 
-async function fetchFabricProfileJson({ minecraft, loaderVersion, launchId, signal, deps = {} }) {
-  const urls = (deps.profileJsonUrls ?? profileJsonUrls)(minecraft, loaderVersion);
+async function fetchFabricProfileJson({
+  minecraft,
+  loaderVersion,
+  launchId,
+  signal,
+  deps = {},
+}) {
+  const urls = (deps.profileJsonUrls ?? profileJsonUrls)(
+    minecraft,
+    loaderVersion,
+  );
   return await fetchFirstValidJson(
     `Fabric ${loaderVersion} 的 profile json `,
     urls.map((url) => ({ source: url, url })),
@@ -205,7 +258,8 @@ async function ensureVersionJsons({
   const vanilla = await ensureOne(
     vanillaRel,
     (j) => checkVanillaJson(j, minecraft),
-    () => fetchVanillaVersionJson({ minecraft, getMirror, health, signal, deps }),
+    () =>
+      fetchVanillaVersionJson({ minecraft, getMirror, health, signal, deps }),
     "vanilla-json",
   );
   const target = await ensureOne(
@@ -246,7 +300,15 @@ function makeGroupReporter(group, total, totalBytes, onProgress, now) {
     sentFinal = final;
     let receivedBytes = doneBytes;
     for (const v of inflight.values()) receivedBytes += v;
-    onProgress({ phase: "runtime", step: "files", group, done, total, receivedBytes, totalBytes });
+    onProgress({
+      phase: "runtime",
+      step: "files",
+      group,
+      done,
+      total,
+      receivedBytes,
+      totalBytes,
+    });
   }
   return {
     update,
@@ -268,7 +330,11 @@ function makeGroupReporter(group, total, totalBytes, onProgress, now) {
 
 function validateAssetIndex(idx, rel) {
   const objects = idx?.objects;
-  if (objects === null || typeof objects !== "object" || Array.isArray(objects)) {
+  if (
+    objects === null ||
+    typeof objects !== "object" ||
+    Array.isArray(objects)
+  ) {
     throw new Error(`asset index 的 objects 不是物件：${rel}`);
   }
   for (const [name, o] of Object.entries(objects)) {
@@ -308,31 +374,46 @@ async function installRuntimeFiles({
     const st = await fs.stat(abs).catch(() => null);
     if (!st?.isFile()) return true;
     if (!(task.alwaysVerify || verifyAll) || !task.sha1) return false;
-    if (String(await hash(abs, "sha1")).toLowerCase() === task.sha1.toLowerCase()) return false;
+    if (
+      String(await hash(abs, "sha1")).toLowerCase() === task.sha1.toLowerCase()
+    )
+      return false;
     await fs.rm(abs, { force: true });
     return true;
   }
 
   async function runGroup(group, tasks) {
     const totalBytes = tasks.reduce((s, x) => s + x.size, 0);
-    const reporter = makeGroupReporter(group, tasks.length, totalBytes, onProgress, now);
+    const reporter = makeGroupReporter(
+      group,
+      tasks.length,
+      totalBytes,
+      onProgress,
+      now,
+    );
     reporter.update();
     try {
-      await runPoolUntilFirstError(tasks, POOL_CONCURRENCY, async (task, poolSignal) => {
-        const sig = signal ? AbortSignal.any([poolSignal, signal]) : poolSignal;
-        if (await needsDownload(task)) {
-          await downloadRuntimeFile({
-            candidates: await task.candidates(),
-            dest: absUnder(gameDir, task.rel),
-            sha1: task.sha1,
-            signal: sig,
-            onChunk: ({ received }) => reporter.chunk(task.rel, received),
-            health,
-            deps,
-          });
-        }
-        reporter.finish(task.rel, task.size);
-      });
+      await runPoolUntilFirstError(
+        tasks,
+        POOL_CONCURRENCY,
+        async (task, poolSignal) => {
+          const sig = signal
+            ? AbortSignal.any([poolSignal, signal])
+            : poolSignal;
+          if (await needsDownload(task)) {
+            await downloadRuntimeFile({
+              candidates: await task.candidates(),
+              dest: absUnder(gameDir, task.rel),
+              sha1: task.sha1,
+              signal: sig,
+              onChunk: ({ received }) => reporter.chunk(task.rel, received),
+              health,
+              deps,
+            });
+          }
+          reporter.finish(task.rel, task.size);
+        },
+      );
     } catch (e) {
       safeLog(deps.log, `RUNTIME_ABORT ${group} ${firstLine(e)}`);
       throw e;
@@ -349,7 +430,11 @@ async function installRuntimeFiles({
       size: client.size,
       alwaysVerify: true,
       candidates: async () =>
-        runtimeCandidates("client-jar", { minecraft, url: client.url }, await getMirror()),
+        runtimeCandidates(
+          "client-jar",
+          { minecraft, url: client.url },
+          await getMirror(),
+        ),
     },
   ]);
 
@@ -366,7 +451,12 @@ async function installRuntimeFiles({
         candidates:
           lib.downloads === undefined
             ? async () => runtimeCandidates("fabric-library", { url: a.url })
-            : async () => runtimeCandidates("vanilla-library", { url: a.url }, await getMirror()),
+            : async () =>
+                runtimeCandidates(
+                  "vanilla-library",
+                  { url: a.url },
+                  await getMirror(),
+                ),
       };
     });
   await runGroup("libraries", libs);
