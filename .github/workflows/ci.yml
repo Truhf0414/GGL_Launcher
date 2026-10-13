@@ -28,20 +28,8 @@ jobs:
           npm run docs:ipc
           git diff --exit-code ARCHITECTURE.md
 
-      - name: Syntax (core scripts)
-        run: |
-          node -c main.js
-          node -c preload.js
-          node -c renderer.js
-          node -c lib/settings-logic.js
-          node -c lib/manifest-url-configured.js
-          node -c lib/paths-layout.js
-          node -c lib/notifications-broadcast.js
-          node -c lib/launcher-debug-logging.js
-          node -c main/minecraft-version-json.js
-          node -c main/net-fetch.js
-          node -c main/mc-mirror.js
-          node -c main/server-status.js
+      - name: Lint (also catches syntax errors in every file)
+        run: npm run lint
 
       - name: Unit tests
         run: npm test
