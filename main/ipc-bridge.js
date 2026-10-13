@@ -64,15 +64,6 @@ function createIpcBridgeSenders(deps) {
       ?.webContents?.send(IPC.on.MINECRAFT_STATUS, { text });
   }
 
-  function sendMcProgress(text, progress01) {
-    const p = Math.max(0, Math.min(1, Number(progress01) || 0));
-    void deps.appendLauncherLog(`MC ${text} ${(p * 100).toFixed(1)}%`);
-    deps.getMainWindow?.()?.webContents?.send(IPC.on.MINECRAFT_PROGRESS, {
-      text,
-      progress01: p,
-    });
-  }
-
   function sendMcRunning(isRunning) {
     deps.getMainWindow?.()?.webContents?.send(IPC.on.MINECRAFT_RUNNING, {
       isRunning: Boolean(isRunning),
@@ -126,7 +117,6 @@ function createIpcBridgeSenders(deps) {
     sendSyncProgress,
     sendSyncDone,
     sendMcStatus,
-    sendMcProgress,
     sendMcRunning,
     sendInstanceStatus,
     sendNotice,

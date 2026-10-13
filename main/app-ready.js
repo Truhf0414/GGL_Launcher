@@ -19,7 +19,6 @@ const MAIN_APP_READY_KEYS = [
   "createMainWindow",
   "configureNetFetch",
   "configureMicrosoftAuth",
-  "configureMinecraftBootstrap",
   "configureMinecraftLaunch",
   "configureServerStatus",
   "configureDiscordRpc",
@@ -29,9 +28,7 @@ const MAIN_APP_READY_KEYS = [
   "getInstanceStatus",
   "sendSyncStatus",
   "sendMcStatus",
-  "sendSyncProgress",
   "sendSyncDone",
-  "sendMcProgress",
   "sendMcRunning",
   "sendServerStatus",
   "getMainWindow",
@@ -90,7 +87,6 @@ async function runMainAppReady(ctx) {
     createMainWindow,
     configureNetFetch,
     configureMicrosoftAuth,
-    configureMinecraftBootstrap,
     configureMinecraftLaunch,
     configureServerStatus,
     configureDiscordRpc,
@@ -100,9 +96,7 @@ async function runMainAppReady(ctx) {
     getInstanceStatus,
     sendSyncStatus,
     sendMcStatus,
-    sendSyncProgress,
     sendSyncDone,
-    sendMcProgress,
     sendMcRunning,
     sendServerStatus,
     getMainWindow,
@@ -140,7 +134,6 @@ async function runMainAppReady(ctx) {
       } catch {}
     },
     appendLauncherLog,
-    sendMirrorStatus: safeSendSyncStatus,
   });
   configureMicrosoftAuth({
     msClientId: serverConfig.microsoftAuth.clientId,
@@ -149,12 +142,6 @@ async function runMainAppReady(ctx) {
     getAppIconPath,
     sendSyncStatus,
     sendSyncDone,
-  });
-  configureMinecraftBootstrap({
-    sendMcStatus,
-    sendMcProgress,
-    sendSyncStatus,
-    sendSyncProgress,
   });
   configureMinecraftLaunch({
     sendMcStatus,

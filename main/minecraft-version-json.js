@@ -1,4 +1,4 @@
-// 純邏輯：版本 JSON 繼承鏈、classpath、啟動參數（供 bootstrap 與 launch 共用）
+// 純邏輯：版本 JSON 繼承鏈、classpath、啟動參數（供 launch 使用）
 const fsp = require("fs/promises");
 const path = require("path");
 const { mergeLibraries, mavenRelPath } = require("../lib/library-filter.js");
@@ -161,37 +161,10 @@ function ensureRequiredGameArgs(gameArgs, placeholders) {
   return args;
 }
 
-async function findAssetIndexUrlFromChain(gameDir, versionId) {
-  const visited = new Set();
-  let cur = String(versionId || "").trim();
-  while (cur) {
-    if (visited.has(cur)) break;
-    visited.add(cur);
-    const jsonPath = path.join(gameDir, "versions", cur, `${cur}.json`);
-    let data;
-    try {
-      data = await readJsonFile(jsonPath);
-    } catch {
-      break;
-    }
-    const url = data?.assetIndex?.url;
-    const sha1 = data?.assetIndex?.sha1;
-    if (url && typeof url === "string") {
-      return { url: String(url), sha1: typeof sha1 === "string" ? sha1 : "" };
-    }
-    const parent = data?.inheritsFrom;
-    if (!parent || typeof parent !== "string") break;
-    cur = String(parent).trim();
-  }
-  return "";
-}
-
 module.exports = {
-  readJsonFile,
   resolveVersionChain,
   buildClasspath,
   replacePlaceholders,
   buildGameArgsFromVersionJson,
   ensureRequiredGameArgs,
-  findAssetIndexUrlFromChain,
 };

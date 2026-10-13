@@ -1,4 +1,4 @@
-// 檔案小工具：hash、建資料夾、複製資料夾。不 require electron、不 require 其他 main/ 檔。
+// 檔案小工具：hash、建資料夾。不 require electron、不 require 其他 main/ 檔。
 const crypto = require("crypto");
 const fs = require("fs");
 const fsp = require("fs/promises");
@@ -34,30 +34,8 @@ async function ensureWritableTree(rootDir) {
   }
 }
 
-async function copyDir(src, dest) {
-  await fsp.mkdir(dest, { recursive: true });
-  const entries = await fsp.readdir(src, { withFileTypes: true });
-  for (const e of entries) {
-    const s = path.join(src, e.name);
-    const d = path.join(dest, e.name);
-    if (e.isDirectory()) {
-      await copyDir(s, d);
-    } else if (e.isSymbolicLink()) {
-      // Windows zip 可能會有 symlink；保守處理：跳過
-      continue;
-    } else {
-      await fsp.copyFile(s, d);
-      // Windows：避免把來源檔案的唯讀屬性一路帶過來，導致模組無法覆寫 config
-      try {
-        await fsp.chmod(d, 0o666);
-      } catch {}
-    }
-  }
-}
-
 module.exports = {
   hashFile,
   ensureDirForFile,
   ensureWritableTree,
-  copyDir,
 };

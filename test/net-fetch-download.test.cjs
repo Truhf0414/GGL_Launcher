@@ -12,7 +12,6 @@ const {
   fetchWithNiceError,
   downloadToFile,
   downloadToFileWithStallGuard,
-  downloadToFileWithFallback,
   STALL_WINDOW_MS,
   STALL_MIN_BYTES,
   withRetries,
@@ -257,95 +256,6 @@ test("downloadToFile: onChunk reports each chunk's bytes; they add up to what th
   assert.equal(sum, 600); // 續傳只收後 600 bytes
   assert.equal(last.received, 1000); // received 仍是含 .part 的累計
 });
-
-// ── downloadToFileWithFallback（D3）：改接看門狗；每個來源開始前先刪 .part（§上層沒列 7）──
-
-const OTHER = Buffer.from("abcdefghij".repeat(100)); // 另一家的檔，同樣 1000 bytes
-
-test(
-  "fallback: first source stalls ⇒ second source used, first requested once",
-  { timeout: HANG_LIMIT_MS },
-  async (t) => {
-    const a = await startServer(stallAfterHeaders);
-    const b = await startServer((req, res) => serveWithRange(req, res, BODY));
-    t.after(() => Promise.all([a.close(), b.close()]));
-    const target = await tempTarget(t);
-
-    const used = await downloadToFileWithFallback(
-      [
-        { name: "A", url: a.url },
-        { name: "B", url: b.url },
-      ],
-      target,
-      null,
-      { resume: true, ...GUARD },
-    );
-
-    assert.equal(used.name, "B");
-    assert.equal(a.requests.length, 1);
-    assert.deepEqual(await fsp.readFile(target), BODY);
-  },
-);
-
-test(
-  "fallback: half-written .part from a stalled source is not continued by the next source",
-  { timeout: HANG_LIMIT_MS },
-  async (t) => {
-    const a = await startServer((req, res) => {
-      res.writeHead(200, { "content-length": String(OTHER.length) });
-      res.write(OTHER.subarray(0, 500)); // 送一半就停
-    });
-    const b = await startServer((req, res) => serveWithRange(req, res, BODY));
-    t.after(() => Promise.all([a.close(), b.close()]));
-    const target = await tempTarget(t);
-
-    await downloadToFileWithFallback(
-      [
-        { name: "A", url: a.url },
-        { name: "B", url: b.url },
-      ],
-      target,
-      null,
-      { resume: true, windowMs: 300, minBytes: 100 },
-    );
-
-    assert.equal(b.requests[0].headers.range, undefined);
-    assert.deepEqual(await fsp.readFile(target), BODY);
-  },
-);
-
-test("fallback: a leftover .part from an earlier run is not continued", async (t) => {
-  const b = await startServer((req, res) => serveWithRange(req, res, BODY));
-  t.after(() => b.close());
-  const target = await tempTarget(t);
-  await fsp.writeFile(`${target}.part`, OTHER.subarray(0, 500));
-
-  await downloadToFileWithFallback([{ name: "B", url: b.url }], target, null, {
-    resume: true,
-    ...GUARD,
-  });
-
-  assert.equal(b.requests[0].headers.range, undefined);
-  assert.deepEqual(await fsp.readFile(target), BODY);
-});
-
-test(
-  "fallback: every source stalls ⇒ the mirror-too-slow message",
-  { timeout: HANG_LIMIT_MS },
-  async (t) => {
-    const a = await startServer(stallAfterHeaders);
-    t.after(() => a.close());
-    const target = await tempTarget(t);
-
-    await assert.rejects(
-      downloadToFileWithFallback([{ name: "A", url: a.url }], target, null, {
-        resume: true,
-        ...GUARD,
-      }),
-      /所有鏡像下載速度都過慢/,
-    );
-  },
-);
 
 test(
   "downloadToFile: timeoutMs reaches the header timeout (the stall guard relies on it)",

@@ -12,7 +12,6 @@ const {
   buildGameArgsFromVersionJson,
   ensureRequiredGameArgs,
   resolveVersionChain,
-  findAssetIndexUrlFromChain,
 } = require("../main/minecraft-version-json.js");
 
 const ph = {
@@ -134,39 +133,6 @@ test("resolveVersionChain: inheritsFrom merges mainClass and libraries", async (
     "net.fabricmc.loader.impl.launch.knot.KnotClient",
   );
   assert.equal(merged.libraries.length, 2);
-});
-
-test("findAssetIndexUrlFromChain: walks inheritsFrom", async () => {
-  const root = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-assetidx-"));
-  const gameDir = path.join(root, "g");
-  const parentPath = path.join(gameDir, "versions", "p", "p.json");
-  const childPath = path.join(gameDir, "versions", "c", "c.json");
-  await fsp.mkdir(path.dirname(parentPath), { recursive: true });
-  await fsp.mkdir(path.dirname(childPath), { recursive: true });
-  await fsp.writeFile(
-    parentPath,
-    JSON.stringify({
-      id: "p",
-      assetIndex: {
-        url: "https://assets.example/index.json",
-        sha1: "deadbeef",
-      },
-    }),
-    "utf8",
-  );
-  await fsp.writeFile(
-    childPath,
-    JSON.stringify({ id: "c", inheritsFrom: "p" }),
-    "utf8",
-  );
-
-  const r = await findAssetIndexUrlFromChain(gameDir, "c");
-  assert.deepEqual(r, {
-    url: "https://assets.example/index.json",
-    sha1: "deadbeef",
-  });
-
-  await fsp.rm(root, { recursive: true, force: true });
 });
 
 // → _notes/plans/instance-sync-v3-commit4c.md §測試 C15（SPR R#24、R#26）

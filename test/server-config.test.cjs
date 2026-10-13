@@ -30,6 +30,19 @@ test("server-config: protectedPaths 每項都是 gameDir 相對路徑", () => {
   }
 });
 
+// → _notes/plans/instance-sync-v3-commit4d.md K3
+test("K3 server-config 的頂層鍵：等於明列清單（多一個、少一個都紅）", () => {
+  assert.deepEqual(Object.keys(serverConfig).sort(), [
+    "discord",
+    "instanceId",
+    "launcherRootDir",
+    "manifestUrl",
+    "microsoftAuth",
+    "protectedPaths",
+    "serverStatus",
+  ]);
+});
+
 test("server-config: loopbackPort 為合法 port", () => {
   const port = serverConfig.microsoftAuth.loopbackPort;
   assert.ok(Number.isInteger(port) && port >= 1 && port <= 65535, String(port));

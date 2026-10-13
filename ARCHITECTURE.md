@@ -53,11 +53,10 @@ Use this table to find code after splits. **When you add or extract a new `main/
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `main/paths.js`         | `getPaths`, `getSettingsPath`, `INSTANCE_ID`, default install root, `resolveDefaultSettingsPath` (dev/packaged base for `assets/default-settings.json`)     |
 | `main/launcher-log.js`  | Debug logging flag, `appendLauncherLog` / RPC diag log, log rotation, sync progress throttling                                                              |
-| `lib/server-config.js` | 換伺服器時要換的值的唯一權威（凍結物件）：`manifestUrl`、`serverStatus`、`microsoftAuth`、`discord`、`launcherRootDir`、`instanceId`、`protectedPaths`、`legacy.fabricLoaderVersion`；`main/start-main.js` 以單一 `serverConfig` 注入，由 `main/app-ready.js` 拆給各模組。開新伺服器要改的地方見 `docs/new-server-checklist.md` |
+| `lib/server-config.js` | 換伺服器時要換的值的唯一權威（凍結物件）：`manifestUrl`、`serverStatus`、`microsoftAuth`、`discord`、`launcherRootDir`、`instanceId`、`protectedPaths`；`main/start-main.js` 以單一 `serverConfig` 注入，由 `main/app-ready.js` 拆給各模組。開新伺服器要改的地方見 `docs/new-server-checklist.md` |
 | `main/account-store.js` | `account.json` read/write, safe payload for renderer (strips `mcAccessToken`)                                                                               |
 | `main/settings.js`      | `settings.json` init/merge, `readSettings` / `readSettingsRaw` / `writeSettings`, `normalizeSettingsObject`, memory-field meta helpers                      |
 | `main/notifications.js` | 鈴鐺的已讀紀錄（dismissed 檔）；公告與通知的抓取、輪詢在 `main/sync/notice-feed.js` |
-| `main/launch-version-detect.js` | 從 `versions/` 挑要啟動的版本 id（fabric-loader 優先）；commit ④ 改成跟 release 的 loader 走時刪 |
 | `main/sync/index.js` | 同步中樞：一把鎖包住更新、修復、啟動（`withLaunchLock`，把閘那次讀到的 settings／paths／記錄交給啟動）；算實例狀態（含 runtime 就緒）並經 `sendInstanceStatus` 送出；更新／修復流程（runtime 安裝走 `main/runtime/prepare.js`，成功後清舊 runtime）；遊戲判不出來時呼叫注入的 `confirmGameClosed` |
 | `main/sync/site-client.js` | v3 站台抓取：`manifest.json` 索引、`gate.json`、`release.json`、`notice.json`；每支回三態（ok／invalid／unreachable），每個請求 5 秒期限 |
 | `main/sync/apply.js` | 套用同步計畫：同步中標記 → 備妥 runtime（回的三欄先驗）→ 下載到暫存 → 擋路檢查 → 寫檔 → 寫本機記錄 |
@@ -69,12 +68,10 @@ Use this table to find code after splits. **When you add or extract a new `main/
 | `main/ipc-bridge.js` | main → 畫面的送出函式；狀態類事件（`instance:status`、`notice:changed`、`server:status`、`window:power`）記住最後一筆，畫面喊 `renderer:ready` 時重送 |
 | `main/game-closed-dialog.js` | 「我確定遊戲已關閉，繼續／取消」確認框（中樞的 `confirmGameClosed`） |
 | `lib/sync/*.js` | 同步的純邏輯（站台格式驗證、計畫、狀態 kind、狀態文字、路徑規則），不 require electron |
-| `main/net-fetch.js`     | `fetchWithNiceError`, retries, `downloadToFile` / `WithFallback`, SHA verify helpers, `fetchJson`; `configureNetFetch({...})` wires retry + mirror status + `appendLauncherLog` from `main.js` |
+| `main/net-fetch.js`     | `fetchWithNiceError`, retries, `downloadToFile`, `fetchJson`; `configureNetFetch({...})` wires retry + `appendLauncherLog` from `main.js` |
 | `main/microsoft-auth.js` | Microsoft / Xbox / Minecraft OAuth（PKCE、localhost callback）、`registerAccountIpcHandlers`（由 `ipc-handlers` 的 `setupMainIpc` 呼叫）；`configureMicrosoftAuth({...})` 由 `main/app-ready.js` 注入 `msClientId`、`loopbackPort`（值在 `lib/server-config.js` 的 `microsoftAuth`）、視窗圖示路徑與 sync UI callbacks |
 | `main/ipc-handlers.js` | `createMainIpcBridge(deps)` 建立 `sendSync*` / `sendMc*` / `sendInstanceStatus` / `sendServerStatus`；`setupMainIpc()` 註冊 `ipcMain.handle`（視窗、設定、目錄選擇、通知、Minecraft 啟動、實例安裝/檢查） |
-| `main/minecraft-bootstrap.js` | 啟動前：`ensureMinecraftAndFabricRuntime`（原版 jar、Fabric installer **含逾時**、libraries+assets）；`configureMinecraftBootstrap` 一併注入 `bundled-java` 的 sync UI |
 | `main/mc-mirror.js` | BMCL / 自訂 / 官方鏡像、`rankSourcesByQuickProbe`、`getMcMirrorDecision`（TTL + 併發 single-flight） |
-| `main/bundled-java.js` | `ensureBundledJava` / Mojang runtime 備援、`configureBundledJava` 注入 sync 進度 |
 | `main/runtime/download.js` | runtime 安裝的下載底層：整段有期限的 json／文字抓取、候選網址逐台下載並逐台驗 hash、來源健康度（停滯過的排最後）、第一個錯就全停且等全部停下的池 |
 | `main/runtime/minecraft.js` | 候選清單（鏡像／官方／Fabric 三台）、原版與 Fabric 兩份 version json（本機有效就沿用）、版本 jar／library／asset index／objects 的安裝與進度 |
 | `main/runtime/java.js` | 依大版本把 Java 裝到 `<root>/runtime/java-<major>`：zip 主路徑任何一步失敗就走 Mojang runtime 退路，暫存區驗過 `-version` 才經 `.old` 換上 |
@@ -82,7 +79,6 @@ Use this table to find code after splits. **When you add or extract a new `main/
 | `lib/runtime-json.js` | 原版與 Fabric version json 的驗證（`checkVanillaJson`／`checkFabricJson`），本機讀到的與網路抓到的都用它；不支援 classifiers 式 natives。不 require electron |
 | `main/minecraft-version-json.js` | `resolveVersionChain`、`buildClasspath`、`buildGameArgsFromVersionJson`、`ensureRequiredGameArgs`（供 launch） |
 | `main/minecraft-launch.js` | `launchMinecraft`：只讀本機記錄（launchId 與 Java 由記錄推）、不連網、不裝 runtime、不跳對話框（丟帶 `code` 的 `LaunchError`，`main/ipc/minecraft-ipc.js` 依 code 跳框）；完整 argv 寫進 launcher log（token 遮成 `***`）；等 child 的 `spawn` 事件才算啟動成功（併發由中樞的 `withLaunchLock` 擋）；JVM 參數（`-Xmx` 上限）、`runningMcProcess` / `cleanupStaleMcProcessIfNeeded` / `isMinecraftRunning`（供 `minecraft:isRunning` IPC）；`configureMinecraftLaunch({...})` 注入 `sendMcStatus`、`sendMcRunning`、`tryStartDiscordRpcHelper`（實作在 `discord-rpc.js`）、`log` |
-| `main/format-eta-seconds.js` | 下載 ETA 字串（bootstrap / bundled-java 共用） |
 | `main/server-status.js` | TCP/HTTP 探測、`startServerStatusPolling`；`configureServerStatus({ sendServerStatus, serverStatusHost, serverStatusPort, serverStatusUrl })` 由 `main.js` 在 `setupMainIpc` 前注入 |
 | `main/main-window.js` | `configureMainWindow({ appRoot, sendWindowPower })`（須晚於 `createMainIpcBridge`：`sendWindowPower` 由 bridge 造）、`createMainWindow`、`getMainWindow`、`getAppIconPath`；無邊框透明視窗、`webPreferences`（preload、nodeIntegration off、contextIsolation、`sandbox: false` 註解）、`window:power`（經 `ipc-bridge` 送出並記住最後一筆） |
 | `main/discord-rpc.js` | `tryStartDiscordRpcHelper({ mcPid })`（spawn `assets/rpc-helper.exe`；argv 由 `lib/discord-helper-args.js` 組，含按鈕 URL 白名單）、`rpc:notice` 推播；`configureDiscordRpc({ getMainWindow, discord })`（`discord`＝`lib/server-config.js` 的同名區塊） 由 `main.js` 在 `setupMainIpc` 前注入（供 `minecraft-launch` 注入的 callback 使用） |
@@ -138,7 +134,6 @@ Use this table to find code after splits. **When you add or extract a new `main/
 #### Event channels (`window.ggl.on`)
 
 - `instance:status`
-- `minecraft:progress`
 - `minecraft:running`
 - `minecraft:status`
 - `notice:changed`

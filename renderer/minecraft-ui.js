@@ -68,12 +68,6 @@
         setStatus(text || "啟動中…");
       });
 
-      onIpc("minecraft:progress", (payload) => {
-        const { gameRunning } = getBusyState();
-        if (gameRunning) return;
-        setStatus(payload?.text ?? "準備中…", payload?.progress01 ?? 0);
-      });
-
       onIpc("minecraft:running", (payload) => {
         const running = Boolean(payload?.isRunning);
         setBusyState({ gameRunning: running });

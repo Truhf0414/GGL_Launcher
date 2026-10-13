@@ -41,7 +41,6 @@ jobs:
           node -c main/minecraft-version-json.js
           node -c main/net-fetch.js
           node -c main/mc-mirror.js
-          node -c main/launch-version-detect.js
           node -c main/server-status.js
 
       - name: Unit tests

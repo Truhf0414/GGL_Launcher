@@ -19,10 +19,6 @@ test("hashFile: known content gives known sha256", async (t) => {
   );
 });
 
-test("net-fetch and bundled-java load after the import move", () => {
+test("net-fetch loads after the import move", () => {
   assert.equal(typeof require("../main/net-fetch.js").downloadToFile, "function");
-  assert.equal(
-    typeof require("../main/bundled-java.js").ensureBundledJava,
-    "function",
-  );
 });

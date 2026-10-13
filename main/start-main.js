@@ -29,7 +29,6 @@ const { createNoticeFeed } = require("./sync/notice-feed.js");
 const { readRecord: readSyncRecord } = require("./sync/instance-record.js");
 const { createConfirmGameClosed } = require("./game-closed-dialog");
 const { describeProgress } = require("../lib/sync/status-text.js");
-const { configureMinecraftBootstrap } = require("./minecraft-bootstrap");
 const {
   configureMinecraftLaunch,
   launchMinecraft,
@@ -136,10 +135,8 @@ function createMainAppReadyContext({ app, appRoot }) {
   });
   const {
     sendSyncStatus,
-    sendSyncProgress,
     sendSyncDone,
     sendMcStatus,
-    sendMcProgress,
     sendMcRunning,
     sendServerStatus,
     sendWindowPower,
@@ -159,7 +156,6 @@ function createMainAppReadyContext({ app, appRoot }) {
     createMainWindow,
     configureNetFetch,
     configureMicrosoftAuth,
-    configureMinecraftBootstrap,
     configureMinecraftLaunch,
     configureServerStatus,
     configureDiscordRpc,
@@ -169,9 +165,7 @@ function createMainAppReadyContext({ app, appRoot }) {
     getInstanceStatus: instanceSync.getInstanceStatus,
     sendSyncStatus,
     sendMcStatus,
-    sendSyncProgress,
     sendSyncDone,
-    sendMcProgress,
     sendMcRunning,
     sendServerStatus,
     getMainWindow,

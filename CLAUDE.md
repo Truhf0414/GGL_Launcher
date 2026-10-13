@@ -31,7 +31,7 @@ Minecraft 模組伺服器的自製啟動器。Electron ＋ 原生 JS，無前端
 
 ## 這專案的成分紀律
 
-- 要寫得出測試的邏輯就放 `lib/`，`main/` 的檔只負責接電。`main/` 裡純函式性質的小檔（如 `format-eta-seconds.js`）同樣有測試。
+- 要寫得出測試的邏輯就放 `lib/`，`main/` 的檔只負責接電。`main/` 裡純函式性質的小檔（如 `startup-failure.js`）同樣有測試。
 - 依賴放哪、發包產物、UI／CSS、本機打包的規則全在 `_notes/conventions.md`，不在本檔重述。
 
 ## agent 執行環境（不是專案的毛病，也不是機器壞掉）
