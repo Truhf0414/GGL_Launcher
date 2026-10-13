@@ -2,7 +2,6 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
-const PRELOAD_PATH = path.join(ROOT, "preload.js");
 const MAIN_PATH = path.join(ROOT, "main.js");
 const IPC_HANDLERS_PATH = path.join(ROOT, "main", "ipc-handlers.js");
 const MICROSOFT_AUTH_PATH = path.join(ROOT, "main", "microsoft-auth.js");
@@ -27,7 +26,6 @@ function uniqSorted(arr) {
 
 function readIpcChannelsFromSingleSource() {
   // Avoid parsing preload.js. IPC allowlists are defined in lib/ipc-channels.js.
-  // eslint-disable-next-line global-require, import/no-dynamic-require
   const mod = require(IPC_CHANNELS_PATH);
   const invoke = Array.isArray(mod?.ALLOWED_INVOKE) ? mod.ALLOWED_INVOKE : [];
   const on = Array.isArray(mod?.ALLOWED_ON) ? mod.ALLOWED_ON : [];

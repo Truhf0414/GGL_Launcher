@@ -47,9 +47,6 @@ function configureMinecraftLaunch(next) {
   launchDeps = { ...defaultLaunchDeps, ...next };
 }
 
-function sendMcStatus(text) {
-  launchDeps.sendMcStatus(text);
-}
 function sendMcRunning(isRunning) {
   launchDeps.sendMcRunning(isRunning);
 }

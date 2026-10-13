@@ -13,7 +13,6 @@
     const notifUi = input?.notifUi || null;
     const setStatus = input?.setStatus || fx.setStatus || (() => {});
     const setInstanceStatus = input?.setInstanceStatus || (() => {});
-    const getAccountState = input?.getAccountState || (() => ({}));
     const setAccountState = input?.setAccountState || (() => {});
     const accountUi = input?.accountUi || null;
 

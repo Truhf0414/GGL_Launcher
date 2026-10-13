@@ -137,7 +137,7 @@ test("classify: status 0 ⇒ unreachable", async () => {
   assert.equal(r.reason, "http");
 });
 
-test("classify: connection refused ⇒ unreachable/network, detail from summarizeManifestFetchFailure", async (t) => {
+test("classify: connection refused ⇒ unreachable/network, detail from summarizeManifestFetchFailure", async () => {
   const srv = await startServer(() => {});
   const url = `${srv.url}/m`;
   await srv.close(); // 埠關掉 ⇒ 拒絕連線
