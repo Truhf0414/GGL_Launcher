@@ -25,11 +25,6 @@ function registerMinecraftIpc(ctx) {
       "找不到 Java",
       "找不到內建 Java。請到設定按『檢查並修復檔案』讓啟動器重新安裝 Java。",
     ],
-    GGL_LAUNCH_NO_VERSION: [
-      "找不到可啟動版本",
-      "在實例資料夾中找不到可啟動的版本檔（versions/*/*.json）。\n\n" +
-        "請到設定按『檢查並修復檔案』；仍不行請匯出診斷回報。",
-    ],
   };
 
   async function explainLaunchBlocked(status) {
@@ -44,13 +39,13 @@ function registerMinecraftIpc(ctx) {
   }
 
   /**
-   * 鎖只包跟檔案有關的那段：閘（中樞在鎖內當場算）與啟動。設定、路徑、記錄用閘那次讀到的（④c A1）。
+   * 鎖只包跟檔案有關的那段：閘（中樞在鎖內當場算）與啟動。設定、路徑、記錄、啟動用的成品都用閘那次的（④c A1、⑤c P2′）。
    * 帳號的讀取與換新由呼叫端在鎖外先做完，對微軟的網路請求不必在鎖裡等。
    */
   async function launchThroughGate(authOf) {
     try {
       await deps.withLaunchLock(
-        async (_status, { settings, paths, record }) => {
+        async (_status, { settings, paths, record, launch }) => {
           // 成功啟動時「遊戲執行中」事件與 handler 回覆到畫面的先後沒有保證，連按兩次在這裡擋
           if (await deps.isMinecraftRunning()) {
             throw new Error("遊戲已在執行中");
@@ -59,6 +54,7 @@ function registerMinecraftIpc(ctx) {
             settings,
             paths,
             record,
+            launch,
             auth: authOf(settings),
           });
         },

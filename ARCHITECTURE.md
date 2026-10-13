@@ -36,7 +36,7 @@ Security posture:
 
 - `main.js`: 單一實例（拿不到鎖就結束，其餘不載入）、app bootstrap、IPC bridge 接線、`app.whenReady` / `window-all-closed`、啟動失敗接 `main/startup-failure.js`；`whenReady` 本體在 `main/app-ready.js`；伺服器的值在 `lib/server-config.js`；主視窗在 `main/main-window.js`
 - `main/ipc-handlers.js`: `ipcMain.handle` 與 `sendSync*` / `sendMc*` 等推播（見 **Main process module map**）
-- `main/minecraft-launch.js`: Fabric / Java 啟動（`launchMinecraft`，只讀本機記錄）、MC 子行程狀態（見 **Main process module map**）
+- `main/minecraft-launch.js`: Fabric / Java 啟動（`launchMinecraft`，用閘交的成品組 argv、不讀 json）、MC 子行程狀態（見 **Main process module map**）
 - `main/*.js`: other extracted main-process helpers（見下表）
 - `preload.js`: safe renderer bridge + IPC allowlists
 - `renderer.js`: UI logic (uses `window.ggl`)
@@ -57,7 +57,7 @@ Use this table to find code after splits. **When you add or extract a new `main/
 | `main/account-store.js` | `account.json` read/write, safe payload for renderer (strips `mcAccessToken`)                                                                               |
 | `main/settings.js`      | `settings.json` init/merge, `readSettings` / `readSettingsRaw` / `writeSettings`, `normalizeSettingsObject`, memory-field meta helpers                      |
 | `main/notifications.js` | 鈴鐺的已讀紀錄（dismissed 檔）；公告與通知的抓取、輪詢在 `main/sync/notice-feed.js` |
-| `main/sync/index.js` | 同步中樞：一把鎖包住更新、修復、啟動（`withLaunchLock`，把閘那次讀到的 settings／paths／記錄交給啟動）；算實例狀態（含 runtime 就緒）並經 `sendInstanceStatus` 送出；更新／修復流程（runtime 安裝走 `main/runtime/prepare.js`，成功後清舊 runtime）；遊戲判不出來時呼叫注入的 `confirmGameClosed` |
+| `main/sync/index.js` | 同步中樞：一把鎖包住更新、修復、啟動（`withLaunchLock`，把閘那次讀到的 settings／paths／記錄與就緒交出的啟動成品交給啟動）；算實例狀態（含 runtime 就緒）並經 `sendInstanceStatus` 送出；更新／修復流程（runtime 安裝走 `main/runtime/prepare.js`，成功後清舊 runtime）；遊戲判不出來時呼叫注入的 `confirmGameClosed` |
 | `main/sync/site-client.js` | v3 站台抓取：`manifest.json` 索引、`gate.json`、`release.json`、`notice.json`；每支回三態（ok／invalid／unreachable），每個請求 5 秒期限 |
 | `main/sync/apply.js` | 套用同步計畫：同步中標記 → 備妥 runtime（回的三欄先驗）→ 下載到暫存 → 擋路檢查 → 寫檔 → 寫本機記錄 |
 | `main/sync/runtime-probe.js` | runtime 就緒檢查的預設 probe（真檔案系統）：不存在 ⇒ 否；其他讀檔錯照丟（中樞歸成 `local-unreadable`） |
@@ -77,8 +77,8 @@ Use this table to find code after splits. **When you add or extract a new `main/
 | `main/runtime/java.js` | 依大版本把 Java 裝到 `<root>/runtime/java-<major>`：zip 主路徑任何一步失敗就走 Mojang runtime 退路，暫存區驗過 `-version` 才經 `.old` 換上 |
 | `main/runtime/prepare.js` | `prepareRuntime`：兩份 json → Java → 檔案串成一條，鏡像測速 lazy；同步中樞在更新／修復時呼叫 |
 | `lib/runtime-json.js` | 原版與 Fabric version json 的驗證（`checkVanillaJson`／`checkFabricJson`），本機讀到的與網路抓到的都用它；不支援 classifiers 式 natives。不 require electron |
-| `main/minecraft-version-json.js` | `resolveVersionChain`、`buildClasspath`、`buildGameArgsFromVersionJson`、`ensureRequiredGameArgs`（供 launch） |
-| `main/minecraft-launch.js` | `launchMinecraft`：只讀本機記錄（launchId 與 Java 由記錄推）、不連網、不裝 runtime、不跳對話框（丟帶 `code` 的 `LaunchError`，`main/ipc/minecraft-ipc.js` 依 code 跳框）；完整 argv 寫進 launcher log（token 遮成 `***`）；等 child 的 `spawn` 事件才算啟動成功（併發由中樞的 `withLaunchLock` 擋）；JVM 參數（`-Xmx` 上限）、`runningMcProcess` / `cleanupStaleMcProcessIfNeeded` / `isMinecraftRunning`（供 `minecraft:isRunning` IPC）；`configureMinecraftLaunch({...})` 注入 `sendMcStatus`、`sendMcRunning`、`tryStartDiscordRpcHelper`（實作在 `discord-rpc.js`）、`log` |
+| `lib/launch-args.js` | version json → argv：rules、合併版本鏈、library 過濾、classpath、log4j 設定檔、placeholder 展開（`buildLaunchArgv`）；「啟動給什麼值」（`launchPlaceholders`）與「啟動吃不吃得下」（`checkLaunchable`，就緒與安裝共用）。不 require electron |
+| `main/minecraft-launch.js` | `launchMinecraft`：用閘交的成品（就緒算好的合併 json、過濾後的 library、jar 與 log4j 的位置、`env`）組 argv、不讀 json（launchId 與 Java 由記錄推）、不連網、不裝 runtime、不跳對話框（丟帶 `code` 的 `LaunchError`，`main/ipc/minecraft-ipc.js` 依 code 跳框）；完整 argv 寫進 launcher log（token 遮成 `***`）；等 child 的 `spawn` 事件才算啟動成功（併發由中樞的 `withLaunchLock` 擋）；argv 照 version json 組，手寫的只剩記憶體與 GC 旗標（`-Xmx` 上限）、`runningMcProcess` / `cleanupStaleMcProcessIfNeeded` / `isMinecraftRunning`（供 `minecraft:isRunning` IPC）；`configureMinecraftLaunch({...})` 注入 `sendMcStatus`、`sendMcRunning`、`tryStartDiscordRpcHelper`（實作在 `discord-rpc.js`）、`log` |
 | `main/server-status.js` | TCP/HTTP 探測、`startServerStatusPolling`；`configureServerStatus({ sendServerStatus, serverStatusHost, serverStatusPort, serverStatusUrl })` 由 `main.js` 在 `setupMainIpc` 前注入 |
 | `main/main-window.js` | `configureMainWindow({ appRoot, sendWindowPower })`（須晚於 `createMainIpcBridge`：`sendWindowPower` 由 bridge 造）、`createMainWindow`、`getMainWindow`、`getAppIconPath`；無邊框透明視窗、`webPreferences`（preload、nodeIntegration off、contextIsolation、`sandbox: false` 註解）、`window:power`（經 `ipc-bridge` 送出並記住最後一筆） |
 | `main/discord-rpc.js` | `tryStartDiscordRpcHelper({ mcPid })`（spawn `assets/rpc-helper.exe`；argv 由 `lib/discord-helper-args.js` 組，含按鈕 URL 白名單）、`rpc:notice` 推播；`configureDiscordRpc({ getMainWindow, discord })`（`discord`＝`lib/server-config.js` 的同名區塊） 由 `main.js` 在 `setupMainIpc` 前注入（供 `minecraft-launch` 注入的 callback 使用） |

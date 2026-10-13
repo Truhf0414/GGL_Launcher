@@ -19,6 +19,7 @@ const {
   mergeVersionChain,
   filterLibraries,
   logConfigFile,
+  checkLaunchable,
 } = require("../../lib/launch-args.js");
 const {
   profileJsonUrls,
@@ -374,6 +375,11 @@ async function installRuntimeFiles({
   const now = deps.now ?? Date.now;
   // 兩份 json 都已過 checkVanillaJson／checkFabricJson：合併、過濾、log4j 設定檔不會再丟資料錯
   const merged = mergeVersionChain([vanilla, target]);
+  // 與就緒同一把尺：啟動吃不下就別裝，否則更新「成功」、就緒判壞，無聲循環（⑤c D1）
+  const launchable = checkLaunchable(merged, env);
+  if (!launchable.ok) {
+    throw new Error(`兩份版本 json 合起來不能啟動：${launchable.error}`);
+  }
 
   /** 要不要下載：不存在 ⇒ 要；該驗的 sha1 不符 ⇒ 刪掉、要 */
   async function needsDownload(task) {

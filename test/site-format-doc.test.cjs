@@ -145,7 +145,7 @@ function statusWith(
       side: "ok",
       record: installed ? record : null,
       inProgress: false,
-      runtimeReady: true,
+      runtime: { ready: true },
     },
     launcherVersion,
   });

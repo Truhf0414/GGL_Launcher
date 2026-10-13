@@ -5,7 +5,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { runtimeNeeds } = require("../lib/runtime-needs.js");
+const { runtimeNeeds, assertLaunchBundle } = require("../lib/runtime-needs.js");
+const { libraryArtifact } = require("../lib/library-filter.js");
 const fx = require("./helpers/runtime-fixtures.cjs");
 
 const ENV = Object.freeze({
@@ -185,4 +186,63 @@ test("K8 runtimeNeeds 沒給 env ⇒ TypeError：記錄不完整、目標 json �
   assert.throws(without(base), TypeError);
   assert.throws(without({ ...base, record: null }), TypeError);
   assert.throws(without({ ...base, target: BAD }), TypeError);
+});
+
+// → _notes/plans/instance-sync-v3-commit5c.md N1、N5（P2′：就緒交出成品；D1：試組 argv）
+const libRels = (r) => r.files.filter((f) => f.item === "library").map((f) => f.rel);
+
+test("N1 兩份都過 ⇒ launch：合併結果、過濾後的 library（＝files 那份）、jar、log4j、env 原物件", () => {
+  const r = needs();
+  const L = r.launch;
+  assert.equal(L.merged.id, "fabric-loader-0.19.3-1.21.11");
+  assert.equal(L.libraries.length, 83);
+  assert.deepEqual(
+    L.libraries.map((lib) => `libraries/${libraryArtifact(lib).rel}`),
+    libRels(r),
+  );
+  assert.equal(L.versionJarRel, "versions/1.21.11/1.21.11.jar");
+  assert.deepEqual(
+    r.files.filter((f) => f.item === "version-jar").map((f) => f.rel),
+    [L.versionJarRel],
+  );
+  assert.equal(L.logConfigRel, "assets/log_configs/client-1.21.2.xml");
+  assert.equal(L.env, ENV);
+
+  const v = fx.vanilla();
+  delete v.logging;
+  assert.equal(needs({ vanilla: ok(v) }).launch.logConfigRel, null);
+});
+
+test("N1 json 壞、記錄不完整 ⇒ 沒有 launch；試組 argv 不過 ⇒ 記在 version-json、files 空、沒有 launch", () => {
+  for (const r of [needs({ target: BAD }), needs({ vanilla: BAD }), needs({ rec: record({ javaMajor: undefined }) })]) {
+    assert.equal("launch" in r, false, JSON.stringify(r.problems));
+  }
+  const f = fx.fabric();
+  f.arguments.jvm.push("${classpath}");
+  const r = needs({ target: ok(f) });
+  assert.deepEqual(r.problems, ["version-json"]);
+  assert.deepEqual(r.files, []);
+  assert.equal("launch" in r, false);
+});
+
+test("N5 assertLaunchBundle：就緒交的那份不丟；形狀不對 ⇒ TypeError", () => {
+  const L = needs().launch;
+  assert.doesNotThrow(() => assertLaunchBundle(L));
+  assert.doesNotThrow(() => assertLaunchBundle({ ...L, logConfigRel: null }));
+  const cases = [
+    ["{}", {}],
+    ["null", null],
+    ["merged 沒有 arguments", { ...L, merged: {} }],
+    ["libraries 不是陣列", { ...L, libraries: "x" }],
+    ['versionJarRel 是 ""', { ...L, versionJarRel: "" }],
+    ['logConfigRel 是 ""', { ...L, logConfigRel: "" }],
+    ["少 env", { ...L, env: undefined }],
+  ];
+  for (const [name, bad] of cases) {
+    assert.throws(
+      () => assertLaunchBundle(bad),
+      (e) => e instanceof TypeError && /launch/.test(e.message),
+      name,
+    );
+  }
 });
