@@ -15,4 +15,3 @@ function registerExternalIpc(ctx) {
 }
 
 module.exports = { registerExternalIpc };
-

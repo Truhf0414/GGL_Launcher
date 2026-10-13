@@ -23,7 +23,10 @@ const {
   assertRemovableStrayJars,
 } = require("../../lib/sync/plan.js");
 const { checkRuntimeReady } = require("../../lib/runtime-readiness.js");
-const { pickRuntimeFields, sameRuntimeTarget } = require("../../lib/runtime-target.js");
+const {
+  pickRuntimeFields,
+  sameRuntimeTarget,
+} = require("../../lib/runtime-target.js");
 const instanceRecord = require("./instance-record.js");
 const { createSiteClient } = require("./site-client.js");
 const { checkGameRunning } = require("./game-running.js");
@@ -182,7 +185,10 @@ function createInstanceSync(deps) {
       return { side: "unreadable", detail: inProgress.detail };
     // 就緒讀的檔被擋（帶 syscall）與記錄被擋同一條路：local-unreadable（R#23）
     const runtime = await readLocalFile(paths.gameDir, () =>
-      checkRuntimeReady({ record: record.value, probe: runtimeProbeFor(paths) }),
+      checkRuntimeReady({
+        record: record.value,
+        probe: runtimeProbeFor(paths),
+      }),
     );
     if (!runtime.ok) return { side: "unreadable", detail: runtime.detail };
     return {

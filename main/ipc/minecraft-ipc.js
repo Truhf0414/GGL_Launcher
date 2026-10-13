@@ -49,18 +49,20 @@ function registerMinecraftIpc(ctx) {
    */
   async function launchThroughGate(authOf) {
     try {
-      await deps.withLaunchLock(async (_status, { settings, paths, record }) => {
-        // 成功啟動時「遊戲執行中」事件與 handler 回覆到畫面的先後沒有保證，連按兩次在這裡擋
-        if (await deps.isMinecraftRunning()) {
-          throw new Error("遊戲已在執行中");
-        }
-        await deps.launchMinecraft({
-          settings,
-          paths,
-          record,
-          auth: authOf(settings),
-        });
-      });
+      await deps.withLaunchLock(
+        async (_status, { settings, paths, record }) => {
+          // 成功啟動時「遊戲執行中」事件與 handler 回覆到畫面的先後沒有保證，連按兩次在這裡擋
+          if (await deps.isMinecraftRunning()) {
+            throw new Error("遊戲已在執行中");
+          }
+          await deps.launchMinecraft({
+            settings,
+            paths,
+            record,
+            auth: authOf(settings),
+          });
+        },
+      );
     } catch (e) {
       if (e?.code === "GGL_SYNC_LAUNCH_BLOCKED") {
         await explainLaunchBlocked(e.status);

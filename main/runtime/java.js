@@ -88,7 +88,8 @@ function runJava(exe, args, { timeoutMs = RUN_JAVA_TIMEOUT_MS, signal } = {}) {
     signal?.addEventListener("abort", onAbort, { once: true });
     child.on("error", (e) => {
       // spawn 失敗（ENOENT 之類）沒有程序可等；有程序時 close 一定會來
-      if (child.pid === undefined) done({ code: null, timedOut, error: firstLine(e) });
+      if (child.pid === undefined)
+        done({ code: null, timedOut, error: firstLine(e) });
     });
     child.on("close", (code) =>
       done({ code: timedOut ? null : code, timedOut, pid: child.pid }),
@@ -96,8 +97,16 @@ function runJava(exe, args, { timeoutMs = RUN_JAVA_TIMEOUT_MS, signal } = {}) {
   });
 }
 
-const exists = (fs, p) => fs.stat(p).then(() => true, () => false);
-const isFile = (fs, p) => fs.stat(p).then((s) => s.isFile(), () => false);
+const exists = (fs, p) =>
+  fs.stat(p).then(
+    () => true,
+    () => false,
+  );
+const isFile = (fs, p) =>
+  fs.stat(p).then(
+    (s) => s.isFile(),
+    () => false,
+  );
 
 /** Zulu／Semeru 查詢失敗或查不到 ⇒ null（跳過那個來源，現行語意） */
 async function zuluSource(major, ctx) {
@@ -166,23 +175,37 @@ async function semeruSource(major, ctx) {
 
 async function zipSources(major, ctx) {
   const envMirror = String(ctx.env.GGL_JAVA_MIRROR_URL ?? "").trim();
-  const [zulu, semeru] = [await zuluSource(major, ctx), await semeruSource(major, ctx)];
+  const [zulu, semeru] = [
+    await zuluSource(major, ctx),
+    await semeruSource(major, ctx),
+  ];
   // 兩個查詢的 catch 會把取消也當成「查不到」吞掉；不在這裡丟，接下來的測速不收 signal，會再逐台跑完
   if (ctx.signal?.aborted) throw ctx.signal.reason ?? new Error("已中止");
-  return [
-    envMirror ? { name: "自訂鏡像", url: envMirror, sha256: "" } : null,
-    zulu,
-    semeru,
-    { name: "Adoptium(eclipse)", url: ctx.endpoints.adoptium(major, "eclipse"), sha256: "" },
-    { name: "Adoptium(adoptium)", url: ctx.endpoints.adoptium(major, "adoptium"), sha256: "" },
-  ]
-    .filter(Boolean)
-    // 來源給的 sha256 格式不對 ⇒ 不用那個來源；不能當成「沒有 hash、不驗」
-    .filter((s) => isSha256OrEmpty(s.sha256));
+  return (
+    [
+      envMirror ? { name: "自訂鏡像", url: envMirror, sha256: "" } : null,
+      zulu,
+      semeru,
+      {
+        name: "Adoptium(eclipse)",
+        url: ctx.endpoints.adoptium(major, "eclipse"),
+        sha256: "",
+      },
+      {
+        name: "Adoptium(adoptium)",
+        url: ctx.endpoints.adoptium(major, "adoptium"),
+        sha256: "",
+      },
+    ]
+      .filter(Boolean)
+      // 來源給的 sha256 格式不對 ⇒ 不用那個來源；不能當成「沒有 hash、不驗」
+      .filter((s) => isSha256OrEmpty(s.sha256))
+  );
 }
 
 async function verifyJava(exe, ctx, label) {
-  if (!(await isFile(ctx.fs, exe))) throw new Error(`${label}找不到 bin/java.exe`);
+  if (!(await isFile(ctx.fs, exe)))
+    throw new Error(`${label}找不到 bin/java.exe`);
   const r = await ctx.runJava(exe, ["-version"], { signal: ctx.signal });
   if (r?.code !== 0) {
     throw new Error(
@@ -197,7 +220,11 @@ async function installViaZip(major, ctx) {
   const ranked = await ctx.rankSources(sources);
   ctx.report("download", 0, 0);
   await downloadRuntimeFile({
-    candidates: ranked.map((s) => ({ source: s.name, url: s.url, sha256: s.sha256 })),
+    candidates: ranked.map((s) => ({
+      source: s.name,
+      url: s.url,
+      sha256: s.sha256,
+    })),
     dest: ctx.zipPath,
     signal: ctx.signal,
     onChunk: ({ received, total }) => ctx.report("download", received, total),
@@ -210,7 +237,9 @@ async function installViaZip(major, ctx) {
   await ctx.extractZip(ctx.zipPath, { dir: zipDir });
   const entries = await ctx.fs.readdir(zipDir, { withFileTypes: true });
   if (entries.length !== 1 || !entries[0].isDirectory()) {
-    throw new Error(`zip 解壓後根目錄不是唯一一個資料夾（${entries.map((e) => e.name).join(", ")}）`);
+    throw new Error(
+      `zip 解壓後根目錄不是唯一一個資料夾（${entries.map((e) => e.name).join(", ")}）`,
+    );
   }
   const root = path.join(zipDir, entries[0].name);
 
@@ -222,7 +251,10 @@ async function installViaZip(major, ctx) {
 /** Mojang 退路：all.json → manifest → 先驗所有路徑 → 逐檔下載 → -version；回驗過的根 */
 async function installViaMojang(component, ctx) {
   ctx.report("download", 0, 0);
-  const all = await fetchJsonWithDeadline(ctx.endpoints.mojangAll, ctx.fetchOpts);
+  const all = await fetchJsonWithDeadline(
+    ctx.endpoints.mojangAll,
+    ctx.fetchOpts,
+  );
   const manifestUrl = all?.["windows-x64"]?.[component]?.[0]?.manifest?.url;
   if (!isHttpUrl(manifestUrl)) {
     throw new Error(`Mojang runtime 沒有 windows-x64／${component}`);
@@ -237,10 +269,16 @@ async function installViaMojang(component, ctx) {
   const entries = Object.entries(files);
   for (const [key, v] of entries) {
     const c = checkStrictRelPath(key);
-    if (!c.ok) throw new Error(`Mojang runtime manifest 有不合法的路徑（${c.code}）：${key}`);
+    if (!c.ok)
+      throw new Error(
+        `Mojang runtime manifest 有不合法的路徑（${c.code}）：${key}`,
+      );
     if (v?.type === "file") {
       const raw = v.downloads?.raw;
-      if (!isHttpUrl(raw?.url) || !/^[0-9a-f]{40}$/i.test(String(raw?.sha1 ?? ""))) {
+      if (
+        !isHttpUrl(raw?.url) ||
+        !/^[0-9a-f]{40}$/i.test(String(raw?.sha1 ?? ""))
+      ) {
         throw new Error(`Mojang runtime manifest 的 ${key} 缺網址或 sha1`);
       }
     }
@@ -249,10 +287,14 @@ async function installViaMojang(component, ctx) {
   const root = path.join(ctx.staging, "mojang");
   const under = (key) => path.join(root, ...key.split("/"));
   for (const [key, v] of entries) {
-    if (v?.type === "directory") await ctx.fs.mkdir(under(key), { recursive: true });
+    if (v?.type === "directory")
+      await ctx.fs.mkdir(under(key), { recursive: true });
   }
   const fileEntries = entries.filter(([, v]) => v?.type === "file");
-  const total = fileEntries.reduce((s, [, v]) => s + (Number(v.downloads.raw.size) || 0), 0);
+  const total = fileEntries.reduce(
+    (s, [, v]) => s + (Number(v.downloads.raw.size) || 0),
+    0,
+  );
   let doneBytes = 0;
   const inflight = new Map();
   const report = () => {
@@ -260,23 +302,29 @@ async function installViaMojang(component, ctx) {
     for (const x of inflight.values()) received += x;
     ctx.report("download", received, total);
   };
-  await runPoolUntilFirstError(fileEntries, POOL_CONCURRENCY, async ([key, v], poolSignal) => {
-    const raw = v.downloads.raw;
-    await downloadRuntimeFile({
-      candidates: [{ source: "mojang", url: raw.url }],
-      dest: under(key),
-      sha1: raw.sha1,
-      signal: ctx.signal ? AbortSignal.any([poolSignal, ctx.signal]) : poolSignal,
-      onChunk: ({ received }) => {
-        inflight.set(key, received);
-        report();
-      },
-      deps: ctx.deps,
-    });
-    inflight.delete(key);
-    doneBytes += Number(raw.size) || 0;
-    report();
-  });
+  await runPoolUntilFirstError(
+    fileEntries,
+    POOL_CONCURRENCY,
+    async ([key, v], poolSignal) => {
+      const raw = v.downloads.raw;
+      await downloadRuntimeFile({
+        candidates: [{ source: "mojang", url: raw.url }],
+        dest: under(key),
+        sha1: raw.sha1,
+        signal: ctx.signal
+          ? AbortSignal.any([poolSignal, ctx.signal])
+          : poolSignal,
+        onChunk: ({ received }) => {
+          inflight.set(key, received);
+          report();
+        },
+        deps: ctx.deps,
+      });
+      inflight.delete(key);
+      doneBytes += Number(raw.size) || 0;
+      report();
+    },
+  );
 
   ctx.report("verify", 0, 0);
   await verifyJava(path.join(root, "bin", "java.exe"), ctx, "Mojang 版 ");
@@ -321,7 +369,15 @@ async function swapIn(root, dir, old, ctx) {
  *   reinstall: boolean, onProgress?: Function, signal?: AbortSignal, deps?: object }} opts
  * @returns {Promise<{ javaExe: string }>}
  */
-async function installJava({ paths, major, component, reinstall, onProgress, signal, deps = {} }) {
+async function installJava({
+  paths,
+  major,
+  component,
+  reinstall,
+  onProgress,
+  signal,
+  deps = {},
+}) {
   const fs = deps.fsp ?? fsp;
   const dir = javaDirFor(paths, major);
   const exe = javaExeFor(paths, major);
@@ -364,9 +420,14 @@ async function installJava({ paths, major, component, reinstall, onProgress, sig
     zipPath: path.join(paths.tempDir, `jre${major}.zip`),
     endpoints: { ...DEFAULT_ENDPOINTS, ...deps.endpoints },
     env: deps.env ?? process.env,
-    fetchOpts: { signal, deadlineMs: deps.deadlineMs, fetchImpl: deps.fetchImpl },
+    fetchOpts: {
+      signal,
+      deadlineMs: deps.deadlineMs,
+      fetchImpl: deps.fetchImpl,
+    },
     rankSources: deps.rankSources ?? rankSourcesByQuickProbe,
-    extractZip: deps.extractZip ?? ((zip, opts) => require("extract-zip")(zip, opts)),
+    extractZip:
+      deps.extractZip ?? ((zip, opts) => require("extract-zip")(zip, opts)),
     runJava: deps.runJava ?? runJava,
     report,
   };
@@ -382,7 +443,10 @@ async function installJava({ paths, major, component, reinstall, onProgress, sig
     } catch (zipErr) {
       if (signal?.aborted) throw zipErr;
       await fs.rm(path.join(staging, "zip"), { recursive: true, force: true });
-      safeLog(deps.log, `RUNTIME_JAVA zip 主路徑失敗，改走 Mojang：${firstLine(zipErr)}`);
+      safeLog(
+        deps.log,
+        `RUNTIME_JAVA zip 主路徑失敗，改走 Mojang：${firstLine(zipErr)}`,
+      );
       try {
         root = await installViaMojang(component, ctx);
       } catch (mojangErr) {

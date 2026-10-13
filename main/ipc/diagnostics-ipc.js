@@ -17,4 +17,3 @@ function registerDiagnosticsIpc(ctx) {
 }
 
 module.exports = { registerDiagnosticsIpc };
-

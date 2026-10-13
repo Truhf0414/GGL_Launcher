@@ -115,7 +115,11 @@ async function applyPlan({ plan, record, paths, filesBaseUrl, deps: given }) {
     if (!firstKeys.has(rel)) await removeFile(fsp, abs, rel);
   }
 
-  const written = { ...record, ...runtime, appliedAt: deps.now().toISOString() };
+  const written = {
+    ...record,
+    ...runtime,
+    appliedAt: deps.now().toISOString(),
+  };
   await deps.writeRecord(paths, written);
   // 記錄寫成功＝這次更新成功；之後的清理失敗留給下一次開頭處理
   try {
