@@ -11,37 +11,18 @@ npm start
 - **Build CSS (Tailwind)**: `npm run build:css`
 - **Build Discord RPC helper exe**: `npm run build:rpc-helper`
 - **(Later) Package installer (NSIS)**: `npm run dist:win`
+- **UI checks**: `npm run check:ui-css` (errors fail, warnings only warn; also run by pre-commit), `npm run check:ui-css:strict` (used before packaging)
+- **Format after UI edits**: `npm run format:ui`; single file: `npm run format:file -- styles.css`; everything: `npm run format`
 
-## Important project rules (read first)
+## Project rules
 
-- **Cursor rules**: `.cursor/rules/launcher-architecture.md`
+- **Rules (UI / CSS, defensive code, packaging…)**: `_notes/conventions.md` (local notes, not in git)
 - **Architecture / IPC channel list**: `ARCHITECTURE.md`
 
-## UI / CSS safety checklist (to avoid layout explosions)
+## Structured logs (support / debugging)
 
-- **Edit design tokens in one place**: `styles.css` → `:root` → **Design controls (adjust here)**
-- **Naming**:
-  - Global design controls: `--design-*`
-  - Optical nudges: `--optical-*`
-- **No CSS variable recursion**: never do `--x: var(--x)` (or any self-referential chain)
-- **Component tokens rule**: components may define local tokens (e.g. `--cards-*`) but must only **reference** `--design-*` / `--optical-*` (do not redefine them)
-- **Changelog card scaling**: use `--design-cards-scale` (no `zoom`)
-  - Want card smaller but text same size: set `--design-cards-type-scale: 1`
-- **Launch button stacked status alignment**: keep `--design-launch-subtext-top-offset` (optical correction)
-- **UI guardrails**:
-  - `npm run check:ui-css`: errors fail, warnings only warn (good for everyday dev/commits)
-  - `npm run check:ui-css:strict`: stricter checks used before packaging (`dist:win` / `pack:win`)
-- **Renderer `<script>` order** (do not hand-wiggle without updating the check):
-  - The expected load order is enforced by `scripts/check-renderer-scripts.cjs` (also run as part of `check:ui-css`).
-  - If you add/rename/reorder `index.html` renderer scripts, update the `expected` array in that file so CI/local checks stay honest.
-- **Structured logs (support / debugging)**:
-  - Main process: `lib/ggl-structured-log.js` (`gglEvent` / `gglError`) prints one line per event: prefix `[GGL]` + JSON (easy to `grep` / share in screenshots).
-  - Renderer: `renderer/ggl-log.js` exposes `window.GglStructuredLog` with the same shape.
-- **After UI edits, format**:
-  - Preferred: `npm run format:ui`
-  - Single file: `npm run format:file -- styles.css`
-  - Big refactor: `npm run format`
-- **Do not edit generated files**: e.g. `assets/tailwind.css` (already in `.prettierignore`)
+- Main process: `lib/ggl-structured-log.js` (`gglEvent` / `gglError`) prints one line per event: prefix `[GGL]` + JSON (easy to `grep` / share in screenshots).
+- Renderer: `renderer/ggl-log.js` exposes `window.GglStructuredLog` with the same shape.
 
 ---
 
