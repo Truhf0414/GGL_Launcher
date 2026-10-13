@@ -14,15 +14,6 @@ function tsId() {
   return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
 }
 
-async function safeReadJson(p) {
-  try {
-    const raw = await fsp.readFile(p, "utf8");
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
 async function safeCopyFile(src, dest) {
   try {
     await fsp.mkdir(path.dirname(dest), { recursive: true });

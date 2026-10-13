@@ -156,7 +156,7 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
   }
 
   return await withRetries(
-    async (attempt) => {
+    async () => {
       const partPath = resume ? absPath + ".part" : absPath + ".tmp";
       let existing = 0;
       if (resume) {

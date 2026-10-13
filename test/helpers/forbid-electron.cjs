@@ -6,7 +6,7 @@ const Module = require("module");
 
 const originalLoad = Module._load;
 
-Module._load = function loadForbiddingElectron(request, parent, isMain) {
+Module._load = function loadForbiddingElectron(request, parent) {
   if (request === "electron") {
     const from = parent && parent.filename ? parent.filename : "(unknown)";
     throw new Error(

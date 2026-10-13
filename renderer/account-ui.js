@@ -18,7 +18,6 @@
     const setStatus = input?.setStatus || fx.setStatus;
     const setStatusError = input?.setStatusError || fx.setStatusError;
     const onDom = input?.onDom || fx.onDom;
-    const trackTimeout = input?.trackTimeout || fx.trackTimeout || ((x) => x);
     const ANIM_MS =
       input?.ANIM_MS ??
       (Number.isFinite(consts.ANIM_MS) ? consts.ANIM_MS : 280);
