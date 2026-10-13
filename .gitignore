@@ -13,8 +13,9 @@ out/
 release/
 
 
-# project notes (local only)
-_notes/
+# project notes: tracked, except pre-edit snapshots (git history is the backup)
+_notes/_backup/
+__pycache__/
 
 # graphify knowledge graph output (rebuildable)
 graphify-out/

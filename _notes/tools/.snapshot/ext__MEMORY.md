@@ -1,0 +1,4 @@
+- [GGL3 Launcher 專案背景](ggl3-launcher-context.md) — online-mode、網域拆法、站台已切 v3（alpha1）、從未發行過、沒有玩家、review 待辦
+- [交接＝更新 STATUS](handoff-is-status.md) — 有 _notes/ 的專案不用 /handoff
+- [Cursor 對話紀錄怎麼撈](cursor-history-location.md) — state.vscdb 位置、composerHeaders／bubbleId 結構、只抽使用者訊息
+- [故意留的假 jar](deliberate-stray-jar.md) — mods/ABCDEF~1.jar 0 byte、讓遊戲秒退 code=1，owner 故意留，不是 bug
