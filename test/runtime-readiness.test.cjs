@@ -1,6 +1,7 @@
 "use strict";
 
 // → _notes/plans/instance-sync-v3-commit4c.md §設計「就緒六項」、§測試 C1（SPR R#14、R#23）
+// ⑤b：K5、K8 → _notes/plans/instance-sync-v3-commit5b.md
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
@@ -11,6 +12,11 @@ const fx = require("./helpers/runtime-fixtures.cjs");
 const LAUNCH_ID = "fabric-loader-0.19.3-1.21.11";
 const JAVA_REL = "runtime/java-21/bin/java.exe";
 const ABSENT = Symbol("檔不存在");
+const LOG_REL = "assets/log_configs/client-1.21.2.xml";
+const ENV = Object.freeze({
+  os: { name: "windows", arch: "x86_64", version: "10.0.26200" },
+  features: {},
+});
 
 const record = (over = {}) => ({
   format: 3,
@@ -31,7 +37,7 @@ function installed({ target = fx.fabric(), vanilla = fx.vanilla(), drop = [], di
   ]);
   const files = new Set([`root:${JAVA_REL}`]);
   const ok = (value) => ({ ok: true, value });
-  for (const f of runtimeNeeds({ record: record(), target: ok(fx.fabric()), vanilla: ok(fx.vanilla()) }).files) {
+  for (const f of runtimeNeeds({ record: record(), target: ok(fx.fabric()), vanilla: ok(fx.vanilla()), env: ENV }).files) {
     files.add(`gameDir:${f.rel}`);
   }
   for (const k of drop) files.delete(k);
@@ -53,7 +59,7 @@ function installed({ target = fx.fabric(), vanilla = fx.vanilla(), drop = [], di
   };
 }
 
-const check = (rec, inst) => checkRuntimeReady({ record: rec, probe: inst.probe });
+const check = (rec, inst) => checkRuntimeReady({ record: rec, probe: inst.probe, env: ENV });
 
 test("C1 全部在 ⇒ ready；java 問的是 root 底下那支", async () => {
   const inst = installed();
@@ -78,7 +84,7 @@ test("C1 記錄不完整的五種 ⇒ 只有 record、不丟錯、probe 一支�
     record({ minecraft: ".." }),
   ];
   for (const r of bad) {
-    assert.deepEqual(await checkRuntimeReady({ record: r, probe: throwing }), { ready: false, missing: ["record"] });
+    assert.deepEqual(await checkRuntimeReady({ record: r, probe: throwing, env: ENV }), { ready: false, missing: ["record"] });
   }
 });
 
@@ -90,6 +96,7 @@ test("C1 每一個缺項各一案 ⇒ missing 指出那一項", async () => {
     [{ drop: ["gameDir:versions/1.21.11/1.21.11.jar"] }, ["version-jar"]],
     [{ drop: [anyLib] }, ["library"]],
     [{ drop: ["gameDir:assets/indexes/29.json"] }, ["asset-index"]],
+    [{ drop: [`gameDir:${LOG_REL}`] }, ["log-config"]],
     [{ drop: [`root:${JAVA_REL}`] }, ["java"]],
   ];
   for (const [opt, missing] of cases) {
@@ -130,4 +137,17 @@ test("C1 版本 jar 的位置是資料夾 ⇒ 不算存在", async () => {
 
 test("checkRuntimeReady：輸入沒有 release（多帶鍵 ⇒ TypeError）", async () => {
   await assert.rejects(checkRuntimeReady({ record: null, probe: installed().probe, release: {} }), TypeError);
+});
+
+test("K5 log4j 設定檔的位置是資料夾 ⇒ log-config", async () => {
+  assert.deepEqual(await check(record(), installed({ dirs: [`gameDir:${LOG_REL}`] })), {
+    ready: false,
+    missing: ["log-config"],
+  });
+});
+
+test("K8 checkRuntimeReady 沒給 env ⇒ TypeError：記錄是 null（一個檔都不碰就 return 的路）也一樣", async () => {
+  for (const rec of [record(), null]) {
+    await assert.rejects(checkRuntimeReady({ record: rec, probe: installed().probe }), TypeError);
+  }
 });

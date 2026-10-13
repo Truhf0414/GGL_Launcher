@@ -13,11 +13,13 @@ const {
   stripTrailingSlashes,
 } = require("../mc-mirror.js");
 const { hashFile } = require("../fs-utils.js");
+const { libraryArtifact } = require("../../lib/library-filter.js");
 const {
-  isLibraryAllowedOnWindows,
-  mergeLibraries,
-  libraryArtifact,
-} = require("../../lib/library-filter.js");
+  assertEnv,
+  mergeVersionChain,
+  filterLibraries,
+  logConfigFile,
+} = require("../../lib/launch-args.js");
 const {
   profileJsonUrls,
   mavenUrlCandidates,
@@ -349,8 +351,9 @@ function validateAssetIndex(idx, rel) {
 }
 
 /**
- * 版本 jar → library（池）→ asset index → objects（池）；池子一個失敗就全停（E0）。
- * 跳過與驗證照 §檔案 第 4 步的表。
+ * 版本 jar → library（池）→ asset index → log4j 設定檔 → objects（池）；池子一個失敗就全停（E0）。
+ * 跳過與驗證照 §檔案 第 4 步的表。檔案清單與就緒（lib/runtime-needs.js）同一套合併與過濾（⑤b V-a）。
+ * env：lib/launch-args.js 的 windowsEnv；一進來就驗，發任何請求之前。
  */
 async function installRuntimeFiles({
   gameDir,
@@ -358,15 +361,19 @@ async function installRuntimeFiles({
   vanilla,
   target,
   verifyAll,
+  env,
   getMirror,
   health,
   signal,
   onProgress,
   deps = {},
 }) {
+  assertEnv(env);
   const fs = deps.fsp ?? fsp;
   const hash = deps.hashFile ?? hashFile;
   const now = deps.now ?? Date.now;
+  // 兩份 json 都已過 checkVanillaJson／checkFabricJson：合併、過濾、log4j 設定檔不會再丟資料錯
+  const merged = mergeVersionChain([vanilla, target]);
 
   /** 要不要下載：不存在 ⇒ 要；該驗的 sha1 不符 ⇒ 刪掉、要 */
   async function needsDownload(task) {
@@ -438,27 +445,25 @@ async function installRuntimeFiles({
     },
   ]);
 
-  const libs = mergeLibraries(vanilla.libraries, target.libraries)
-    .filter((lib) => isLibraryAllowedOnWindows(lib?.rules))
-    .map((lib) => {
-      const a = libraryArtifact(lib);
-      return {
-        rel: `libraries/${a.rel}`,
-        sha1: a.sha1,
-        size: a.size,
-        alwaysVerify: false,
-        // Fabric 的 library 沒有 downloads（libraryArtifact 由 name 推路徑）；鏡像只管原版的
-        candidates:
-          lib.downloads === undefined
-            ? async () => runtimeCandidates("fabric-library", { url: a.url })
-            : async () =>
-                runtimeCandidates(
-                  "vanilla-library",
-                  { url: a.url },
-                  await getMirror(),
-                ),
-      };
-    });
+  const libs = filterLibraries(merged.libraries, env).map((lib) => {
+    const a = libraryArtifact(lib);
+    return {
+      rel: `libraries/${a.rel}`,
+      sha1: a.sha1,
+      size: a.size,
+      alwaysVerify: false,
+      // Fabric 的 library 沒有 downloads（libraryArtifact 由 name 推路徑）；鏡像只管原版的
+      candidates:
+        lib.downloads === undefined
+          ? async () => runtimeCandidates("fabric-library", { url: a.url })
+          : async () =>
+              runtimeCandidates(
+                "vanilla-library",
+                { url: a.url },
+                await getMirror(),
+              ),
+    };
+  });
   await runGroup("libraries", libs);
 
   // asset index 只走官方一條（A14）；每次都驗 sha1
@@ -473,6 +478,20 @@ async function installRuntimeFiles({
       candidates: async () => [{ source: "mojang", url: ai.url }],
     },
   ]);
+
+  // 同 asset index：只走官方一條、每次都驗 sha1（⑤b V-c）；json 沒寫就沒有這組（V-b）
+  const logConfig = logConfigFile(merged);
+  if (logConfig) {
+    await runGroup("log-config", [
+      {
+        rel: logConfig.rel,
+        sha1: logConfig.sha1,
+        size: logConfig.size,
+        alwaysVerify: true,
+        candidates: async () => [{ source: "mojang", url: logConfig.url }],
+      },
+    ]);
+  }
 
   // sha1 已對上官方：內容長得不對就是官方給的就這樣，不是網路問題 ⇒ 丟錯
   const objects = validateAssetIndex(

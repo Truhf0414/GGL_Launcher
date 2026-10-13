@@ -1,6 +1,6 @@
 "use strict";
 
-// → _notes/plans/instance-sync-v3-commit4b.md T23
+// → _notes/plans/instance-sync-v3-commit4b.md T23；⑤b K9 → _notes/plans/instance-sync-v3-commit5b.md
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -14,6 +14,10 @@ const { installRuntimeFiles } = require("../main/runtime/minecraft.js");
 const { startFakeRuntime, MC, LOADER, LAUNCH_ID } = require("./helpers/fake-runtime.cjs");
 
 const HANG_LIMIT_MS = 10_000;
+const ENV = Object.freeze({
+  os: { name: "windows", arch: "x86_64", version: "10.0.26200" },
+  features: {},
+});
 
 function fakeSteps(overrides = {}) {
   const calls = [];
@@ -42,6 +46,7 @@ const base = (extra = {}) => ({
   loader: LOADER,
   verifyAll: false,
   reinstallJava: false,
+  env: ENV,
   ...extra,
 });
 
@@ -73,6 +78,7 @@ for (const verifyAll of [false, true]) {
       assert.deepEqual(files.target, { t: 1 });
       assert.equal(files.health, json.health, "兩步共用同一個來源健康度");
       assert.equal(files.getMirror, json.getMirror, "兩步共用同一個 lazy 鏡像");
+      assert.equal(files.env, ENV, "K9 env 原樣轉給檔案那步");
     });
   }
 }
@@ -112,6 +118,7 @@ async function readyInstall(t, { withVanillaJson }) {
     target: fake.fabric,
     verifyAll: false,
     getMirror: async () => ({ base: "" }),
+    env: ENV,
     deps,
   });
   const writeJson = async (rel, j) => {

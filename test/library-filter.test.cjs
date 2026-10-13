@@ -1,33 +1,11 @@
 "use strict";
 
-// → _notes/plans/instance-sync-v3-commit4a.md T3–T5、T13–T15
+// → _notes/plans/instance-sync-v3-commit4a.md T4、T5、T13–T15（T3 於 ⑤b 刪，→ instance-sync-v3-commit5b.md V2）
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const {
-  isLibraryAllowedOnWindows,
-  libraryArtifact,
-} = require("../lib/library-filter.js");
+const { libraryArtifact } = require("../lib/library-filter.js");
 const fx = require("./helpers/runtime-fixtures.cjs");
-
-const os = (name) => ({ os: { name } });
-
-test("T3 isLibraryAllowedOnWindows：只看 os.name、最後一條符合者決定", () => {
-  assert.equal(isLibraryAllowedOnWindows(undefined), true);
-  assert.equal(isLibraryAllowedOnWindows([]), true);
-  assert.equal(
-    isLibraryAllowedOnWindows([{ action: "allow", ...os("windows") }]),
-    true,
-  );
-  assert.equal(isLibraryAllowedOnWindows([{ action: "allow", ...os("osx") }]), false);
-  assert.equal(
-    isLibraryAllowedOnWindows([
-      { action: "allow" },
-      { action: "disallow", ...os("windows") },
-    ]),
-    false,
-  );
-});
 
 test("T4 libraryArtifact：有 artifact ⇒ 用 artifact 的欄位", () => {
   const lib = fx.vanilla().libraries.find((l) => !l.rules);

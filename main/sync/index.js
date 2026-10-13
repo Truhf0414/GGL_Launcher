@@ -4,6 +4,7 @@
 // 對外只經注入接電（不 require("electron")、不 require minecraft-launch.js）。
 // 設計、介面、錯誤文字 → _notes/plans/instance-sync-v3-commit3b1b.md；裁決 R1–R14 → instance-sync-v3-commit3b1.md。
 
+const os = require("os");
 const path = require("path");
 const fsp = require("fs/promises");
 const { getPaths } = require("../../lib/paths-layout.js");
@@ -23,6 +24,7 @@ const {
   assertRemovableStrayJars,
 } = require("../../lib/sync/plan.js");
 const { checkRuntimeReady } = require("../../lib/runtime-readiness.js");
+const { windowsEnv } = require("../../lib/launch-args.js");
 const {
   pickRuntimeFields,
   sameRuntimeTarget,
@@ -143,6 +145,8 @@ function createInstanceSync(deps) {
   const prepareRuntime =
     deps.prepareRuntime ?? require("../runtime/prepare.js").prepareRuntime;
   const runtimeProbeFor = deps.makeRuntimeProbe ?? makeRuntimeProbe;
+  // 就緒與安裝過濾 library 用同一份，只在這裡組（→ _notes/plans/instance-sync-v3-commit5b.md Q2）
+  const runtimeEnv = windowsEnv(os.release());
   const cleanupFs = deps.cleanupFs; // 測試換掉 D2 用的 fs（R#17）；預設＝fs/promises
   const onProgress = deps.onProgress ?? (() => {});
   const gameDeps = { isMinecraftRunning: deps.isMinecraftRunning };
@@ -188,6 +192,7 @@ function createInstanceSync(deps) {
       checkRuntimeReady({
         record: record.value,
         probe: runtimeProbeFor(paths),
+        env: runtimeEnv,
       }),
     );
     if (!runtime.ok) return { side: "unreadable", detail: runtime.detail };
@@ -348,6 +353,7 @@ function createInstanceSync(deps) {
               loader,
               verifyAll,
               reinstallJava: who === "repair", // ④b E3
+              env: runtimeEnv,
               onProgress,
               deps: { log: deps.log },
             }),
