@@ -77,3 +77,50 @@ test("W9 no root dir in the patch, or no lock held, writes as usual", async () =
     assert.deepEqual(writes, [{ launcherRootDir: "E:\\Other" }]);
   }
 });
+
+// → _notes/plans/instance-sync-v3-commit4d.md K5（J7）
+test("K5 settings:set 擋下不認得的鍵；畫面實際送的四個鍵照常寫入", async () => {
+  // 不是物件 ⇒ 擋下、訊息帶收到的型別、一個字都不寫（陣列沒有鍵，少了這道會被放行）
+  for (const [patch, got] of [
+    [null, "null"],
+    [undefined, "undefined"],
+    [[], "array"],
+    ["abc", "string"],
+  ]) {
+    const { set, writes } = setup(null);
+    await rejectsWith(set(patch), (e) => {
+      assert.ok(e.message.includes(`設定內容格式錯誤（收到 ${got}）`), e.message);
+    });
+    assert.equal(writes.length, 0);
+  }
+  // 不認得的鍵放在第一個、中間、最後一個，各擋一次
+  for (const patch of [
+    { someFutureKey: 1, playerId: "Steve" },
+    { playerId: "Steve", someFutureKey: 1, memoryGb: 4 },
+    { playerId: "Steve", someFutureKey: 1 },
+  ]) {
+    const { set, writes } = setup(null);
+    await rejectsWith(set(patch), (e) => {
+      assert.ok(e.message.includes("someFutureKey"), e.message);
+    });
+    assert.equal(writes.length, 0);
+  }
+  {
+    const { set, writes } = setup(null);
+    const patch = { playerId: "Steve" };
+    await set(patch);
+    assert.deepEqual(writes, [patch]);
+  }
+  {
+    // 設定視窗（renderer/settings-modal.js）實際送的四個鍵
+    const { set, writes } = setup(null);
+    const patch = {
+      launcherRootDir: "D:\\GGL",
+      playerId: "Steve",
+      minMemoryGb: 2,
+      maxMemoryGb: 6,
+    };
+    await set(patch);
+    assert.deepEqual(writes, [patch]);
+  }
+});
