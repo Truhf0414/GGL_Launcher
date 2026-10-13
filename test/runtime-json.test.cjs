@@ -120,3 +120,43 @@ test("T8 Fabric：不是物件 ⇒ ok: false、不丟例外", () => {
     assert.equal(checkFabricJson(bad, fabricCtx).ok, false);
   }
 });
+
+// → _notes/plans/instance-sync-v3-commit5b.md K1、K2：啟動資料在更新時就驗（checkLaunchSpec）
+const launchSpecBreakers = {
+  vanilla: {
+    'logging.client.type 為 "log4j2-json"': (j) => {
+      j.logging.client.type = "log4j2-json";
+    },
+    "jvm 參數多一個 ${foo}": (j) => {
+      j.arguments.jvm.push("${foo}");
+    },
+    'library 的 rule action 為 "maybe"': (j) => {
+      j.libraries.find((l) => l.rules).rules[0].action = "maybe";
+    },
+  },
+  fabric: {
+    "jvm 參數項是 5": (j) => {
+      j.arguments.jvm.push(5);
+    },
+  },
+};
+
+for (const [name, breakIt] of Object.entries(launchSpecBreakers.vanilla)) {
+  test(`K1 原版啟動資料：${name} ⇒ ok: false、error 以「啟動資料：」開頭`, () => {
+    const j = fixtures.vanilla();
+    breakIt(j);
+    const r = checkVanillaJson(j, MC);
+    assert.equal(r.ok, false);
+    assert.match(r.error, /^啟動資料：/);
+  });
+}
+
+for (const [name, breakIt] of Object.entries(launchSpecBreakers.fabric)) {
+  test(`K2 Fabric 啟動資料：${name} ⇒ ok: false、error 以「啟動資料：」開頭`, () => {
+    const j = fixtures.fabric();
+    breakIt(j);
+    const r = checkFabricJson(j, fabricCtx);
+    assert.equal(r.ok, false);
+    assert.match(r.error, /^啟動資料：/);
+  });
+}

@@ -16,11 +16,10 @@ const {
   logConfigFile,
   expandArguments,
   buildLaunchArgv,
+  windowsEnv,
+  assertEnv,
 } = require("../lib/launch-args.js");
-const {
-  isLibraryAllowedOnWindows,
-  libraryArtifact,
-} = require("../lib/library-filter.js");
+const { libraryArtifact } = require("../lib/library-filter.js");
 const fx = require("./helpers/runtime-fixtures.cjs");
 
 const ENV = Object.freeze({
@@ -197,18 +196,6 @@ test("L5 filterLibraries：兩支 fixture ⇒ 恰好 83 支，等於不經實作
     kept.filter((l) => /natives-windows-(arm64|x86)$/.test(l.name)).length,
     16,
   );
-});
-
-test("L6 filterLibraries 與 isLibraryAllowedOnWindows 逐支相同（⑤b 換掉不改行為）", () => {
-  const all = [...fx.vanilla().libraries, ...fx.fabric().libraries];
-  assert.equal(all.length, 115);
-  for (const lib of all) {
-    assert.equal(
-      filterLibraries([lib], ENV).length === 1,
-      isLibraryAllowedOnWindows(lib.rules),
-      lib.name,
-    );
-  }
 });
 
 test("L7 buildClasspath：84 段、jar 在最後、全是反斜線路徑", () => {
@@ -503,4 +490,19 @@ test("L14 checkLaunchSpec：fixture 過；各種壞法 ⇒ ok:false 指出哪一
     },
   });
   assert.throws(() => checkLaunchSpec(v), misuse(/boom/));
+});
+
+// → _notes/plans/instance-sync-v3-commit5b.md K8
+test("K8 windowsEnv：形狀；osVersion 不是非空字串 ⇒ TypeError", () => {
+  assert.deepEqual(windowsEnv("10.0.26200"), ENV);
+  for (const bad of ["", undefined, null, 10]) {
+    assert.throws(() => windowsEnv(bad), TypeError, String(bad));
+  }
+});
+
+test("K8 assertEnv：形狀對 ⇒ 不丟；缺 os.version、features 是 null ⇒ TypeError", () => {
+  assert.doesNotThrow(() => assertEnv(ENV));
+  assert.throws(() => assertEnv(undefined), TypeError);
+  assert.throws(() => assertEnv({ os: { name: "windows", arch: "x86_64" }, features: {} }), TypeError);
+  assert.throws(() => assertEnv({ ...ENV, features: null }), TypeError);
 });

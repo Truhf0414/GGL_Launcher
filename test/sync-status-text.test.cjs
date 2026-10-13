@@ -367,6 +367,11 @@ test("C11 runtime 進度：每一種物件的文字與比例；total 為 0 不�
     text: "下載資源索引 1/1，1.0 MB / 1.0 MB",
     progress01: 1,
   });
+  // ⑤b K7
+  assert.deepEqual(files("log-config", 0, 1, 0, 0), {
+    text: "下載記錄設定檔 0/1，0.0 MB / 0.0 MB",
+    progress01: 0,
+  });
   assert.deepEqual(files("assets", 10, 4591, 0, 0), {
     text: "下載遊戲資源 10/4591，0.0 MB / 0.0 MB",
     progress01: 0,

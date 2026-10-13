@@ -5,6 +5,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
+const crypto = require("crypto");
 const fsp = require("fs/promises");
 const os = require("os");
 const path = require("path");
@@ -23,6 +24,10 @@ const { createSourceHealth } = require("../main/runtime/download.js");
 const HANG_LIMIT_MS = 10_000;
 const STALL = { windowMs: 300, minBytes: 1 };
 const DEADLINE_MS = 300;
+const ENV = Object.freeze({
+  os: { name: "windows", arch: "x86_64", version: "10.0.26200" },
+  features: {},
+});
 
 async function tempDir(t) {
   const dir = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-rt-mc-"));
@@ -369,6 +374,7 @@ function installArgs(fake, gameDir, extra = {}) {
     vanilla: fake.vanilla,
     target: fake.fabric,
     verifyAll: false,
+    env: ENV,
     getMirror: noMirror,
     health: createSourceHealth(),
     ...setup(fake),
@@ -381,6 +387,7 @@ const needs = (fake) =>
     record: { minecraft: MC, loader: LOADER, javaMajor: 21 },
     target: { ok: true, value: fake.fabric },
     vanilla: { ok: true, value: fake.vanilla },
+    env: ENV,
   });
 
 test("T13 白名單：空 gameDir 裝完，該有的都有、沒多下", { timeout: HANG_LIMIT_MS }, async (t) => {
@@ -415,6 +422,58 @@ test("T13 白名單：空 gameDir 裝完，該有的都有、沒多下", { timeo
   }
   const indexReqs = paths.filter((p) => p.includes("/indexes/"));
   assert.deepEqual(indexReqs, ["/official/indexes/29.json"], "asset index 只走官方");
+  // ⑤b K6：給了鏡像，log4j 設定檔也只走官方（V-c）
+  const logReqs = paths.filter((p) => p.includes("/log_configs/"));
+  assert.deepEqual(logReqs, [fake.officialPathOf(fake.logConfigRel)]);
+});
+
+// ── ⑤b K6、K8：log4j 設定檔、env（→ _notes/plans/instance-sync-v3-commit5b.md）──
+
+test("K6 log4j 設定檔的內容與宣告的 sha1 不符 ⇒ 失敗、檔不留", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const fake = await startFakeRuntime(t);
+  const gameDir = await tempDir(t);
+  fake.overrides.set(fake.officialPathOf(fake.logConfigRel), json({ wrong: true }));
+  await assert.rejects(installRuntimeFiles(installArgs(fake, gameDir)), {
+    code: "GGL_RUNTIME_DOWNLOAD_FAILED",
+  });
+  assert.equal(await exists(abs(gameDir, fake.logConfigRel)), false);
+});
+
+test("K6 verifyAll 假：本機的 log4j 設定檔內容錯 ⇒ 重下（每次都驗）", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const fake = await startFakeRuntime(t);
+  const gameDir = await tempDir(t);
+  await writeLocal(gameDir, fake.logConfigRel, "corrupted");
+  await installRuntimeFiles(installArgs(fake, gameDir));
+  assert.ok(reqPaths(fake).includes(fake.officialPathOf(fake.logConfigRel)));
+  assert.deepEqual(await fsp.readFile(abs(gameDir, fake.logConfigRel)), fake.files.get(fake.logConfigRel));
+});
+
+test("K6 Fabric 自己有 logging ⇒ 下載 Fabric 那份、不下原版那份（與就緒同一套合併，V-a）", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const fake = await startFakeRuntime(t);
+  const gameDir = await tempDir(t);
+  const id = "fabric-log.xml";
+  const buf = Buffer.from(`fake fabric log config ${id}`);
+  fake.fabric.logging = structuredClone(fake.vanilla.logging);
+  Object.assign(fake.fabric.logging.client.file, {
+    id,
+    sha1: crypto.createHash("sha1").update(buf).digest("hex"),
+    size: buf.length,
+    url: `${fake.url}/official/log_configs/${id}`,
+  });
+  fake.routes.set(`/official/log_configs/${id}`, buf);
+
+  await installRuntimeFiles(installArgs(fake, gameDir));
+  assert.deepEqual(await fsp.readFile(abs(gameDir, `assets/log_configs/${id}`)), buf);
+  assert.equal(await exists(abs(gameDir, fake.logConfigRel)), false);
+});
+
+test("K8 installRuntimeFiles 沒給 env ⇒ TypeError，一個請求都沒發", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const fake = await startFakeRuntime(t);
+  const gameDir = await tempDir(t);
+  const { env, ...noEnv } = installArgs(fake, gameDir);
+  void env;
+  await assert.rejects(installRuntimeFiles(noEnv), TypeError);
+  assert.equal(fake.requests.length, 0);
 });
 
 test("T13 某支 library 的內容與宣告的 sha1 不符 ⇒ 失敗（驗證真的在跑）", { timeout: HANG_LIMIT_MS }, async (t) => {
@@ -549,7 +608,7 @@ test("T17 進度：同 group 的非最後一筆間隔 ≥ 180 ms、最後一筆 
       onProgress: (x) => sends.push({ at: clock, x }),
     }),
   );
-  const groups = ["version-jar", "libraries", "asset-index", "assets"];
+  const groups = ["version-jar", "libraries", "asset-index", "log-config", "assets"];
   for (const g of groups) {
     const mine = sends.filter((s) => s.x.group === g);
     assert.ok(mine.length > 0, g);

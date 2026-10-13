@@ -13,6 +13,7 @@ const path = require("path");
 
 const { startServer, serveWithRange } = require("./helpers/local-http.cjs");
 const { getPaths } = require("../lib/paths-layout.js");
+const { windowsEnv } = require("../lib/launch-args.js");
 const realServerConfig = require("../lib/server-config.js");
 const {
   readRecord,
@@ -678,6 +679,7 @@ test("U4 applyPlan 收到的 prepareRuntime()（無參數）⇒ 新管線被以 
     loader: REL_2.loader,
     verifyAll: false,
     reinstallJava: false,
+    env: windowsEnv(os.release()), // ⑤b：就緒與安裝用同一份（→ instance-sync-v3-commit5b.md Q2）
   });
 });
 

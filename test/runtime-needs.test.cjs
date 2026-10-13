@@ -1,11 +1,17 @@
 "use strict";
 
 // → _notes/plans/instance-sync-v3-commit4a.md T7–T9、T11、T12、T14（asset index）
+// ⑤b：K3、K4（T7 加 log4j 設定檔）、K8 → _notes/plans/instance-sync-v3-commit5b.md
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { runtimeNeeds } = require("../lib/runtime-needs.js");
 const fx = require("./helpers/runtime-fixtures.cjs");
+
+const ENV = Object.freeze({
+  os: { name: "windows", arch: "x86_64", version: "10.0.26200" },
+  features: {},
+});
 
 const ok = (value) => ({ ok: true, value });
 const BAD = { ok: false };
@@ -22,7 +28,7 @@ const record = (over = {}) => ({
 });
 
 const needs = ({ rec = record(), target = ok(fx.fabric()), vanilla = ok(fx.vanilla()) } = {}) =>
-  runtimeNeeds({ record: rec, target, vanilla });
+  runtimeNeeds({ record: rec, target, vanilla, env: ENV });
 
 test("T7 兩支 fixture＋齊全的記錄 ⇒ 沒有 problem，files 等於獨立算出的白名單", () => {
   const r = needs();
@@ -34,6 +40,7 @@ test("T7 兩支 fixture＋齊全的記錄 ⇒ 沒有 problem，files 等於獨�
   const expected = [
     "versions/1.21.11/1.21.11.jar",
     `assets/indexes/${v.assetIndex.id}.json`,
+    `assets/log_configs/${v.logging.client.file.id}`,
     ...vanillaLibs.map((p) => `libraries/${p}`),
     ...fx.fabric().libraries.map((l) => `libraries/${fx.installerLibraryPath(l.name)}`),
   ];
@@ -148,4 +155,34 @@ test("C1 兩份 json 改用安裝期的驗證：Fabric 少 mainClass ⇒ version
   assert.deepEqual(needs({ target: ok(noMain) }), { problems: ["version-json"], files: [] });
   const v = { ...fx.vanilla(), id: "1.21.10" };
   assert.deepEqual(needs({ vanilla: ok(v) }), { problems: ["vanilla-json"], files: [] });
+});
+
+const logConfigs = (r) => r.files.filter((f) => f.item === "log-config");
+
+test("K3 log4j 設定檔：原版的那份剛好一筆；原版沒有 logging ⇒ 沒有", () => {
+  assert.deepEqual(logConfigs(needs()), [
+    { item: "log-config", rel: "assets/log_configs/client-1.21.2.xml" },
+  ]);
+  const v = fx.vanilla();
+  delete v.logging;
+  const r = needs({ vanilla: ok(v) });
+  assert.deepEqual(r.problems, []);
+  assert.deepEqual(logConfigs(r), []);
+});
+
+test("K3 Fabric 自己有 logging ⇒ 用 Fabric 那份（子層不是 null 才蓋，X2）", () => {
+  const f = fx.fabric();
+  f.logging = structuredClone(fx.vanilla().logging);
+  f.logging.client.file.id = "fabric-log.xml";
+  assert.deepEqual(logConfigs(needs({ target: ok(f) })), [
+    { item: "log-config", rel: "assets/log_configs/fabric-log.xml" },
+  ]);
+});
+
+test("K8 runtimeNeeds 沒給 env ⇒ TypeError：記錄不完整、目標 json 壞掉的路也一樣", () => {
+  const without = (input) => () => runtimeNeeds(input);
+  const base = { record: record(), target: ok(fx.fabric()), vanilla: ok(fx.vanilla()) };
+  assert.throws(without(base), TypeError);
+  assert.throws(without({ ...base, record: null }), TypeError);
+  assert.throws(without({ ...base, target: BAD }), TypeError);
 });

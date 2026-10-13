@@ -13,6 +13,7 @@ const DEFAULT_STEPS = { ensureVersionJsons, installJava, installRuntimeFiles };
 
 /**
  * verifyAll：修復或上次同步沒跑完 ⇒ 兩份 json 重抓、檔案全驗；reinstallJava：只有手動修復（E3）。
+ * env：過濾 library 用，原樣轉給 installRuntimeFiles（→ _notes/plans/instance-sync-v3-commit5b.md Q2）。
  * 每一步的錯直接往外丟。
  * @returns {Promise<{ minecraft: string, loader: { type: string, version: string }, javaMajor: number }>}
  */
@@ -23,6 +24,7 @@ async function prepareRuntime({
   loader,
   verifyAll,
   reinstallJava,
+  env,
   onProgress,
   signal,
   deps = {},
@@ -67,6 +69,7 @@ async function prepareRuntime({
     vanilla,
     target,
     verifyAll,
+    env,
     getMirror,
     health,
     signal,

@@ -27,10 +27,15 @@ function installerLibraryPath(name) {
 }
 
 /** 原版 1.21.11 的每條 rules 都是單一 allow＋os.name（現查）：沒有 rules 或指名 windows 才算允許 */
+const allowsWindows = (l) => !l.rules || l.rules.some((r) => r.os?.name === "windows");
+
 function vanillaWindowsArtifactPaths(json) {
-  return json.libraries
-    .filter((l) => !l.rules || l.rules.some((r) => r.os?.name === "windows"))
-    .map((l) => l.downloads.artifact.path);
+  return json.libraries.filter(allowsWindows).map((l) => l.downloads.artifact.path);
+}
+
+/** 上面的反面：Windows 不下載的那些（⑤b V-d） */
+function vanillaNonWindowsArtifactPaths(json) {
+  return json.libraries.filter((l) => !allowsWindows(l)).map((l) => l.downloads.artifact.path);
 }
 
 module.exports = {
@@ -38,4 +43,5 @@ module.exports = {
   fabric,
   installerLibraryPath,
   vanillaWindowsArtifactPaths,
+  vanillaNonWindowsArtifactPaths,
 };

@@ -1,7 +1,8 @@
 "use strict";
 
 // ④b 測試共用：把兩支 fixture 的每個下載點換成本機 server 的網址、每個檔換成假內容並改對 sha1／size；
-// asset index 換成只有 3 筆 objects 的小 index（→ _notes/plans/instance-sync-v3-commit4b.md §測試 R#22）。
+// asset index 換成只有 3 筆 objects 的小 index（→ _notes/plans/instance-sync-v3-commit4b.md §測試 R#22）；
+// log4j 設定檔同樣換成假內容（⑤b）。
 // fixture 檔本身不改。
 //
 // 網址分兩種前綴，同一台 server 同時扮兩邊，請求清單看前綴就知道打的是哪一邊：
@@ -13,10 +14,7 @@ const crypto = require("crypto");
 
 const fixtures = require("./runtime-fixtures.cjs");
 const { startServer } = require("./local-http.cjs");
-const {
-  isLibraryAllowedOnWindows,
-  libraryArtifact,
-} = require("../../lib/library-filter.js");
+const { libraryArtifact } = require("../../lib/library-filter.js");
 
 const MC = "1.21.11";
 const LOADER = { type: "fabric", version: "0.19.3" };
@@ -85,6 +83,14 @@ function makeFakeRuntime(base, { duplicateObject = false, indexJson } = {}) {
   };
   put(`assets/indexes/${indexId}.json`, [`/official/indexes/${indexId}.json`], index);
 
+  // ── log4j 設定檔（只有官方一條，⑤b V-c）──
+  const logFile = vanilla.logging.client.file;
+  const logBuf = Buffer.from(`fake log config ${logFile.id}`);
+  logFile.sha1 = sha1(logBuf);
+  logFile.size = logBuf.length;
+  logFile.url = `${official}/log_configs/${logFile.id}`;
+  put(`assets/log_configs/${logFile.id}`, [`/official/log_configs/${logFile.id}`], logBuf);
+
   // ── Fabric ──
   const fabric = fixtures.fabric();
   for (const lib of fabric.libraries) {
@@ -147,14 +153,15 @@ function makeFakeRuntime(base, { duplicateObject = false, indexJson } = {}) {
       return p;
     },
     objectHashes: [...new Set(Object.values(objects).map((o) => o.hash))],
+    // 不經實作的對照算法（⑤b V-d）：拿 filterLibraries 來算就是拿答案比答案
     windowsLibraryRels: () =>
-      [...vanilla.libraries, ...fabric.libraries]
-        .filter((l) => isLibraryAllowedOnWindows(l.rules))
-        .map((l) => `libraries/${libraryArtifact(l).rel}`),
+      [
+        ...fixtures.vanillaWindowsArtifactPaths(vanilla),
+        ...fabric.libraries.map((l) => fixtures.installerLibraryPath(l.name)),
+      ].map((rel) => `libraries/${rel}`),
     nonWindowsLibraryRels: () =>
-      vanilla.libraries
-        .filter((l) => !isLibraryAllowedOnWindows(l.rules))
-        .map((l) => `libraries/${l.downloads.artifact.path}`),
+      fixtures.vanillaNonWindowsArtifactPaths(vanilla).map((rel) => `libraries/${rel}`),
+    logConfigRel: `assets/log_configs/${logFile.id}`,
   };
 }
 

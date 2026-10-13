@@ -9,6 +9,7 @@ const path = require("path");
 const { runtimeNeeds } = require("../../lib/runtime-needs.js");
 const { launchIdFor } = require("../../lib/runtime-target.js");
 const { javaExeFor } = require("../../lib/paths-layout.js");
+const { windowsEnv } = require("../../lib/launch-args.js");
 const fx = require("./runtime-fixtures.cjs");
 
 const RUNTIME = Object.freeze({
@@ -26,7 +27,7 @@ async function writeFile(p, content) {
 /** 就緒要求的 gameDir 底下的檔（相對、以 "/" 分隔），不含兩份 json */
 function runtimeFileRels() {
   const ok = (value) => ({ ok: true, value });
-  return runtimeNeeds({ record: RUNTIME, target: ok(fx.fabric()), vanilla: ok(fx.vanilla()) }).files.map((f) => f.rel);
+  return runtimeNeeds({ record: RUNTIME, target: ok(fx.fabric()), vanilla: ok(fx.vanilla()), env: windowsEnv("10.0.26200") }).files.map((f) => f.rel);
 }
 
 async function installRuntime(paths) {
