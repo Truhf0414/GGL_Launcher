@@ -17,9 +17,8 @@ async function readDefaultSettingsOrFallback() {
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
-    // minimal safe defaults (only fields used by launcher bootstrap)
+    // minimal safe defaults (default-settings.json 讀不到時的退路)
     return {
-      minecraftVersion: "1.21.11",
       memoryGb: 4,
       playerId: "Player001",
       debugLogging: false,
@@ -52,17 +51,7 @@ function normalizeNullableNumber(v) {
   return Number.isFinite(n) ? n : null;
 }
 
-/** 伺服器的值已搬到 lib/server-config.js；舊 settings.json 殘留的鍵在正規化時剔除（不主動回寫）。 */
-const REMOVED_SERVER_SETTING_KEYS = Object.freeze([
-  "discordClientId",
-  "discordLargeImageKey",
-  "discordLargeImageText",
-  "discordStateText",
-  "discordButtonJoinServerUrl",
-  "discordButtonDownloadLauncherUrl",
-  "discordAllowedButtonHosts",
-]);
-
+/** 只輸出這裡明列的鍵：不認得的鍵（舊版殘留、畫面誤送）在正規化時剔除（不主動回寫）。 */
 function normalizeSettingsObject(obj) {
   const o = obj && typeof obj === "object" ? obj : {};
   // NOTE: `Number(null) === 0` — treat null/undefined/"" as "unset", not 0 GB.
@@ -77,10 +66,6 @@ function normalizeSettingsObject(obj) {
   const maxMemoryGb = normalizeNullableNumber(o.maxMemoryGb);
 
   const out = {
-    // keep unknown keys as-is (forward compatible)
-    ...o,
-
-    javaPath: typeof o.javaPath === "string" ? o.javaPath : "",
     memoryGb: Math.max(1, Math.min(64, memoryGb)),
     minMemoryGb:
       minMemoryGb === null ? null : Math.max(0, Math.min(64, minMemoryGb)),
@@ -91,33 +76,7 @@ function normalizeSettingsObject(obj) {
     // only accepts typeof string and would incorrectly fall back to default.
     launcherRootDir: normalizeRootDir(o.launcherRootDir),
     debugLogging: Boolean(o.debugLogging),
-
-    preferredJavaMirrorName:
-      typeof o.preferredJavaMirrorName === "string"
-        ? o.preferredJavaMirrorName
-        : "",
-    preferredJavaMirrorUrl:
-      typeof o.preferredJavaMirrorUrl === "string"
-        ? o.preferredJavaMirrorUrl
-        : "",
-    preferredJavaMirrorAt: Number.isFinite(Number(o.preferredJavaMirrorAt))
-      ? Number(o.preferredJavaMirrorAt)
-      : 0,
-    preferredMcMirrorName:
-      typeof o.preferredMcMirrorName === "string"
-        ? o.preferredMcMirrorName
-        : "",
-    preferredMcMirrorBase:
-      typeof o.preferredMcMirrorBase === "string"
-        ? o.preferredMcMirrorBase
-        : "",
-    preferredMcMirrorAt: Number.isFinite(Number(o.preferredMcMirrorAt))
-      ? Number(o.preferredMcMirrorAt)
-      : 0,
-
-    minecraftVersion: normalizeString(o.minecraftVersion, "1.21.11"),
   };
-  for (const k of REMOVED_SERVER_SETTING_KEYS) delete out[k];
 
   if (
     out.minMemoryGb !== null &&
@@ -225,5 +184,4 @@ module.exports = {
   writeSettings,
   normalizeSettingsObject,
   isExplicitNumberLike,
-  REMOVED_SERVER_SETTING_KEYS,
 };

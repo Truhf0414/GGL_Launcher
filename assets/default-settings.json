@@ -1,15 +1,7 @@
 {
-  "javaPath": "",
   "memoryGb": 4,
   "minMemoryGb": null,
   "maxMemoryGb": null,
   "playerId": "Player001",
-  "debugLogging": false,
-  "preferredJavaMirrorName": "",
-  "preferredJavaMirrorUrl": "",
-  "preferredJavaMirrorAt": 0,
-  "preferredMcMirrorName": "",
-  "preferredMcMirrorBase": "",
-  "preferredMcMirrorAt": 0,
-  "minecraftVersion": "1.21.11"
+  "debugLogging": false
 }
