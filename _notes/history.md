@@ -96,6 +96,8 @@
 - 2026-10-13 v3 結案：owner「好，先做結案。」；STATUS 改指打包驗證、v3 plan 狀態行補 ⑤c 與結案、future-work「核心流程補測試」改寫（minecraft-launch、bundled-java 離箱）。
 - 2026-10-13 owner 裁刪站台舊 v2 備份 `H:\Caddy_sitebuild.backup-v2-20261007`（「舊備份可以刪。」），由 owner 動手（→ future-work.md §收集區）。同日 agent 建議打包驗證等另一邊的「Cursor 時期命名整理」落地後再開，owner 未裁（agent 查：打包吃 `package.json` 的 `name`／`build.productName`／`build.appId`／`nsis.artifactName`，兩邊共用同一個工作目錄）。
 - 2026-10-13 防禦與相容清理開案：追 `main/ipc-setup.js` 別名的來源（Cursor 對話 `20fdf08a` 2026-04-25 04:19 台北，主 AI 把「直接改名」改成「加別名、舊檔留著相容」，owner 整批放行）；owner 要治本 ⇒ 判準寫進 conventions §防禦與相容、§UI / CSS 改寫，刪 `.cursor/`、README 規則段改指標（commit `6545ba8`）；4 個唯讀 agent 全 repo 盤點（約 78 萬 token）⇒ plans/defense-cleanup.md。doc_check.py 的斷鏈解析補認專案根目錄的 md（原把 `ARCHITECTURE.md §…` 誤判斷鏈）。站台 `GGL Launcher Setup 1.0.0.exe` owner 裁清掉，agent 刪除與搬移皆被權限擋 ⇒ owner 手動。
+- 2026-10-13 repo 首次推上 GitHub `Truhf0414/GGL_Launcher`（public；force push 覆蓋該 repo 2026-04 的 3 個原型 commit，舊 README／manifest.json 先存 scratchpad）；`_notes/` 進 git（`_backup/`、`__pycache__/` 排除，commit `7aa85c5`）；CI 首跑 success（run `38424056284`）。
+- 2026-10-14 defense-cleanup 的 U 項裁決改走四輪交叉審查（owner＋ChatGPT＋CC）：Windows 實測重現 junction 越界 8 案（mods 3、gameDir 2、group 1、sync-staging 1、.temp 1），撞到 `appendLauncherLog` 預設不寫、Minecraft version json 預設走第三方鏡像只驗格式；owner 新裁 Gate、Settings、Junction、日誌、Java 刪鏡像、Minecraft 只留官方等 ⇒ plans/cross-review-2026-10.md；SPR（三個 Sonnet 子 agent＋ChatGPT outside voice，64 列）⇒ reviews/cross-review-2026-10-v54d4d36d-20261014.md（已封存）；commit `03ae511`。
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
