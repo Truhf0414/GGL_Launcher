@@ -28,7 +28,7 @@
 
 1. **邊界上驗一次**：在值進來的那一處驗證並轉成內部形狀（設定→`normalizeSettingsObject`、站台→`lib/sync/site-format.js`、實例紀錄→`lib/sync/record-format.js`）。不合格就明確拒絕或丟掉重來，並出聲。
 2. **邊界內信任**：不寫 `?.`、`||`／`??` 預設、`typeof` 檢查、try/catch、空函式預設去防。依賴缺了在建立時丟錯（範本：`main/sync/index.js` 的 `assertRequiredDeps`）。邊界內的保證若沒有機制在守，補機制，不補防線。
-3. **出聲**：main 寫 `appendLauncherLog`；使用者按了東西而失敗，要讓他在畫面上看到。〔畫面寫 log 檔的管道 → plans/defense-cleanup.md U8〕
+3. **出聲**：main 寫 `appendLauncherLog`；使用者按了東西而失敗，要讓他在畫面上看到。〔畫面寫 log 檔的管道 → plans/defense-cleanup.md G4〕
 4. **吞錯只限清理與探測**：`catch` 裡寫一行為什麼可以吞。
 5. **不接舊版**：舊版程式、舊格式資料、舊檔名、舊欄位，一律不接、不轉；遇到舊資料就走第 1 條，拒絕或丟掉重來（例：`main/account-store.js` 舊 schema 當登出）。
 6. **一條路**：改名、搬家一次改到底，所有呼叫者同一個 commit 改完；一個函式只收一種輸入形狀，測試用同一個簽名餵。
