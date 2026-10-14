@@ -2,3 +2,4 @@
 - [交接＝更新 STATUS](handoff-is-status.md) — 有 _notes/ 的專案不用 /handoff
 - [Cursor 對話紀錄怎麼撈](cursor-history-location.md) — state.vscdb 位置、composerHeaders／bubbleId 結構、只抽使用者訊息
 - [故意留的假 jar](deliberate-stray-jar.md) — mods/ABCDEF~1.jar 0 byte、讓遊戲秒退 code=1，owner 故意留，不是 bug
+- [審查文件要附脈絡](review-docs-with-context.md) — 要 owner 裁決的文件：附為什麼、列 CC 偏好與可能錯處、不壓縮問題
