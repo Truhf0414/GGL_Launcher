@@ -6,6 +6,8 @@
 
 ## 裁決
 
+〔2026-10-14：本節改由 `plans/cross-review-2026-10.md` §3 接手；之後新增或改變的裁決只記在那裡，本表原文不改〕
+
 | 項目 | 裁決 | 出處 |
 |---|---|---|
 | 治本範圍 | 源頭（規則）＋防復發（機器擋）＋存量（全 repo 盤點）三層一起做 | owner 2026-10-13「我想完全治本，不是這種修修補補的。」 |
@@ -25,6 +27,8 @@
 - 行號為盤點當時（HEAD `6cf5d4e`，2026-10-13）；動工前每條現讀確認。
 
 ## 未決（owner 裁）
+
+〔2026-10-14：本節改由 `plans/cross-review-2026-10.md` §4.2 接手（U7、U9 已裁，→ 該檔 §3 D-JAVA、D-SET-NUM）；本表原文不改〕
 
 | # | 問題 | 選項／影響 | 出口 |
 |---|---|---|---|
@@ -49,6 +53,8 @@
 - B4 的後果「同步對錯的目錄動手」是否成立（目前只證實吞錯與覆寫）。
 
 ## 施工順序（bug 先於清理為 owner 裁；其餘 agent 提案）
+
+〔2026-10-14：施工順序改由 `plans/cross-review-2026-10.md` §8（Phase 0–6）定；本節原文不改〕
 1. **規則**：conventions §防禦與相容、§UI / CSS 改寫；README 規則段改指標；刪 `.cursor/`。（2026-10-13 完成，commit `6545ba8`）
 2. **bug**：B2、B4 各一個 commit；B5、B6 依 U7 與既有裁決；B1 併入第 4 步 renderer 批。
 3. **補保證**：G1–G4。
@@ -65,8 +71,8 @@
 | B1 | `renderer/bootstrap.js:460`→`:503`→`renderer/account-ui.js:30` | account-ui 建立時存下的是 no-op（:515 才換成真的），`account-ui.js:397`「登入成功後回到就緒文字」永遠不執行；畫面是否看得出來〔推論，未實機〕 | 〔查過〕併入根 A／B |
 | B2 | `styles.css:772`（`.offline-link{display:grid}`）vs `:142`（`.hidden`） | 權重相同、後者寫在前，`renderer/launch-ui.js:40` 切 `hidden` 無效，離線按鈕藏不起來〔畫面效果為推論〕 | 〔查過 CSS／JS〕 |
 | B3 | `styles.css:111` 字型 vs `package.json` `build.files` | 打包產物缺字型 | 已在 future-work.md「打包邊界」，不在本輪 |
-| B4 | `main/settings.js:146-154` | 任何讀檔／解析錯誤都回 `{}`、無 log；之後 `writeSettings` 以「預設＋patch」覆寫原檔。只有 ENOENT 該當成「沒有」 | 〔查過〕 |
-| B5 | `main/runtime/java.js:155-200` | Semeru sha 抓不到時 sha256 留空；自訂鏡像與兩個 Adoptium 來源寫死空字串；過濾只擋格式錯的、放行空字串 ⇒ 多數來源不驗 hash | 〔查過〕U7 |
+| B4 | `main/settings.js:146-154` | 任何讀檔／解析錯誤都回 `{}`、無 log；之後 `writeSettings` 以「預設＋patch」覆寫原檔。只有 ENOENT 該當成「沒有」 | 〔查過〕〔裁決已於 2026-10-14 改變（→ `plans/cross-review-2026-10.md` D-SET-FILE），待 Phase 4 實作〕 |
+| B5 | `main/runtime/java.js:155-200` | Semeru sha 抓不到時 sha256 留空；自訂鏡像與兩個 Adoptium 來源寫死空字串；過濾只擋格式錯的、放行空字串 ⇒ 多數來源不驗 hash | 〔查過〕U7〔裁決已於 2026-10-14 改變（→ `plans/cross-review-2026-10.md` D-JAVA），待 Phase 5 實作〕 |
 | B6 | `lib/account-secret.js:79-81` | 加密失敗退明文（既有裁決），全程無 log | 〔agent〕只補 log |
 
 ## 先補保證
@@ -76,7 +82,7 @@
 | G1 | `scripts/check-renderer-scripts.cjs:58-64` | `index.html` 少了 `./renderer.js` 時印 skipped、exit 0——正是它該抓的錯 | 改成失敗〔查過〕 |
 | G2 | `renderer/bootstrap-ctx.js:7-63` 回傳的 null 被各模組 `if (!el)`／`el?.` 接住，約 40 處 | 沒有機制驗 `index.html` 的 ID 存在，ID 改名＝按鈕無聲失效 | 在 `buildUiRefs` 缺 ID 就丟錯，之後那 40 處變 §2 可刪〔agent〕 |
 | G3 | `scripts/check-ui-css.cjs:240` `if (ok === null) continue;` | id 找不到就跳過，改名後檢查無聲消失 | 改成失敗〔agent〕 |
-| G4 | 畫面 console 只在 debug 模式印到 main 的終端機、不進 log 檔（`main/main-window.js:78-101`〔查過〕） | 畫面無法照 §3 出聲到可事後追查的地方；R-SWALLOW、R-SILENT 的修法都要用到它 | 新增 channel（`lib/ipc-channels.js`）＋main 端 handler 寫 `appendLauncherLog`＋preload 白名單隨 channel 表；畫面送來的內容是邊界（§1：限長、轉字串） |
+| G4 | 畫面 console 只在 debug 模式印到 main 的終端機、不進 log 檔（`main/main-window.js:78-101`〔查過〕） | 畫面無法照 §3 出聲到可事後追查的地方；R-SWALLOW、R-SILENT 的修法都要用到它 | 新增 channel（`lib/ipc-channels.js`）＋main 端 handler 寫 `appendLauncherLog`＋preload 白名單隨 channel 表；畫面送來的內容是邊界（§1：限長、轉字串）〔裁決已於 2026-10-14 改變（→ `plans/cross-review-2026-10.md` §8 Phase 2b），待 Phase 2 實作〕 |
 
 ## 清理清單
 
