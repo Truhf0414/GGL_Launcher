@@ -1,6 +1,6 @@
 # 交叉審查後的收斂施工（2026-10）
 
-**狀態**：2026-10-14 建立；四輪交叉審查（owner＋ChatGPT＋CC）收斂；同日跑完 SPR（三個 Sonnet 子 agent＋ChatGPT outside voice，紀錄 → `reviews/cross-review-2026-10-v54d4d36d-20261014.md`），owner 裁完 grilling，本檔依 SPR 結果與 outside voice 修正定稿。各 Phase **皆未動工**。本行只記已發生的事；下一步只住 `STATUS.md`（`filing.md` §本專案細則）。
+**狀態**：2026-10-14 建立；四輪交叉審查（owner＋ChatGPT＋CC）收斂；同日跑完 SPR（三個 Sonnet 子 agent＋ChatGPT outside voice，紀錄 → `reviews/cross-review-2026-10-v54d4d36d-20261014.md`），owner 裁完 grilling，本檔依 SPR 結果與 outside voice 修正定稿。2026-10-17 Phase 0 完成（`53a9d60`）；Phase 1–6 **皆未動工**。本行只記已發生的事；下一步只住 `STATUS.md`（`filing.md` §本專案細則）。
 **這份檔是什麼**：這一整個事件的權威 plan——起點、經過、裁決、證據、被推翻的方案、各 Phase 的責任邊界與驗收。各 Phase 的**細部施工步驟不在這裡**，在該 Phase 開工前另寫（理由見 §8.0）。
 **owner 的要求（本檔的寫法依據）**：「針對最終 Plan 產物，我想請你新做一個 Plan 而不是單純的做回填。一樣保持誠實，然後不總結不壓縮原有問題。接著將討論細節、決策還有失敗方針/廢案也寫入這份文件裡。這一整個會是個有規模的事件，我想認真的分節對待。」（2026-10-14）
 **程式基準**：本檔所有行號以 `7aa85c5` 為準（2026-10-14 現查 HEAD＝`7aa85c5`）。動工前每條現讀；行號漂移照 `filing.md` §本專案細則「行號對齊」加註。
@@ -139,8 +139,8 @@
 
 | ID | 裁決 | 出處 |
 |---|---|---|
-| D-SET-FILE | 四種讀檔情況分開處理：**檔不存在**＝首次使用，用唯一合法預設建立；**JSON 壞掉／空檔／不是物件**＝保留壞檔（改名留著）、重置、明確告知一次；**讀檔被拒（權限、鎖定、路徑是資料夾）**＝不重置、不覆寫，走啟動失敗框；**JSON 正常但欄位值不合法**＝不靜默修正，指出欄位、原值、原因、修法 | 前三種：owner 2026-10-02「設定檔那個我了解了但我想現在裁哈哈。」、2026-10-03（載於 `future-work.md`「設定檔讀寫」條）；第四種：〔轉述〕Review Report §2.2、Decision Memory §B「Settings 誠實」 |
-| D-SET-ATOMIC | 寫入改為原子（同目錄暫存檔再改名），失敗不回報成功 | owner 2026-10-03（同上，載於 future-work 該條）；〔轉述〕Review Report §2.2 第 5 點 |
+| D-SET-FILE | 四種讀檔情況分開處理：**檔不存在**＝首次使用，用唯一合法預設建立；**JSON 壞掉／空檔／不是物件**＝保留壞檔（改名留著）、重置、明確告知一次；**讀檔被拒（權限、鎖定、路徑是資料夾）**＝不重置、不覆寫，走啟動失敗框；**JSON 正常但欄位值不合法**＝不靜默修正，指出欄位、原值、原因、修法 | 前三種：owner 2026-10-02「設定檔那個我了解了但我想現在裁哈哈。」、2026-10-03（載於 `future-work.md`「設定檔讀寫」條）；第四種：〔轉述〕Review Report §2.2、Decision Memory §B「Settings 誠實」。2026-10-03 原話（future-work 該條 2026-10-14 離箱，原話移此）：對「A／B／C，要不要獨立一刀排在 ③b-1 後面」（agent 建議 B）答「3. 可以，而且看下來規模確實適合獨立一刀，我甚至在想是不是會有除三種情況以外的情況。」 |
+| D-SET-ATOMIC | 寫入改為原子（同目錄暫存檔再改名），失敗不回報成功 | owner 2026-10-03（同上，載於 future-work 該條）；〔轉述〕Review Report §2.2 第 5 點。2026-10-03 原話見上一列 |
 | D-SET-NUM | 記憶體數值欄位：**「數字或 null，其他一律報錯」**。`null`／不寫＝「未設定」，是真實狀態，必須保留；數字字串（`"4"`）、帶單位字串（`"4G"`）、其他型別一律報錯，不轉換 | owner 2026-10-14 先問「還能收別的嗎？還是說最好的情況就是只收數字呢？」，聽完 CC 的比較後「很好，那就是『數字或 null，其他一律報錯』。」（Round3 §12.3） |
 | D-SET-RANGE | 合法數字但**超出範圍**時明確報錯，不再偷偷夾回範圍內。**精確範圍在 Phase 4 現讀、討論後定案**：目前三欄的夾法不同（`memoryGb` 1–64、`minMemoryGb` 0–64、`maxMemoryGb` 1–64，`main/settings.js:69-74`），不能直接以「一律 1–64」為契約；`minMemoryGb` 的 `0` 在啟動時與 `null` 效果相同（§5.10），是否該成為第二種「未設定」寫法也在 Phase 4 定 | owner 2026-10-14（outside voice 回饋 §四）：「我同意超出有效範圍應明確報錯，而不是偷偷調整到最近的合法值。」「本題裁決方向是拒絕非法值；精確數值範圍仍交由 Phase 4 現讀、討論後定案。」 |
 | D-SET-UNKNOWN | `settings.json` 裡**不認得的鍵一律拒絕**，錯誤訊息寫出鍵名；**退休欄位**（例如 U6 之後的 `memoryGb`）與未知鍵一視同仁，不另設退休鍵清單（那是相容層，違反 conventions §5） | owner 2026-10-14「Q-5：可以。」——回應 CC 接受 outside voice 反例後的建議（§6.5、§7 X-12） |
@@ -204,7 +204,7 @@ ChatGPT Round2 開頭記載「owner 已表示除 U7 的新決定之外，目前�
 | U5 | ③ 格式實例記錄（缺 `minecraft`／`loader`／`javaMajor`）收緊 | **收緊**。代價：owner 與測試者兩台的舊安裝會被當成未安裝、重裝一次。ChatGPT 傾向同意，但要求 owner 對「舊本機資料怎麼處置」逐字批准（Review Report §3.3、§8.1） | 6 | owner 裁 |
 | U6 | memoryGb 移除後，「max 未設定 ⇒ 4096 MB」的唯一來源放哪 | **事實更正**（SPR #19）：這個預設值目前散在多處——`main/minecraft-launch.js:104`（`return 4096`）、`:113`（`\|\| 4096`）、`:210-212`（`maxMb` 以 `memoryGb` 為退路）、`main/settings.js:22,58`、`assets/default-settings.json:2`（`memoryGb: 4`）、`lib/settings-logic.js:42,53-60`（legacy 後備）。初版說「放在唯一用到它的地方」是錯的。**建議**：先把這幾處收成一個有名字的常數，優先放 `lib/`（專案 CLAUDE.md：可測的邏輯放 `lib/`）；不放進設定正規化（理由見 D-SET-MEM） | 4 | Phase 4 細部 plan 定案、owner 看過 |
 | U10 | rpc-helper 的清理 | **維持等**。`future-work.md`「Discord RPC 去留」（保留外掛／搬回 main／整個砍）未裁；改 `rpc-helper/index.js` 要重 build exe | — | 等去留裁決 |
-| U11 | tailwind v4 CLI 吃 v3 寫法 | **另開一刀，記進 future-work**。會改 CSS 產出、要看畫面，跟防禦清理不同根；ChatGPT 要求先驗產物與畫面、不要憑猜測大改（Review Report §3.3） | — | owner 裁「另開」或「本輪」 |
+| U11 | tailwind v4 CLI 吃 v3 寫法 | **另開一刀，記進 future-work**。會改 CSS 產出、要看畫面，跟防禦清理不同根；ChatGPT 要求先驗產物與畫面、不要憑猜測大改（Review Report §3.3） | — | owner 裁「另開」或「本輪」〔2026-10-14 已裁「另開」：owner「好，另開。」→ `future-work.md`「tailwind 的 v3 寫法配 v4 CLI」〕 |
 | U12 | `ci.yml` 留或刪 | **留**。原前提「repo 沒有 remote，CI 不會跑」已不成立：2026-10-13 推上 GitHub 後 CI 實際跑了，結果 success〔實測：`gh run list`〕。owner 2026-10-13 推 repo 時的回應：「我傾向讓他跑。」——這是傾向，不是明確裁決，所以仍列未決 | — | owner 一句話 |
 | U13 | `changelog.json` 的 `logUrl` 接受四種格式 | **只收純文字，一行一筆**。手改最好寫，`future-work.md`「公告與通知顯示的毛病」(c) 的「空清單顯示原始 JSON」會跟著消失。前提：站上現在的 changelog 是哪種格式，CC 沒看到；是 JSON 的話要一起改檔。ChatGPT：「唯一格式的具體樣式尚未決議」 | 6 | owner 確認站台現況後裁 |
 | U14 | 站台根目錄的 v2 殘留 `changelog.json`、`notice-thumb.jpg` | **清**。但 ChatGPT 提醒：repo 的文件不等於站台實況，要 owner 確認哪些檔真的還在、有沒有被引用，且站台操作由 owner 動手（CC 先前刪站台檔被權限擋過） | — | owner 確認後自己動手 |
@@ -563,7 +563,7 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
 **範圍**：
 - **註記的措辭**：程式還沒改的取代，寫成「**裁決已於 2026-10-14 改變（→ `plans/cross-review-2026-10.md` <ID>），待 Phase <N> 實作**」；不寫「已被取代」，避免 Phase 0 到 Phase N 之間文件與程式看起來互相矛盾（SPR Adjudication，sub-contract #3）。
 - `plans/defense-cleanup.md`：在 §裁決、§未決、§施工順序 各加一行註記指向本檔；§Bug 的 B4、B5 與 §先補保證 的 G4 各加一行註記指向本檔對應 Phase；**§清理清單、§盤點紀錄、G1–G3、B1、B2、B3、B6 不動**（它們仍以該檔為定義處，§0.3）。
-- `plans/instance-sync-v3.md`：`:41`（裁決表）、`:148`（18-6）、`:149`（18-7）、`:171`（抓取分類表）、`:193`（kind 表）、`:203`（gate invalid 規則）、`:532`（測試案例清單）、`:720`（手測驗收的 gate 壞法）八處，各加 D-GATE 的註記，原文不刪。已結案的 commit plan 不加註（§0.3）。
+- `plans/instance-sync-v3.md`：`:41`（裁決表）、`:148`（18-6）、`:149`（18-7）、`:171`（抓取分類表）、`:193`（kind 表）、`:203`（gate invalid 規則）、`:532`（測試案例清單）、`:720`（手測驗收的 gate 壞法）八處，各加 D-GATE 的註記，原文不刪。已結案的 commit plan 不加註（§0.3）。〔對齊 2026-10-17：行內行號指 `plans/instance-sync-v3.md`，`53a9d60` 未移動（只在行尾加註記）〕
 - `future-work.md`：
   - 「設定檔讀寫」條：已併入 Phase 4 ⇒ 離箱（離箱前驗家：它的裁決已收進本檔 D-SET-FILE、D-SET-ATOMIC）。
   - 「手改站台檔的發佈前檢查」條：標註「gate `invalid` 時同步權限已由 D-GATE 回答」；**改寫它的前提**——原文「只拒絕不認得的鍵，結果是從『安靜失效』變成『多一句話但照樣失效』」在 D-GATE 之後不成立：gate 一判 `invalid` 就是全站停更（D-GATE-COST），所以這支驗證器的重要性上升（owner 2026-10-14「可以的話甚至想做一份驗證器來讓 gate.json 不出現壞檔的情況哈哈。」）；**其餘工作保留**，仍是 future-work。
@@ -668,6 +668,7 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
 - 啟動時「缺預設鍵 ⇒ 整份重寫」（`main/settings.js:114-124`）會無聲刪掉不認得的鍵，隨 D-SET-UNKNOWN 一起處理。
 - `SETTINGS_SET` 照同一套規則驗；不合格時設定視窗用既有 `setSettingsError` 顯示（`renderer/settings-modal.js:279`）。
 - 原子寫入；兩次寫入搶同一個暫存檔名的問題，先評估「每次用唯一暫存檔名」是否就夠，不夠才加排隊（SPR #37）。
+- 原 `future-work.md`「設定檔讀寫」條留下、本檔其他處沒收的四件（2026-10-14 該條離箱時移此）：值不合法被無聲換成預設時，影響最大的是安裝路徑（`normalizeSettingsObject`；§5.10 沒有列 `launcherRootDir` 這一列）；寫到一半中斷留下的暫存檔殘骸怎麼處理；寫不進去時畫面有沒有講（當時未查）；JSON 壞掉重置後 `launcherRootDir` 回到預設，中樞會對著預設根算狀態——「告知一次」要不要講明安裝位置也一起被重置，細部 plan 定。
 - `memoryGb` 移除與 4096 MB 唯一來源的落點（U6）：涉及 `main/minecraft-launch.js:104,113,210-212`、`main/settings.js:22,58-69`、`assets/default-settings.json:2`、`lib/settings-logic.js:42,53-60` 與對應測試（SPR #9、#19）。
 - `defense-cleanup.md` §清理清單 中**歸本 Phase** 的列：M-SET（預設值多份、memoryGb 三層、`microsoft-auth.js:663` 的 `PUT_YOUR` 佔位）、M-SILENT 的 `settings.js:95-111,125-138`、L-DUP 的 `"Player001"`（`main/settings.js:23,74`、`renderer/settings-modal.js:199,247`）。細部 plan 開工時對清單逐列確認（SPR #18）。
 **不做**：不做修復視窗；不加重試；不改「檔不存在」的首次體驗；不設退休鍵清單（N-23）。
