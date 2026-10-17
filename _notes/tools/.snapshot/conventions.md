@@ -28,7 +28,8 @@
 
 1. **邊界上驗一次**：在值進來的那一處驗證並轉成內部形狀（設定→`normalizeSettingsObject`、站台→`lib/sync/site-format.js`、實例紀錄→`lib/sync/record-format.js`）。不合格就明確拒絕或丟掉重來，並出聲。
 2. **邊界內信任**：不寫 `?.`、`||`／`??` 預設、`typeof` 檢查、try/catch、空函式預設去防。依賴缺了在建立時丟錯（範本：`main/sync/index.js` 的 `assertRequiredDeps`）。邊界內的保證若沒有機制在守，補機制，不補防線。
-3. **出聲**：main 寫 `appendLauncherLog`；使用者按了東西而失敗，要讓他在畫面上看到。〔畫面寫 log 檔的管道 → plans/defense-cleanup.md G4〕
+3. **出聲**：main 寫 `gglError`（常駐故障日誌 `userData/ggl-launcher.log`，debug 關著也寫）；`appendLauncherLog`（桌面 `launcher.log`）只放 debug 細節。使用者按了東西而失敗，要讓他在畫面上看到。〔2026-10-14 起。**Phase 2a 完成前，`gglError` 只印 console、還沒有檔案出口**（→ `plans/cross-review-2026-10.md` Phase 2；Phase 2a 的 commit 刪掉這句）。畫面寫 log 檔的管道 → 同檔 Phase 2b〕
+   - `gglError` 的 `detail` 放什麼由呼叫處決定（白名單）：不放 token、帳號物件、完整 JVM 參數、OAuth 原始回應、帶敏感參數的完整 URL；限長、截 stack 不算脫敏。`err.message`／stack 也可能帶敏感內容（例：`main/net-fetch.js:87` 的訊息含完整網址），怎麼處理以 Phase 2 定的落盤規則為準。不建泛用的敏感字串掃描器。出處 → `plans/cross-review-2026-10.md` D-LOG-PRIVACY。
 4. **吞錯只限清理與探測**：`catch` 裡寫一行為什麼可以吞。
 5. **不接舊版**：舊版程式、舊格式資料、舊檔名、舊欄位，一律不接、不轉；遇到舊資料就走第 1 條，拒絕或丟掉重來（例：`main/account-store.js` 舊 schema 當登出）。
 6. **一條路**：改名、搬家一次改到底，所有呼叫者同一個 commit 改完；一個函式只收一種輸入形狀，測試用同一個簽名餵。
@@ -39,6 +40,10 @@
 - 機器擋：載入順序（`scripts/check-renderer-scripts.cjs`）；空 catch（ESLint `no-empty`，舊的清完才開）。
 - 既有的違規：清單在 `plans/defense-cleanup.md`，照 plan 分批清；新寫的不准再犯，舊的不在別的 commit 裡順手清。
 - 出處：owner 2026-10-11「從來沒發行過，所以沒有玩家有東西。」；owner 2026-10-13「我想完全治本，不是這種修修補補的。」，判準 owner 2026-10-13「可以，重寫版好多了。」。
+
+## 下載來源
+- 內容的正確答案由發布者給，下載點只負責搬。會被安裝或執行的檔，它的 hash、清單、版本描述只能來自該內容的發布者（GGL3 站台管模組與設定檔、Mojang 管 Minecraft、Fabric 管 loader、各 Java 發行商管自己的 JRE）；發布者有給 hash 就必須驗；沒給 hash 的官方發行物，照該來源已裁的驗證方式（例如 Java 的完整安裝驗證，→ `plans/cross-review-2026-10.md` D-JAVA）；第三方搬運者（鏡像、轉址節點）不得提供或改寫正確答案。新增下載來源時以此為判準。〔2026-10-14 起。現有程式尚未符合：Java 自訂鏡像（`main/runtime/java.js`）與 Minecraft 第三方鏡像（`main/mc-mirror.js`）仍在，待 Phase 5 實作〕
+- 出處：owner 2026-10-14「我同意把 D-TRUST 寫入 `conventions.md`，作為未來新增下載來源時的工程判準。」「我不想因為一次下載來源修正，就建立龐大的供應鏈政策文件。」→ `plans/cross-review-2026-10.md` D-TRUST、D-TRUST-RULE。
 
 ## UI / CSS
 - 設計 token 只在 `styles.css` `:root` 的「Design controls (adjust here)」段改：`--design-*`＝全域設計控制，`--optical-*`＝視覺微調；元件自己的 token（`--cards-*`、`--launch-*`…）只能引用它們、不准重定義〔check:ui-css 擋〕。
