@@ -1,6 +1,6 @@
 # 交叉審查後的收斂施工（2026-10）
 
-**狀態**：2026-10-14 建立；四輪交叉審查（owner＋ChatGPT＋CC）收斂；同日跑完 SPR（三個 Sonnet 子 agent＋ChatGPT outside voice，紀錄 → `reviews/cross-review-2026-10-v54d4d36d-20261014.md`），owner 裁完 grilling，本檔依 SPR 結果與 outside voice 修正定稿。各 Phase **皆未動工**。本行只記已發生的事；下一步只住 `STATUS.md`（`filing.md` §本專案細則）。
+**狀態**：2026-10-14 建立；四輪交叉審查（owner＋ChatGPT＋CC）收斂；同日跑完 SPR（三個 Sonnet 子 agent＋ChatGPT outside voice，紀錄 → `reviews/cross-review-2026-10-v54d4d36d-20261014.md`），owner 裁完 grilling，本檔依 SPR 結果與 outside voice 修正定稿。2026-10-17 Phase 0 完成（`53a9d60`）；Phase 1–6 **皆未動工**。本行只記已發生的事；下一步只住 `STATUS.md`（`filing.md` §本專案細則）。
 **這份檔是什麼**：這一整個事件的權威 plan——起點、經過、裁決、證據、被推翻的方案、各 Phase 的責任邊界與驗收。各 Phase 的**細部施工步驟不在這裡**，在該 Phase 開工前另寫（理由見 §8.0）。
 **owner 的要求（本檔的寫法依據）**：「針對最終 Plan 產物，我想請你新做一個 Plan 而不是單純的做回填。一樣保持誠實，然後不總結不壓縮原有問題。接著將討論細節、決策還有失敗方針/廢案也寫入這份文件裡。這一整個會是個有規模的事件，我想認真的分節對待。」（2026-10-14）
 **程式基準**：本檔所有行號以 `7aa85c5` 為準（2026-10-14 現查 HEAD＝`7aa85c5`）。動工前每條現讀；行號漂移照 `filing.md` §本專案細則「行號對齊」加註。
@@ -563,7 +563,7 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
 **範圍**：
 - **註記的措辭**：程式還沒改的取代，寫成「**裁決已於 2026-10-14 改變（→ `plans/cross-review-2026-10.md` <ID>），待 Phase <N> 實作**」；不寫「已被取代」，避免 Phase 0 到 Phase N 之間文件與程式看起來互相矛盾（SPR Adjudication，sub-contract #3）。
 - `plans/defense-cleanup.md`：在 §裁決、§未決、§施工順序 各加一行註記指向本檔；§Bug 的 B4、B5 與 §先補保證 的 G4 各加一行註記指向本檔對應 Phase；**§清理清單、§盤點紀錄、G1–G3、B1、B2、B3、B6 不動**（它們仍以該檔為定義處，§0.3）。
-- `plans/instance-sync-v3.md`：`:41`（裁決表）、`:148`（18-6）、`:149`（18-7）、`:171`（抓取分類表）、`:193`（kind 表）、`:203`（gate invalid 規則）、`:532`（測試案例清單）、`:720`（手測驗收的 gate 壞法）八處，各加 D-GATE 的註記，原文不刪。已結案的 commit plan 不加註（§0.3）。
+- `plans/instance-sync-v3.md`：`:41`（裁決表）、`:148`（18-6）、`:149`（18-7）、`:171`（抓取分類表）、`:193`（kind 表）、`:203`（gate invalid 規則）、`:532`（測試案例清單）、`:720`（手測驗收的 gate 壞法）八處，各加 D-GATE 的註記，原文不刪。已結案的 commit plan 不加註（§0.3）。〔對齊 2026-10-17：行內行號指 `plans/instance-sync-v3.md`，`53a9d60` 未移動（只在行尾加註記）〕
 - `future-work.md`：
   - 「設定檔讀寫」條：已併入 Phase 4 ⇒ 離箱（離箱前驗家：它的裁決已收進本檔 D-SET-FILE、D-SET-ATOMIC）。
   - 「手改站台檔的發佈前檢查」條：標註「gate `invalid` 時同步權限已由 D-GATE 回答」；**改寫它的前提**——原文「只拒絕不認得的鍵，結果是從『安靜失效』變成『多一句話但照樣失效』」在 D-GATE 之後不成立：gate 一判 `invalid` 就是全站停更（D-GATE-COST），所以這支驗證器的重要性上升（owner 2026-10-14「可以的話甚至想做一份驗證器來讓 gate.json 不出現壞檔的情況哈哈。」）；**其餘工作保留**，仍是 future-work。
