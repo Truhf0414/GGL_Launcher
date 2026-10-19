@@ -1,9 +1,9 @@
 # 交叉審查後的收斂施工（2026-10）
 
-**狀態**：2026-10-14 建立；四輪交叉審查（owner＋ChatGPT＋CC）收斂；同日跑完 SPR（三個 Sonnet 子 agent＋ChatGPT outside voice，紀錄 → `reviews/cross-review-2026-10-v54d4d36d-20261014.md`），owner 裁完 grilling，本檔依 SPR 結果與 outside voice 修正定稿。2026-10-17 Phase 0 完成（`53a9d60`）；Phase 1–6 **皆未動工**。本行只記已發生的事；下一步只住 `STATUS.md`（`filing.md` §本專案細則）。
+**狀態**：2026-10-14 建立；四輪交叉審查（owner＋ChatGPT＋CC）收斂；同日跑完 SPR（三個 Sonnet 子 agent＋ChatGPT outside voice，紀錄 → `reviews/cross-review-2026-10-v54d4d36d-20261014.md`），owner 裁完 grilling，本檔依 SPR 結果與 outside voice 修正定稿。2026-10-17 Phase 0 完成（`53a9d60`）；同日 Phase 1 細部 plan 初稿（→ `plans/cross-review-2026-10-phase1.md`）、owner 裁 D-LINK-CODE；2026-10-17～19 經 fakechat 與 outside voice 多輪收斂 Junction 的責任界線（§2 後半、§6.2 末），2026-10-19 owner 裁 D-LINK-C 群（§3.4）與 X1、N6（§3.10），同日細部 plan 依此整份重寫；2026-10-20 owner 採納 1b 兩項細節（D-LINK-C-DEEP-1B）、`<json>.tmp` 列入 N6 候選；Phase 1–6、X1、N6 **皆未動工**。本行只記已發生的事；下一步只住 `STATUS.md`（`filing.md` §本專案細則）。
 **這份檔是什麼**：這一整個事件的權威 plan——起點、經過、裁決、證據、被推翻的方案、各 Phase 的責任邊界與驗收。各 Phase 的**細部施工步驟不在這裡**，在該 Phase 開工前另寫（理由見 §8.0）。
 **owner 的要求（本檔的寫法依據）**：「針對最終 Plan 產物，我想請你新做一個 Plan 而不是單純的做回填。一樣保持誠實，然後不總結不壓縮原有問題。接著將討論細節、決策還有失敗方針/廢案也寫入這份文件裡。這一整個會是個有規模的事件，我想認真的分節對待。」（2026-10-14）
-**程式基準**：本檔所有行號以 `7aa85c5` 為準（2026-10-14 現查 HEAD＝`7aa85c5`）。動工前每條現讀；行號漂移照 `filing.md` §本專案細則「行號對齊」加註。
+**程式基準**：本檔所有行號以 `7aa85c5` 為準（2026-10-14 現查 HEAD＝`7aa85c5`）。2026-10-19 新增的段落以 `ac765af` 為準；兩者之間程式與測試沒有變動（`git diff --stat 7aa85c5 ac765af -- main lib test` 為空，同指令不帶路徑列出 14 個文件檔）。動工前每條現讀；行號漂移照 `filing.md` §本專案細則「行號對齊」加註。
 **Phase 編號**：本檔定稿時把原 Phase 5（檢查工具與清理）與原 Phase 6（Runtime 信任根）**對調**，編號＝執行順序（§3.8 D-PHASE-ORDER）。SPR 紀錄與 repo 外的審查文件用的是**舊編號**。
 
 ---
@@ -21,7 +21,7 @@
 | 〔推論〕 | 由證據推出，中間有沒驗證的環節，缺口寫在旁邊 |
 | 〔猜的〕 | 沒有證據 |
 | 〔owner 裁〕 | owner 明確裁決，出處欄附原話與日期 |
-| 〔轉述〕 | owner 在與 ChatGPT 的對話裡裁的；CC 只讀到 ChatGPT 文件的轉述，沒看到原話 |
+| 〔轉述〕 | owner 在與 ChatGPT 的對話裡裁的；CC 只讀到 ChatGPT 文件的轉述，沒看到原話。2026-10-17～19 的 Phase 1 收斂另經 fakechat：outside voice 把 owner 的裁決轉述給 CC，標〔轉述：fakechat <訊息 id>〕；原文在本機 Claude Code 的 session 紀錄，不進 repo（同 D-REVIEWS） |
 
 ### 0.2 三種「完成」不是同一件事
 
@@ -85,6 +85,24 @@
 | OV | ChatGPT（outside voice） | owner 貼進對話 | owner 另請 ChatGPT 當 outside voice 審本檔初版；認可本檔為施工權威、同意開始 Phase 0；提出 Phase 1「什麼都不動」措辭過滿、D-TRUST 措辭與 D-JAVA 衝突、Q-5 未知鍵的反例、Phase 5／6 先後、日誌脫敏、本檔要進版控等修正 |
 | 定稿 | owner＋CC | 本檔定稿 | owner 裁 G1–G5、Q-5、Phase 編號對調；CC 把 SPR 的 fix-before-start 與 outside voice 的修正寫入本檔；SPR 封存 |
 
+2026-10-17～19（Phase 1 細部 plan 期間，台北）。這段的 owner 裁決多半由 outside voice 經 fakechat 轉述（§0.1）；時間是 fakechat 訊息的時間。
+
+| 時間 | 誰 | 關鍵事件 |
+|---|---|---|
+| 10-17 | CC | 寫 Phase 1 細部 plan 初稿，留 Q1–Q4；owner 裁 D-LINK-CODE |
+| 10-17 | CC | 實測 runtime 深層 `libraries/com` 是 junction 時會改寫外部（§5.13），撤回 Q3「只記 §9」 |
+| 10-17 23:22 | outside voice（fakechat 1792250567147） | 接受 Q3 改判；Q1、Q2 收斂；提出 runtime-trash（實驗 A）與 Java 連結（實驗 B）兩個待驗疑點 |
+| 10-17 | CC | 實驗 A 成立（§5.14）；實驗 B 五案外部都不變，但 B1–B4 會刪掉或換掉連結本身（§5.15） |
+| 10-17 23:53 | owner（轉述，1792252404658） | runtime-trash 進 1a 基底＋L17（D-LINK-TRASH）；B1／B3／B4「拒絕並說明」（後被推翻，§7 N-29）；Q4 短文案；1a／1b 分兩個 commit（D-LINK-SPLIT） |
+| 10-18 22:15 | owner＋outside voice（轉述，1792332924199） | 把「遇到連結」拆成修改／讀取／執行；三條邊界（部分後被推翻，§7 N-30、N-31）；L17 放 sync-index 層；深層歸 1b；managed 用「位置」 |
+| 10-18 23:56 | outside voice（fakechat 1792339012844） | Stop the Line：owner 主動質疑最初的「不支援 Junction」，要 A（廣泛拒絕）／B（操作與授權邊界）／C（替代）公平比較 |
+| 10-19 00:13 | owner（轉述，1792340036259） | 授權 N5 三組 scratchpad 實驗 |
+| 10-19 | CC | N5（§5.16）：整包清理授權區只動連結本身；`jre21.zip.tmp` 是 file symlink 時外部被覆寫且回報成功；`.tmp` 是資料夾連結時 getReader 分支 `uncaughtException` |
+| 10-19 09:38 | outside voice（fakechat 1792373915654） | 提出新的 C，要 CC 反駁；CC 撤回三句話（§7 X-20、N-33），提 N1–N8 |
+| 10-19 12:59 | owner（轉述，1792385986641） | 最終裁決：採 C（D-LINK-C 群）、N6 有限 B、N7 照拒並接受中斷後果、X1 另項、停止條件 |
+| 10-19 | owner（終端）＋CC | CC 核對回寫前的三個假設；owner 更正深層證據範圍、裁 `.ggl-tmp` 乙（D-LINK-C-TMP），授權文件回寫 |
+| 10-20 | owner（終端） | 貼上 outside voice 的收尾核對並指示照辦：採納 1b 兩項細節（D-LINK-C-DEEP-1B）、`<json>.tmp` 列入 N6 候選（D-N6）；提交本輪文件 |
+
 ---
 
 ## 3. 裁決
@@ -128,12 +146,23 @@
 
 | ID | 裁決 | 出處 |
 |---|---|---|
-| D-LINK | GGL 管理的**修改路徑**不支援 Junction／Symlink：遇到就拒絕並說明，不追隨、不越界、不自行刪除連結指向的外部資料 | 〔轉述〕Review Report §2.3、Decision Memory §B「FS 連結」 |
+| D-LINK | GGL 管理的**修改路徑**不支援 Junction／Symlink：遇到就拒絕並說明，不追隨、不越界、不自行刪除連結指向的外部資料。〔2026-10-19：由 D-LINK-C 依修改／清理授權具體化——共用遊戲資料區照原意拒絕（D-LINK-C-SHARED）；有整包清理授權的區域可刪連結本身、不跟進（D-LINK-C-CLEAN）；唯讀與執行不自動繼承拒絕〕 | 〔轉述〕Review Report §2.3、Decision Memory §B「FS 連結」 |
 | D-LINK-SCOPE | 要擋的範圍：**`launcherRootDir` 本身**；GGL 推導的 `group`、`group/GGL`（instanceDir）、`group/GGL/.minecraft`（gameDir）三層；gameDir 底下本次會碰的路徑。**`launcherRootDir` 往上（例如 `C:\Games`、磁碟機根）不查** | owner 2026-10-14：先表態「其實我本身對 Junction 被用在這裡是很反感的。可以的話我想擋，但我想聽聽看不擋的工程品味是什麼？」，聽完 CC 的分析後「1. 好，我認可了。就照這個吧！」（Round3 §12.2） |
 | D-LINK-TEMP | `<root>/.temp` 與 `<root>/.temp/sync-staging` 本身是連結時也擋（§5.3 實測會刪到外部） | owner 2026-10-14（outside voice 回饋 §三）：「我接受 CC 的建議。……這一題我認為已有足夠證據，不需要再爭論是否應該阻擋。」 |
-| D-LINK-RUNTIME | 同步時由 runtime 安裝寫入的路徑也算「本次會碰的路徑」：gameDir 底下的 `versions`、`libraries`、`assets`，以及 `<root>/runtime`。理由：runtime 安裝就在 `applyPlan` 裡跑（`main/sync/apply.js:76`），修復時 sha1 不符的檔會先刪後下（`main/runtime/minecraft.js:384-391`）〔推論：若 `libraries/` 指向別的啟動器的共用資料夾，會刪改那邊的檔，未實測〕 | owner 2026-10-14（SPR grilling G1）：「我的觀點是要擋。」——G1 原問「runtime 寫進 gameDir 的子資料夾算不算」；`<root>/runtime` 是 CC 依同一理由的延伸（`installJava` 同樣在 `applyPlan` 內寫入），成本 1 次 `lstat` |
+| D-LINK-RUNTIME | 同步時由 runtime 安裝寫入的路徑也算「本次會碰的路徑」：gameDir 底下的 `versions`、`libraries`、`assets`，以及 `<root>/runtime`。理由：runtime 安裝就在 `applyPlan` 裡跑（`main/sync/apply.js:76`），修復時 sha1 不符的檔會先刪後下（`main/runtime/minecraft.js:384-391`）〔推論：若 `libraries/` 指向別的啟動器的共用資料夾，會刪改那邊的檔，未實測〕〔2026-10-17 實測：`libraries/com` 是 junction 時確實改寫外部，一般更新也會（§5.13）；`versions`、`assets` 的深層仍是推論。只查三個頂層擋不到深層，深層由 D-LINK-C-DEEP 處理〕 | owner 2026-10-14（SPR grilling G1）：「我的觀點是要擋。」——G1 原問「runtime 寫進 gameDir 的子資料夾算不算」；`<root>/runtime` 是 CC 依同一理由的延伸（`installJava` 同樣在 `applyPlan` 內寫入），成本 1 次 `lstat` |
 | D-LINK-CONSEQ | owner 知悉並接受產品後果：某個連結資料夾裡只要有任何 release 檔（`clearLeftovers` 會碰新記錄裡每個檔所在的資料夾，`main/sync/apply.js:136-142`），**每一次更新與修復都會被擋**，不只是「動到 mods 的更新」 | owner 2026-10-14（SPR grilling G5）：「同意。」 |
 | D-LINK-NOTOCTOU | 本事件**不承諾**抵抗惡意的並行改目錄（檢查完到動手之間有人把資料夾換成連結）。威脅模型是「玩家自己的設定」，不是攻擊者 | 〔轉述〕Review Report §2.3；ChatGPT 第四輪 §二.2 |
+| D-LINK-CODE | 所有連結拒絕（下載、刪除、改名、基底路徑）**共用 `GGL_SYNC_BLOCKED_BY_LINK`**；錯誤物件多帶一個欄位標出是哪一類，用它挑文案。取代 §8 Phase 1「錯誤碼與文案」條的「新錯誤碼只給刪除、改名、基底路徑三類」。理由：錯誤碼在 `_notes/` 以外只有 `apply.js` 查文案與測試在讀，畫面不看碼分流（2026-10-17 `rg`），開新碼只換得到文案；而且 `test/sync-apply.test.cjs:733` 那案的連結同時在 `remove` 與 `removeFirst`〔讀碼，`lib/sync/plan.js:153-165`〕，照原寫法「刪除類用新碼」與不變量「既有兩案錯誤碼與路徑不變」必有一條破 | owner 2026-10-17：「1. (a) 看起來乾淨許多，我選這個。如果等等思考時有出現更能治本的方式會更好。」——(a) 是 CC 當場提的選項：「全部共用 `BLOCKED_BY_LINK`，錯誤物件多帶一個欄位，標出是哪一類，用它來選文案」；另一選項 (b) 是「照原寫法開新碼，但 `removeFirst` 算下載路徑、沿用舊碼」。細部設計 → `plans/cross-review-2026-10-phase1.md` §錯誤與文案 |
+| D-LINK-TRASH | `<root>/.temp/runtime-trash` 本身是連結也擋：加進 1a 的基底路徑（共 8 個）。驗收案 L17 放在真的會呼叫 `removeStaleRuntime` 的 sync-index 層，斷言外部既有檔不變**而且沒有多出被搬進去的東西**（真反例是越界搬入，§5.14） | 〔轉述：fakechat 1792252404658（10-17 23:53）【A】〕「接受你的實測結論與最小修法：把 `tempDir/runtime-trash` 加到 Phase 1a 的 `baseLinkPaths`，新增 L17。」；放 sync-index 層：〔轉述：fakechat 1792332924199（10-18 22:15）三.4〕 |
+| D-LINK-SPLIT | Phase 1 分兩個 commit：1a＝Sync 的檔案系統邊界，1b＝runtime 自己的深層修改路徑；**兩者都驗收才算 Phase 1 完成**。共用的 `lib/fs-links.js` 只放有第二個使用者的連結拒絕政策，不長成 FS Wrapper | 〔轉述：fakechat 1792252404658【Q1、Q2、Q3 分批】〕「Phase 1 分兩個 Commit（1a Sync、1b Runtime），不等於 1a 就可以視為整個 Phase 完成。」 |
+| D-LINK-C | **依實際修改與清理授權劃分責任**（採 C，不是一套新的 FS 安全框架）：GGL 的 Sync／Runtime 會修改的路徑，不得沿 Junction／Symlink 越界寫入、改名、刪除、搬入未獲授權的外部資料。不全面禁止連結存在；唯讀與執行不自動繼承修改路徑的拒絕。以下 D-LINK-C-* 是它的具體化 | 〔轉述：fakechat 1792385986641（10-19 12:59）【正式方向】第 1 點〕；修改／讀取／執行的三分法首見 1792332924199 一 |
+| D-LINK-C-SHARED | 共用遊戲資料區繼承 Sync v3「連結不猜不刪」（`plans/instance-sync-v3-commit3a2.md:47`、`:126`、`:184`）：末端連結即使在記錄的待刪路徑上也先拒絕、說明；**不因 C 發明「全面允許刪共用區末端連結」** | 同上第 2 點：「你上一輪對 Phase1a 末端連結與舊契約的反駁成立。」 |
+| D-LINK-C-CLEAN | 有明確**整包清理授權**的區域可刪 Junction／Directory Symlink 的連結本身，但不得跟入外部目標；有授權不等於每個檔都是 GGL 建的。三個來源：Java 安裝／`.old`／staging 的既有替換與恢復；GGL 專用的可丟棄暫存；Sync v3 D2 對過期 runtime 的整包清理（依名字判斷，④c G6）。**不做** Java P0／P1 深掃、**不做**過期 runtime skip-and-log。這份保證來自 Windows Node／Electron 的平台行為（§5.15、§5.16），以回歸測試釘住（N4）；不擴稱所有 reparse point 或惡意 TOCTOU 都安全 | 同上第 3 點；N4（「整包授權路徑靠平台行為＋回歸測試釘住」）由 CC 在回覆 1792373915654 時提出，1792385986641 確認 |
+| D-LINK-C-JAVA | B5（非修復、`java-21` 本身是連結）與 B3b（`.old` 是連結、`java-21` 不在，搬回後就是 B5）照現有重用／恢復契約處理：不加同步拒絕、不加 Minecraft 啟動閘、不宣稱驗過來源完整性。啟動／同步分離、Gate 不可用而本機已就緒仍可啟動的原則不變。已知後果：兩次同步之間，就緒判定與啟動照用連結指向的 Java（2026-10-18 CC 讀碼，回覆 1792332924199 的 F2） | 同上第 4 點 |
+| D-LINK-C-DEEP | runtime 深層 `libraries`／`assets`／`versions` 的實際修改路徑在 1b 封口：遇到會穿越連結的深層修改就拒絕。拒在 `prepareRuntime` 裡（`markInProgress` 之後）時，接受既有 interrupted／localReady 的後果——已就緒的玩家在移除連結、重新更新成功前不能啟動——不造第二個啟動真相、不做額外復原交易。**證據範圍**：實測過的只有 `libraries/com`（§5.13）；`assets`、`versions` 是依現有程式行為的推論，1b 的驗收對它們是「補測試」，不是「已證實」 | 同上第 5 點（N7；後果由 CC 在回覆 1792332924199 時列為 F1）。證據範圍：owner 2026-10-19（終端）「目前已實測的 Runtime 深層 Junction 越界，是 libraries/com 那組 Windows／Electron 反例。assets、versions 的其他深層情境，仍是依現有程式行為推論，不能寫成已實測。」——更正 1792385986641 第 5 點「libraries/assets/versions 等實際修改路徑已實測越界」的寫法 |
+| D-LINK-C-DEEP-1B | 1b 的兩項細節：實際要修改的深層末端（目標本身）是連結也拒絕；拒絕時沿用 `game` 類的文案（這些路徑在遊戲目錄底下）。原為 CC 回寫時寫下的假設，細部 → `plans/cross-review-2026-10-phase1.md` §1b 設計、D8 | owner 2026-10-20（終端）貼上 outside voice 的收尾核對並指示照辦（「除了提交之外，也順便將 session 收尾工作也做一做吧！」）；核對原文：「我支持 D8 對實際要修改的 Runtime 深層末端連結也拒絕，以及沿用 game 類型的錯誤文案。這兩項合理，但應明確標成 owner 採納」 |
+| D-LINK-C-TMP | `.<名>.ggl-tmp`（放在共用遊戲資料區、但是 GGL 內部檔名）是連結時，歸整包清理授權：刪連結本身、更新照常；刪之前看它是不是連結，是的話寫一行 launcher log。launcher log 只在 debug 開著時寫（`main/launcher-log.js:25`），預設不留痕跡，同 ④c G7；不做不受 debug 控制的紀錄或玩家可見的提示 | owner 2026-10-19（終端）：先答「我的品味認為可以選2.」（歸共用區、拒絕）；CC 說明那會改變玩家可觀察行為後改判「那選 3. 好了。但可以的話希望能讓這個行為被記錄到。」；CC 列甲（只寫進文件）／乙（發生時寫 log）後：「對，是乙。」 |
+| D-LINK-C-STOP | 不再進行開放式 Junction 設計審查。完成定義：1a／1b 的已實測越界要有實作與 Windows 回歸證據；N6 照成本線落實或回報超界；X1 另項。既有正常 Sync、修復、Java 恢復、下載 retry／續傳、狀態、啟動、D2 best-effort 清理不退化。沒被要求，不為新的理論 NTFS 形態增設防線；發現新的可達、會破壞上述不變量的實測反例才報 | 〔轉述：fakechat 1792385986641【完成定義／停止條件】〕 |
 
 ### 3.5 Settings
 
@@ -182,6 +211,15 @@
 | D-REVIEWS | repo 外的原始審查文件**不進公開 repo**；保留在 owner 的私人備份。公開 repo 只放本檔與 SPR 紀錄。會影響施工與日後裁決的內容若有遺漏，補進本檔，不公開原文 | owner 2026-10-14（outside voice 回饋 §六）：「我接受這個方向。」 |
 | D-VCS | 本檔、SPR 紀錄、`STATUS.md` 的指向一起進版控（同一個 commit），不出現「別的文件已引用本檔、本檔卻沒進 git」的狀態 | outside voice §十；owner 2026-10-14「Phase 0 進版控這件事，我還是想請你一起放進去。已經有大量 Plan 以及紀錄都在 Repo 裡了，不差這個。」 |
 
+### 3.10 Phase 1 期間裁出的兩項獨立修正（2026-10-19）
+
+兩項都不算進 Phase 1 的完成（D-LINK-SPLIT）；施工責任、停損、驗收在 §8 X1、N6。
+
+| ID | 裁決 | 出處 |
+|---|---|---|
+| D-N6 | **有限保護目前已識別的 GGL 內部寫入出口**（選 B）：已實測的只有 `jre21.zip.tmp` 是 file symlink 時覆寫外部並回報成功（§5.16 Z1）；`net-fetch` 的 `.part`、instance-record 的 `sync-record.json.tmp`／`sync-in-progress`、版本 json 的 `<json>.tmp` 是靜態候選，不得冒稱已實測。必須保住續傳 Range／部分檔、retry、hash、原子記錄與 Sync 中斷語意；不把只在原語層測過的 rm＋wx 當成 GGL 驗收；不為 `.part` 續傳另造下載機制；hardlink 不自動列入承諾。有停損（§8 N6 開頭） | 〔轉述：fakechat 1792385986641【N6】〕「選 B：**有限保護目前已識別的內部寫入出口**。」；CC 原建議「不改、記成缺口」被改判（§7 N-34）。`<json>.tmp` 列入候選：owner 2026-10-20（終端）貼上 outside voice 的收尾核對並指示照辦（「除了提交之外，也順便將 session 收尾工作也做一做吧！」）；核對原文：「改成「已列入 N6-B 候選、尚未實測、受原有停損條件約束」。只改這個狀態，不擴大施工承諾。」 |
+| D-X1 | `net-fetch` getReader 分支沒接 WriteStream 的 `error`（§5.16 Z3／Z4 實測 `uncaughtException`），**另立一項修，不依附 Junction**：開檔／寫入／`end` 的故障要 reject 原始錯誤、釋放資源、不 uncaught、不掛死、不吞錯；abort／stall／retry／progress／206／200 回退的既有契約不退化。先做最窄修法；只有窄修法做不到、又有具體證據時，才交 owner 裁要不要改成 pipeline | 〔轉述：fakechat 1792385986641【N8／X1】〕；CC 原建議先治本（pipeline）被改判（§7 N-35） |
+
 ---
 
 ## 4. 未決
@@ -190,7 +228,7 @@
 
 ### 4.1 本事件新產生的
 
-原 Q-1～Q-5 已全部裁決：Q-1 → D-LINK-TEMP；Q-2 → D-SET-RANGE（範圍細節仍在 Phase 4 定）；Q-3 → D-TRUST-RULE；Q-4 → D-REVIEWS；Q-5 → D-SET-UNKNOWN。目前沒有本事件新產生、尚未裁決的題目。
+原 Q-1～Q-5 已全部裁決：Q-1 → D-LINK-TEMP；Q-2 → D-SET-RANGE（範圍細節仍在 Phase 4 定）；Q-3 → D-TRUST-RULE；Q-4 → D-REVIEWS；Q-5 → D-SET-UNKNOWN。目前沒有本事件新產生、尚未裁決的題目。Phase 1 細部 plan 的 Q1–Q4（2026-10-17）與其後的 C 案也都已裁（§3.4 D-LINK-TRASH 起各列、§3.10）。〔2026-10-19 加〕
 
 ### 4.2 原 defense-cleanup 的 U 項（owner 尚未逐項裁）
 
@@ -254,10 +292,10 @@ U1、U8 早已裁（→ `defense-cleanup.md` §裁決）；U7、U9、U16 已由�
 
 ### 5.4 Junction 尚未實測的部分，與 runtime 的實際呼叫關係
 
-- `remove`／`removeFirst`／`rename.from` 的**目標本身**是連結時，`fsp.rm` 會不會只刪連結而不跟進去：沒測。不影響結論，因為政策是拒絕。
+- `remove`／`removeFirst`／`rename.from` 的**目標本身**是連結時，`fsp.rm` 會不會只刪連結而不跟進去：沒測。不影響結論，因為政策是拒絕。〔2026-10-19：原語層已測——`rm(force)` 對 file symlink、junction、dir symlink 都只刪連結本身（§5.16 原語層）；GGL 的呼叫處本身仍沒測〕
 - **runtime 安裝沒有「同步之外單獨跑」的路徑**〔讀碼〕：`prepareRuntime` 唯一的呼叫者是 `applyPlan`（`rg -n prepareRuntime main lib` 只命中 `main/sync/index.js:145-146,348-350`、`main/sync/apply.js:76`、`main/runtime/prepare.js` 自身；SPR 兩個子 agent 獨立確認並附對照組）。初版擔心的「單獨跑 Runtime 安裝不受保護」**不成立**（§7 X-15）。
-- runtime 在 `applyPlan` 裡會寫：gameDir 底下的 `versions/`、`libraries/`、`assets/`（`main/runtime/prepare.js:43-76`、`main/runtime/minecraft.js:439-466`），`<root>/runtime/java-<major>`，以及 Java 安裝的 `<root>/.temp/java-<major>-staging`、`jre<major>.zip`。D-LINK-RUNTIME 把前兩類納入檢查；後者在 `<root>/.temp` 底下，由 D-LINK-TEMP 的 `.temp` 檢查涵蓋。
-- **同步之後**的 `removeStaleRuntime`（`main/sync/runtime-cleanup.js:40,50-52,78-85`）會動 `<root>/.temp/runtime-trash`、`<root>/runtime/*`、`gameDir/versions/*`。它跑在 `applyPlan` 之後，屬於同一次同步；基底路徑在 `applyPlan` 開頭已檢查過，兩者之間被換成連結屬於 D-LINK-NOTOCTOU 不承諾的範圍。
+- runtime 在 `applyPlan` 裡會寫：gameDir 底下的 `versions/`、`libraries/`、`assets/`（`main/runtime/prepare.js:43-76`、`main/runtime/minecraft.js:439-466`），`<root>/runtime/java-<major>`，以及 Java 安裝的 `<root>/.temp/java-<major>-staging`、`jre<major>.zip`。D-LINK-RUNTIME 把前兩類納入檢查；後者在 `<root>/.temp` 底下，由 D-LINK-TEMP 的 `.temp` 檢查涵蓋。〔2026-10-17：頂層的檢查擋不到更深的連結，深層改寫外部已實測（§5.13）→ D-LINK-C-DEEP。Java 的 staging 與 zip 本身是連結時的實際行為 → §5.15、§5.16，D-LINK-C-CLEAN、D-N6〕
+- **同步之後**的 `removeStaleRuntime`（`main/sync/runtime-cleanup.js:40,50-52,78-85`）會動 `<root>/.temp/runtime-trash`、`<root>/runtime/*`、`gameDir/versions/*`。它跑在 `applyPlan` 之後，屬於同一次同步；基底路徑在 `applyPlan` 開頭已檢查過，兩者之間被換成連結屬於 D-LINK-NOTOCTOU 不承諾的範圍。〔2026-10-17 更正：`<root>/.temp/runtime-trash` 不在基底路徑裡，「開頭已檢查過」不涵蓋它；它本身是 junction 時清理會把舊目錄搬到外部（§5.14，§7 X-19）→ D-LINK-TRASH〕
 - `userData`：沒查、沒測，不在本事件範圍（ChatGPT 第二輪 §2.3、第四輪 §五都要求有獨立反例才處理）。
 - `fsProbe.kind` 只用 `isSymbolicLink()` 判連結（`main/sync/apply.js:286-299`），其他種類的重新解析點（例如 OneDrive 佔位檔、掛載點）會被怎麼判，沒測。
 
@@ -358,6 +396,72 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
 - `future-work.md`「執行 2026-05-02 pre-release audit 提示詞」條寫著「2026-09-11 現查：#4 的 render-process-gone／preload-error 已接」——**這句會誤導**：它們只在 debug 時接（§5.7）。Phase 0 要更正。
 - 測試計數方法：初版「`test/mc-mirror.test.cjs` 20 處提到 mirror」用的是 `rg -c -i 'mirror|bmcl'`；子 agent 用別的寫法數出 15。這些數字只用來估改動量。
 
+### 5.13 Runtime 深層 junction（Phase 1 細部 plan 期間，2026-10-17）〔實測〕
+
+scratchpad 一次性測試 `deep-junction.test.cjs`，用 repo 的 Electron 跑（`env -u ELECTRON_RUN_AS_NODE npx electron`，44.3.0），沒跑純 Node。真的 `installRuntimeFiles`（`main/runtime/minecraft.js`）、真的下載、sha1 與檔案系統；只有網路是假的（`test/helpers/fake-runtime.cjs` 的本機 HTTP）。先完整裝一次，再把 `gameDir/libraries/com` 搬到 `outside/com`、原位改成真 junction（`libraries/` 本身是一般資料夾，`lstat` 斷言過）。對照組同樣三案、不建 junction。6 案全過。觀察的檔：`libraries/com/azure/azure-json/1.4.0/azure-json-1.4.0.jar`。
+
+| 案 | 設定 | junction 組 | 對照組 |
+|---|---|---|---|
+| 1 | `verifyAll` 真，那個 jar 內容改壞 | 有請求打到該 jar；**外部的 jar 被換成官方內容**（inode 也變了） | 被換成官方內容（在 gameDir 裡） |
+| 2 | `verifyAll` 假，那個 jar 刪掉 | **檔案寫進外部** | 寫進 gameDir |
+| 3 | `verifyAll` 假，那個 jar 內容改壞 | 沒被碰 | 沒被碰 |
+
+結論：D-LINK-RUNTIME 原本的推論「`libraries/` 底下是連結時修復會刪改外部」成立，而且**一般更新（第 2 案）也會寫到外部**。範圍只到 `libraries/com` 這一層：`versions`、`assets` 的深層與 `ensureVersionJsons` 寫 json 都沒測；前者與 `libraries` 走同一個 `runGroup`（`main/runtime/minecraft.js:398-436`）〔讀碼〕，會不會越界仍是〔推論〕。→ D-LINK-C-DEEP。
+
+### 5.14 runtime-trash 是 junction（實驗 A，2026-10-17）〔實測〕
+
+回應 outside voice（fakechat 1792250567147）的疑點：`removeStaleRuntime` 用 `<root>/.temp/runtime-trash`，基底路徑卻沒列它。scratchpad `cleanup-trash.test.cjs`：真的 `removeStaleRuntime`、真 fs、真 junction，Electron 44.3.0，3 案全過。本機放一份當下版本（`versions/1.21.11`、`runtime/java-21`）與一份過期的（`versions/1.20.1`、`runtime/java-17`）；`outside/` 裡有 `player.dat`。
+
+| 案 | 設定 | 結果 |
+|---|---|---|
+| A1 | `runtime-trash` 本身是 junction 指向 `outside/` | log 只有兩行 `RUNTIME_CLEANUP moved …`；**兩個過期目錄被搬進 `outside/`、留在那裡**（`<時間>-versions-1.20.1/`、`<時間>-runtime-java-17/`）；`player.dat` 沒事；垃圾區的連結本身不在了 |
+| A2 | 對照：沒有 junction | 同樣兩行 log；`outside/` 只有 `player.dat` |
+| A3 | 過期的 `versions/1.20.1` 與 `runtime/java-17` 本身是 junction | 被略過（`listDirs` 用 `Dirent.isDirectory()`，junction 為假）；log 空；連結與外部內容都還在 |
+
+結論：真反例是**越界搬入**，不是刪掉外部；只看函式回傳或 log 會漏（log 說 moved）。→ D-LINK-TRASH。
+
+### 5.15 Java 安裝路徑是 junction（實驗 B，2026-10-17）〔實測〕
+
+回應同一封的疑點 B。scratchpad `java-links.test.cjs`：真的 `installJava`（`main/runtime/java.js`，rename／rm／mkdir 都是真的），Zulu 與 zip 走本機 HTTP，`extractZip`、`runJava` 用假的（照 `test/runtime-java.test.cjs` 的 `javaEnv`）；`outside/` 有 `bin/java.exe`（內容 `PLAYER java`）與 `player.dat`。Electron 44.3.0，5 案全過；**5 案外部都不變、都沒有報錯**。
+
+| 案 | 設定 | 結果 |
+|---|---|---|
+| B1 | `runtime/java-21` 本身是 junction，reinstall（修復） | 連結被換成一般資料夾，裝的是 zip 裡的 Java |
+| B2 | 一般 `java-21`，裡面 `lib` 是 junction，reinstall | 舊目錄整個被換掉（`lib` 連結本身跟著不見），裝新的 |
+| B3 | `java-21.old` 是 junction、`java-21` 存在 | 步驟 1 清殘留：`.old` 連結被刪 |
+| B4 | `.temp/java-21-staging` 是 junction，全新安裝 | 暫存連結被刪，照常安裝 |
+| B5 | 對照：`java-21` 是 junction，不是修復 | 什麼都沒動：`java-21` 仍是連結，指向玩家的 Java |
+
+結論：沒有越界改寫外部，但 B1–B4 會靜默刪掉或換掉連結本身。→ 當時 owner 裁 B1／B3／B4「拒絕並說明」（§7 N-29），後由 D-LINK-C-CLEAN 改判；B5 → D-LINK-C-JAVA。
+
+### 5.16 N5（2026-10-19）〔實測〕
+
+owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（10-19 00:13）〕）。全在全新隔離暫存區；不連公開網址（Semeru 回空、Adoptium 與 Mojang 回 404）。每組用 Node v24.14.1（`node --test`）與 Electron 44.3.0（內含 Node v24.20.0）各跑一次。
+
+**① D2 清理遇到連結**（`e1-cleanup.test.cjs`，真 `removeStaleRuntime`）：兩個 runtime 各 6 案全過。
+
+| 案 | 設定 | 結果 |
+|---|---|---|
+| E1（junction、dir symlink 各一） | 過期目錄內含連結（`versions/1.20.1/natives`、`runtime/java-17/lib`） | 照常搬走、刪掉；**外部不變**；內層連結本身不在了 |
+| E2-dir | 候選本身是 dir symlink（A3 的 symlink 版） | 被略過、log 空；連結還在；外部不變 |
+| E3-dir | 垃圾區本身是 dir symlink（A1 的 symlink 版） | 同 A1：**過期目錄被搬到外部** |
+| E4（junction、dir symlink 各一） | 垃圾區殘骸內含連結 | 外部不變；殘骸裡的連結本身不在了 |
+
+**② Java 的 dir symlink 版**（`e2-java-dirsymlink.test.cjs`）：§5.15 的 B1–B5 換成 dir symlink，加 B3b（`.old` 是 dir symlink、`java-21` 不存在）。兩個 runtime 各 6 案全過，**外部全部不變**。B1–B4 同 §5.15；B3b：步驟 1 把 `.old`（連結本身）搬回成 `java-21`，結果 `java-21` 變成連結＝B5 的狀態；B5：什麼都沒動。
+
+**③ Java zip 的 `.tmp`**（`e3-zip-tmp.test.cjs`，真 `installJava`）：
+
+| 案 | 設定 | 結果 |
+|---|---|---|
+| Z1 | `jre21.zip.tmp` 是 **file symlink** 指向 `outside/victim.bin` | **外部 `victim.bin` 被覆寫成下載內容，安裝回報成功**（net-fetch 用 flags `"w"` 開 `.tmp`，會跟進 file symlink） |
+| Z2 | `jre21.zip` 本身是 file symlink | 外部不變（`rename(.tmp → zip)` 換掉的是連結本身） |
+| Z3／Z4 | `jre21.zip.tmp` 是 junction／dir symlink | 開檔 `EISDIR`，**在 getReader 分支變成 `uncaughtException`**。`node --test` 下兩案判失敗（Electron 那次沒收這兩案）；另寫不經 `node --test`、攔 `uncaughtException` 的單獨版，兩個 runtime 都記到 `uncaughtException EISDIR`。`installJava` 仍 reject（`GGL_JAVA_INSTALL_FAILED`，退到 Mojang 也 404），沒有掛死；外部不變；reject 的是哪一個錯沒記到 |
+| Z5 | `jre21.zip` 本身是 junction | `rename(.tmp → zip)` 回 `EPERM`，換來源、最後安裝失敗；外部不變 |
+
+**原語層**（直接呼叫 `fs`，**不是** GGL 的程式；file symlink、junction、dir symlink 各一）：`createWriteStream(p, { flags: "w" })`——file symlink 寫進外部檔，另兩種 `EISDIR`；`flags: "wx"`——三種都 `EEXIST`；先 `rm(p, { force: true })` 再 `"wx"`——三種都只刪連結本身再建一般檔，外部不變；`rename(一般檔 → 連結)`——file symlink 換掉連結本身，另兩種 `EPERM`。
+
+結論：D2 清理與 Java 的整包清理授權區，在這台 Windows 的 Node／Electron 上只動連結本身（→ D-LINK-C-CLEAN，回歸測試釘住）；`jre21.zip.tmp` 是唯一實測的越界寫入（→ D-N6）；getReader 分支不接 WriteStream error（→ D-X1）。沒測：hardlink、`.part`、instance-record 的兩處、其他種類的 reparse point；X1 在真的 Electron 主程序裡的表現。
+
 ---
 
 ## 6. 討論細節：每個議題怎麼收斂的
@@ -385,6 +489,13 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
 - **實際的 `applyPlan` 順序**〔讀碼，`main/sync/apply.js:73-80`〕：`clearLeftovers` → `markInProgress`（寫 instanceDir 的中斷標記）→ `prepareRuntime`（可能數分鐘，寫 gameDir 子資料夾與 `<root>/runtime`）→ `downloadAll`（寫 staging）→ `findBlockers` → `removeFirst`／`dirsToRemove`／`moveAside` → 放檔 → `rename` → `remove` → `writeRecord` → 清標記、清 staging。
 - **為什麼要「兩個時間點都查」**：只在最前面查，後面幾分鐘（runtime、下載）的空窗就沒守住；只在動手前查，清殘檔、中斷標記、runtime、下載已經先碰到連結了（B、S1、S2 就是這樣發生的）。這不是 TOCTOU 承諾（D-LINK-NOTOCTOU），只是讓兩段各自不會先動手。
 - **產品後果（owner 已確認，D-LINK-CONSEQ）**：某個資料夾是連結，而新記錄裡有任何檔在它底下（例如 `mods/`），每一次更新與修復都會被擋，畫面叫玩家移走連結。這在下載路徑上本來就是如此（§5.1 對照組），修完只是讓所有路徑一致。
+- **Phase 1 細部 plan 期間（2026-10-17～19，時間線見 §2 後半）**：
+  - CC 寫初稿時把 Q3 推薦成「深層連結只記 §9」，隨即用真 junction 實測 `libraries/com`，推論成立（§5.13），撤回（§7 X-18）。
+  - outside voice 指出 runtime-trash 與 Java 安裝兩個疑點；CC 實驗 A 成立（§5.14）、B 外部都不變但連結本身會被刪（§5.15）。owner 裁 runtime-trash 進基底＋L17（D-LINK-TRASH），B1／B3／B4「拒絕並說明」（§7 N-29）。
+  - 10-18 owner 與 outside voice 把「遇到連結」拆成修改／讀取／執行，提出三條邊界：正式內容不刪玩家連結；GGL 專用暫存可刪連結本身；Java 不以連結當安裝來源、重新考慮擋 B5。過期 runtime 內部連結改成 skip-and-log。CC 回報讀碼的三個後果：1b 的拒絕都在 `markInProgress` 之後，會讓已就緒的玩家失去啟動（F1）；Java 來源政策只能在同步時生效（F2）；下載真正跟進的是 `.tmp`，而且只有 file symlink 會（F3）。
+  - 同晚 owner 主動質疑最初的「不支援 Junction」（Stop the Line），要 A（廣泛拒絕）／B（操作與授權邊界）／C（替代）公平比較。CC 提 N5 實驗方案，owner 授權；N5（§5.16）顯示整包清理授權區只動連結本身、F3 在 `jre21.zip.tmp` 成立、getReader 分支會 uncaught。
+  - 10-19 outside voice 提出新的 C，請 CC 反駁。CC 撤回「採 C、1a 完全不變」的理由——真正的依據是 v3「連結不猜不刪」（`plans/instance-sync-v3-commit3a2.md:47`、`:126`、`:184`），不是「地盤」；撤回 rm＋wx（§7 N-33）；把「F3 唯一越界點」縮成「唯一實測」（§7 X-20）；提 N1–N8。
+  - owner 最終裁決採 C（D-LINK-C 群）、N6 有限 B、N7 照拒並接受中斷後果、X1 另項（§3.10）。CC 回寫前核對三個假設：深層證據只寫 `libraries/com` 已實測（owner 同日更正最終裁決的寫法，D-LINK-C-DEEP）；`.ggl-tmp` 由 owner 裁乙（D-LINK-C-TMP）；「記錄寫完後才發現垃圾區是連結」CC 重查後撤回——第二個檢查點已涵蓋，剩下的空窗屬 D-LINK-NOTOCTOU。
 
 ### 6.3 Gate
 
@@ -504,6 +615,9 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
 | X-15 | Runtime 安裝可能在同步流程之外單獨跑、不受 Phase 1 保護 | CC 本檔初版 §5.4、§9 | `prepareRuntime` 唯一的呼叫者是 `applyPlan` | SPR #24（兩個子 agent 附對照組） |
 | X-16 | 「畫面送出前已驗，壞值只可能來自手改」（不分欄位、不分範圍） | CC 第三輪、本檔初版 | 畫面只擋 `> 0`，不擋上限；但結論（檔案裡的壞值只來自手改）在 Phase 4 讓 `SETTINGS_SET` 照同一套規則驗之後仍成立 | SPR #27；`renderer/settings-modal.js:251-254` |
 | X-17 | Runtime 信任根排最後（原 Phase 6） | 本檔初版 | 與 D-ORDER 衝突、與清理改同一批檔、且沒有依賴需要它等 | §6.11；SPR #16、#17；outside voice §八 |
+| X-18 | Q3：runtime 只查三個頂層，深層連結的缺口記進 §9 | CC，Phase 1 細部 plan 初稿（2026-10-17） | 深層改寫外部已實測，而且一般更新也會寫到外部 | §5.13；〔轉述：fakechat 1792250567147〕接受改判 |
+| X-19 | `removeStaleRuntime` 會動的基底路徑在 `applyPlan` 開頭已檢查過（§5.4 第四條） | 本檔定稿 §5.4 | `runtime-trash` 不在基底清單；它本身是 junction 時清理把舊目錄搬到外部 | §5.14（outside voice 提出疑點，CC 實測） |
+| X-20 | 「F3（`jre21.zip.tmp`）是 C 唯一的越界點」 | CC，2026-10-19 回覆 N5 時 | 只是唯一**實測過**的；同一類寫入點至少還有 `.part`、instance-record 兩處 | CC 在回覆 1792373915654 時自己撤回 |
 
 ### 7.2 討論後不採的方案
 
@@ -536,6 +650,15 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
 | N-25 | D-TRUST 寫成列出每個發布者權威範圍的供應鏈政策 | （outside voice 與 owner 預先排除） | owner：「我不想因為一次下載來源修正，就建立龐大的供應鏈政策文件。」只寫信任責任（D-TRUST-RULE） |
 | N-26 | 下載路徑的上層連結也改丟新錯誤碼 | CC 本檔初版 Phase 1 的寫法 | 既有兩個真 junction 測試斷言 `GGL_SYNC_BLOCKED_BY_LINK` 與路徑；下載路徑沿用既有碼與文案，新碼只給刪除、改名、基底路徑（SPR #20） |
 | N-27 | 新 `findLinks` 與 `findBlockers` 各寫一份連結判斷 | 本檔初版的隱含做法 | 同一個政策兩份判斷邏輯；改為共用一個判斷函式。但早期檢查仍須涵蓋下載上層（SPR #21 部分採納，理由見 SPR Adjudication） |
+| N-28 | 刪除、改名、基底路徑三類各開新錯誤碼（下載路徑沿用舊碼） | 本檔定稿時依 SPR #20 的寫法 | 畫面不看碼分流，新碼只換得到文案；`removeFirst` 的目標本身是連結時與不變量衝突。被 D-LINK-CODE 取代（§3.4） |
+| N-29 | Java B1／B3／B4 發現連結就拒絕並說明，不默默刪除或替換連結本身 | owner 2026-10-17（〔轉述：fakechat 1792252404658【B】〕） | 被 D-LINK-C-CLEAN 取代：這三處是整包清理授權區，外部不受影響（§5.15、§5.16），刪連結本身不越界 |
+| N-30 | Java 正式目錄不以連結當安裝來源，同步時擋 B5（含 CC 提的擋法：只查執行鏈，或每次遍歷整個 `java-21`） | owner＋outside voice 2026-10-18（〔轉述：fakechat 1792332924199 二.C〕）；擋法 CC 同日 | 被 D-LINK-C-JAVA 取代。討論中攤開的代價：B5 沒有修改；擋的位置只能在 `markInProgress` 之後，會讓已就緒的玩家失去啟動（F1）；同步時擋也關不掉兩次同步之間照用連結 Java 的那段（F2） |
+| N-31 | 過期 runtime 內部有連結 ⇒ 略過該目錄、寫診斷紀錄（skip-and-log） | owner＋outside voice 2026-10-18（同上 三.3） | 被 D-LINK-C-CLEAN 取代：D2 本來就有整包清理授權（④c G6），N5 E1 實測只刪連結本身、外部不變；只寫 log 也不等於「拒絕並說明」（launcher log 預設不寫，④c G7） |
+| N-32 | Java P0／P1 深掃：同步時遍歷 `.old`、`java-21` 與執行鏈找連結 | CC 2026-10-17～18 | D-LINK-C-CLEAN 明定不需要 |
+| N-33 | `jre21.zip.tmp` 的修法：先 `rm` 再用 `"wx"` 開檔 | CC 2026-10-19 回覆 N5 時 | CC 自己撤回：續傳的 `"a"` 模式沒有對應的 wx；只修一處、同類寫入點還在＝補丁。owner 另明定不把只在原語層測過的 rm＋wx 當成 GGL 驗收（D-N6） |
+| N-34 | N6：「刻意在內部檔名放連結」算在威脅模型外，F3、`.part`、instance-record 都不改、記成缺口 | CC 2026-10-19（回覆 1792373915654） | owner 選有限 B（D-N6） |
+| N-35 | X1 直接治本：getReader 與 pipe 兩個分支合成一條 `stream.pipeline` | CC 2026-10-19（同上） | owner：先做最窄修法，窄修法做不到且有證據才裁 pipeline（D-X1） |
+| N-36 | 共用區的末端連結改成刪連結本身（不拒） | （owner 最終裁決預先排除；CC 在回覆 1792373915654 時列過最小改動與代價、不建議） | 要正式推翻 v3 的「連結不猜不刪」（`plans/instance-sync-v3-commit3a2.md:184`）；代價是默默刪掉玩家的連結，只換到少一次提示（D-LINK-C-SHARED） |
 
 ---
 
@@ -553,6 +676,7 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
   - Phase 5（Runtime 信任根）第五：首次對外發行前必須完成、可獨立驗收與回滾；不依賴清理；先做可避免清理去改它要重寫或刪掉的程式。
   - Phase 6（檢查工具與清理）最後：先補保證再拆防線（原 `defense-cleanup.md` 的順序）；規模最大、可能持續最久。
 - 這個順序來自 CC Round3 §9、§12.5，ChatGPT 第四輪接受為基準方案，SPR 與 outside voice 後調整 5／6（D-PHASE-ORDER）。仍「不是神聖的，若發現具體依賴造成順序必須調整，請說明原因與可驗證的代價」（ChatGPT 第四輪）。
+- **X1、N6 不是 Phase**（2026-10-19 加）：Phase 1 期間裁出的兩項獨立修正（§3.10），各自一個 commit、各自驗收與回滾，**不算進 Phase 1 的完成**；寫在 Phase 1 後面，只因為它們從 Phase 1 的討論裡長出來。開工同樣要 owner 當次授權。
 - **每個 Phase 都要 owner 當次授權才開工**；本檔寫好不等於開工。
 - 每一批的共同驗證：`npm test`、`npm run lint`、`npm run check:ui-css`、實際啟動（`env -u ELECTRON_RUN_AS_NODE npx electron .`）；動到畫面的批次由 owner 看畫面放行。commit 前跑 `conventions.md` §防禦與相容「怎麼執行」的自審 rg。**新增或刪除 IPC channel 的 commit，同一個 commit 重產 `ARCHITECTURE.md` 的 IPC 索引**（`npm run docs:ipc`；CI 會檢查，§5.12）。
 
@@ -579,19 +703,23 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
 **回滾**：單一文件 commit。
 **前置**：無。
 
-### Phase 1 — Sync Junction 封口
+### Phase 1 — Sync／Runtime Junction 封口（1a、1b）
 
-**目的**：讓 `applyPlan` 不會透過連結刪改管理範圍外的東西。
-**範圍**：
-- 一個純函式判斷「這批路徑裡哪些是連結」（暫名 `findLinks`，放 `lib/sync/blocking.js`），**`findBlockers` 的上層連結判斷也改用它**，連結政策只有一份判斷邏輯（N-27）。要查的路徑：
-  - `download`、`remove`、`removeFirst`、`rename.from`、`rename.to` 的每一層上層（Set 去重）；
-  - `remove`、`removeFirst`、`rename.from` 的目標本身；
+〔2026-10-19 依 D-LINK-C 群整段改寫。改寫前的版本 → `git show ac765af:_notes/plans/cross-review-2026-10.md` 的本節；2026-10-17 加在舊「錯誤碼與文案」條尾的 D-LINK-CODE 註記沒進過 git，內容在 §3.4 D-LINK-CODE、§7 N-28〕
+
+**目的**：讓同步（`applyPlan`，以及同一次同步裡的清理）與 runtime 安裝，不會透過連結刪改或搬入管理範圍外的東西（D-LINK-C）。
+**切分**（D-LINK-SPLIT）：1a＝Sync 的檔案系統邊界；1b＝runtime 自己的深層修改路徑。各一個 commit。細部 → `plans/cross-review-2026-10-phase1.md`。
+**範圍 1a**：
+- 一把尺（N-27）：「什麼算連結」只有一處（`kindOf`，吃 `Stats` 也吃 `Dirent`）、連結錯誤只由一處造、文案一份；放 `lib/fs-links.js`，不長成 FS Wrapper（D-LINK-SPLIT）。`findBlockers` 的連結分支改用它。要查的路徑（gameDir 相對）：
+  - `download`、`remove`、`removeFirst`、`rename.from`、`rename.to` 的每一層上層；
+  - 同上五類的目標本身（D-LINK-C-SHARED：v3「連結不猜不刪」）；
   - 新記錄裡每個檔所在的資料夾（`clearLeftovers` 的 `.ggl-tmp` 在那裡，`main/sync/apply.js:136-142`）；
   - gameDir 底下 runtime 會寫的頂層子資料夾：`versions`、`libraries`、`assets`（D-LINK-RUNTIME）。
-- 基底路徑另外 `lstat`：`root`、`groupDir`、`instanceDir`、`gameDir`（D-LINK-SCOPE）、`tempDir`、`tempDir/sync-staging`（D-LINK-TEMP）、`<root>/runtime`（D-LINK-RUNTIME）。既有 `fsProbe` 的 `abs()` 以 gameDir 為根（`main/sync/apply.js:70`），基底路徑需要另一個 probe（SPR #22）；`fsProbe.kind` 對「不是檔也不是資料夾」的東西一律回 `"other"`（`:286-299`），是否連同其他特殊項目一起拒絕，在細部 plan 寫明是否為本意。
+- 基底路徑另外 `lstat`，共 8 個：`root`、`groupDir`、`instanceDir`、`gameDir`（D-LINK-SCOPE）、`tempDir`、`tempDir/sync-staging`（D-LINK-TEMP）、`tempDir/runtime-trash`（D-LINK-TRASH）、`<root>/runtime`（D-LINK-RUNTIME）。既有 `fsProbe` 的 `abs()` 以 gameDir 為根（`main/sync/apply.js:70`），基底路徑需要另一個 probe（SPR #22）。判成 `"other"` 的特殊項目一律拒絕（細部 plan Q2）。
+- `.ggl-tmp` 是連結：刪連結本身、更新照常、寫一行 log（D-LINK-C-TMP）。
 - **兩個檢查點**（實際順序見 §6.2）：
   1. **第一個**：在 `clearLeftovers` 與 `markInProgress` **之前**（SPR #23）。
-  2. **第二個**：與 `findBlockers` 同一時間點（下載之後、動手之前）。
+  2. **第二個**：與 `findBlockers` 同一時間點（下載之後、動手之前）。基底路徑兩次都查。
 - **擋下時的契約**（取代初版「什麼都不動、不寫記錄」，X-13）：
 
   | 在哪一次被擋 | 已經發生（合法、都在管理範圍內） | 不得發生 |
@@ -600,19 +728,64 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
   | 第二個檢查點 | 清過殘檔、**中斷標記已建立並保留**、runtime 已準備、staging 裡有下載檔——依 Sync v3 既有的失敗契約處理（標記留著 ⇒ 下次同步走 `verifyAll`；staging 下次重用或清掉） | `removeFirst`／`dirsToRemove`／`moveAside`／放檔／`rename`／`remove`；**寫入 `sync-record.json`（成功記錄）**；任何透過連結動到外部 |
 
   不為了讓第二個檢查點「什麼都不動」而新增交易機制或改寫中斷恢復流程（D-SYNC）。
-- **錯誤碼與文案**：下載路徑的上層是連結 ⇒ **沿用既有 `GGL_SYNC_BLOCKED_BY_LINK` 與文案**（既有兩個真 junction 測試斷言它與 `e.path`，`test/sync-apply.test.cjs:723,749`）；新錯誤碼只給刪除、改名、基底路徑三類，各自登記進 `BLOCKED_MESSAGES`（`main/sync/apply.js:24-31`，漏登記會在擋下當下丟 `TypeError`）。基底路徑的文案要講修法（例如根目錄：「安裝位置是捷徑或連結，請在設定裡直接填它實際所在的位置」）。
-**不做**：不重寫 `planSync`／`applyPlan` 的流程；不動 `findBlockers` 原本的檔↔資料夾形狀責任；不擴張到 `userData`；不承諾 TOCTOU；不查 `launcherRootDir` 往上的路徑。
-**不變量**：既有兩個真 junction 測試（錯誤碼與路徑不變）；正常更新、`removeFirst`、大小寫改名、中斷恢復的既有測試全過；沒有連結時行為完全不變。
-**驗收**（每案都斷言：明確拒絕＋錯誤碼正確＋`e.message` 非空且含路徑＋外部位元組不變＋`sync-record.json` 位元組不變＋中斷標記的存在與否符合上表）：
-- §5.1 A／B／C、§5.2 G1／G2／G3、§5.3 S1／S2；
-- `launcherRootDir` 本身是 junction；`instanceDir` 本身是 junction（外部不得出現中斷標記，SPR #23）；
-- `libraries/`（或 `versions/`、`assets/` 之一）是 junction；`<root>/runtime` 是 junction；
-- `remove` 的目標本身是連結；
-- **第二個檢查點**：在注入的 `deps.download` 裡才建 junction（下載期間才出現），斷言動手前被擋、中斷標記保留、成功記錄沒寫（SPR #39）；
-- `findLinks` 的純函式單元測試；`npm test` 全過。
-**回滾**：單一 commit。
-**前置**：無（Q-1、G1 已裁）。
-**已知未驗**：`lstat` 次數「遠少於檔案數」是推論，沒量過記錄裡的資料夾分布。
+- **錯誤碼與文案**：所有連結拒絕共用 `GGL_SYNC_BLOCKED_BY_LINK`（D-LINK-CODE；既有兩個真 junction 測試斷言它與 `e.path`，`test/sync-apply.test.cjs:723,749`）。文案分 game／root／managed 三種：先說操作已停止與玩家下一步、路徑放後面，managed 稱「位置」，不把特殊項目硬說成 Junction（細部 plan Q4）；基底路徑的文案要講修法。
+**範圍 1b**（D-LINK-C-DEEP）：
+- `main/runtime/minecraft.js` 在修改 gameDir 底下的深層路徑之前（sha1 不符時的 `rm`、下載、寫版本 json），查它的每一層上層；遇到連結就拒絕，用 1a 的同一個錯誤碼與文案。只讀不拒。檢查不得放在 `main/runtime/download.js` 的來源迴圈裡（那裡的 `try` 會把拒絕吞掉，細部 plan §1b）。
+- 拒絕發生在 `markInProgress` 之後：接受既有 interrupted／localReady 的後果，不加復原交易、不加啟動閘。
+- Java 的 `java-<n>`、`.old`、staging、zip 與 D2 清理**不改程式**（D-LINK-C-CLEAN、D-LINK-C-JAVA）；以回歸測試釘住現在「只動連結本身」的行為（N4）。
+**不做**：不重寫 `planSync`／`applyPlan` 的流程；不動 `findBlockers` 原本的檔↔資料夾形狀責任；不擴張到 `userData`；不承諾 TOCTOU；不查 `launcherRootDir` 往上的路徑；不做 Java P0／P1 深掃、不做過期 runtime skip-and-log；不加啟動閘；不建通用 FS Manager／Wrapper；GGL 內部檔名的寫入出口（→ N6）與下載寫檔錯誤（→ X1）不在本 Phase。
+**不變量**：既有兩個真 junction 測試（錯誤碼與路徑不變）；正常更新、`removeFirst`、大小寫改名、中斷恢復、修復、Java 安裝與 `.old` 恢復、D2 best-effort 清理、狀態、啟動的既有測試全過；Gate 不可用而本機已就緒仍可啟動；沒有連結時行為完全不變。
+**驗收**（拒絕案每案都斷言：明確拒絕＋錯誤碼正確＋`e.message` 非空且含路徑＋外部位元組不變＋`sync-record.json` 位元組不變＋中斷標記的存在與否符合上表）：
+- **1a**：
+  - §5.1 A／B／C、§5.2 G1／G2／G3、§5.3 S1／S2；
+  - `launcherRootDir` 本身是 junction；`instanceDir` 本身是 junction（外部不得出現中斷標記，SPR #23）；
+  - `libraries/`（或 `versions/`、`assets/` 之一）是 junction；`<root>/runtime` 是 junction；
+  - `remove` 的目標本身是連結；
+  - **第二個檢查點**：在注入的 `deps.download` 裡才建 junction（下載期間才出現），斷言動手前被擋、中斷標記保留、成功記錄沒寫（SPR #39）；
+  - **runtime-trash 是 junction**：在真的會呼叫 `removeStaleRuntime` 的 sync-index 層，外部既有檔不變**而且沒有多出任何東西**（D-LINK-TRASH）；
+  - `.ggl-tmp` 是連結：同步成功、連結本身不在、外部不變、log 有一行（D-LINK-C-TMP）；
+  - 覆蓋率測試分「上層」「目標本身」兩部分，並寫明它看不到的寫入（細部 plan Q1、L16）；
+  - `findLinks` 等純函式的單元測試；`npm test` 全過。
+- **1b**：
+  - §5.13 的三案（第三案是對照：沒有修改就不擋）；
+  - `versions`、`assets` 深層與版本 json 的深層連結——這些情境實驗前是推論，1b 是**補測試**，不是已證實（D-LINK-C-DEEP）；
+  - 被拒後中斷標記仍存在（interrupted 的後果放進驗收，不藏）；
+  - 回歸釘：§5.15、§5.16 的 Java B1–B5、B3b 與 D2 E1／E2／E4，斷言外部不變；
+  - `npm test` 全過。
+**完成定義**：1a、1b **都**由 owner 驗收放行，才算 Phase 1 完成（D-LINK-SPLIT、D-LINK-C-STOP）；1a 單獨完成不算。X1、N6 不在內。
+**回滾**：1a、1b 各一個 commit。1b 用 1a 的 `lib/fs-links.js`：只回 1b 可以；要回 1a 先回 1b。
+**前置**：無（Q-1、G1 已裁）。1b 的前置是 1a。
+**已知未驗**：`lstat` 次數「遠少於檔案數」是推論，沒量過記錄裡的資料夾分布；hardlink、其他種類的 reparse point 不涵蓋；B5／B3b 時，就緒判定與啟動照用連結指向的 Java（D-LINK-C-JAVA）。
+
+### X1 — 下載寫檔錯誤的傳遞（D-X1）
+
+不是 Phase：Phase 1 期間裁出的獨立修正，不算進 Phase 1 的完成（§3.10）。
+
+**目的**：`main/net-fetch.js` `downloadToFile` 的 getReader 分支（`:196-232`）沒接 WriteStream 的 `error`（pipe 分支 `:262` 有接），開檔或寫入失敗時變成 `uncaughtException`（§5.16 Z3／Z4）。沒有連結也觸發得到，例如寫到一半磁碟滿〔推論〕。
+**範圍**：最窄修法——開檔／寫入／`end` 的故障要 reject **原始錯誤**、釋放資源（response body、檔案 stream、非續傳的暫存檔）、不 uncaught、不掛死、不吞錯。只有窄修法做不到、又有具體證據時，才把「改成 `stream.pipeline`」交 owner 裁。細部 plan 開工前寫。
+**不做**：不先改寫整個下載器；不改重試分類（`isRetryableError`，`:100`）；不碰連結（那是 N6）。
+**不變量**：abort、stall、retry、progress、206 續傳、200 回退的既有測試全過。
+**驗收**（下限；CC 在回覆 fakechat 1792373915654 時提出）：partPath 事先放一個一般資料夾 ⇒ reject、code `EISDIR`；同上但 body 是 0 byte（走 `end` 那條路）；mock 讓第 2 次 write 回 `ENOSPC` ⇒ reject 帶 `ENOSPC`、不重試、連線被關；每案 `uncaughtException` 計數為 0、2 秒內結束；既有測試全綠。
+**回滾**：一個 commit。
+**前置**：無；不依賴 Phase 1。
+**已知未驗**：在真的 Electron 主程序裡，`uncaughtException` 會跳對話框還是結束程式；Z3 的 Promise reject 的是哪一個錯。
+
+### N6 — GGL 內部寫入出口的連結保護（D-N6，有限 B）
+
+不是 Phase：Phase 1 期間裁出的獨立修正，不算進 Phase 1 的完成（§3.10）。
+
+**停損（動工前先讀，施工中每一步都適用）**：碰到下面任何一種，**立刻停下，向 owner 報成本與反例**，不得為了完成 N6 強行施工——要新增通用 FS Manager；要跨模組重構整套下載；要引入多重狀態或恢復路徑；例外大量增生；NTFS 案例沒完沒了。CC 估的「一個 helper、四個呼叫點、約五支測試」只是估算，不是核定工時（〔轉述：fakechat 1792385986641【N6】〕）。
+**目的**：已識別的 GGL 內部檔名寫入出口被換成 file symlink 時，不跟進去寫外部檔。
+**範圍**：
+- 已實測：`jre21.zip.tmp`（§5.16 Z1）＝`net-fetch` 非續傳分支的 `.tmp`（`main/net-fetch.js:160`、`:197-198`）。每個 runtime 檔的下載也走這個出口（`downloadRuntimeFile` 用 `resume: false`，`main/runtime/download.js:175`），修在 net-fetch 就一起涵蓋〔讀碼〕。
+- 靜態候選，**不得冒稱已實測**：`net-fetch` 續傳分支的 `.part`（`:147-156`、`:160-198`）；instance-record 的 `sync-record.json.tmp`（`writeRecord`，`main/sync/instance-record.js:27-33`）與 `sync-in-progress`（`markInProgress`，`:35-43`）。
+- 靜態候選（2026-10-20 列入，D-N6），**尚未實測**、受本節停損約束：`ensureVersionJsons` 的 `writeJsonReplacing` 用 `writeFile` 寫 `<json>.tmp`（`main/runtime/minecraft.js:212-221`），推論同樣會跟進 file symlink〔推論；2026-10-19 回寫時讀碼看到〕。列入不擴大施工承諾。
+- 先評估少量、局部、容易回歸的單一寫入責任處置；細部 plan 開工前寫，含要先做的最小實驗（例如 `.part` 是 file symlink 時的實際行為）。
+**不做**：不把只在原語層測過的 rm＋wx 當成 GGL 驗收（N-33）；不為 `.part` 續傳另造下載機制；hardlink 不自動列入承諾，有必要且成本可控才提依據與驗收；不碰 X1 的錯誤傳遞。
+**不變量**：續傳 Range／部分檔保留、retry、hash、原子記錄、Sync 中斷語意不變；正常的 `.part`／`.tmp` 照舊。
+**驗收**：細部 plan 定；下限＝Z1 轉成 GGL 層的回歸測試（外部 `victim.bin` 不變、不回報假成功），每個處理到的候選各一案，既有下載與記錄測試全綠。
+**回滾**：一個 commit。
+**前置**：X1。兩者改同一段 `main/net-fetch.js:160-232`，先做 X1、N6 疊在上面，免得其中一項的測試要重寫。
 
 ### Phase 2 — 常駐最小故障日誌
 
@@ -741,5 +914,5 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
 3. **D-SET-UNKNOWN 的反例只想到「發行後降級」一種**：如果有工具或使用習慣會自動往 `settings.json` 塞鍵（例如編輯器的 `$schema`、使用者自己加的註解鍵），那是另一類反例；目前沒有證據顯示有。**測試者的設定檔沒查**，裡面可能有 Cursor 時期留下的舊鍵，Phase 4 上線後他啟動會先被拒一次（訊息會寫出鍵名）。
 4. **§4.2 把 U2–U15 全部列為未決**：這是照 ChatGPT 的轉述與 outside voice 的確認保守處理。如果 owner 在與 ChatGPT 的對話裡其實已經逐項放行過，這裡會多問。
 5. **§3 標〔轉述〕的裁決**：CC 沒看到原話，只能依 ChatGPT 文件的轉述。轉述和 owner 本意有落差時，以 owner 為準。
-6. **D-LINK-RUNTIME 的後果**是推論，沒實測（「`libraries/` 是 junction 時修復會刪改外部檔」）。Phase 1 的驗收案會把它釘住。
+6. **D-LINK-RUNTIME 的後果**是推論，沒實測（「`libraries/` 是 junction 時修復會刪改外部檔」）。Phase 1 的驗收案**釘不住它**：那些案在第一個檢查點就擋下，runtime 還沒跑，只證明得了「擋住了」，證明不了「不擋會刪到外部」。這條在本事件裡始終是推論；要釘住得另做實驗（真的 `prepareRuntime`＋`libraries/` 是 junction＋修復），本事件不做。〔2026-10-17 更正：原寫「Phase 1 的驗收案會把它釘住。」，寫細部 plan 時發現不成立 → `plans/cross-review-2026-10-phase1.md`〕〔2026-10-19 更正：2026-10-17 稍晚另做了實驗，`libraries/com` 已實測會改寫外部（§5.13，§7 X-18）；`versions`、`assets` 的深層仍是推論，由 1b 補測試（D-LINK-C-DEEP）〕
 7. **四個審查者裡三個是 Claude**（CC 與三個 Sonnet 子 agent），可能共享盲點；ChatGPT（不同模型家族）在交叉審查與 outside voice 都參與了，但它看不到這台機器、沒有實測能力。
