@@ -22,7 +22,7 @@ npm start
 ## Structured logs (support / debugging)
 
 - Main process: `main/ggl-log.js` (`gglEvent` / `gglError`) prints one line per event: prefix `[GGL]` + JSON (easy to `grep` / share in screenshots). Every event is also written to `userData/ggl-launcher.log` (even with debug logging off), with error messages left out and the home directory replaced by `~`.
-- Renderer: `renderer/ggl-log.js` exposes `window.GglStructuredLog` with the same shape.
+- Renderer: `renderer/ggl-log.js` exposes `window.GglStructuredLog` with the same shape. `gglError` also sends the event ID to main (`log:rendererError`); only IDs listed in `lib/renderer-error-events.js` reach `ggl-launcher.log`.
 
 ---
 

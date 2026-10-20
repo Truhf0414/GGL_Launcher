@@ -132,6 +132,7 @@ function createMainAppReadyContext({ app, appRoot }) {
     readDismissedNotificationIds,
     writeDismissedNotificationIds,
     serverConfig,
+    gglError,
   });
   const {
     sendSyncStatus,
