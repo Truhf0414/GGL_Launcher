@@ -28,7 +28,7 @@
 
 1. **邊界上驗一次**：在值進來的那一處驗證並轉成內部形狀（設定→`normalizeSettingsObject`、站台→`lib/sync/site-format.js`、實例紀錄→`lib/sync/record-format.js`）。不合格就明確拒絕或丟掉重來，並出聲。
 2. **邊界內信任**：不寫 `?.`、`||`／`??` 預設、`typeof` 檢查、try/catch、空函式預設去防。依賴缺了在建立時丟錯（範本：`main/sync/index.js` 的 `assertRequiredDeps`）。邊界內的保證若沒有機制在守，補機制，不補防線。
-3. **出聲**：main 寫 `gglError`（常駐故障日誌 `userData/ggl-launcher.log`，debug 關著也寫）；`appendLauncherLog`（桌面 `launcher.log`）只放 debug 細節。使用者按了東西而失敗，要讓他在畫面上看到。〔2026-10-14 起。畫面寫 log 檔的管道 → `plans/cross-review-2026-10.md` Phase 2b〕常駐日誌負責縮小故障範圍、不承諾還原根因，深入診斷靠 debug（→ 同檔 D-LOG-SCOPE）。
+3. **出聲**：main 寫 `gglError`（常駐故障日誌 `userData/ggl-launcher.log`，debug 關著也寫）；`appendLauncherLog`（桌面 `launcher.log`）只放 debug 細節。使用者按了東西而失敗，要讓他在畫面上看到。〔2026-10-14 起〕畫面的 `gglError` 經 `log:rendererError` 只送事件 ID，main 只收 `lib/renderer-error-events.js` 的清單（→ `plans/cross-review-2026-10.md` D-LOG-IPC）。常駐日誌負責縮小故障範圍、不承諾還原根因，深入診斷靠 debug（→ 同檔 D-LOG-SCOPE）。
    - `gglError` 的 `detail` 放什麼由呼叫處決定（白名單）：不放 token、帳號物件、完整 JVM 參數、OAuth 原始回應、帶敏感參數的完整 URL；限長、截 stack 不算脫敏。不建泛用的敏感字串掃描器。出處 → `plans/cross-review-2026-10.md` D-LOG-PRIVACY。
    - 檔裡的 `err` 只留：`name`（清單內，否則 `OtherError`）、`code`（errno 的鍵；GGL 碼要進明確的允許清單，不看 `GGL_` 前綴——清單在接到需要它的路徑時才建）、`syscall`（清單內）、`st`（app 內 `.js` 的相對位置，最多 4 個）。`err.message` 永遠不寫；家目錄換成 `~`。實作在 `lib/ggl-structured-log.js`。出處 → 同檔 D-LOG-FIELDS、D-LOG-MSG、D-LOG-HOME。
 4. **吞錯只限清理與探測**：`catch` 裡寫一行為什麼可以吞。

@@ -72,7 +72,7 @@ Use this table to find code after splits. **When you add or extract a new `main/
 | `main/microsoft-auth.js` | Microsoft / Xbox / Minecraft OAuth（PKCE、localhost callback）、`registerAccountIpcHandlers`（由 `main/ipc-runtime.js` 呼叫）；`configureMicrosoftAuth({...})` 由 `main/app-ready.js` 注入 `msClientId`、`loopbackPort`（值在 `lib/server-config.js` 的 `microsoftAuth`）、視窗圖示路徑與 sync UI callbacks |
 | `main/ipc-handlers.js` | `createMainIpcBridge(deps)`：經 `main/ipc-bridge.js` 建立 `sendSync*` / `sendMc*` / `sendInstanceStatus` / `sendServerStatus` 等推播；`setupMainIpc()` 交給 `main/ipc-runtime.js` 註冊 |
 | `main/ipc-runtime.js` | `createIpcRuntime({...}).setupOnce()`：只註冊一次；先 `registerAccountIpcHandlers`，再 `main/ipc/index.js` 的 `registerAllMainIpc`。不 require electron（`ipcMain`、`shell`、`dialog` 由注入） |
-| `main/ipc/*.js` | 各組 `ipcMain.handle`（視窗、外部連結、設定、伺服器預設值、目錄選擇、通知、Minecraft 啟動、實例、診斷），由 `main/ipc/index.js` 統一接；新檔要接進 `index.js`。handler 與 allowlist 對不對得上由 `test/ipc-registry.test.cjs` 守 |
+| `main/ipc/*.js` | 各組 `ipcMain.handle`（視窗、外部連結、設定、伺服器預設值、目錄選擇、通知、Minecraft 啟動、實例、診斷、畫面錯誤進常駐日誌），由 `main/ipc/index.js` 統一接；新檔要接進 `index.js`。handler 與 allowlist 對不對得上由 `test/ipc-registry.test.cjs` 守 |
 | `main/mc-mirror.js` | BMCL / 自訂 / 官方鏡像、`rankSourcesByQuickProbe`、`getMcMirrorDecision`（TTL + 併發 single-flight） |
 | `main/runtime/download.js` | runtime 安裝的下載底層：整段有期限的 json／文字抓取、候選網址逐台下載並逐台驗 hash、來源健康度（停滯過的排最後）、第一個錯就全停且等全部停下的池 |
 | `main/runtime/minecraft.js` | 候選清單（鏡像／官方／Fabric 三台）、原版與 Fabric 兩份 version json（本機有效就沿用）、版本 jar／library／asset index／objects 的安裝與進度 |
@@ -117,6 +117,7 @@ Use this table to find code after splits. **When you add or extract a new `main/
 - `instance:recheck` (`main/ipc/instance-ipc.js`)
 - `instance:repair` (`main/ipc/instance-ipc.js`)
 - `instance:update` (`main/ipc/instance-ipc.js`)
+- `log:rendererError` (`main/ipc/log-ipc.js`)
 - `minecraft:isRunning` (`main/ipc/minecraft-ipc.js`)
 - `minecraft:launch` (`main/ipc/minecraft-ipc.js`)
 - `minecraft:launchOffline` (`main/ipc/minecraft-ipc.js`)

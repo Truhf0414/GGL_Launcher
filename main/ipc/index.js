@@ -7,6 +7,7 @@ const { registerNotificationsIpc } = require("./notifications-ipc");
 const { registerMinecraftIpc } = require("./minecraft-ipc");
 const { registerInstanceIpc } = require("./instance-ipc");
 const { registerDiagnosticsIpc } = require("./diagnostics-ipc");
+const { registerLogIpc } = require("./log-ipc");
 
 function registerAllMainIpc(ctx) {
   registerWindowIpc(ctx);
@@ -18,6 +19,7 @@ function registerAllMainIpc(ctx) {
   registerMinecraftIpc(ctx);
   registerInstanceIpc(ctx);
   registerDiagnosticsIpc(ctx);
+  registerLogIpc(ctx);
 }
 
 module.exports = { registerAllMainIpc };
