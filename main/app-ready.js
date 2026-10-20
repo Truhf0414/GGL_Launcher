@@ -5,7 +5,7 @@
  * @param {object} ctx
  */
 
-const { gglEvent } = require("../lib/ggl-structured-log");
+const { gglEvent } = require("./ggl-log");
 
 /** 與 `main.js` 的 `getMainAppReadyContext()` 鍵名一致；增刪注入時請兩邊一併改。 */
 const MAIN_APP_READY_KEYS = [
