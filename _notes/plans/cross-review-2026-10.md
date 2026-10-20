@@ -1,6 +1,6 @@
 # 交叉審查後的收斂施工（2026-10）
 
-**狀態**：2026-10-14 建立；四輪交叉審查（owner＋ChatGPT＋CC）收斂；同日跑完 SPR（三個 Sonnet 子 agent＋ChatGPT outside voice，紀錄 → `reviews/cross-review-2026-10-v54d4d36d-20261014.md`），owner 裁完 grilling，本檔依 SPR 結果與 outside voice 修正定稿。2026-10-17 Phase 0 完成（`53a9d60`）；同日 Phase 1 細部 plan 初稿（→ `plans/cross-review-2026-10-phase1.md`）、owner 裁 D-LINK-CODE；2026-10-17～19 經 fakechat 與 outside voice 多輪收斂 Junction 的責任界線（§2 後半、§6.2 末），2026-10-19 owner 裁 D-LINK-C 群（§3.4）與 X1、N6（§3.10），同日細部 plan 依此整份重寫；2026-10-20 owner 採納 1b 兩項細節（D-LINK-C-DEEP-1B）、`<json>.tmp` 列入 N6 候選；同日 Phase 1 完成（1a `4d7721e`、1b `9906d13`，皆經 owner 驗收放行，→ `plans/cross-review-2026-10-phase1.md`）；Phase 2–6、X1、N6 **皆未動工**。本行只記已發生的事；下一步只住 `STATUS.md`（`filing.md` §本專案細則）。
+**狀態**：2026-10-14 建立；四輪交叉審查（owner＋ChatGPT＋CC）收斂；同日跑完 SPR（三個 Sonnet 子 agent＋ChatGPT outside voice，紀錄 → `reviews/cross-review-2026-10-v54d4d36d-20261014.md`），owner 裁完 grilling，本檔依 SPR 結果與 outside voice 修正定稿。2026-10-17 Phase 0 完成（`53a9d60`）；同日 Phase 1 細部 plan 初稿（→ `plans/cross-review-2026-10-phase1.md`）、owner 裁 D-LINK-CODE；2026-10-17～19 經 fakechat 與 outside voice 多輪收斂 Junction 的責任界線（§2 後半、§6.2 末），2026-10-19 owner 裁 D-LINK-C 群（§3.4）與 X1、N6（§3.10），同日細部 plan 依此整份重寫；2026-10-20 owner 採納 1b 兩項細節（D-LINK-C-DEEP-1B）、`<json>.tmp` 列入 N6 候選；同日 Phase 1 完成（1a `4d7721e`、1b `9906d13`，皆經 owner 驗收放行，→ `plans/cross-review-2026-10-phase1.md`）；同日 Phase 2a 完成（`9db125b`，經 owner 驗收放行，→ `plans/cross-review-2026-10-phase2.md`）；Phase 2b、3–6、X1、N6 **皆未動工**。本行只記已發生的事；下一步只住 `STATUS.md`（`filing.md` §本專案細則）。
 **這份檔是什麼**：這一整個事件的權威 plan——起點、經過、裁決、證據、被推翻的方案、各 Phase 的責任邊界與驗收。各 Phase 的**細部施工步驟不在這裡**，在該 Phase 開工前另寫（理由見 §8.0）。
 **owner 的要求（本檔的寫法依據）**：「針對最終 Plan 產物，我想請你新做一個 Plan 而不是單純的做回填。一樣保持誠實，然後不總結不壓縮原有問題。接著將討論細節、決策還有失敗方針/廢案也寫入這份文件裡。這一整個會是個有規模的事件，我想認真的分節對待。」（2026-10-14）
 **程式基準**：本檔所有行號以 `7aa85c5` 為準（2026-10-14 現查 HEAD＝`7aa85c5`）。2026-10-19 新增的段落以 `ac765af` 為準；兩者之間程式與測試沒有變動（`git diff --stat 7aa85c5 ac765af -- main lib test` 為空，同指令不帶路徑列出 14 個文件檔）。動工前每條現讀；行號漂移照 `filing.md` §本專案細則「行號對齊」加註。
@@ -329,9 +329,9 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
 |---|---|---|---|
 | `appendLauncherLog`（`main/launcher-log.js:24-35`） | 桌面 `launcher.log` | **只在 debug**（`:25` `if (!debugLoggingEnabled) return;`） | 直接呼叫：`app-ready` 1、`discord-rpc` 3、`ipc-bridge` 6、`ipc/window-ipc` 1、`ipc/instance-ipc` 1（`:35`，SPR #30 補）、`net-fetch` 1、`start-main` 2；另以 `deps.log` 注入給 runtime 等模組（注入處數量沒數） |
 | `appendRpcDiagLog`（`main/launcher-log.js:37-50`） | `userData/rpc-launch.log` | **只在 debug** | `discord-rpc` 7 處 |
-| `gglEvent`／`gglError`（`lib/ggl-structured-log.js:7-45`） | **只印到 console**，不寫檔 | 一律 | main 端共 6 處，全是啟動生命週期事件；`gglError` 只有 1 處（`main/start-main.js:192` 的 `start_main_failed`）。renderer 端另有 `renderer/ggl-log.js` |
+| `gglEvent`／`gglError`（`lib/ggl-structured-log.js:7-45`） | **只印到 console**，不寫檔 | 一律 | main 端共 6 處，全是啟動生命週期事件；`gglError` 只有 1 處（`main/start-main.js:192` 的 `start_main_failed`）。renderer 端另有 `renderer/ggl-log.js`〔對齊 2026-10-20：`lib/ggl-structured-log.js:7-45` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 整檔改寫：`gglEvent`／`gglError` 移進 `createGglLog`（`:115-192`），各在 `:140`、`:159`；`main/start-main.js:192` 未移動〕 |
 
-另外：`main/main-window.js:78-101` 對 renderer 的 `console-message`、`render-process-gone`、`preload-error` **只在 debug 時才接**，而且接了也只是 `console.log`。`main/diagnostics-export.js:108-120` 已會複製 `settings.json`、桌面 `launcher.log`、`rpc-launch.log` 到 `userData/diagnostics/<時間>/`。既有輪替函式 `rotateLauncherLogIfTooLarge`（`main/launcher-log.js:52-`，async，只管桌面 log）。
+另外：`main/main-window.js:78-101` 對 renderer 的 `console-message`、`render-process-gone`、`preload-error` **只在 debug 時才接**，而且接了也只是 `console.log`。`main/diagnostics-export.js:108-120` 已會複製 `settings.json`、桌面 `launcher.log`、`rpc-launch.log` 到 `userData/diagnostics/<時間>/`。既有輪替函式 `rotateLauncherLogIfTooLarge`（`main/launcher-log.js:52-`，async，只管桌面 log）。〔對齊 2026-10-20：`main/main-window.js:78-101` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 後 `:80-93`，`render-process-gone`、`preload-error` 移出 debug 區塊、改由 `:78` 一律掛（`main/renderer-failure-log.js`）；`main/diagnostics-export.js:108-120` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 後 `:110-129`（中間插入常駐日誌兩份檔的複製）〕
 
 **由此推出的關鍵事實**：`conventions.md` §防禦與相容 第 3 條「出聲：main 寫 `appendLauncherLog`」在玩家預設狀態下什麼都沒寫。`defense-cleanup.md` 裡所有「補 log」項目（B6、M-SILENT 整組）照原樣施工，到了玩家那邊全是靜音。這條規則是 CC 前一輪寫進 conventions、owner 放行的——**規則本身指向一個預設關閉的機制**。
 
@@ -382,9 +382,9 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
 - **IPC 端已拒絕不認得的鍵**：`main/ipc/settings-ipc.js:22,28-31`，註解寫「不認得的鍵直接擋下：normalizeSettingsObject 只輸出認得的鍵，放行只會被悄悄丟掉、設定視窗還顯示儲存成功」——同一個理由對檔案一樣成立（§6.5）。
 - **畫面的檢查**：送出前把記憶體轉成數字或 `null`（`renderer/settings-modal.js:249-254`），只擋 `> 0`，**不擋上限**——現在就能送出 100 GB 並被 main 偷偷夾回；`min > max` 會在畫面擋下（`:256-266`）。不合格時用既有的 `setSettingsError` 顯示（`:279`）。
 - **`minMemoryGb` 的 0**：啟動時 `const minMb = settings?.minMemoryGb ? mbFromGb(settings.minMemoryGb) : 0;`（`main/minecraft-launch.js:213`），0 與 `null` 效果相同（都不設下限）。
-- **寫入者**：只有 `ensureSettingsFileInitialized`（`main/app-ready.js:119`）與 `SETTINGS_SET`（`main/ipc/settings-ipc.js:47`）。初始化在 IPC 註冊（`app-ready.js:159`）之前跑完，兩者不會同時寫；真正可能並行的只有「儲存」連按兩下。
-- **讀取者**（SPR #26）：開機 `app-ready.js:122`；同步中樞每次算狀態（`main/sync/index.js:165-166` `gather()`，丟錯會被包成 `internal-error`）；`writeSettings` 先讀（`main/settings.js:169`）；診斷匯出（`main/diagnostics-export.js:43`）；`SETTINGS_SET` 換根目錄時（`settings-ipc.js:38`）。`SETTINGS_GET` 走 `readSettingsRaw`＋`normalizeSettingsObject`（`settings-ipc.js:5-19`），**繞過** `readSettings`。〔對齊 2026-10-20：`main/sync/index.js:165-166` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a） 未移動〕
-- **初始化順序**：`app-ready.js:119` `ensureSettingsFileInitialized` → `:122` `readSettings` → `:125` `createMainWindow` → `:159` `setupMainIpc`。這一段丟出的錯，會被 `main/start-main.js:191-195` 接住，交給 `main/startup-failure.js` 跳原生錯誤框後結束程式（`:3-5` 寫了必須結束的理由：不結束會握著單一實例鎖，之後每次開啟都安靜退出）。錯誤框目前一律印 `err.stack`（`:11`），既有測試斷言內容含 stack（`test/startup-failure.test.cjs:~27-31`）。
+- **寫入者**：只有 `ensureSettingsFileInitialized`（`main/app-ready.js:119`）與 `SETTINGS_SET`（`main/ipc/settings-ipc.js:47`）。初始化在 IPC 註冊（`app-ready.js:159`）之前跑完，兩者不會同時寫；真正可能並行的只有「儲存」連按兩下。〔對齊 2026-10-20：`main/app-ready.js:119`、`app-ready.js:159` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 未移動〕
+- **讀取者**（SPR #26）：開機 `app-ready.js:122`；同步中樞每次算狀態（`main/sync/index.js:165-166` `gather()`，丟錯會被包成 `internal-error`）；`writeSettings` 先讀（`main/settings.js:169`）；診斷匯出（`main/diagnostics-export.js:43`）；`SETTINGS_SET` 換根目錄時（`settings-ipc.js:38`）。`SETTINGS_GET` 走 `readSettingsRaw`＋`normalizeSettingsObject`（`settings-ipc.js:5-19`），**繞過** `readSettings`。〔對齊 2026-10-20：`main/sync/index.js:165-166` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a） 未移動〕〔對齊 2026-10-20：`app-ready.js:122` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 未移動；`main/diagnostics-export.js:43` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 後 `:45`〕
+- **初始化順序**：`app-ready.js:119` `ensureSettingsFileInitialized` → `:122` `readSettings` → `:125` `createMainWindow` → `:159` `setupMainIpc`。這一段丟出的錯，會被 `main/start-main.js:191-195` 接住，交給 `main/startup-failure.js` 跳原生錯誤框後結束程式（`:3-5` 寫了必須結束的理由：不結束會握著單一實例鎖，之後每次開啟都安靜退出）。錯誤框目前一律印 `err.stack`（`:11`），既有測試斷言內容含 stack（`test/startup-failure.test.cjs:~27-31`）。〔對齊 2026-10-20：`app-ready.js:119`、`:122`、`:159`、`main/start-main.js:191-195`、`startup-failure.js` 的 `:3`、`:11` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 未移動；`:125` 原寫有誤，當時（`7aa85c5`）是 `:127`，`9db125b`（plans/cross-review-2026-10-phase2.md 2a） 未移動；`startup-failure.js:5` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 原地改寫〕
 - **測試現況**（SPR #45、#46）：檔案層（`ensureSettingsFileInitialized`、`readSettings`、`writeSettings`）沒有任何測試；「兩者皆未設 ⇒ `-Xmx4096M`」沒有測試（`rg -n Xmx test` 只命中明確給定的值與輸入常數）。
 
 ### 5.11 Gate 現況（CC 第一、三輪；SPR 更正一處）〔讀碼〕
@@ -522,7 +522,7 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
 - **ChatGPT 第二輪**：接受；但指出**限制 stack 行數不等於脫敏**，`gglError` 收任意 `detail`，要先定義哪些欄位能落盤；寫入失敗不能遞迴；並提出「診斷匯出在設定無效時會失敗」。
 - **CC 第三輪**：逐一看呼叫處後**更正自己**——`gglEvent`／`gglError` 只有 6 處、全是啟動事件，`gglError` 只有 1 處；格式對、但幾乎沒記到真正的錯誤。所以「接好檔案出口」不等於「錯誤都有記了」，同步、Java、啟動遊戲的錯誤要靠之後各批清理逐處接入。脫敏用呼叫處白名單；提出把 stack 裡的 `os.homedir()` 換成 `~`（可選）；反駁「診斷匯出」（見 §6.5）。
 - **ChatGPT 第四輪**：提出 B——`gglError` 若接非同步寫檔，啟動失敗時程式可能在寫完前就結束。CC 第四輪的回應見 §6.6。
-- **SPR**：子 agent 指出——注入只能做成全域 setter，未注入時的行為就是 conventions §2 要清掉的「configure＋空預設」，加上 CC 自掃的注入時間點問題（#2、#32）；`err.message` 會帶完整網址（`main/net-fetch.js:87`，#33）；另寫輪替會與既有 `rotateLauncherLogIfTooLarge` 重複（#34）；`startup-failure.js:5` 的註解會被推翻（#35）；驗收沒涵蓋 preload／renderer 事件、2b 的邊界、注入點前後的失敗（#41–#43）。
+- **SPR**：子 agent 指出——注入只能做成全域 setter，未注入時的行為就是 conventions §2 要清掉的「configure＋空預設」，加上 CC 自掃的注入時間點問題（#2、#32）；`err.message` 會帶完整網址（`main/net-fetch.js:87`，#33）；另寫輪替會與既有 `rotateLauncherLogIfTooLarge` 重複（#34）；`startup-failure.js:5` 的註解會被推翻（#35）；驗收沒涵蓋 preload／renderer 事件、2b 的邊界、注入點前後的失敗（#41–#43）。〔對齊 2026-10-20：`startup-failure.js:5` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 原地改寫〕
 - **outside voice**：再次強調限長不等於脫敏；要求加一個**假 token** 案例。CC 的回應：Phase 2 時真正會碰到 token 的登入錯誤還沒接上 `gglError`（那是 Phase 6 的事），所以 Phase 2 的假 token 案例測的是**落盤規則本身**（一個 message 含 `token=FAKE…` 的錯誤丟進去，檔裡不得出現那串）；之後每接一條會碰到敏感資料的路徑，再加該路徑的案例。
 
 ### 6.5 Settings
@@ -539,10 +539,10 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
 
 ### 6.6 啟動失敗時日誌是否落盤（ChatGPT 第四輪疑點 B）
 
-- 現況〔讀碼〕：`main/start-main.js:192` 呼叫 `gglError`（目前只印 console），`:195` `await appendLauncherLog`（debug 才寫），之後 `onStartupFailed` → `startup-failure.js` 跳 `showErrorBox` 再 `app.quit()`。
+- 現況〔讀碼〕：`main/start-main.js:192` 呼叫 `gglError`（目前只印 console），`:195` `await appendLauncherLog`（debug 才寫），之後 `onStartupFailed` → `startup-failure.js` 跳 `showErrorBox` 再 `app.quit()`。〔對齊 2026-10-20：`main/start-main.js:192`、`:195` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 未移動〕
 - ChatGPT 的疑慮成立的前提是「檔案出口用非同步寫入、且沒等它寫完」。
 - **CC 的判斷**：常駐日誌只記錯誤與少量生命週期事件，量很小，**用同步寫入（`fs.appendFileSync`）**，時序問題就整個不存在——`gglError` 回傳時資料已經寫進檔，不需要佇列、不需要等待機制、不需要改結束流程。代價是寫入那一下會卡住 main 的事件迴圈，對「錯誤才寫」的頻率可忽略〔推論，沒量〕。outside voice 接受此方向。
-- **注入點**（SPR #2、#32）：`gglEvent` 第一次被呼叫是在 `startMain` 一開頭（`main/start-main.js:183-186`），早於 `runMainAppReady`；寫檔出口必須在那之前就緒，否則最早期的事件、以及在注入點之前就失敗的 `start_main_failed` 都不會落盤。注入的形狀（全域 setter？未注入時只印 console 是否為 §2 的明列例外？）在 Phase 2 細部 plan 定。
+- **注入點**（SPR #2、#32）：`gglEvent` 第一次被呼叫是在 `startMain` 一開頭（`main/start-main.js:183-186`），早於 `runMainAppReady`；寫檔出口必須在那之前就緒，否則最早期的事件、以及在注入點之前就失敗的 `start_main_failed` 都不會落盤。注入的形狀（全域 setter？未注入時只印 console 是否為 §2 的明列例外？）在 Phase 2 細部 plan 定。〔對齊 2026-10-20：`main/start-main.js:183-186` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 未移動〕
 - **仍要實測**：debug 關閉、刻意製造啟動錯誤、看到原生錯誤框、行程結束後 `userData/ggl-launcher.log` 裡有那一筆；觸發點要涵蓋「注入點之前失敗」與「之後失敗」兩種（SPR #41）。製造啟動錯誤的方法在 Phase 2 細部 plan 定，並先確認它真的會走到 `start_main_failed`。
 - 寫檔失敗：放棄這一筆、不重試、不拋錯，catch 寫一行理由；**不能**在寫檔失敗時再呼叫 `gglError`（無限遞迴）。
 
@@ -802,13 +802,13 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
 **範圍**：
 - **2a**：
   - `gglEvent`／`gglError` 除了印 console，也**同步**寫進 `userData/ggl-launcher.log`（§6.6）。
-  - **注入點與形狀**（SPR #2、#32）：寫檔出口必須在 `startMain` 第一個 `gglEvent`（`main/start-main.js:183`）之前就緒；`lib/ggl-structured-log.js` 不能 require electron，路徑由 main 提供（候選：`main/paths.js`，檔頭自稱路徑單一來源；新寫入器要延後 `require("electron")`，因為 `npm test` 帶 `forbid-electron`，`package.json:24`）。若採全域 setter、保留「未注入時只印 console」，要在細部 plan 列為 conventions §2 的明列例外並寫理由。
+  - **注入點與形狀**（SPR #2、#32）：寫檔出口必須在 `startMain` 第一個 `gglEvent`（`main/start-main.js:183`）之前就緒；`lib/ggl-structured-log.js` 不能 require electron，路徑由 main 提供（候選：`main/paths.js`，檔頭自稱路徑單一來源；新寫入器要延後 `require("electron")`，因為 `npm test` 帶 `forbid-electron`，`package.json:24`）。若採全域 setter、保留「未注入時只印 console」，要在細部 plan 列為 conventions §2 的明列例外並寫理由。〔對齊 2026-10-20：`main/start-main.js:183`、`package.json:24` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 未移動〕
   - **落盤規則**（D-LOG-PRIVACY）：哪些事件可以常駐記錄、哪些欄位允許；`err.message`／stack 怎麼處理（例如只留錯誤碼＋固定訊息，或規定哪些來源的錯誤不得直接傳入）——`main/net-fetch.js:87` 的錯誤訊息含完整網址是現成的例子；（可選）把 `os.homedir()` 換成 `~`。
   - 大小上限＋輪替 1 份舊檔：一般化既有 `rotateLauncherLogIfTooLarge`（吃路徑參數），同步版另處理，不複製一份（SPR #34）。〔裁決已於 2026-10-20 改變（→ D-LOG-ROTATE）：不共用，桌面輪替原樣保留〕
   - 寫檔失敗：放棄這一筆、不重試、不拋錯、不遞迴、不回報成功。
   - `preload-error`、`render-process-gone` 改成一律接、用 `gglError` 記（`console-message` 維持 debug 才接）。
   - `diagnostics-export.js` 的複製清單加上這個檔。
-  - 更新 `main/startup-failure.js:5` 的註解（「不寫『詳情見 log』——debug logging 預設關」在 2a 之後不成立，SPR #35）。
+  - 更新 `main/startup-failure.js:5` 的註解（「不寫『詳情見 log』——debug logging 預設關」在 2a 之後不成立，SPR #35）。〔對齊 2026-10-20：`main/startup-failure.js:5` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 原地改寫〕
 - **2b**：G4——renderer → main 的受限 IPC（新 channel 進 `lib/ipc-channels.js`、main 端 handler、preload 白名單隨 channel 表）。畫面送來的內容是邊界（`conventions.md` §防禦與相容 第 1 條：限長、轉字串）。preload 壞掉時這條管道不存在，靠 2a 的視窗事件。**同一個 commit 重產 `ARCHITECTURE.md` 的 IPC 索引**（CI 檢查，SPR #13）。
 **不做**：不把現有 `appendLauncherLog` 的呼叫處改成 `gglError`（那是 Phase 6 各批的事）；不改桌面 `launcher.log`；不重做 RPC 日誌；不建佇列、服務、Manager；不建泛用敏感字串掃描器。
 **不變量**：debug 的桌面 `launcher.log` 位置、開關、內容完全不變。
@@ -846,7 +846,7 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
 - 讀檔四種情況分流（D-SET-FILE）；**「告知一次」的機制**（JSON 壞掉時重置並告知——此時畫面還沒起來，`startup-failure.js` 是致命框）由細部 plan 定，並註明它不是 D-SET-UI 禁止的修復視窗（SPR #5、#36）。
 - 欄位驗證：記憶體「數字或 null」（D-SET-NUM）；各欄位的正式範圍與 `minMemoryGb` 的 `0`（D-SET-RANGE，現讀後與 owner 定案）；`min > max`；`launcherRootDir` 的型別；**不認得的鍵（含退休的 `memoryGb`）一律拒絕並寫出鍵名**（D-SET-UNKNOWN）。讀檔與 `SETTINGS_SET` 用**同一份**驗證契約，不出現第二套 schema。
 - 不合法 ⇒ 帶 code 的錯誤；`startup-failure.js` 對這類錯誤只顯示訊息、不顯示 stack（D-SET-UI）。
-- **所有讀取點**的行為（SPR #26）：開機（`app-ready.js:122`）、同步中樞 `gather()`（`main/sync/index.js:165-166`，現在丟錯會變成 `internal-error`）、`writeSettings` 先讀、診斷匯出、`SETTINGS_SET` 換根目錄時、`SETTINGS_GET`（現在繞過 `readSettings`）——寫明執行中有人手改壞檔時各處怎麼表現。〔對齊 2026-10-20：`main/sync/index.js:165-166` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a） 未移動〕
+- **所有讀取點**的行為（SPR #26）：開機（`app-ready.js:122`）、同步中樞 `gather()`（`main/sync/index.js:165-166`，現在丟錯會變成 `internal-error`）、`writeSettings` 先讀、診斷匯出、`SETTINGS_SET` 換根目錄時、`SETTINGS_GET`（現在繞過 `readSettings`）——寫明執行中有人手改壞檔時各處怎麼表現。〔對齊 2026-10-20：`main/sync/index.js:165-166` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a） 未移動〕〔對齊 2026-10-20：`app-ready.js:122` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 未移動〕
 - 啟動時「缺預設鍵 ⇒ 整份重寫」（`main/settings.js:114-124`）會無聲刪掉不認得的鍵，隨 D-SET-UNKNOWN 一起處理。
 - `SETTINGS_SET` 照同一套規則驗；不合格時設定視窗用既有 `setSettingsError` 顯示（`renderer/settings-modal.js:279`）。
 - 原子寫入；兩次寫入搶同一個暫存檔名的問題，先評估「每次用唯一暫存檔名」是否就夠，不夠才加排隊（SPR #37）。
@@ -883,7 +883,7 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
 - `main/mc-mirror.js`（157 行）大部分刪除；**`rankSourcesByQuickProbe` 被 Java 使用（`java.js:14`、`:426`），搬到 runtime 自己的模組**（搬錯會在載入時自曝）。
 - `main/runtime/minecraft.js`：`runtimeCandidates` 的 client-jar／vanilla-library／asset-object 鏡像分支移除；`fetchVanillaVersionJson` 改為只走官方，並用 `downloadRuntimeFile`＋manifest 的 sha1 下載到暫存名、驗過再改名（§6.9 第 5 點；測試注入改用 `deps.download`）；`getMirror` 參數在 `ensureVersionJsons`（`:233`）、`installRuntimeFiles`（`:366`）變成孤兒，一起刪。〔對齊 2026-10-20：`main/runtime/minecraft.js` → `9906d13`（plans/cross-review-2026-10-phase1.md 1b）後 `:233` → `:258`、`:366` → `:394`〕
 - `main/runtime/prepare.js`：`getMirror` 接線與只為它存在的 `settings` 參數（`:41`）移除。
-- 文件與工具：`ARCHITECTURE.md:76,78,80` 的鏡像描述；`package.json:18` `format:ui` 清單裡的 `main/mc-mirror.js`（SPR #14）；`net-fetch.js` 的「切換鏡像」字面（原 M-OTHER）歸本 Phase。
+- 文件與工具：`ARCHITECTURE.md:76,78,80` 的鏡像描述；`package.json:18` `format:ui` 清單裡的 `main/mc-mirror.js`（SPR #14）；`net-fetch.js` 的「切換鏡像」字面（原 M-OTHER）歸本 Phase。〔對齊 2026-10-20：`package.json:18` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 原地改寫（`format:ui` 多了三個新檔，`main/mc-mirror.js` 仍在）〕
 - 測試：`test/mc-mirror.test.cjs`、`test/runtime-minecraft.test.cjs`、`test/runtime-prepare.test.cjs`、`test/helpers/fake-runtime.cjs` 刪或改。
 - 附帶：`defense-cleanup.md` M-OTHER 的「`mc-mirror.js` 與 `runtime/minecraft.js` 各一份 piston-meta 網址」、M-STREAM 的 `mc-mirror.js:71,74-88` 隨之消失。
 - 不變量：Fabric 三台官方主機的備援；各層既有 sha1 驗證；下載中止與失敗回報；§5.9 的三條既有失敗語意（verifyAll 真且全部抓不到 ⇒ 丟錯、本機兩份不變；verifyAll 假 ⇒ 零請求；verifyAll 真 ⇒ 覆寫）改寫測試後仍在（SPR #52）。
