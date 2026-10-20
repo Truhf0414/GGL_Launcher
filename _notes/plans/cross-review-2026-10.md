@@ -185,6 +185,15 @@
 | D-LOG-FORMAT | 沿用既有 `gglEvent`／`gglError` 的事件格式，不另做第四套事件語意 | CC Response §3.4 提出、ChatGPT Round2 §3.1 接受；ChatGPT 第四輪 §二.5 列為最新裁決 |
 | D-LOG-PRIVACY | 常駐日誌**不寫**：token、帳號物件、完整 JVM 參數、OAuth 原始回應、帶敏感參數的完整 URL。**限制長度與 stack 行數不等於脫敏**。`detail` 由寫 `gglError` 的人決定放什麼（呼叫處白名單）；`err.message`／stack 也可能帶敏感內容（例如 `main/net-fetch.js:87` 的錯誤訊息含完整網址），落盤規則必須明確處理它們。**不建泛用的敏感字串掃描器** | 〔轉述〕Review Report §2.5；ChatGPT Round2 §3.2；CC Round3 §3.2；SPR #33；outside voice §九 |
 | D-LOG-B6 | B6（`lib/account-secret.js` 加密失敗退明文）：**維持退明文**這個既有裁決；只補「發生了降級」的紀錄，**不記 token 原文／密文／完整認證參數**；**不得在沒有依據的情況下改成擋住登入**，要不要通知使用者需另核對已決事項 | 退明文：`plans/electron-44-upgrade.md` §裁決「async 加密失敗」；其餘：〔轉述〕Review Report §2.5 |
+| D-LOG-SCOPE | **常駐日誌負責縮小故障範圍；Debug 負責深入診斷。**常駐日誌盡可能保留安全且有診斷價值的資訊，但不承諾還原所有根因；資訊不足時與玩家合作重現，實際遇到無法合理診斷的缺口才評估增加觀測。Q2、Q4 與 Phase 6 故障出口接線的工程判準；不授權改 Debug 路徑或建 Logger Framework | 〔轉述〕owner 2026-10-20 貼入的回饋文件（owner 與 ChatGPT 討論後整理）§0「正式收斂的產品原則是」 |
+| D-LOG-SINK | Q1 甲：`lib` 提供 `createGglLog({ getFilePath, homedir, maxBytes })`，`main/ggl-log.js` 載入時建好唯一一份，路徑由 `main/paths.js` 的 `getGglLogPath()` 提供；不用全域 setter、不留「未注入只印 console」的版本 | 同上 §Q1「決定：支持甲，採用工廠建立 Logger，不採用全域 setter」 |
+| D-LOG-MSG | 不直接落盤任意 `err.message`；不建泛用敏感字串掃描器；長度與 stack 行數上限不算脫敏。其餘欄位 → D-LOG-FIELDS | 同上 §Q2「已同意」；第二輪回饋 §1.6「維持既有裁決」 |
+| D-LOG-FIELDS | N1：檔案裡的 `err` 只有 `name`（標準 10 個＋專案自訂 6 個，其餘寫 `OtherError`）、`code`（`os.constants.errno` 的鍵，或**明確的 GGL 錯誤碼允許清單**——不以 `GGL_` 前綴或字串形狀為準；**Phase 2 不建這份清單**，GGL 碼一律不落盤，清單在 Phase 6 接到需要它的路徑時才建，「已知 GGL 錯誤碼仍可辨識」也在 Phase 6 驗（N1-a））、`syscall`（`code` 是 errno 時、在清單裡）、`st`（切掉 `String(err)` 開頭後，只收 app 內 `.js` 相對路徑＋行＋欄，最多 4 個，不寫函式名）；不是 `Error` 只記型別。**不加檔案存在檢查**。這些規則限制的是輸出值，**不驗證錯誤或 stack 的真實來源**；刻意改寫 `err.stack` 成 app 內路徑形狀的假位置仍會被收下（現查沒有這種程式）。GGL 允許清單只決定「哪些碼可以進常駐日誌」，不是業務錯誤碼的權威。細節 → `plans/cross-review-2026-10-phase2.md` §N1 | 〔轉述〕owner 2026-10-20 第二輪回饋文件 §1.1「決定：採納 Probe 後的欄位收斂方向，但修正 GGL 錯誤碼的允許規則」、§1.4「改用明確允許的 GGL 錯誤碼集合」、§1.8「正式選擇：不加。」；〔轉述〕owner 2026-10-20 N1-a 回覆「N1-a：甲。正式採納。」「Phase 2 只確立 GGL 自訂錯誤碼必須經明確允許集合才能落盤的原則，不提前建立 25 個目前沒有使用者的錯誤碼清單。」「這不是永久排除 GGL 錯誤碼，而是讓允許清單在真正有使用者時才建立。」 |
+| D-LOG-HOME | Q3：把已知形式的本機家目錄路徑換成 `~`，在序列化後集中處理；保證範圍＝「遮蔽已知形式的本機家目錄」，不是「沒有任何個人資訊」；不建通用路徑匿名化器 | 同上 §Q3「決定：做，支持 CC 的方向」「保證的邊界」 |
+| D-LOG-RENDERER | Q4 責任分配：畫面主動回報錯誤；`gglEvent` 不經 2b 落盤；畫面不寫檔；main 是唯一寫入出口；main 不採用畫面給的 scope，來源固定 `renderer`；preload 故障與 renderer 異常退出由 2a 負責；不加 `window.onerror`／`unhandledrejection`。payload → D-LOG-IPC | 同上 §4.1、§4.7 |
+| D-LOG-IPC | N2：畫面只送事件 ID 字串（`log:rendererError`）；main 只收明確清單裡的 ID（現在只有 `bootstrap_ctx_factory_missing`），其餘記 `renderer_log_rejected`＋型別、不寫畫面送來的字串。不做限流——理由是沒有已知高頻來源、沒有重現過卡頓（寫檔 Probe 只是本機基準，不是端到端保證）；不改 IPC 初始化順序、不加等待／重試／緩存。**不是**「畫面永遠只能送 ID」的政策：以後有具體案例需要上下文，再只為它開受限欄位 | 〔轉述〕owner 2026-10-20 第二輪回饋文件 §2.1「決定：採用 CC 推薦，只傳已知事件 ID」、§2.5、§2.7 |
+| D-LOG-ROTATE | N3：**不共用輪替**。桌面 debug 的 `rotateLauncherLogIfTooLarge` 原樣保留（async、debug 閘、6 MiB、失敗吞掉、`rm` 失敗仍試 `rename`）；常駐日誌另寫自己的同步輪替。取代 §8 Phase 2 範圍裡 SPR #34「不複製一份」對這個實作的要求：兩份承擔不同責任與契約，共用會改掉桌面既有行為。重新評估要有新證據（兩邊契約變成相同、同一個輪替問題修了不只一次）。不升格成 conventions 的一般規則 | 〔轉述〕owner 2026-10-20 第二輪回饋文件 §3.1「決定：不共用」、§3.6 owner「如果重複是有必要的話，讓他重複何妨？」、§3.7 |
+| D-LOG-EARLY | Q5：`startMain()` 之前的模組載入失敗不在 Phase 2 施工，列「已知不涵蓋」；驗收改成 `runMainAppReady` 之前、`app_ready_begin` 之後兩個位置 | 同上 §Q5「決定：同意不在 Phase 2 施工」 |
 
 ### 3.7 Runtime 信任根
 
@@ -795,7 +804,7 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
   - `gglEvent`／`gglError` 除了印 console，也**同步**寫進 `userData/ggl-launcher.log`（§6.6）。
   - **注入點與形狀**（SPR #2、#32）：寫檔出口必須在 `startMain` 第一個 `gglEvent`（`main/start-main.js:183`）之前就緒；`lib/ggl-structured-log.js` 不能 require electron，路徑由 main 提供（候選：`main/paths.js`，檔頭自稱路徑單一來源；新寫入器要延後 `require("electron")`，因為 `npm test` 帶 `forbid-electron`，`package.json:24`）。若採全域 setter、保留「未注入時只印 console」，要在細部 plan 列為 conventions §2 的明列例外並寫理由。
   - **落盤規則**（D-LOG-PRIVACY）：哪些事件可以常駐記錄、哪些欄位允許；`err.message`／stack 怎麼處理（例如只留錯誤碼＋固定訊息，或規定哪些來源的錯誤不得直接傳入）——`main/net-fetch.js:87` 的錯誤訊息含完整網址是現成的例子；（可選）把 `os.homedir()` 換成 `~`。
-  - 大小上限＋輪替 1 份舊檔：一般化既有 `rotateLauncherLogIfTooLarge`（吃路徑參數），同步版另處理，不複製一份（SPR #34）。
+  - 大小上限＋輪替 1 份舊檔：一般化既有 `rotateLauncherLogIfTooLarge`（吃路徑參數），同步版另處理，不複製一份（SPR #34）。〔裁決已於 2026-10-20 改變（→ D-LOG-ROTATE）：不共用，桌面輪替原樣保留〕
   - 寫檔失敗：放棄這一筆、不重試、不拋錯、不遞迴、不回報成功。
   - `preload-error`、`render-process-gone` 改成一律接、用 `gglError` 記（`console-message` 維持 debug 才接）。
   - `diagnostics-export.js` 的複製清單加上這個檔。
@@ -805,8 +814,8 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
 **不變量**：debug 的桌面 `launcher.log` 位置、開關、內容完全不變。
 **驗收**：
 - 單元：debug 關閉也會寫；超過上限會輪替；寫檔失敗不拋錯、不遞迴；落盤規則照定義處理 `detail` 與 `err.message`；**假 token 案例**——message 含 `token=FAKE…` 的錯誤丟進 `gglError`，檔裡不得出現那串（outside voice §九；測的是落盤規則本身）；（若做）homedir 有被替換。
-- 2b 單元：超長 payload、非字串、非物件，斷言被截斷或拒絕且不拋錯（SPR #43）；`test/ipc-registry.test.cjs` 通過。
-- 實測（ChatGPT 第四輪疑點 B）：**debug 關閉**，刻意製造啟動錯誤，看到原生錯誤框，行程結束後檔裡有那一筆；觸發點涵蓋「注入點之前失敗」與「之後失敗」兩種（SPR #41）。
+- 2b 單元：超長 payload、非字串、非物件，斷言被截斷或拒絕且不拋錯（SPR #43）；`test/ipc-registry.test.cjs` 通過。〔裁決已於 2026-10-20 改變（→ D-LOG-IPC）：只收清單裡的事件 ID，其餘一律拒絕並只記型別，沒有截斷〕
+- 實測（ChatGPT 第四輪疑點 B）：**debug 關閉**，刻意製造啟動錯誤，看到原生錯誤框，行程結束後檔裡有那一筆；觸發點涵蓋「注入點之前失敗」與「之後失敗」兩種（SPR #41）。〔裁決已於 2026-10-20 改變（→ D-LOG-SINK、D-LOG-EARLY）：沒有注入點；改成 `runMainAppReady` 之前、`app_ready_begin` 之後兩個位置，不涵蓋 `main.js` 的模組載入失敗〕
 - 實測：**debug 關閉**，讓 preload 失敗或殺掉 renderer，檔裡有一筆（SPR #42）；或把掛接抽成可單測的函式再單測。
 - **完成的意思要寫清楚**：Phase 2 完成後，常駐日誌只記得到開機失敗、preload 錯誤、renderer 當掉（加上 2b 之後畫面主動送來的）。同步、Java、啟動遊戲的錯誤還沒接——不能宣稱「故障觀測完成」。
 **回滾**：2a、2b 各一個 commit。
@@ -895,11 +904,12 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
 - **略過已歸其他 Phase 的列**（SPR #17、#18）：歸 Phase 4 的 settings 相關列（見 Phase 4）；歸 Phase 5 的 `runtime/java.js:122-124,171-173`（M-SILENT 中 5a 已重寫的區域，開工時現讀確認還剩什麼）、`mc-mirror.js` 相關列（M-STREAM、M-OTHER，已隨 5b 消失）、`net-fetch.js` 的「切換鏡像」字面。
 - B2（CSS `.hidden` 失效）可在任何時候單獨修，owner 看畫面。B6（D-LOG-B6）在 Phase 2 之後任何時候單獨做。
 - 「出聲」類（M-SILENT、R-SWALLOW、R-SILENT、L-SILENT）改用 `gglError`，照 D-LOG-PRIVACY 與 Phase 2 定的落盤規則決定每處放什麼；碰到 token 等敏感資料的路徑各加一個假 token 案例。
+- GGL 錯誤碼的常駐日誌允許清單（D-LOG-FIELDS、N1-a）：接到會帶 GGL 碼的路徑時才建，逐碼判斷有沒有必要進常駐日誌；不以 `GGL_` 前綴或字串形狀放行。
 - 清完開 ESLint `no-empty`。
 - 收尾：`format:ui` 清單、`ARCHITECTURE.md`、docs 跟著改。
 **不做**：不為檔案結構漂亮而加 Adapter、Manager、Wrapper、Fallback；不以新相容層取代舊相容層；rpc-helper（U10 未裁）。
 **不變量**：正常畫面與行為不變；每批的測試覆蓋唯一正式路徑。
-**驗收**：每批共同驗證；動到畫面的批次 owner 看畫面；每批「出聲」至少一個單元測試斷言失敗路徑呼叫了注入的 `gglError`（SPR #55）；每批 review 清單逐處列「這處 `detail` 放了什麼」（SPR #44）。
+**驗收**：每批共同驗證；動到畫面的批次 owner 看畫面；每批「出聲」至少一個單元測試斷言失敗路徑呼叫了注入的 `gglError`（SPR #55）；每批 review 清單逐處列「這處 `detail` 放了什麼」（SPR #44）。建了 GGL 碼允許清單的批次：清單裡的已知 GGL 錯誤碼在日誌裡仍可辨識（從 Phase 2 移來，N1-a）。
 **回滾**：每批一個 commit。
 **前置**：Phase 2（出聲類要用）；Phase 4、5（避免改到它們要重寫的檔）；各批對應的 U 項裁決（§4.2）；G1–G3 先於拆 renderer 防線。
 
