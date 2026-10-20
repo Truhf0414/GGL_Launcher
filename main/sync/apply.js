@@ -9,7 +9,13 @@ const defaultFsp = require("fs/promises");
 const instanceRecord = require("./instance-record.js");
 const { hashFile } = require("../fs-utils.js");
 const { downloadToFileWithStallGuard } = require("../net-fetch.js");
-const { findBlockers } = require("../../lib/sync/blocking.js");
+const { safeLog } = require("../runtime/download.js");
+const {
+  findBlockers,
+  linkCheckPaths,
+  baseLinkPaths,
+} = require("../../lib/sync/blocking.js");
+const { kindOf, linkMessage, findLinks } = require("../../lib/fs-links.js");
 const { pickRuntimeFields } = require("../../lib/runtime-target.js");
 
 class SyncApplyError extends Error {
@@ -26,9 +32,15 @@ const BLOCKED_MESSAGES = {
     `「${e.path}」是一個資料夾，擋住了新版要放的檔案「${e.blocks}」（裡面有「${e.extra}」）。請把這個資料夾移走或改名後再按更新。`,
   GGL_SYNC_BLOCKED_DIR_NOT_EMPTY: (e) =>
     `「${e.path}」資料夾裡有不在更新清單裡的檔案「${e.extra}」，擋住了新版要放的檔案「${e.blocks}」。請把你自己的檔案移出這個資料夾後再按更新。`,
-  GGL_SYNC_BLOCKED_BY_LINK: (e) =>
-    `「${e.path}」是捷徑或連結，擋住了新版要放的檔案「${e.blocks}」。請把它移走後再按更新。`,
+  GGL_SYNC_BLOCKED_BY_LINK: linkMessage,
 };
+
+/** 擋路／連結錯誤物件 → SyncApplyError；連結錯誤多帶 where（game／root／managed） */
+function blockedError(e) {
+  const err = new SyncApplyError(e.code, BLOCKED_MESSAGES[e.code](e), e.path);
+  if (e.where !== undefined) err.where = e.where;
+  return err;
+}
 
 const pad2 = (n) => String(n).padStart(2, "0");
 function stamp(d) {
@@ -51,6 +63,7 @@ function sameFiles(a, b) {
  *   deps: object,
  * }} input
  * deps.prepareRuntime() 回 { minecraft, loader, javaMajor }（④c，→ _notes/plans/instance-sync-v3-commit4c.md §設計「同步端」）
+ * deps.log(line)：選填；目前只用來記 .ggl-tmp 是連結（D-LINK-C-TMP）
  * @returns {Promise<{ movedAside: { from: string, to: string }[], record: object }>}  record＝實際寫入的那份
  */
 async function applyPlan({ plan, record, paths, filesBaseUrl, deps: given }) {
@@ -69,23 +82,42 @@ async function applyPlan({ plan, record, paths, filesBaseUrl, deps: given }) {
   const { fsp } = deps;
   const abs = (rel) => path.join(paths.gameDir, ...rel.split("/"));
   const stagingDir = path.join(paths.tempDir, "sync-staging");
+  const probe = fsProbe(fsp, abs);
+  // 連結封口：GGL 推導的基底與本次會碰的 gameDir 路徑都不准是連結（→ _notes/plans/cross-review-2026-10-phase1.md §1a 設計）
+  const refuseLinks = async () => {
+    const bases = await findLinks({
+      paths: baseLinkPaths(paths),
+      probe: { kind: (p) => kindAt(fsp, p) },
+    });
+    const errors =
+      bases.length > 0
+        ? bases
+        : await findLinks({
+            paths: linkCheckPaths({ plan, recordFiles: record.files }).map(
+              (rel) => ({ path: rel, where: "game" }),
+            ),
+            probe,
+          });
+    if (errors.length > 0) throw blockedError(errors[0]);
+  };
 
-  await clearLeftovers({ fsp, abs, record, plan, stagingDir });
+  // 第一個檢查點：清殘檔、建中斷標記之前，擋下＝什麼都沒發生
+  await refuseLinks();
+  await clearLeftovers({ fsp, abs, record, plan, stagingDir, log: deps.log });
   await deps.markInProgress(paths);
   // 一回來就驗、只取三欄：不合法時一個同步檔都還沒動；回傳物件多帶的 files／version 不准蓋掉記錄（R#19）
   const runtime = pickRuntimeFields(await deps.prepareRuntime());
 
   await downloadAll({ plan, record, filesBaseUrl, stagingDir, deps });
 
+  // 第二個檢查點：下載期間才出現的連結（基底也重查）；擋下時標記與 staging 照既有失敗契約留著
+  await refuseLinks();
   const blockers = await findBlockers({
     download: plan.download,
     removeFirst: plan.removeFirst,
-    probe: fsProbe(fsp, abs),
+    probe,
   });
-  if (blockers.errors.length > 0) {
-    const e = blockers.errors[0];
-    throw new SyncApplyError(e.code, BLOCKED_MESSAGES[e.code](e), e.path);
-  }
+  if (blockers.errors.length > 0) throw blockedError(blockers.errors[0]);
 
   for (const rel of plan.removeFirst) await removeFile(fsp, abs, rel);
   for (const rel of blockers.dirsToRemove)
@@ -131,14 +163,21 @@ async function applyPlan({ plan, record, paths, filesBaseUrl, deps: given }) {
   return { movedAside, record: written };
 }
 
-/** 只清 next 裡每個 path 同目錄的 .<name>.ggl-tmp，與不屬於本次下載的 staging 檔 */
-async function clearLeftovers({ fsp, abs, record, plan, stagingDir }) {
+/**
+ * 只清 next 裡每個 path 同目錄的 .<name>.ggl-tmp，與不屬於本次下載的 staging 檔。
+ * .ggl-tmp 是連結 ⇒ 只刪連結本身、照常更新，寫一行 log（D-LINK-C-TMP）
+ */
+async function clearLeftovers({ fsp, abs, record, plan, stagingDir, log }) {
   for (const f of record.files) {
-    const dest = abs(f.path);
-    await fsp.rm(
-      path.join(path.dirname(dest), `.${path.basename(dest)}.ggl-tmp`),
-      { force: true },
+    const slash = f.path.lastIndexOf("/");
+    const tmpRel = `${f.path.slice(0, slash + 1)}.${f.path.slice(slash + 1)}.ggl-tmp`;
+    // 看不了就當不是連結：刪不刪、錯誤怎麼報照舊由 rm 決定
+    const isLink = await kindAt(fsp, abs(tmpRel)).then(
+      (k) => k === "other",
+      () => false,
     );
+    await fsp.rm(abs(tmpRel), { force: true });
+    if (isLink) safeLog(log, `SYNC_LEFTOVER_LINK_REMOVED ${tmpRel}`);
   }
   const wanted = new Set(plan.download.map((d) => d.sha256));
   let names = [];
@@ -283,28 +322,28 @@ async function moveAside(fsp, abs, rel, when) {
   return { from: join(real), to: join(backup) };
 }
 
+/** 絕對路徑的 kindOf；不存在（含上層不是資料夾）⇒ "none" */
+async function kindAt(fsp, p) {
+  try {
+    return kindOf(await fsp.lstat(p));
+  } catch (e) {
+    if (e?.code === "ENOENT" || e?.code === "ENOTDIR") return "none";
+    throw e;
+  }
+}
+
 function fsProbe(fsp, abs) {
   return {
-    async kind(rel) {
-      try {
-        const st = await fsp.lstat(abs(rel));
-        if (st.isSymbolicLink()) return "other";
-        if (st.isDirectory()) return "dir";
-        if (st.isFile()) return "file";
-        return "other";
-      } catch (e) {
-        if (e?.code === "ENOENT" || e?.code === "ENOTDIR") return "none";
-        throw e;
-      }
-    },
+    kind: (rel) => kindAt(fsp, abs(rel)),
     async listEntries(rel) {
       const out = [];
       const walk = async (r) => {
         for (const d of await fsp.readdir(abs(r), { withFileTypes: true })) {
           const child = `${r}/${d.name}`;
+          const kind = kindOf(d);
           // junction 的 Dirent 是 isSymbolicLink、不是 isDirectory（2026-09-30 實測），不會被走進去
-          if (d.isDirectory()) await walk(child);
-          else out.push({ path: child, kind: d.isFile() ? "file" : "other" });
+          if (kind === "dir") await walk(child);
+          else out.push({ path: child, kind });
         }
       };
       await walk(rel);

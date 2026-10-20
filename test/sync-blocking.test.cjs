@@ -2,8 +2,14 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const path = require("path");
 
-const { findBlockers } = require("../lib/sync/blocking.js");
+const {
+  findBlockers,
+  linkCheckPaths,
+  baseLinkPaths,
+} = require("../lib/sync/blocking.js");
+const { getPaths } = require("../lib/paths-layout.js");
 
 /**
  * 假磁碟：entries 的 key 分大小寫存，查詢時 casefold（模擬 NTFS）。
@@ -178,7 +184,7 @@ test("symlink/junction in the way ⇒ BLOCKED_BY_LINK, whether ancestor or targe
         probe: a.probe,
       })
     ).errors,
-    [{ code: "GGL_SYNC_BLOCKED_BY_LINK", path: "config", blocks: "config/x" }],
+    [{ code: "GGL_SYNC_BLOCKED_BY_LINK", path: "config", where: "game" }],
   );
   const b = fakeDisk({ config: "dir", "config/x": "other" });
   assert.deepEqual(
@@ -193,7 +199,7 @@ test("symlink/junction in the way ⇒ BLOCKED_BY_LINK, whether ancestor or targe
       {
         code: "GGL_SYNC_BLOCKED_BY_LINK",
         path: "config/x",
-        blocks: "config/x",
+        where: "game",
       },
     ],
   );
@@ -215,7 +221,7 @@ test("a link inside a folder that must be removed ⇒ not removable (never rm -r
     {
       code: "GGL_SYNC_BLOCKED_BY_LINK",
       path: "mods/extra/l",
-      blocks: "mods/extra",
+      where: "game",
     },
   ]);
   assert.deepEqual(r.dirsToRemove, []);
@@ -237,7 +243,7 @@ test("a link inside the folder is refused even when its path is in removeFirst",
     {
       code: "GGL_SYNC_BLOCKED_BY_LINK",
       path: "mods/extra/l",
-      blocks: "mods/extra",
+      where: "game",
     },
   ]);
   assert.deepEqual(r.dirsToRemove, []);
@@ -251,4 +257,100 @@ test("stops descending at the first missing folder", async () => {
     probe: d.probe,
   });
   assert.deepEqual(d.calls, ["a"]);
+});
+
+// ── 連結要查哪些路徑（→ _notes/plans/cross-review-2026-10-phase1.md §1a 設計「一把尺」） ──
+
+const RUNTIME_TOPS = ["assets", "libraries", "versions"];
+const emptyPlan = { download: [], remove: [], removeFirst: [], rename: [] };
+const check = (plan, recordFiles = []) =>
+  linkCheckPaths({ plan: { ...emptyPlan, ...plan }, recordFiles });
+
+for (const [label, plan, recordFiles, expected] of [
+  [
+    "new record: every ancestor folder, not the file",
+    {},
+    [{ path: "r1/r2/rec.txt", sha256: "x" }],
+    ["r1", "r1/r2"],
+  ],
+  [
+    "download: ancestors and the target",
+    { download: dl("d1/dl.jar") },
+    [],
+    ["d1", "d1/dl.jar"],
+  ],
+  [
+    "remove: ancestors and the target",
+    { remove: ["m1/rm.jar"] },
+    [],
+    ["m1", "m1/rm.jar"],
+  ],
+  [
+    "removeFirst: ancestors and the target",
+    { removeFirst: ["f1/rf.jar"] },
+    [],
+    ["f1", "f1/rf.jar"],
+  ],
+  [
+    "rename.from: ancestors and the target",
+    { rename: [{ from: "n1/From.jar", to: "fixed" }] },
+    [],
+    ["fixed", "n1", "n1/From.jar"],
+  ],
+  [
+    "rename.to: ancestors and the target",
+    { rename: [{ from: "fixed", to: "n2/to.jar" }] },
+    [],
+    ["fixed", "n2", "n2/to.jar"],
+  ],
+]) {
+  test(`linkCheckPaths — ${label}`, () => {
+    const got = check(plan, recordFiles).filter(
+      (p) => !RUNTIME_TOPS.includes(p),
+    );
+    assert.deepEqual(got, expected);
+  });
+}
+
+test("linkCheckPaths — the three runtime top folders are always there", () => {
+  assert.deepEqual(check({}), RUNTIME_TOPS);
+});
+
+test("linkCheckPaths — casefold dedupe keeps the first spelling; shallow to deep, casefold order within a depth", () => {
+  assert.deepEqual(
+    check(
+      {
+        download: dl("Mods/a.jar", "z/b/c.txt"),
+        remove: ["mods/B.jar", "MODS/a.jar"],
+      },
+      [{ path: "Z/b/c.txt", sha256: "x" }],
+    ),
+    [
+      "assets",
+      "libraries",
+      "Mods",
+      "versions",
+      "Z",
+      "Mods/a.jar",
+      "mods/B.jar",
+      "Z/b",
+      "z/b/c.txt",
+    ],
+  );
+});
+
+test("baseLinkPaths — eight managed bases, outermost first, root is its own where", () => {
+  const paths = getPaths({ launcherRootDir: "H:\Root" });
+  const j = (...s) => path.join("H:\Root", ...s);
+  const id = paths.instanceDir.slice(paths.groupDir.length + 1);
+  assert.deepEqual(baseLinkPaths(paths), [
+    { path: j(), where: "root" },
+    { path: j("group"), where: "managed" },
+    { path: j("group", id), where: "managed" },
+    { path: j("group", id, ".minecraft"), where: "managed" },
+    { path: j(".temp"), where: "managed" },
+    { path: j(".temp", "sync-staging"), where: "managed" },
+    { path: j(".temp", "runtime-trash"), where: "managed" },
+    { path: j("runtime"), where: "managed" },
+  ]);
 });

@@ -372,6 +372,7 @@ function createInstanceSync(deps) {
           return r?.side === "ok" ? r.value.files : null;
         },
         sendSyncProgress: onProgress,
+        log: deps.log,
       },
     });
     // 記錄已寫＝更新成功；清舊 runtime 失敗只寫 log（D2、D4），仍在鎖內

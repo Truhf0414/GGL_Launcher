@@ -12,6 +12,7 @@ const os = require("os");
 const path = require("path");
 
 const { startServer, serveWithRange } = require("./helpers/local-http.cjs");
+const { snapshot } = require("./helpers/fs-snapshot.cjs");
 const { getPaths } = require("../lib/paths-layout.js");
 const { windowsEnv } = require("../lib/launch-args.js");
 const realServerConfig = require("../lib/server-config.js");
@@ -2226,6 +2227,43 @@ test("S5 fn 拿到就緒的成品；狀態算過之後 json 才改 ⇒ 拿到的
     assert.equal(JSON.stringify(s).includes("merged"), false);
   }
 });
+
+// L17：真反例是清理把過期目錄搬進外部（不是刪外部），只有會呼叫 removeStaleRuntime 的這層測得到
+// （→ _notes/plans/cross-review-2026-10-phase1.md §測試「1a 整合（sync-index）」）
+test(
+  "L17 runtime-trash 是 junction ⇒ BLOCKED_BY_LINK、外部沒有多出或少了任何東西、過期目錄留在原位、沒有中斷標記",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const h = await setup(t, { installed: { release: REL_1 }, site: { release: REL_2 } });
+    const d = await arrangeStale(h.paths);
+    const outside = path.join(h.paths.root, "outside");
+    await fsp.mkdir(outside);
+    await fsp.writeFile(path.join(outside, "precious.txt"), "keep me");
+    const trash = path.join(h.paths.tempDir, "runtime-trash");
+    await fsp.mkdir(h.paths.tempDir, { recursive: true });
+    await fsp.symlink(outside, trash, "junction");
+    const before = {
+      outside: await snapshot(outside),
+      versions: await ls(d.versions),
+      runtime: await ls(d.runtime),
+      record: await fsp.readFile(h.paths.syncRecordPath),
+    };
+
+    await assert.rejects(h.sync.updateInstance(), (e) => {
+      assert.equal(e.code, "GGL_SYNC_BLOCKED_BY_LINK");
+      assert.equal(e.path, trash);
+      assert.equal(e.where, "managed");
+      assert.ok(e.message.includes(trash), e.message);
+      return true;
+    });
+    assert.deepEqual(await snapshot(outside), before.outside);
+    assert.deepEqual(await ls(d.versions), before.versions);
+    assert.deepEqual(await ls(d.runtime), before.runtime);
+    assert.deepEqual(await fsp.readFile(h.paths.syncRecordPath), before.record);
+    assert.equal(await isInProgress(h.paths), false);
+    assert.equal(h.calls.prepareRuntime.length, 0);
+  },
+);
 
 // ── 全檔收尾：必須是最後一個案例 ──
 
