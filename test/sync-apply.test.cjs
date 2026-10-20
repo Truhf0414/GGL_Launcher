@@ -11,8 +11,10 @@ const os = require("os");
 const path = require("path");
 
 const { startServer, serveWithRange } = require("./helpers/local-http.cjs");
+const { snapshot } = require("./helpers/fs-snapshot.cjs");
 const { getPaths } = require("../lib/paths-layout.js");
 const { planSync } = require("../lib/sync/plan.js");
+const { linkCheckPaths } = require("../lib/sync/blocking.js");
 const { hashFile } = require("../main/fs-utils.js");
 const {
   readRecord,
@@ -33,11 +35,20 @@ const entry = (p, buf) => ({ path: p, sha256: sha(buf), size: buf.length });
 // ④c 起 prepareRuntime 回三欄、併進記錄（→ _notes/plans/instance-sync-v3-commit4c.md §設計「同步端」）
 const RUNTIME = () => ({ minecraft: "1.21.11", loader: { type: "fabric", version: "0.19.3" }, javaMajor: 21 });
 
-/** 每個測試一個乾淨的根目錄與站台；behave(req, res, shaHex, n) 可覆寫單一 blob 的回法 */
-async function setup(t, { behave } = {}) {
+/**
+ * 每個測試一個乾淨的根目錄與站台；behave(req, res, shaHex, n) 可覆寫單一 blob 的回法。
+ * linkedRoot：安裝位置是 <root>/link，它是指向 <root>/real 的 junction（Windows 才用）
+ */
+async function setup(t, { behave, linkedRoot = false } = {}) {
   const root = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-apply-"));
   t.after(() => fsp.rm(root, { recursive: true, force: true }));
-  const paths = getPaths({ launcherRootDir: root });
+  let launcherRootDir = root;
+  if (linkedRoot) {
+    await fsp.mkdir(path.join(root, "real"));
+    launcherRootDir = path.join(root, "link");
+    await fsp.symlink(path.join(root, "real"), launcherRootDir, "junction");
+  }
+  const paths = getPaths({ launcherRootDir });
   await fsp.mkdir(paths.gameDir, { recursive: true });
   const perSha = new Map();
   const srv = await startServer((req, res) => {
@@ -752,3 +763,295 @@ test(
     assert.equal(String(await fsp.readFile(precious)), "keep me");
   },
 );
+
+// ── 連結封口 1a（→ _notes/plans/cross-review-2026-10-phase1.md §測試「1a 整合」L1–L18） ──
+
+/** 把 p 換成指向 <root>/outside 的 junction：p 原有的內容整個搬進 outside（同上層 §5.13 的做法），另放一個 precious.txt */
+async function linkAt(ctx, p) {
+  const outside = path.join(ctx.root, "outside");
+  if (await exists(p)) await fsp.rename(p, outside);
+  await fsp.mkdir(outside, { recursive: true });
+  await fsp.writeFile(path.join(outside, "precious.txt"), "keep me");
+  await fsp.mkdir(path.dirname(p), { recursive: true });
+  await fsp.symlink(outside, p, "junction");
+  return outside;
+}
+
+const readOrNull = (p) => fsp.readFile(p).catch(() => null);
+
+/** 計次的 prepareRuntime／download；onDownload 在每次下載真的開始前執行 */
+function countingDeps({ onDownload } = {}) {
+  const counts = { prepareRuntime: 0, download: 0 };
+  const realDownload = deps().download;
+  return {
+    counts,
+    override: {
+      prepareRuntime: async () => {
+        counts.prepareRuntime++;
+        return RUNTIME();
+      },
+      download: async (...args) => {
+        counts.download++;
+        await onDownload?.(counts.download);
+        return realDownload(...args);
+      },
+    },
+  };
+}
+
+/**
+ * 每個拒絕案的共同斷言（§測試「每案共同斷言」＋擋在哪個檢查點）。
+ * 舊記錄先放一份，比對它的位元組沒變。
+ */
+async function expectRefused(ctx, { outside, runArgs, onDownload, path: wantPath, where, checkpoint }) {
+  const before = await snapshot(outside);
+  const recordBefore = await readOrNull(ctx.paths.syncRecordPath);
+  const c = countingDeps({ onDownload });
+  await assert.rejects(run(ctx, { ...runArgs, depsOverride: c.override }), (e) => {
+    assert.equal(e.code, "GGL_SYNC_BLOCKED_BY_LINK");
+    assert.equal(e.path, wantPath);
+    assert.equal(e.where, where);
+    assert.ok(e.message.includes(e.path), e.message);
+    return true;
+  });
+  assert.deepEqual(await snapshot(outside), before, "外部不得有任何變化");
+  assert.deepEqual(await readOrNull(ctx.paths.syncRecordPath), recordBefore);
+  if (checkpoint === 1) {
+    assert.equal(await exists(ctx.paths.syncInProgressPath), false);
+    assert.deepEqual(c.counts, { prepareRuntime: 0, download: 0 });
+  } else {
+    assert.equal(await exists(ctx.paths.syncInProgressPath), true);
+    assert.equal(c.counts.prepareRuntime, 1);
+  }
+}
+
+const seedRecord = (ctx) =>
+  fsp.writeFile(ctx.paths.syncRecordPath, "previous record bytes");
+
+const mods = (ctx) => abs(ctx.paths, "mods");
+
+for (const [id, label, opts, arrange, runArgs, want] of [
+  [
+    "L1", "mods/ is a junction, the record's old.jar must be deleted", {},
+    async (ctx) => {
+      await put(ctx.paths, "mods/old.jar", A);
+      return linkAt(ctx, mods(ctx));
+    },
+    { previous: [{ path: "mods/old.jar", sha256: sha(A) }], next: [entry("config/c.toml", C)] },
+    () => ({ path: "mods", where: "game" }),
+  ],
+  [
+    "L2", "mods/ is a junction, a new file must be placed (outside .ggl-tmp survives)", {},
+    async (ctx) => {
+      const outside = await linkAt(ctx, mods(ctx));
+      await fsp.writeFile(path.join(outside, ".new.jar.ggl-tmp"), "not ours");
+      return outside;
+    },
+    { next: [entry("mods/new.jar", A)] },
+    () => ({ path: "mods", where: "game" }),
+  ],
+  [
+    "L3", "mods/ is a junction, Foo.jar → foo.jar", {},
+    async (ctx) => {
+      await put(ctx.paths, "mods/Foo.jar", A);
+      return linkAt(ctx, mods(ctx));
+    },
+    { previous: [{ path: "mods/Foo.jar", sha256: sha(A) }], next: [entry("mods/foo.jar", A)] },
+    () => ({ path: "mods", where: "game" }),
+  ],
+  [
+    "L4", "gameDir is a junction, only a delete", {},
+    async (ctx) => {
+      await put(ctx.paths, "mods/old.jar", A);
+      return linkAt(ctx, ctx.paths.gameDir);
+    },
+    { previous: [{ path: "mods/old.jar", sha256: sha(A) }], next: [] },
+    (ctx) => ({ path: ctx.paths.gameDir, where: "managed" }),
+  ],
+  [
+    "L5", "gameDir is a junction, a download", {},
+    (ctx) => linkAt(ctx, ctx.paths.gameDir),
+    { next: [entry("mods/a.jar", A)] },
+    (ctx) => ({ path: ctx.paths.gameDir, where: "managed" }),
+  ],
+  [
+    "L6", "group/ is a junction, a download", {},
+    (ctx) => linkAt(ctx, ctx.paths.groupDir),
+    { next: [entry("mods/a.jar", A)] },
+    (ctx) => ({ path: ctx.paths.groupDir, where: "managed" }),
+  ],
+  [
+    "L7", ".temp/sync-staging is a junction holding player.dat", {},
+    async (ctx) => {
+      const outside = await linkAt(ctx, stagingDir(ctx.paths));
+      await fsp.writeFile(path.join(outside, "player.dat"), "player");
+      return outside;
+    },
+    { next: [entry("mods/a.jar", A)] },
+    (ctx) => ({ path: stagingDir(ctx.paths), where: "managed" }),
+  ],
+  [
+    "L8", ".temp is a junction holding sync-staging/player.dat and other.dat", {},
+    async (ctx) => {
+      const outside = await linkAt(ctx, ctx.paths.tempDir);
+      await fsp.mkdir(path.join(outside, "sync-staging"));
+      await fsp.writeFile(path.join(outside, "sync-staging", "player.dat"), "player");
+      await fsp.writeFile(path.join(outside, "other.dat"), "other");
+      return outside;
+    },
+    { next: [entry("mods/a.jar", A)] },
+    (ctx) => ({ path: ctx.paths.tempDir, where: "managed" }),
+  ],
+  [
+    "L9", "the install location itself is a junction", { linkedRoot: true },
+    async (ctx) => path.join(ctx.root, "real"),
+    { next: [entry("mods/a.jar", A)] },
+    (ctx) => ({ path: ctx.paths.root, where: "root" }),
+  ],
+  [
+    "L10", "instanceDir is a junction (no in-progress marker may appear outside)", {},
+    (ctx) => linkAt(ctx, ctx.paths.instanceDir),
+    { next: [entry("mods/a.jar", A)] },
+    (ctx) => ({ path: ctx.paths.instanceDir, where: "managed" }),
+  ],
+  [
+    "L11", "libraries/ is a junction, nothing under it in the plan", {},
+    (ctx) => linkAt(ctx, abs(ctx.paths, "libraries")),
+    { next: [entry("mods/a.jar", A)] },
+    () => ({ path: "libraries", where: "game" }),
+  ],
+  [
+    "L12", "<root>/runtime is a junction", {},
+    (ctx) => linkAt(ctx, path.join(ctx.paths.root, "runtime")),
+    { next: [entry("mods/a.jar", A)] },
+    (ctx) => ({ path: path.join(ctx.paths.root, "runtime"), where: "managed" }),
+  ],
+  [
+    "L13", "a remove target is itself a junction (not in removeFirst)", {},
+    async (ctx) => {
+      await fsp.mkdir(mods(ctx), { recursive: true });
+      return linkAt(ctx, abs(ctx.paths, "mods/x"));
+    },
+    { previous: [{ path: "mods/x", sha256: "1".repeat(64) }], next: [entry("mods/a.jar", A)] },
+    () => ({ path: "mods/x", where: "game" }),
+  ],
+]) {
+  test(`${id} ${label} ⇒ BLOCKED_BY_LINK at the first check, outside untouched`, { skip: !onWindows }, async (t) => {
+    const ctx = await setup(t, opts);
+    await seedRecord(ctx);
+    const outside = await arrange(ctx);
+    await expectRefused(ctx, { outside, runArgs, ...want(ctx), checkpoint: 1 });
+  });
+}
+
+for (const [id, label, target, want] of [
+  ["L14", "mods/ becomes a junction during the download", (ctx) => mods(ctx), () => ({ path: "mods", where: "game" })],
+  [
+    "L15", "<root>/runtime becomes a junction during the download",
+    (ctx) => path.join(ctx.paths.root, "runtime"),
+    (ctx) => ({ path: path.join(ctx.paths.root, "runtime"), where: "managed" }),
+  ],
+]) {
+  test(`${id} ${label} ⇒ BLOCKED_BY_LINK at the second check, marker stays, no record`, { skip: !onWindows }, async (t) => {
+    const ctx = await setup(t);
+    await seedRecord(ctx);
+    const outside = path.join(ctx.root, "outside");
+    await fsp.mkdir(outside);
+    await fsp.writeFile(path.join(outside, "precious.txt"), "keep me");
+    await expectRefused(ctx, {
+      outside,
+      runArgs: { next: [entry("mods/a.jar", A)] },
+      onDownload: async (n) => {
+        if (n === 1) await fsp.symlink(outside, target(ctx), "junction");
+      },
+      ...want(ctx),
+      checkpoint: 2,
+    });
+  });
+}
+
+test("L16 coverage: every path applyPlan writes through deps.fsp has its ancestors (a) and, for rm/rename, itself (b) checked", async (t) => {
+  const ctx = await setup(t);
+  await put(ctx.paths, "mods/old.jar", A); // remove
+  await put(ctx.paths, "mods/Foo.jar", B); // rename → foo.jar
+  await put(ctx.paths, "shaders", "old shader"); // removeFirst（新版要的是 shaders/s.txt）
+  await put(ctx.paths, "config", "player"); // 記錄外的檔擋在資料夾的位置 ⇒ moveAside
+  await fsp.mkdir(abs(ctx.paths, "mods/extra"), { recursive: true }); // 空資料夾擋在檔的位置 ⇒ dirsToRemove
+  const previous = [
+    { path: "mods/old.jar", sha256: sha(A) },
+    { path: "mods/Foo.jar", sha256: sha(B) },
+    { path: "shaders", sha256: sha(Buffer.from("old shader")) },
+  ];
+  const next = [
+    entry("mods/foo.jar", B),
+    entry("shaders/s.txt", C),
+    entry("config/c.toml", C),
+    entry("mods/extra", A),
+  ];
+  const ops = [];
+  const recorded = new Set(["rm", "rename", "copyFile", "mkdir", "writeFile"]);
+  const spy = new Proxy(fsp, {
+    get(target, key) {
+      const v = target[key];
+      if (typeof v !== "function") return v;
+      if (!recorded.has(key)) return v.bind(target);
+      return (...args) => {
+        ops.push({ op: key, args });
+        return v.apply(target, args);
+      };
+    },
+  });
+  const { plan: p, result } = await run(ctx, { previous, next, depsOverride: { fsp: spy } });
+
+  // 這幾個分支都要真的走到，覆蓋率才有意義
+  assert.deepEqual(p.remove.sort(), ["mods/old.jar", "shaders"]);
+  assert.deepEqual(p.removeFirst, ["shaders"]);
+  assert.deepEqual(p.rename, [{ from: "mods/Foo.jar", to: "mods/foo.jar" }]);
+  assert.deepEqual(result.movedAside.map((m) => m.from), ["config"]);
+  assert.ok(ops.some((o) => o.op === "rm" && o.args[1]?.recursive && o.args[0] === abs(ctx.paths, "mods/extra")));
+
+  const checked = new Set(
+    linkCheckPaths({ plan: p, recordFiles: recordFor(next).files }).map((r) => r.toLowerCase()),
+  );
+  const staging = stagingDir(ctx.paths);
+  const inStaging = (q) => q === staging || q.startsWith(staging + path.sep);
+  const relOf = (q) => path.relative(ctx.paths.gameDir, q).split(path.sep).join("/");
+  const ancestors = (rel) => rel.split("/").slice(0, -1).map((_, i, s) => s.slice(0, i + 1).join("/"));
+  // (b) 的例外只收這次實際產生的名字，不靠檔名樣式猜：新記錄每個檔的 .ggl-tmp；
+  // moveAside 的備份名（剛用 readdir 確認過不存在才取的）
+  const tmpOf = (rel) => {
+    const i = rel.lastIndexOf("/");
+    return `${rel.slice(0, i + 1)}.${rel.slice(i + 1)}.ggl-tmp`;
+  };
+  const exemptSet = new Set(
+    [...next.map((n) => tmpOf(n.path)), ...result.movedAside.map((m) => m.to)].map((r) => r.toLowerCase()),
+  );
+  const exempt = (rel) => exemptSet.has(rel.toLowerCase());
+
+  const touched = ops.flatMap(({ op, args }) =>
+    (op === "rename" || op === "copyFile" ? args.slice(0, 2) : args.slice(0, 1)).map((q) => ({ op, q })),
+  );
+  assert.ok(touched.length > 10, `記到的寫入太少：${touched.length}`);
+  for (const { op, q } of touched) {
+    if (inStaging(q)) continue;
+    const rel = relOf(q);
+    assert.ok(!rel.startsWith(".."), `${op} 寫到 gameDir 與 staging 以外：${q}`);
+    for (const a of ancestors(rel)) assert.ok(checked.has(a.toLowerCase()), `(a) ${op} ${rel} 的上層 ${a} 沒查`);
+    if ((op === "rm" || op === "rename") && !exempt(rel))
+      assert.ok(checked.has(rel.toLowerCase()), `(b) ${op} 的目標 ${rel} 本身沒查`);
+  }
+});
+
+test("L18 .ggl-tmp is a junction ⇒ the link itself is removed, outside untouched, one log line, update succeeds", { skip: !onWindows }, async (t) => {
+  const ctx = await setup(t);
+  await fsp.mkdir(mods(ctx), { recursive: true });
+  const outside = await linkAt(ctx, abs(ctx.paths, "mods/.x.jar.ggl-tmp"));
+  const before = await snapshot(outside);
+  const logs = [];
+  await run(ctx, { next: [entry("mods/x.jar", A)], depsOverride: { log: (l) => logs.push(l) } });
+  assert.deepEqual(await read(ctx.paths, "mods/x.jar"), A);
+  assert.equal(await exists(abs(ctx.paths, "mods/.x.jar.ggl-tmp")), false);
+  assert.deepEqual(await snapshot(outside), before);
+  assert.equal(logs.length, 1);
+  assert.ok(logs[0].includes("mods/.x.jar.ggl-tmp"), logs[0]);
+});
