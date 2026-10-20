@@ -61,7 +61,7 @@ const {
 } = require("../lib/manifest-url-configured.js");
 const { exportDiagnostics } = require("./diagnostics-export");
 const { runMainAppReady } = require("./app-ready");
-const { gglEvent, gglError } = require("../lib/ggl-structured-log");
+const { gglEvent, gglError } = require("./ggl-log");
 
 const getRemoteManifestUrl = () => serverConfig.manifestUrl;
 const isManifestUrlConfigured = () =>

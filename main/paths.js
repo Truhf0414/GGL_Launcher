@@ -24,6 +24,12 @@ function getNotificationsDismissedPath() {
   return path.join(app.getPath("userData"), "notifications.dismissed.json");
 }
 
+// 常駐故障日誌（main/ggl-log.js）
+function getGglLogPath() {
+  const { app } = require("electron");
+  return path.join(app.getPath("userData"), "ggl-launcher.log");
+}
+
 function resolveDefaultSettingsPath() {
   const { app } = require("electron");
   const projectRoot = path.join(__dirname, "..");
@@ -38,5 +44,6 @@ module.exports = {
   getPaths,
   getSettingsPath,
   getNotificationsDismissedPath,
+  getGglLogPath,
   resolveDefaultSettingsPath,
 };

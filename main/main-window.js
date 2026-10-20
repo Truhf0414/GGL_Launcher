@@ -2,7 +2,8 @@ const path = require("path");
 const fs = require("fs");
 const { BrowserWindow } = require("electron");
 const { getDebugLoggingEnabled } = require("./launcher-log");
-const { gglEvent } = require("../lib/ggl-structured-log");
+const { gglEvent, gglError } = require("./ggl-log");
+const { attachRendererFailureLog } = require("./renderer-failure-log");
 
 let appRoot = path.join(__dirname, "..");
 /** @type {string} */
@@ -74,8 +75,9 @@ function createMainWindow() {
     },
   });
   gglEvent("main", "main_window_created", {});
+  attachRendererFailureLog(mainWindow.webContents, gglError);
 
-  // Debug 用：把 renderer 的 console/error 印到主程序
+  // Debug 用：把 renderer 的 console 印到主程序
   // 平常不掛，避免噪音與 deprecated 警告
   if (getDebugLoggingEnabled()) {
     try {
@@ -87,16 +89,6 @@ function createMainWindow() {
         const line = Number(details?.lineNumber ?? 0);
         const sourceId = String(details?.sourceId ?? "");
         console.log(`[RENDERER:${lvl}] ${message} (${sourceId}:${line})`);
-      });
-      mainWindow.webContents.on("render-process-gone", (_e, details) => {
-        console.log("[RENDERER:GONE]", details);
-      });
-      mainWindow.webContents.on("preload-error", (_e, preloadPath, error) => {
-        console.log(
-          "[PRELOAD:ERROR]",
-          preloadPath,
-          String(error?.message ?? error),
-        );
       });
     } catch {}
   }

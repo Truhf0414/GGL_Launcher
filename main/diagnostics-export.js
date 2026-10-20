@@ -4,6 +4,8 @@ const { app } = require("electron");
 const fs = require("fs");
 const fsp = require("fs/promises");
 const path = require("path");
+const { getGglLogPath } = require("./paths");
+const { rotatedPath } = require("../lib/log-file");
 
 function pad2(n) {
   return String(n).padStart(2, "0");
@@ -107,6 +109,13 @@ async function exportDiagnostics(deps) {
   // settings.json lives under userData
   const settingsPath = path.join(app.getPath("userData"), "settings.json");
   await safeCopyFile(settingsPath, path.join(outDir, "settings.json"));
+
+  // 常駐故障日誌與剛輪替的那份（故障可能就在舊的那份裡）
+  for (const src of [getGglLogPath(), rotatedPath(getGglLogPath())]) {
+    if (fs.existsSync(src)) {
+      await safeCopyFile(src, path.join(outDir, path.basename(src)));
+    }
+  }
 
   // launcher.log (only exists when debug logging enabled; on Desktop)
   const desktopLog = path.join(app.getPath("desktop"), "launcher.log");
