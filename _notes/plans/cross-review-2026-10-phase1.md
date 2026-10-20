@@ -1,30 +1,30 @@
-# Phase 1 — Sync／Runtime Junction 封口：細部 plan（狀態：**2026-10-17 初稿；同日 owner 裁 D-LINK-CODE（→ 上層 §3.4）；2026-10-17～19 經 fakechat 與 outside voice 多輪收斂，Q1–Q4 與 C 皆已裁（→ 上層 §3.4 D-LINK-C 群、§6.2 末）；2026-10-19 依裁決整份重寫（初稿備份 → `_backup/cross-review-2026-10-phase1.md.before-c-rewrite-2026-10-19.md`），同日 owner 在終端裁 `.ggl-tmp`（乙）並授權回寫；2026-10-20 owner 採納 1b 兩項細節（→ 上層 §3.4 D-LINK-C-DEEP-1B）**）
+# Phase 1 — Sync／Runtime Junction 封口：細部 plan（狀態：**2026-10-17 初稿；同日 owner 裁 D-LINK-CODE（→ 上層 §3.4）；2026-10-17～19 經 fakechat 與 outside voice 多輪收斂，Q1–Q4 與 C 皆已裁（→ 上層 §3.4 D-LINK-C 群、§6.2 末）；2026-10-19 依裁決整份重寫（初稿備份 → `_backup/cross-review-2026-10-phase1.md.before-c-rewrite-2026-10-19.md`），同日 owner 在終端裁 `.ggl-tmp`（乙）並授權回寫；2026-10-20 owner 採納 1b 兩項細節（→ 上層 §3.4 D-LINK-C-DEEP-1B）；同日 1a 實作、owner 驗收放行（`4d7721e`，→ §1a 實作時的偏離）**）
 
 上層＝`plans/cross-review-2026-10.md` §8 Phase 1（目的、範圍、不做、不變量、驗收的下限、完成定義在那裡，本檔不重述）；裁決＝同檔 §3.4；證據＝同檔 §5.1–§5.4、§5.13–§5.16；收斂經過＝同檔 §6.2。X1、N6 不在本檔（→ 上層 §8 X1、N6）。本檔只寫上層留給細部 plan 的部分：結構怎麼切、錯誤怎麼長、測試怎麼寫、施工順序。
 
-**本檔的設計與測試全部尚未實作**（2026-10-19，基準 `ac765af`）。標記照上層 §0.1：〔實測〕＝已實測重現（結果在上層 §5）；〔讀碼〕＝現讀程式可證；〔推論〕＝靜態推論待驗；〔owner 裁〕／〔轉述：fakechat …〕＝owner 已裁。
+**1a 已實作（`4d7721e`，2026-10-20）；1b 的設計與測試尚未實作**（本檔寫於 2026-10-19，基準 `ac765af`；1a 改到的行號已加〔對齊〕註記）。標記照上層 §0.1：〔實測〕＝已實測重現（結果在上層 §5）；〔讀碼〕＝現讀程式可證；〔推論〕＝靜態推論待驗；〔owner 裁〕／〔轉述：fakechat …〕＝owner 已裁。
 
 ## 動工前現查
 
 ### 2026-10-17（基準 `ac765af`）
 
 - `npm test`：`tests 976 / pass 976 / fail 0 / skipped 0`。
-- **`applyPlan` 的順序**（`main/sync/apply.js:73-80`）：`clearLeftovers`（`:73`）→ `markInProgress`（`:74`）→ `prepareRuntime`（`:76`）→ `downloadAll`（`:78`）→ `findBlockers`（`:80`）。`abs()` 以 gameDir 為根（`:70`），staging＝`tempDir/sync-staging`（`:71`）。
+- **`applyPlan` 的順序**（`main/sync/apply.js:73-80`）：`clearLeftovers`（`:73`）→ `markInProgress`（`:74`）→ `prepareRuntime`（`:76`）→ `downloadAll`（`:78`）→ `findBlockers`（`:80`）。`abs()` 以 gameDir 為根（`:70`），staging＝`tempDir/sync-staging`（`:71`）。〔對齊 2026-10-20：`main/sync/apply.js:73-80` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:105-115`（改寫：前後各加一次 `refuseLinks`）；`:73` → `:106`、`:74` → `:107`、`:76` → `:109`、`:78` → `:111`、`:80` → `:115`、`:70` → `:83`、`:71` → `:84`〕
 - **`markInProgress`／`writeRecord`** 用模組自己的 `defaultFsp`，不走 `deps.fsp`；兩者都先 `mkdir(paths.instanceDir, { recursive: true })`（`main/sync/instance-record.js:27-44`）。
-- **`findBlockers` 的連結分支**：上層是 `"other"`（`lib/sync/blocking.js:43-48`）、目標本身是 `"other"`（`:58-65`）、要整個刪掉的資料夾裡有非一般檔（`:67-76`）。三處都產 `{ code: "GGL_SYNC_BLOCKED_BY_LINK", path, blocks }`。
-- **`fsProbe.kind`**（`main/sync/apply.js:286-299`）：`isSymbolicLink()` ⇒ `"other"`；不是資料夾也不是檔 ⇒ `"other"`；`ENOENT`／`ENOTDIR` ⇒ `"none"`。
-- **錯誤碼的讀者**：`GGL_SYNC_BLOCKED_*` 在 `_notes/` 以外只出現在 `main/sync/apply.js`（`BLOCKED_MESSAGES` 查文案，`:24-31`）、`lib/sync/blocking.js`、測試（`rg -n GGL_SYNC_BLOCKED`）。畫面不看錯誤碼分流（`rg -n BLOCKED renderer renderer.js preload.js main lib` 只命中另一個碼 `GGL_SYNC_LAUNCH_BLOCKED`）。
-- **既有測試**：真 junction 兩案 `test/sync-apply.test.cjs:716-731`（`config` 是 junction，下載 `config/c.toml`，只斷言 code）、`:733-754`（`mods/extra/link` 是 junction 且在記錄裡，新版在 `mods/extra` 放檔，斷言 code 與 `e.path`）。連結的單元測試 `test/sync-blocking.test.cjs` 3 案 4 處斷言（`:171`、`:202`、`:224`），都用 `deepEqual` 比含 `blocks` 的整個物件。
+- **`findBlockers` 的連結分支**：上層是 `"other"`（`lib/sync/blocking.js:43-48`）、目標本身是 `"other"`（`:58-65`）、要整個刪掉的資料夾裡有非一般檔（`:67-76`）。三處都產 `{ code: "GGL_SYNC_BLOCKED_BY_LINK", path, blocks }`。〔對齊 2026-10-20：`lib/sync/blocking.js` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:43-48` → `:46-48`、`:58-65` → `:57-60`、`:67-76` → `:62-67`（三處改呼叫 `linkError`）〕
+- **`fsProbe.kind`**（`main/sync/apply.js:286-299`）：`isSymbolicLink()` ⇒ `"other"`；不是資料夾也不是檔 ⇒ `"other"`；`ENOENT`／`ENOTDIR` ⇒ `"none"`。〔對齊 2026-10-20：`main/sync/apply.js:286-299` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 改寫成 `kindAt` `:326-333`＋`fsProbe.kind` `:337`（改用 `kindOf`）〕
+- **錯誤碼的讀者**：`GGL_SYNC_BLOCKED_*` 在 `_notes/` 以外只出現在 `main/sync/apply.js`（`BLOCKED_MESSAGES` 查文案，`:24-31`）、`lib/sync/blocking.js`、測試（`rg -n GGL_SYNC_BLOCKED`）。畫面不看錯誤碼分流（`rg -n BLOCKED renderer renderer.js preload.js main lib` 只命中另一個碼 `GGL_SYNC_LAUNCH_BLOCKED`）。〔對齊 2026-10-20：`main/sync/apply.js:24-31` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:30-36`（`BLOCKED_BY_LINK` 改呼叫 `linkMessage`，`:35`）〕
+- **既有測試**：真 junction 兩案 `test/sync-apply.test.cjs:716-731`（`config` 是 junction，下載 `config/c.toml`，只斷言 code）、`:733-754`（`mods/extra/link` 是 junction 且在記錄裡，新版在 `mods/extra` 放檔，斷言 code 與 `e.path`）。連結的單元測試 `test/sync-blocking.test.cjs` 3 案 4 處斷言（`:171`、`:202`、`:224`），都用 `deepEqual` 比含 `blocks` 的整個物件。〔對齊 2026-10-20：`test/sync-apply.test.cjs` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:716-731` → `:727-742`、`:733-754` → `:744-765`；`test/sync-blocking.test.cjs` `:171` → `:177`、`:202` → `:208`、`:224` → `:230`〕
 - **`:733` 那案的連結同時在 `remove` 與 `removeFirst`**〔讀碼〕：`planSync` 的 `exists` 用 `lstat`，所以 junction 算存在 ⇒ 進 `remove`（`lib/sync/plan.js:153-159`）；`blockingRemovals` 判它在 next 檔 `mods/extra` 底下 ⇒ 也進 `removeFirst`（`:55-72`、`:165`）。
-- **測試架構**：`setup` 用 `mkdtemp` 建根、先 `mkdir(gameDir)`（`test/sync-apply.test.cjs:37-41`）；`deps()` 的 `prepareRuntime` 是假的（`:93`）；`junctionTo(ctx, rel)` 只會在 gameDir 底下建（`:707-714`）。
+- **測試架構**：`setup` 用 `mkdtemp` 建根、先 `mkdir(gameDir)`（`test/sync-apply.test.cjs:37-41`）；`deps()` 的 `prepareRuntime` 是假的（`:93`）；`junctionTo(ctx, rel)` 只會在 gameDir 底下建（`:707-714`）。〔對齊 2026-10-20：`test/sync-apply.test.cjs` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:37-41` → `:42-52`（改寫：`setup` 多 `linkedRoot`）、`:93` → `:104`、`:707-714` → `:718-725`〕
 - **`<root>/runtime` 的名字已經寫在三處**：`lib/paths-layout.js:41`（`javaDirRel`）、`main/runtime/java.js:387`、`main/sync/runtime-cleanup.js:52`。`versions`／`libraries`／`assets` 散在 runtime 安裝與清理裡（`main/runtime/minecraft.js`、`main/sync/runtime-cleanup.js:51`、`main/minecraft-launch.js:204`）。
 - **規模**：線上 `alpha1` 的 `release.json` 有 564 個檔，上層資料夾 casefold 去重後 62 個（`jq` ＋ `awk`，2026-10-17）。⇒ 上層母 plan「已知未驗：`lstat` 次數遠少於檔案數」對**上層**這部分成立；首次安裝時下載目標本身也要查（564 個），但上層是 `"none"` 就整串跳過（見 §1a 設計 findLinks）。
 
 ### 2026-10-19 補查（基準仍是 `ac765af`，`git log -1` 現查）
 
-- **`.ggl-tmp`**〔讀碼〕：`clearLeftovers` 對新記錄每個檔旁的 `.<名>.ggl-tmp` 做 `rm(force)`（`main/sync/apply.js:134-142`）；放檔時 `copyFile` 到同名暫存再 `rename`（`:103-108`）。`.ggl-tmp` 不在 `linkCheckPaths` 裡（只查它的上層）。原語層 `rm(force)` 對 file symlink、junction、dir symlink 都只刪連結本身〔實測，上層 §5.16 P-rmwx〕；GGL 的呼叫處本身沒測。
-- **`applyPlan` 拿不到 log**〔讀碼〕：`main/sync/index.js:335-376` 傳給 `applyPlan` 的 `deps` 只有 `prepareRuntime`、`fetchReleaseFiles`、`sendSyncProgress`；`deps.log` 只傳給 `prepareRuntime`（`:359`）與 `removeStaleRuntime`（`:381`）。`launcher.log` 只在 debug 開著時寫（`main/launcher-log.js:25`）。
-- **清理在 `applyPlan` 之後**〔讀碼〕：`main/sync/index.js:335` `applyPlan` 回來後才 `:378` `removeStaleRuntime`；垃圾區＝`<root>/.temp/runtime-trash`（`main/sync/runtime-cleanup.js:40`），清理時 `mkdir` 它再把舊目錄 `rename` 進去（`:78-79`），最後整個 `rm`（`:85`）。
+- **`.ggl-tmp`**〔讀碼〕：`clearLeftovers` 對新記錄每個檔旁的 `.<名>.ggl-tmp` 做 `rm(force)`（`main/sync/apply.js:134-142`）；放檔時 `copyFile` 到同名暫存再 `rename`（`:103-108`）。`.ggl-tmp` 不在 `linkCheckPaths` 裡（只查它的上層）。原語層 `rm(force)` 對 file symlink、junction、dir symlink 都只刪連結本身〔實測，上層 §5.16 P-rmwx〕；GGL 的呼叫處本身沒測。〔對齊 2026-10-20：`main/sync/apply.js` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:134-142` → `:166-181`（改寫：刪之前看是否連結、是就寫 log）、`:103-108` → `:135-140`〕
+- **`applyPlan` 拿不到 log**〔讀碼〕：`main/sync/index.js:335-376` 傳給 `applyPlan` 的 `deps` 只有 `prepareRuntime`、`fetchReleaseFiles`、`sendSyncProgress`；`deps.log` 只傳給 `prepareRuntime`（`:359`）與 `removeStaleRuntime`（`:381`）。`launcher.log` 只在 debug 開著時寫（`main/launcher-log.js:25`）。〔對齊 2026-10-20：`main/sync/index.js` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:335-376` → `:335-377`（多傳 `log`，`:375`）、`:359` 未移動、`:381` → `:382`〕
+- **清理在 `applyPlan` 之後**〔讀碼〕：`main/sync/index.js:335` `applyPlan` 回來後才 `:378` `removeStaleRuntime`；垃圾區＝`<root>/.temp/runtime-trash`（`main/sync/runtime-cleanup.js:40`），清理時 `mkdir` 它再把舊目錄 `rename` 進去（`:78-79`），最後整個 `rm`（`:85`）。〔對齊 2026-10-20：`main/sync/index.js` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:335` 未移動、`:378` → `:379`〕
 - **runtime 深層的修改點**〔讀碼，`main/runtime/minecraft.js`〕：
   - `installRuntimeFiles`（`:359-`）的五組（`version-jar`、`libraries`、`asset-index`、`log-config`、`assets`）**全部走同一個 `runGroup`**：`needsDownload`（`:385-397`，不存在 ⇒ 要；該驗而 sha1 不符 ⇒ `rm(abs, { force: true })`（`:394`）再要）→ `downloadRuntimeFile`（`:417`，dest＝`absUnder(gameDir, task.rel)`）。
   - `downloadRuntimeFile`（`main/runtime/download.js:141-`）逐來源 `try`：`download(..., { resume: false })`（`:174-180`）＝`net-fetch` 先寫 `dest.tmp` 再 `rename` 成 dest（`main/net-fetch.js:160`、`:222`）；失敗就 `rm(dest, { force: true })`（`download.js:185`）、換下一個來源。**整個來源迴圈的錯都被 catch**（`:184-199`）。
@@ -91,7 +91,7 @@
 | 區域 | 遇到連結時 | 依據 | 本 Phase 做什麼 |
 |---|---|---|---|
 | GGL 推導的基底：root、groupDir、instanceDir、gameDir、tempDir、`tempDir/sync-staging`、`tempDir/runtime-trash`、`<root>/runtime` | 本身是連結 ⇒ 拒絕 | D-LINK-SCOPE、D-LINK-TEMP、D-LINK-RUNTIME、D-LINK-TRASH | 1a：兩個檢查點都查 |
-| 共用遊戲資料區（gameDir 底下的同步路徑）：上層與末端目標 | 拒絕，**末端連結也拒**（即使在 `removeFirst` 或記錄的待刪路徑上） | Sync v3「連結不猜不刪」（`plans/instance-sync-v3-commit3a2.md:47`、`:126`、`:184`；程式 `lib/sync/blocking.js:66`）＋D-LINK-C-SHARED | 1a：`linkCheckPaths`＋`findBlockers` |
+| 共用遊戲資料區（gameDir 底下的同步路徑）：上層與末端目標 | 拒絕，**末端連結也拒**（即使在 `removeFirst` 或記錄的待刪路徑上） | Sync v3「連結不猜不刪」（`plans/instance-sync-v3-commit3a2.md:47`、`:126`、`:184`；程式 `lib/sync/blocking.js:66`）＋D-LINK-C-SHARED | 1a：`linkCheckPaths`＋`findBlockers`〔對齊 2026-10-20：`lib/sync/blocking.js:66` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:61`〕 |
 | runtime 的三個頂層 `versions`、`libraries`、`assets` | 本身是連結 ⇒ 拒絕 | D-LINK-RUNTIME | 1a：`linkCheckPaths` |
 | runtime 深層的實際修改路徑 | 修改前發現上層是連結 ⇒ 拒絕；只讀（`verifyAll` 算 hash、讀本機 json）不拒 | D-LINK-C-DEEP | 1b |
 | `.ggl-tmp` | 刪連結本身＋寫一行 log | D-LINK-C-TMP | 1a |
@@ -109,7 +109,7 @@
 ### 一把尺：哪些路徑不准是連結
 
 - **`lib/fs-links.js`**（純，1a 與 1b 共用）：
-  - **`kindOf(statOrDirent)`**：`isSymbolicLink()` ⇒ `"other"`；`isDirectory()` ⇒ `"dir"`；`isFile()` ⇒ `"file"`；其他 ⇒ `"other"`。吃 `fs.Stats` 也吃 `fs.Dirent`，「什麼算連結」只有這一處（Q1）。既有 `fsProbe.kind`（`main/sync/apply.js:286-299`）與 `listEntries` 改用它；`ENOENT`／`ENOTDIR` ⇒ `"none"` 仍由呼叫端處理。
+  - **`kindOf(statOrDirent)`**：`isSymbolicLink()` ⇒ `"other"`；`isDirectory()` ⇒ `"dir"`；`isFile()` ⇒ `"file"`；其他 ⇒ `"other"`。吃 `fs.Stats` 也吃 `fs.Dirent`，「什麼算連結」只有這一處（Q1）。既有 `fsProbe.kind`（`main/sync/apply.js:286-299`）與 `listEntries` 改用它；`ENOENT`／`ENOTDIR` ⇒ `"none"` 仍由呼叫端處理。〔對齊 2026-10-20：`main/sync/apply.js:286-299` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 改寫成 `kindAt` `:326-333`＋`fsProbe.kind` `:337`（改用 `kindOf`）〕
   - **`linkError(path, where)`**：唯一一個造連結錯誤的地方 → `{ code: "GGL_SYNC_BLOCKED_BY_LINK", path, where }`。`where` 是 `"game"`（`path` 相對 gameDir）、`"root"`（`launcherRootDir` 本身，絕對路徑）、`"managed"`（GGL 推導的基底路徑，絕對路徑）。
   - **`linkMessage(e)`**：依 `where` 挑 Q4 的文案。`apply.js` 的 `BLOCKED_MESSAGES.GGL_SYNC_BLOCKED_BY_LINK` 改呼叫它；1b 也用它——文案只有一份。
   - **`findLinks({ paths, probe })`**（`paths` 是字串陣列或 `{ path, where }`，由外到內）→ 錯誤陣列。逐一 `probe.kind`：`"other"` ⇒ `linkError`，**它底下的路徑不再查**（查了也是穿過連結）；`"none"`／`"file"` ⇒ 底下的不再查；`"dir"` ⇒ 繼續。
@@ -276,6 +276,17 @@ L17 只能放在 sync-index 層：`applyPlan` 層不呼叫清理，測不到真�
 1. D1–D8、R 組先寫 ⇒ 跑：D 組確認紅在「沒擋下」（D3 應該是綠的，它是對照）；R 組應該全綠（釘的是現狀），有紅的就停下回報——那表示現狀和上層 §5.15、§5.16 的實測不一樣。
 2. `main/runtime/minecraft.js`：拆 `needsDownload`、修改前檢查、資料夾結果快取 ⇒ D 組全綠。
 3. 驗收清單；開驗收單；commit 收尾同 1a。
+
+## 1a 實作時的偏離（2026-10-20，`4d7721e`；驗收單逐條列給 owner，owner「做得真棒，1a 放行。」）
+
+| # | 偏離 | 為什麼 |
+|---|---|---|
+| I1 | `findLinks` 只收 `{ path, where }`；`linkCheckPaths` 的字串在 `applyPlan` 呼叫處轉成 `where: "game"`。§1a 設計原寫「字串陣列或 `{ path, where }`」 | `conventions.md` §防禦與相容第 6 條「一個函式只收一種輸入形狀」；commit 前自審 rg 命中 `typeof item === "string"` 才發現 |
+| I2 | L16 (b) 的例外只收本次實際產生的名字：新記錄每個檔的 `.ggl-tmp`、`result.movedAside` 的 `to`。§測試原只列 `.ggl-tmp` 與 staging；moveAside 的備份名是 L16 走到 moveAside 分支後才發現要列的 | 備份名是 `readdir` 確認不存在才取的，不會是連結。初版用檔名樣式（`.ggl-備份-`、`.*.ggl-tmp`）判例外，owner 驗收時指出太寬（會放過名字剛好像的新寫入），改成實際名字；兩種例外各拿掉一次，L16 都紅 |
+| I3 | `clearLeftovers` 查 `.ggl-tmp` 是不是連結時，`lstat` 失敗一律當「不是連結」，刪不刪、錯誤怎麼報照舊交給 `rm(force)`。§1a 設計原寫「`ENOENT` ⇒ 跳過」 | 上層不變量「沒有連結時行為完全不變」：改前對 `.ggl-tmp` 只有一個 `rm(force)`，`ENOTDIR` 等情況怎麼收也是它決定 |
+| I4 | `deps.log` 照 §1a 設計可不給（不給就不寫，經 `main/runtime/download.js` 的 `safeLog`） | 與 `conventions.md` 第 2 條「注入的依賴缺了在建立時丟錯」有張力；`applyPlan` 其他 deps 本來就都有預設，驗收單已列出，owner 未要求改 |
+| I5 | L16 在接電之前就是綠的（施工順序第 3 步原寫「紅在函式不存在或覆蓋缺口」） | 它比對的是 `linkCheckPaths`（第 2 步已完成）與 `applyPlan` 實際寫入，不依賴接電；拿掉 `linkCheckPaths` 的 rename 那類，L16 紅 |
+| I6 | 外部快照放在 `test/helpers/fs-snapshot.cjs` | sync-apply 與 sync-index 都要用，1b 也會用 |
 
 ## 回滾
 
