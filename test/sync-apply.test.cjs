@@ -23,6 +23,11 @@ const {
 } = require("../main/sync/instance-record.js");
 const { downloadToFileWithStallGuard } = require("../main/net-fetch.js");
 const { applyPlan, SyncApplyError } = require("../main/sync/apply.js");
+const { prepareRuntime } = require("../main/runtime/prepare.js");
+const { registerInstanceIpc } = require("../main/ipc/instance-ipc.js");
+const { linkMessage } = require("../lib/fs-links.js");
+const { windowsEnv } = require("../lib/launch-args.js");
+const { startFakeRuntime, MC, LOADER } = require("./helpers/fake-runtime.cjs");
 
 const HANG_LIMIT_MS = 10_000;
 const sha = (buf) => crypto.createHash("sha256").update(buf).digest("hex");
@@ -1054,4 +1059,67 @@ test("L18 .ggl-tmp is a junction ⇒ the link itself is removed, outside untouch
   assert.deepEqual(await snapshot(outside), before);
   assert.equal(logs.length, 1);
   assert.ok(logs[0].includes("mods/.x.jar.ggl-tmp"), logs[0]);
+});
+
+// ── 連結封口 1b D7（→ _notes/plans/cross-review-2026-10-phase1.md §測試「1b」）──
+// 真的 prepareRuntime（Java 一步換成空的）＋本機 HTTP 的 runtime；深層 junction 1a 的檢查點不查，由 runtime 自己擋
+
+test("D7 runtime 深層 junction 經 applyPlan 被拒 ⇒ IPC 之後仍是 game 文案原文、中斷標記仍在、記錄沒寫、外部不變", { skip: !onWindows, timeout: HANG_LIMIT_MS }, async (t) => {
+  const ctx = await setup(t);
+  const fake = await startFakeRuntime(t);
+  const runtimeArgs = (verifyAll) => ({
+    settings: {},
+    paths: ctx.paths,
+    minecraft: MC,
+    loader: LOADER,
+    verifyAll,
+    reinstallJava: false,
+    env: windowsEnv("10.0.26200"),
+    deps: {
+      ...fake.endpoints,
+      stall: { windowMs: 300, minBytes: 1 },
+      deadlineMs: 300,
+      mirrorDecision: async () => ({ name: "Mojang 官方", base: "" }),
+      steps: { installJava: async () => {} },
+    },
+  });
+  await prepareRuntime(runtimeArgs(false));
+  const outside = path.join(ctx.root, "outside");
+  await fsp.rename(abs(ctx.paths, "libraries/com"), outside);
+  await fsp.symlink(outside, abs(ctx.paths, "libraries/com"), "junction");
+  const jar = fake.windowsLibraryRels().find((r) => r.startsWith("libraries/com/"));
+  await fsp.rm(path.join(outside, ...jar.slice("libraries/com/".length).split("/")));
+  await seedRecord(ctx);
+  const recordBefore = await readOrNull(ctx.paths.syncRecordPath);
+  const before = await snapshot(outside);
+
+  let refused;
+  await assert.rejects(
+    run(ctx, {
+      next: [entry("mods/a.jar", A)],
+      depsOverride: { prepareRuntime: () => prepareRuntime(runtimeArgs(false)) },
+    }),
+    (e) => {
+      refused = e;
+      return e.code === "GGL_SYNC_BLOCKED_BY_LINK" && e.where === "game" && e.path === "libraries/com";
+    },
+  );
+  const handlers = new Map();
+  registerInstanceIpc({
+    ipcMain: { handle: (ch, fn) => handlers.set(ch, fn) },
+    deps: {
+      updateInstance: async () => {
+        throw refused;
+      },
+    },
+    showInfoDialog: async () => {},
+  });
+  await assert.rejects(handlers.get("instance:update")({ sender: {} }), (e) => {
+    assert.equal(e.message, linkMessage({ where: "game", path: "libraries/com" }));
+    return true;
+  });
+  assert.equal(await exists(ctx.paths.syncInProgressPath), true, "D-LINK-C-DEEP：拒在 markInProgress 之後，標記留著");
+  assert.deepEqual(await readOrNull(ctx.paths.syncRecordPath), recordBefore);
+  assert.deepEqual(await snapshot(outside), before);
+  assert.equal((await fsp.lstat(abs(ctx.paths, "libraries/com"))).isSymbolicLink(), true);
 });

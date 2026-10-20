@@ -15,7 +15,12 @@ const {
   linkCheckPaths,
   baseLinkPaths,
 } = require("../../lib/sync/blocking.js");
-const { kindOf, linkMessage, findLinks } = require("../../lib/fs-links.js");
+const {
+  kindOf,
+  kindAt,
+  linkMessage,
+  findLinks,
+} = require("../../lib/fs-links.js");
 const { pickRuntimeFields } = require("../../lib/runtime-target.js");
 
 class SyncApplyError extends Error {
@@ -320,16 +325,6 @@ async function moveAside(fsp, abs, rel, when) {
   await fsp.rename(path.join(dirAbs, real), path.join(dirAbs, backup));
   const join = (name) => (dirRel ? `${dirRel}/${name}` : name);
   return { from: join(real), to: join(backup) };
-}
-
-/** 絕對路徑的 kindOf；不存在（含上層不是資料夾）⇒ "none" */
-async function kindAt(fsp, p) {
-  try {
-    return kindOf(await fsp.lstat(p));
-  } catch (e) {
-    if (e?.code === "ENOENT" || e?.code === "ENOTDIR") return "none";
-    throw e;
-  }
 }
 
 function fsProbe(fsp, abs) {

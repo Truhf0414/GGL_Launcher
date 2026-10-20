@@ -11,6 +11,7 @@ const os = require("os");
 const path = require("path");
 
 const { startFakeRuntime, MC, LOADER, LAUNCH_ID } = require("./helpers/fake-runtime.cjs");
+const { snapshot } = require("./helpers/fs-snapshot.cjs");
 const { runtimeNeeds } = require("../lib/runtime-needs.js");
 const {
   runtimeCandidates,
@@ -665,4 +666,152 @@ test("N6 兩份 json 合起來試組 argv 不過 ⇒ 丟錯、訊息帶原因，
   fake.fabric.arguments.jvm.push("${classpath}");
   await assert.rejects(installRuntimeFiles(installArgs(fake, gameDir)), /classpath/);
   assert.equal(fake.requests.length, 0);
+});
+
+// ── 深層連結封口 1b（→ _notes/plans/cross-review-2026-10-phase1.md §測試「1b」D1–D6、D8） ──
+// 真 junction，Windows 才跑；先完整裝一次，再把某個子資料夾搬到 outside、原位改成 junction（同上層 §5.13）
+
+const onWindows = process.platform === "win32";
+
+/** <base>/game 先完整裝一次（兩份 json＋檔案）；outside＝<base>/outside，還不存在 */
+async function installedGame(t, fake) {
+  const base = await tempDir(t);
+  const gameDir = path.join(base, "game");
+  await ensureVersionJsons(ensureArgs(fake, gameDir));
+  await installRuntimeFiles(installArgs(fake, gameDir));
+  return { gameDir, outside: path.join(base, "outside") };
+}
+
+async function junctionAt(gameDir, dirRel, outside) {
+  await fsp.rename(abs(gameDir, dirRel), outside);
+  await fsp.symlink(outside, abs(gameDir, dirRel), "junction");
+}
+
+/** gameDir 底下 fileRel 被 dirRel 的 junction 帶到 outside 之後的實際位置 */
+const viaLink = (outside, dirRel, fileRel) =>
+  path.join(outside, ...fileRel.slice(dirRel.length + 1).split("/"));
+
+const comJar = (fake) => fake.windowsLibraryRels().find((r) => r.startsWith("libraries/com/"));
+
+/** 每案共同斷言：錯誤碼、game 文案、路徑；外部前後一致；連結還在 */
+async function expectLinkRefused({ act, gameDir, outside, linkRel, wantPath }) {
+  const before = await snapshot(outside);
+  await assert.rejects(act(), (e) => {
+    assert.equal(e.code, "GGL_SYNC_BLOCKED_BY_LINK");
+    assert.equal(e.where, "game");
+    assert.equal(e.path, wantPath);
+    assert.ok(e.message.includes(wantPath), e.message);
+    return true;
+  });
+  assert.deepEqual(await snapshot(outside), before, "外部不得有任何變化");
+  assert.equal((await fsp.lstat(abs(gameDir, linkRel))).isSymbolicLink(), true, "連結還在");
+}
+
+test("D1 libraries/com 是 junction、verifyAll 真、外部的 jar 內容壞 ⇒ 拒絕；外部 jar 原樣、沒有請求打到它", { skip: !onWindows, timeout: HANG_LIMIT_MS }, async (t) => {
+  const fake = await startFakeRuntime(t);
+  const { gameDir, outside } = await installedGame(t, fake);
+  const rel = comJar(fake);
+  await junctionAt(gameDir, "libraries/com", outside);
+  const outsideJar = viaLink(outside, "libraries/com", rel);
+  await fsp.writeFile(outsideJar, "corrupted");
+  const sent = fake.requests.length;
+  await expectLinkRefused({
+    act: () => installRuntimeFiles(installArgs(fake, gameDir, { verifyAll: true })),
+    gameDir,
+    outside,
+    linkRel: "libraries/com",
+    wantPath: "libraries/com",
+  });
+  assert.equal(await fsp.readFile(outsideJar, "utf8"), "corrupted");
+  assert.ok(!reqPaths(fake).slice(sent).includes(fake.officialPathOf(rel)));
+});
+
+test("D2 libraries/com 是 junction、verifyAll 假、外部缺那個 jar ⇒ 拒絕；外部沒有多出它", { skip: !onWindows, timeout: HANG_LIMIT_MS }, async (t) => {
+  const fake = await startFakeRuntime(t);
+  const { gameDir, outside } = await installedGame(t, fake);
+  const rel = comJar(fake);
+  await junctionAt(gameDir, "libraries/com", outside);
+  const outsideJar = viaLink(outside, "libraries/com", rel);
+  await fsp.rm(outsideJar);
+  await expectLinkRefused({
+    act: () => installRuntimeFiles(installArgs(fake, gameDir)),
+    gameDir,
+    outside,
+    linkRel: "libraries/com",
+    wantPath: "libraries/com",
+  });
+  assert.equal(await exists(outsideJar), false);
+});
+
+test("D3 對照：libraries/com 是 junction、verifyAll 假、外部 jar 內容壞（不用修改）⇒ 不拒、外部不變", { skip: !onWindows, timeout: HANG_LIMIT_MS }, async (t) => {
+  const fake = await startFakeRuntime(t);
+  const { gameDir, outside } = await installedGame(t, fake);
+  await junctionAt(gameDir, "libraries/com", outside);
+  await fsp.writeFile(viaLink(outside, "libraries/com", comJar(fake)), "corrupted");
+  const before = await snapshot(outside);
+  await installRuntimeFiles(installArgs(fake, gameDir));
+  assert.deepEqual(await snapshot(outside), before);
+  assert.equal((await fsp.lstat(abs(gameDir, "libraries/com"))).isSymbolicLink(), true);
+});
+
+test("D4 versions/<mc> 是 junction、verifyAll 真、外部 client jar 內容壞 ⇒ 拒絕、外部不變", { skip: !onWindows, timeout: HANG_LIMIT_MS }, async (t) => {
+  const fake = await startFakeRuntime(t);
+  const { gameDir, outside } = await installedGame(t, fake);
+  const dirRel = `versions/${MC}`;
+  await junctionAt(gameDir, dirRel, outside);
+  await fsp.writeFile(viaLink(outside, dirRel, `${dirRel}/${MC}.jar`), "corrupted");
+  await expectLinkRefused({
+    act: () => installRuntimeFiles(installArgs(fake, gameDir, { verifyAll: true })),
+    gameDir,
+    outside,
+    linkRel: dirRel,
+    wantPath: dirRel,
+  });
+});
+
+test("D5 assets/objects/<xx> 是 junction、那個 asset 不在 ⇒ 拒絕、外部不變", { skip: !onWindows, timeout: HANG_LIMIT_MS }, async (t) => {
+  const fake = await startFakeRuntime(t);
+  const { gameDir, outside } = await installedGame(t, fake);
+  const h = fake.objectHashes[0];
+  const dirRel = `assets/objects/${h.slice(0, 2)}`;
+  await junctionAt(gameDir, dirRel, outside);
+  await fsp.rm(path.join(outside, h));
+  await expectLinkRefused({
+    act: () => installRuntimeFiles(installArgs(fake, gameDir)),
+    gameDir,
+    outside,
+    linkRel: dirRel,
+    wantPath: dirRel,
+  });
+});
+
+test("D6 ensureVersionJsons：versions/<mc> 是 junction、verifyAll 真 ⇒ 寫 json 之前拒絕；外部 json 位元組不變、沒有 .tmp", { skip: !onWindows, timeout: HANG_LIMIT_MS }, async (t) => {
+  const fake = await startFakeRuntime(t);
+  const { gameDir, outside } = await installedGame(t, fake);
+  const dirRel = `versions/${MC}`;
+  await junctionAt(gameDir, dirRel, outside);
+  await expectLinkRefused({
+    act: () => ensureVersionJsons(ensureArgs(fake, gameDir, { verifyAll: true })),
+    gameDir,
+    outside,
+    linkRel: dirRel,
+    wantPath: dirRel,
+  });
+});
+
+test("D8 目標本身：某支 library 的 jar 位置是 junction ⇒ 拒絕、junction 還在、外部不變", { skip: !onWindows, timeout: HANG_LIMIT_MS }, async (t) => {
+  const fake = await startFakeRuntime(t);
+  const { gameDir, outside } = await installedGame(t, fake);
+  const rel = comJar(fake);
+  await fsp.rm(abs(gameDir, rel));
+  await fsp.mkdir(outside);
+  await fsp.writeFile(path.join(outside, "precious.txt"), "keep me");
+  await fsp.symlink(outside, abs(gameDir, rel), "junction");
+  await expectLinkRefused({
+    act: () => installRuntimeFiles(installArgs(fake, gameDir)),
+    gameDir,
+    outside,
+    linkRel: rel,
+    wantPath: rel,
+  });
 });

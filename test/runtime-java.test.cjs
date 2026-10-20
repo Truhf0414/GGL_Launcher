@@ -12,6 +12,7 @@ const os = require("os");
 const path = require("path");
 
 const { startServer } = require("./helpers/local-http.cjs");
+const { snapshot } = require("./helpers/fs-snapshot.cjs");
 const { installJava, runJava, DEFAULT_ENDPOINTS } = require("../main/runtime/java.js");
 
 const HANG_LIMIT_MS = 10_000;
@@ -490,3 +491,90 @@ test("預設端點：Adoptium 兩條、Semeru、Zulu 都以 major 組", () => {
   assert.match(DEFAULT_ENDPOINTS.semeruRelease(21), /semeru21-binaries/);
   assert.match(DEFAULT_ENDPOINTS.adoptium(21, "eclipse"), /\/latest\/21\/.*\/eclipse$/);
 });
+
+// ── 連結回歸釘 R 組：B1–B5、B3b（→ _notes/plans/cross-review-2026-10-phase1.md §測試「1b 回歸釘」；上層 §5.15、§5.16 ②）──
+// 不改程式，釘的是平台行為：Java 的整包替換／恢復只動連結本身、不跟進（D-LINK-C-CLEAN、D-LINK-C-JAVA）。
+// 只斷言外部不變與連結本身的結果。範圍只到這台跑的 Windows Node／Electron，不宣稱所有 reparse point 都安全。
+
+const lexists = (p) => fsp.lstat(p).then(() => true, () => false);
+const isLink = async (p) => (await fsp.lstat(p)).isSymbolicLink();
+
+/** <base>/outside＝玩家自己的 Java；p 換成指向它的連結。dir symlink 沒權限建 ⇒ skip 並寫明原因，回 null */
+async function playerJavaLinkedAt(t, env, p, type) {
+  const outside = path.join(env.base, "outside");
+  await fsp.mkdir(path.join(outside, "bin"), { recursive: true });
+  await fsp.writeFile(path.join(outside, "bin", "java.exe"), "PLAYER java");
+  await fsp.writeFile(path.join(outside, "player.dat"), "player");
+  await fsp.mkdir(path.dirname(p), { recursive: true });
+  try {
+    await fsp.symlink(outside, p, type);
+  } catch (e) {
+    if (type !== "dir" || e.code !== "EPERM") throw e;
+    t.skip("建 directory symlink 需要系統管理員權限或開發人員模式");
+    return null;
+  }
+  return outside;
+}
+
+for (const [id, label, arrange, extra, expectLink] of [
+  [
+    "B1", "java-21 本身是連結、reinstall ⇒ 連結被換成一般資料夾",
+    async (env) => env.dir, { reinstall: true },
+    async (env) => assert.equal(await isLink(env.dir), false),
+  ],
+  [
+    "B2", "java-21/lib 是連結、reinstall ⇒ 舊目錄連同 lib 連結整個換掉",
+    async (env) => {
+      await putA(env.dir);
+      return path.join(env.dir, "lib");
+    },
+    { reinstall: true },
+    async (env) => assert.equal(await lexists(path.join(env.dir, "lib")), false),
+  ],
+  [
+    "B3", ".old 是連結、java-21 在 ⇒ 清殘留時刪掉 .old 連結本身",
+    async (env) => {
+      await putA(env.dir);
+      return env.old;
+    },
+    {},
+    async (env) => {
+      assert.equal(await lexists(env.old), false);
+      await assertIsA(env.dir);
+    },
+  ],
+  [
+    "B4", ".temp/java-21-staging 是連結、全新安裝 ⇒ 暫存連結被刪、照常安裝",
+    async (env) => path.join(env.paths.tempDir, "java-21-staging"),
+    {},
+    async (env) => {
+      assert.equal(await lexists(path.join(env.paths.tempDir, "java-21-staging")), false);
+      assert.equal(await isLink(env.dir), false);
+    },
+  ],
+  [
+    "B5", "java-21 本身是連結、不是修復 ⇒ 原樣重用，連結還在（D-LINK-C-JAVA）",
+    async (env) => env.dir, {},
+    async (env) => assert.equal(await isLink(env.dir), true),
+  ],
+  [
+    "B3b", ".old 是連結、java-21 不在 ⇒ .old 連結本身被搬回成 java-21（即 B5 的狀態）",
+    async (env) => env.old, {},
+    async (env) => {
+      assert.equal(await isLink(env.dir), true);
+      assert.equal(await lexists(env.old), false);
+    },
+  ],
+]) {
+  for (const type of ["junction", "dir"]) {
+    test(`R ${id}（${type}）${label}；外部不變`, { skip: process.platform !== "win32", timeout: HANG_LIMIT_MS }, async (t) => {
+      const env = await javaEnv(t);
+      const outside = await playerJavaLinkedAt(t, env, await arrange(env), type);
+      if (outside === null) return;
+      const before = await snapshot(outside);
+      await installJava(env.args(extra));
+      assert.deepEqual(await snapshot(outside), before, "外部不得有任何變化");
+      await expectLink(env);
+    });
+  }
+}

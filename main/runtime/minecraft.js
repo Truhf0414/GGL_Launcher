@@ -30,6 +30,7 @@ const {
   checkVanillaJson,
   checkFabricJson,
 } = require("../../lib/runtime-json.js");
+const { kindAt, linkMessage, findLinks } = require("../../lib/fs-links.js");
 const {
   safeLog,
   fetchJsonWithDeadline,
@@ -200,6 +201,30 @@ async function fetchFabricProfileJson({
 
 const absUnder = (root, rel) => path.join(root, ...rel.split("/"));
 
+/**
+ * 修改 gameDir 底下的 rel 之前呼叫：它的每一層上層與它本身都不准是連結，否則丟 GGL_SYNC_BLOCKED_BY_LINK
+ * （→ _notes/plans/cross-review-2026-10-phase1.md §1b 設計）。同一個 guard 裡每個路徑只 lstat 一次，平行的 task 共用。
+ * 錯誤是一般 Error：runtime 不 require Sync 的 SyncApplyError。
+ */
+function linkGuard(fs, gameDir) {
+  const kinds = new Map();
+  const kind = (rel) => {
+    if (!kinds.has(rel)) kinds.set(rel, kindAt(fs, absUnder(gameDir, rel)));
+    return kinds.get(rel);
+  };
+  return async (rel) => {
+    const segs = rel.split("/");
+    const [e] = await findLinks({
+      paths: segs.map((_, i) => ({
+        path: segs.slice(0, i + 1).join("/"),
+        where: "game",
+      })),
+      probe: { kind },
+    });
+    if (e) throw Object.assign(new Error(linkMessage(e)), e);
+  };
+}
+
 async function readJsonOrNull(fs, abs) {
   try {
     return JSON.parse(await fs.readFile(abs, "utf8"));
@@ -245,6 +270,7 @@ async function ensureVersionJsons({
   const vanillaRel = `versions/${minecraft}/${minecraft}.json`;
   const targetRel = `versions/${launchId}/${launchId}.json`;
   const report = (step) => onProgress?.({ phase: "runtime", step });
+  const guardLinks = linkGuard(fs, gameDir);
 
   async function ensureOne(rel, check, fetchIt, step) {
     const abs = absUnder(gameDir, rel);
@@ -252,6 +278,8 @@ async function ensureVersionJsons({
       const local = await readJsonOrNull(fs, abs);
       if (local !== null && check(local).ok) return local;
     }
+    // 走到這裡就一定會寫：先查連結再打網路
+    await guardLinks(rel);
     report(step);
     const json = await fetchIt();
     await writeJsonReplacing(fs, abs, json);
@@ -381,18 +409,19 @@ async function installRuntimeFiles({
     throw new Error(`兩份版本 json 合起來不能啟動：${launchable.error}`);
   }
 
-  /** 要不要下載：不存在 ⇒ 要；該驗的 sha1 不符 ⇒ 刪掉、要 */
-  async function needsDownload(task) {
+  const guardLinks = linkGuard(fs, gameDir);
+
+  /** 只判斷、不動手：本機的可用 ⇒ "keep"；不存在 ⇒ "fetch"；該驗的 sha1 不符 ⇒ "replace"（先刪再下） */
+  async function localAction(task) {
     const abs = absUnder(gameDir, task.rel);
     const st = await fs.stat(abs).catch(() => null);
-    if (!st?.isFile()) return true;
-    if (!(task.alwaysVerify || verifyAll) || !task.sha1) return false;
+    if (!st?.isFile()) return "fetch";
+    if (!(task.alwaysVerify || verifyAll) || !task.sha1) return "keep";
     if (
       String(await hash(abs, "sha1")).toLowerCase() === task.sha1.toLowerCase()
     )
-      return false;
-    await fs.rm(abs, { force: true });
-    return true;
+      return "keep";
+    return "replace";
   }
 
   async function runGroup(group, tasks) {
@@ -413,10 +442,15 @@ async function installRuntimeFiles({
           const sig = signal
             ? AbortSignal.any([poolSignal, signal])
             : poolSignal;
-          if (await needsDownload(task)) {
+          const action = await localAction(task);
+          if (action !== "keep") {
+            // 只在要動手時查（只讀的不擋）；必須在這裡、不在 downloadRuntimeFile 的來源迴圈裡——那裡會吞錯、還會對目標跑 rm
+            await guardLinks(task.rel);
+            const dest = absUnder(gameDir, task.rel);
+            if (action === "replace") await fs.rm(dest, { force: true });
             await downloadRuntimeFile({
               candidates: await task.candidates(),
-              dest: absUnder(gameDir, task.rel),
+              dest,
               sha1: task.sha1,
               signal: sig,
               onChunk: ({ received }) => reporter.chunk(task.rel, received),
