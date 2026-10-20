@@ -1,4 +1,4 @@
-# Phase 2 — 常駐最小故障日誌：細部 plan（狀態：**2026-10-20 初稿；同日 owner 回饋 Q1–Q5（Q1／Q3／Q5 裁、Q2／Q4 要 Probe）；同日 CC 做 Probe 並重寫；同日 owner 裁 N1–N3，CC 依裁決再重寫；同日 owner 裁 N1-a（甲），plan 定稿；未動工**）
+# Phase 2 — 常駐最小故障日誌：細部 plan（狀態：**2026-10-20 初稿；同日 owner 回饋 Q1–Q5（Q1／Q3／Q5 裁、Q2／Q4 要 Probe）；同日 CC 做 Probe 並重寫；同日 owner 裁 N1–N3，CC 依裁決再重寫；同日 owner 裁 N1-a（甲），plan 定稿；同日 2a 完成（`9db125b`，owner 驗收放行）；2b 未動工**）
 
 上層＝`plans/cross-review-2026-10.md` §8 Phase 2（目的、範圍、不做、不變量、驗收下限、完成定義在那裡，本檔不重述）；裁決＝同檔 §3.6（D-LOG 群）；證據＝同檔 §5.7 與本檔 §Probe 紀錄；收斂經過＝同檔 §6.4、§6.6。本檔只寫上層留給細部 plan 的部分：寫入出口怎麼接、落盤規則、檔案怎麼長、測試、施工順序。
 
@@ -12,18 +12,18 @@
 | 已收斂的工程項目（owner 提出、CC 核對同意） | 輪替失敗＝放棄這一筆；1 MiB 是門檻不是硬上限；`clean-exit` 不記；每次寫入前檢查大小；診斷匯出含兩份檔（→ §已收斂） |
 | Probe 已完成（CC 執行；owner 方核對了腳本與方法，沒有重跑） | Q2 錯誤形狀；Q4 IPC 時序、畫面 stack、關窗、preload、寫檔成本、DevTools（→ §Probe 紀錄） |
 | 待 owner 確認 | 無 |
-| 已實作 | 無 |
-| 已跑並通過的測試 | 無。`npm test` 1038/1038 是動工前的基準，不是新實作的結果；L／P／R 都還沒跑 |
-| commit | 只有 plan 與裁決定稿（`git log -- _notes/plans/cross-review-2026-10-phase2.md`）；不代表 Phase 2 程式已實作或驗收通過 |
+| 已實作 | 2a（`9db125b`）；2b 未動工 |
+| 已跑並通過的測試 | 2a 的單元、全套、R1–R7、匯出隔離驗證（→ §2a 施工紀錄）；2b 的 P1–P4、R8 未跑；打包版未驗 |
+| commit | plan 與裁決定稿（`git log -- _notes/plans/cross-review-2026-10-phase2.md`）；2a＝`9db125b`（owner 驗收放行）；2b 未 commit，Phase 2 未結案 |
 
 ## 動工前現查（2026-10-20，基準 `4a65830`）
 
 - `npm test`：`tests 1038 / pass 1038 / fail 0 / skipped 0`。
-- **呼叫處**（`rg -n "gglEvent|gglError" --glob '!_notes/**'`）：main 三支檔 import `lib/ggl-structured-log.js`——`main/start-main.js:64`（`:183`、`:190`、`:192`）、`main/app-ready.js:8`（`:77`、`:162`）、`main/main-window.js:5`（`:76`）。這三支都沒有測試（`rg -ln "app-ready|start-main|main-window" test` 零命中；對照組 `startup-failure` 有命中）。畫面自己有一份 `renderer/ggl-log.js`，`gglError` 呼叫處 2 個：`renderer/bootstrap.js:75`（`ggl_bridge_missing`，此時沒有 `window.ggl`）、`:149`（`bootstrap_ctx_factory_missing`，固定訊息、`detail` 空物件）。
-- **最早的事件**：`main.js:23` `whenReady` → `start-main.js:183`。之前只有 `main.js:12`、`:20`、`:21` 的 `require`，`:20` 載入整個 main 模組圖，這一段丟錯沒人接〔讀碼〕。
+- **呼叫處**（`rg -n "gglEvent|gglError" --glob '!_notes/**'`）：main 三支檔 import `lib/ggl-structured-log.js`——`main/start-main.js:64`（`:183`、`:190`、`:192`）、`main/app-ready.js:8`（`:77`、`:162`）、`main/main-window.js:5`（`:76`）。這三支都沒有測試（`rg -ln "app-ready|start-main|main-window" test` 零命中；對照組 `startup-failure` 有命中）。畫面自己有一份 `renderer/ggl-log.js`，`gglError` 呼叫處 2 個：`renderer/bootstrap.js:75`（`ggl_bridge_missing`，此時沒有 `window.ggl`）、`:149`（`bootstrap_ctx_factory_missing`，固定訊息、`detail` 空物件）。〔對齊 2026-10-20：`main/start-main.js:64`、`main/app-ready.js:8`、`main/main-window.js:5` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 原地改寫，import 改指 `./ggl-log`（main-window 另加 `:6`）；`:183`、`:190`、`:192`、`:77`、`:162` 未移動；`main/main-window.js:76` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 後 `:77`〕
+- **最早的事件**：`main.js:23` `whenReady` → `start-main.js:183`。之前只有 `main.js:12`、`:20`、`:21` 的 `require`，`:20` 載入整個 main 模組圖，這一段丟錯沒人接〔讀碼〕。〔對齊 2026-10-20：`start-main.js:183` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 未移動〕
 - **啟動失敗造不出來**〔讀碼〕：設定檔讀壞回 `{}`（`main/settings.js:146-154`）、寫不進去回 `false`（`:108-110`）；實測只能暫插 `throw`。
-- **桌面 log 的輪替**〔讀碼〕：`rotateLauncherLogIfTooLarge`（`main/launcher-log.js:52-65`）async、debug 才動、桌面路徑、6 MiB、先 `rm` `.1.log`（失敗吞掉）再 `rename`（失敗吞掉）；唯一呼叫處 `main/app-ready.js:124`。
-- **IPC 註冊時序**〔讀碼〕：`main/app-ready.js:127` `createMainWindow()`（內含 `loadFile`，`main/main-window.js:104`）→ `:129-158` 全是同步的 `configure*` → `:159` `setupMainIpc()` → `runtime.setupOnce()`（`main/ipc-runtime.js:18-36`，同步）。兩者之間沒有 `await`。
+- **桌面 log 的輪替**〔讀碼〕：`rotateLauncherLogIfTooLarge`（`main/launcher-log.js:52-65`）async、debug 才動、桌面路徑、6 MiB、先 `rm` `.1.log`（失敗吞掉）再 `rename`（失敗吞掉）；唯一呼叫處 `main/app-ready.js:124`。〔對齊 2026-10-20：`main/app-ready.js:124` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 未移動〕
+- **IPC 註冊時序**〔讀碼〕：`main/app-ready.js:127` `createMainWindow()`（內含 `loadFile`，`main/main-window.js:104`）→ `:129-158` 全是同步的 `configure*` → `:159` `setupMainIpc()` → `runtime.setupOnce()`（`main/ipc-runtime.js:18-36`，同步）。兩者之間沒有 `await`。〔對齊 2026-10-20：`main/app-ready.js:127`、`:129-158`、`:159` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 未移動；`main/main-window.js:104` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 後 `:96`〕
 - **自訂錯誤**〔讀碼，`rg -n "\.name\s*=[^=]"`〕：`CredentialsTemporarilyUnavailableError`（`lib/account-secret.js:47`）、`SyncRejectedError`（`lib/sync/plan.js:16`）、`LoginError`（`main/microsoft-auth.js:52`）、`LaunchError`（`main/minecraft-launch.js:30`）、`SyncStateError`（`main/sync/index.js:42`）、`SyncApplyError`（`main/sync/apply.js:29`）。沒有任何程式改寫 `err.stack`（同一個 rg 加 `\.stack\s*=` 零命中，`.name` 有命中作對照）。
 - **`GGL_` 錯誤碼**〔讀碼〕：`rg -o '"GGL_[A-Z0-9_]+"' main lib` 去重後 25 個（另有一筆 `GGL_SYNC_` 是前綴比對，不是碼）。抽查：`new LaunchError(…)` 三處、`new SyncRejectedError(…)` 五處都傳字面值；`LINK_CODE`、`BAD_LIBRARY`、`BAD_VERSION_JSON` 是字面值常數（`lib/fs-links.js:8`、`lib/library-filter.js:33`、`lib/launch-args.js:11`）。**Phase 2 的呼叫處沒有一個會帶 `GGL_` 碼**〔推論：Phase 2 只記啟動生命週期、`start_main_failed`、preload／renderer 事件、畫面事件 ID；`start_main_failed` 的錯誤來自設定、視窗、`configure*`，沒看到丟 `GGL_` 碼的路徑〕。
 - **`LoginError` 把上游錯誤文字放進 message**〔讀碼〕：`makeLoginError(code, detail)` ＝ `new Error(\`LOGIN_ERR|${code}|${detail 前 800 字}\`)`（`main/microsoft-auth.js:49-54`），`detail` 是 token 交換等步驟的 `e?.message`（例：`:576-578`）。登入的錯誤碼只活在 message 裡。
@@ -65,7 +65,7 @@
 ### P-Q4　視窗層（四個隱藏視窗）
 
 - **IPC 註冊時序**：A 視窗 `loadFile` 之後，main 在同一輪同步工作裡忙等 1.5 秒才 `ipcMain.handle` ⇒ 畫面最早期的 `invoke` **成功**。B 視窗中間隔了一個 `await`（3 秒）才註冊 ⇒ `No handler registered for 'probe:B'`。
-- **畫面的 stack**：外部 script 的 frame 是 `file:///C:/Users/<名字>/…/probe%20app/page.js:3:15`（空白被編成 `%20`）；**HTML 內嵌 script 的 frame 帶網址 query**：`…/page.html?name=A&token=FAKE_Q:7:14`。GGL 的 `loadFile` 沒帶 query（`main/main-window.js:104`）。
+- **畫面的 stack**：外部 script 的 frame 是 `file:///C:/Users/<名字>/…/probe%20app/page.js:3:15`（空白被編成 `%20`）；**HTML 內嵌 script 的 frame 帶網址 query**：`…/page.html?name=A&token=FAKE_Q:7:14`。GGL 的 `loadFile` 沒帶 query（`main/main-window.js:104`）。〔對齊 2026-10-20：`main/main-window.js:104` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 後 `:96`〕
 - **正常關窗**（`close()`）：**沒有**觸發 `render-process-gone`。`forcefullyCrashRenderer()`：`{"reason":"crashed","exitCode":2}`。
 - **preload 丟錯**：觸發 `preload-error`，`error.stack` 帶 preload 完整路徑與 message；畫面照常載入，bridge 是 `undefined`。**preload 檔不存在**：**也會觸發** `preload-error`（`Cannot find module '<完整路徑>'`）。
 
@@ -83,7 +83,7 @@
 ### P-Q4　Debug 與 DevTools
 
 - 預設的應用程式選單存在，含 `toggleDevTools: Ctrl+Shift+I`；對無邊框透明視窗送**合成的** `Ctrl+Shift+I`，DevTools 開得起來。**打包版、實體鍵盤沒驗。** GGL 沒有呼叫 `Menu.setApplicationMenu`（`rg` 零命中；同檔 `BrowserWindow` 有命中作對照）。
-- debug 開著時，畫面的 console 只轉印到 main 的 `console.log`（`main/main-window.js:84-90`），**不進桌面 `launcher.log`、也不進診斷匯出**。打包後的視窗程式沒有可見的 console〔推論，沒驗〕。
+- debug 開著時，畫面的 console 只轉印到 main 的 `console.log`（`main/main-window.js:84-90`），**不進桌面 `launcher.log`、也不進診斷匯出**。打包後的視窗程式沒有可見的 console〔推論，沒驗〕。〔對齊 2026-10-20：`main/main-window.js:84-90` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 後 `:86-92`〕
 
 ## 已裁事項
 
@@ -111,7 +111,7 @@
 
 - **保留的風險邊界**：有程式刻意把 `err.stack` 改寫成 app 內路徑形狀的假位置時，假位置會被收下。現查沒有程式改寫 `err.stack`。這套規則不宣稱能辨認被刻意偽造的錯誤。
 - **不寫 message 的代價怎麼補**（D-LOG-SCOPE）：
-  - 啟動失敗：錯誤框照樣給完整 stack（`main/startup-failure.js:11-16`）；debug 時桌面 `launcher.log` 有 `BOOT failed: <完整 stack>`（`main/start-main.js:195`）。
+  - 啟動失敗：錯誤框照樣給完整 stack（`main/startup-failure.js:11-16`）；debug 時桌面 `launcher.log` 有 `BOOT failed: <完整 stack>`（`main/start-main.js:195`）。〔對齊 2026-10-20：`main/startup-failure.js:11-16`、`main/start-main.js:195` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 未移動〕
   - 網路錯：檔裡只看得出「連線失敗」（`net-fetch.js:87`），分不出被拒／DNS／逾時——原因碼只活在 message 裡；要分出來是 Phase 6 接線的事。
   - 登入錯誤碼：同理，Phase 6 接登入時由呼叫處放進 `detail`。
   - GGL 錯誤碼：Phase 2 的呼叫處本來就不帶（§動工前現查），Phase 6 接線時再建允許清單（N1-a）。
@@ -123,7 +123,7 @@
 - 清單裡的 ⇒ `gglError("renderer", event)`，scope 固定 `renderer`，不帶 `err`；不在清單、或不是字串 ⇒ `gglError("main", "renderer_log_rejected", undefined, { type: typeof payload })`，**不寫入畫面送來的字串**；不做事件名稱的自動修正或別名。
 - **為什麼只送 ID**：現在唯一能送出來的事件，錯誤是在 `bootstrap.js:149` 當場建立的，ID 已經指到那個失敗分支，stack 位置不會多給資訊。這**不是**「畫面永遠只能送 ID」的政策（D-LOG-SCOPE）：以後某個畫面錯誤真的需要上下文，就拿具體案例討論，只為它開受限的欄位。到時要注意〔Probe〕：畫面的 frame 是 `file:///…%20…` 形式，HTML 內嵌 script 的 frame 會帶 query。
 - **限流**：不做。理由是**目前沒有已知的高頻錯誤來源，也沒有重現過這條管道造成卡頓**——現有事件只在開機初始化的失敗分支。寫檔成本的 Probe 只是本機同步寫入的基準，不是端到端保證；輪替只限制磁碟空間，不限制頻率。實際遇到洗版或 main 卡頓再評估。
-- **IPC 時序**：不改、不加等待／重試／緩存。前提是 `app-ready.js:127`→`:159` 之間沒有 `await`；以後有人在初始化流程加非同步邊界，要重新檢查早期 `invoke`（§已知不涵蓋）。
+- **IPC 時序**：不改、不加等待／重試／緩存。前提是 `app-ready.js:127`→`:159` 之間沒有 `await`；以後有人在初始化流程加非同步邊界，要重新檢查早期 `invoke`（§已知不涵蓋）。〔對齊 2026-10-20：`app-ready.js:127`、`:159` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 未移動〕
 - **Debug**：不改。文件不得宣稱「開 Debug 後畫面錯誤會進診斷匯出」。
 
 ### N3　輪替不共用（D-LOG-ROTATE）
@@ -180,9 +180,9 @@
 | `main/paths.js` | `getGglLogPath()`＝`userData/ggl-launcher.log` | 改 |
 | `main/start-main.js`、`main/app-ready.js`、`main/main-window.js` | import 改指 `main/ggl-log.js`（conventions 第 6 條：同一個 commit 改完） | 改 |
 | `main/renderer-failure-log.js` | `attachRendererFailureLog(webContents, gglError)`：`preload-error` ⇒ `gglError("main", "preload_error", error, {})`（不記 `preloadPath`）；`render-process-gone` ⇒ `clean-exit` 不記，其餘 `gglError("main", "render_process_gone", undefined, { reason, exitCode })`。不 require electron | 新 |
-| `main/main-window.js` | 建窗後呼叫它；debug 區塊（`:80-102`）刪掉那兩個事件，只留 `console-message` | 改 |
+| `main/main-window.js` | 建窗後呼叫它；debug 區塊（`:80-102`）刪掉那兩個事件，只留 `console-message` | 改〔對齊 2026-10-20：`:80-102` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 後 `:82-94`（那兩個事件已刪，改在 `:78` 一律掛 `attachRendererFailureLog`）〕 |
 | `main/diagnostics-export.js` | 複製兩份檔，路徑走 `getGglLogPath` | 改 |
-| `main/startup-failure.js:5` | 註解改成：常駐日誌依落盤規則不寫 message，完整內容只在框裡 | 改 |
+| `main/startup-failure.js:5` | 註解改成：常駐日誌依落盤規則不寫 message，完整內容只在框裡 | 改〔對齊 2026-10-20：`main/startup-failure.js:5` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 原地改寫〕 |
 | `README.md:24-25` | 改指 `main/ggl-log.js`，補一句寫進 `userData/ggl-launcher.log` | 改 |
 | `_notes/conventions.md:31-32` | 第 3 條刪「Phase 2a 完成前…」那句；子項換成 N1 的規則本體（短）＋出處；加一句 D-LOG-SCOPE 的地址。**不新增**「允許重複」之類的一般規則（N3） | 改 |
 | `package.json` `format:ui` | 新檔加進清單 | 改 |
@@ -256,6 +256,45 @@
 
 `npm test`、`npm run lint`、`npm run check:ui-css`；commit 前跑 conventions §防禦與相容「怎麼執行」的自審 rg，命中的逐條答「這個值跨過哪個邊界」。2b 跑 `npm run docs:ipc`，確認 `ARCHITECTURE.md` 有變而且一起 stage。
 
+## 2a 施工紀錄（2026-10-20，`9db125b`）
+
+實測都在 owner 這台 Windows、開發模式（`env -u ELECTRON_RUN_AS_NODE npx electron .`，Electron 內建 Node 24.20.0）；`npm test` 用系統 Node 24.14.1。腳本在 scratchpad，不進 repo；方法與結果以本節為準。
+
+### 施工中的發現
+
+- **B6 沒有 frame 只在 Electron 的 Node 成立**：同一段 `await fsp.mkdir`，Node 24.20.0 的 stack 只有開頭那行，系統 Node 24.14.1 多兩個 async frame。L5 改成用固定形狀（`stack = String(err)`）測「沒有 frame」，不綁跑測試的 Node 版本。§Probe 紀錄的 B5／B6 量的是 Electron，不改。
+- **匿名 async 函式的 frame 原本被丟掉**：形狀是 `at async <路徑>:行:欄`（沒有函式名、沒有括號，兩個 Node 版本相同），初版的 frame 規則把 `async <路徑>` 整串當路徑，不是絕對路徑就丟。`FRAME_RE` 改成先吃掉可選的 `async `；L3b（保留）、L3c（偽造的 `at async` 行不漏）。mutation：把「切掉 `String(err)` 開頭」那步弄壞，L3、L3c 會紅；還原後 hash 一致。
+
+### plan 沒寫死、CC 自定的細節
+
+- `st` 放最外層（與 `err` 並排），值是陣列。
+- 錯誤樣本放 `test/fixtures/ggl-log-errors.js`：`st` 只收 `.js`，測試檔本身是 `.cjs`，它的 frame 會被濾掉。
+- `.1.log` 的檔名規則只在 `lib/log-file.js` 的 `rotatedPath`，診斷匯出也用它。
+- L1–L14 以外另測：建立時缺依賴就丟錯、`err` 是 `undefined` 時兩邊都不寫、`rotatedPath`、`appendLineSync` 會建上層資料夾、輪替的 `rm` 失敗時丟錯且主檔不動。
+
+### 結果
+
+| 項 | 結果 |
+|---|---|
+| 紅燈 | L1–L14 先跑，三支測試檔都因模組／函式不存在而紅；L3b 在 regex 修正前紅（st 收到 1 個、應為 2 個） |
+| 單元＋全套 | `npm test` 1062／1062；`npm run lint` exit 0；`check:ui-css` ok |
+| R1 | 錯誤框出現（截圖：外框標題 `Error`、框內「GGL Launcher 啟動失敗」＋完整 stack）；檔裡 `start_main_begin`、`start_main_failed`，`st` 首項 `main/start-main.js:71:9`，0 個 `FAKE`〔對齊 2026-10-20：`main/start-main.js:71:9` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a）：實測紀錄，是暫插 `throw` 那一行的位置，不換算〕 |
+| R2 | 多一行 `app_ready_begin`，`st` 首項 `main/app-ready.js:78:9`，0 個 `FAKE`；錯誤框只對到外框標題 `Error`，沒截圖〔對齊 2026-10-20：`main/app-ready.js:78:9` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a）：實測紀錄，是暫插 `throw` 那一行的位置，不換算〕 |
+| R3 | 5 行生命週期，沒有 `render_process_gone`；桌面沒有新的 `launcher.log`（測前就不存在） |
+| R4 | `preload_error`，`err.name` 是 `Error`，`st` 只有 `preload.js:…` 相對位置，沒有家目錄、沒有 `FAKE` |
+| R5 | `render_process_gone`，`reason` `crashed`、`exitCode` -1 |
+| R6 | 用除錯埠對畫面的匯出按鈕 `.click()`（UI → IPC → main），匯出資料夾有 `ggl-launcher.log` |
+| R6 補 | 隔離的 userData／desktop（暫存資料夾）跑 `exportDiagnostics`：兩份都在 ⇒ 匯出有 `ggl-launcher.log`、`ggl-launcher.1.log`，內容逐字相同；兩份都不在 ⇒ 不失敗、只有 `report.json` |
+| R7 | debug 開（`GGL_DEBUG_LOG=1`）：桌面 `launcher.log` 有 `BOOT exe=…`；console 每個 `[GGL]` 一次；`console-message` 照常轉印 |
+| regex 修正後重跑 | R1、R2、R4 的檔案輸出與第一輪逐字相同（這幾條 stack 沒有匿名 async frame） |
+| 暫插還原 | `start-main.js`、`app-ready.js` 有本輪正式改動，不用 `git checkout`：手動刪行，sha256 與暫插前相同；`preload.js` 與 HEAD 無差異 |
+
+### 沒驗的
+
+- **打包版**：R 組全是開發模式。打包後 app 根目錄是 `app.asar`、`st` 仍是相對路徑——〔推論〕，沒驗。安裝檔驗收不在本事件（上層 §0.2）。
+- R3 的正常關窗是 `taskkill` 不加 `/F`（送 WM_CLOSE），不是按 app 的關閉鈕；R5 是 `Stop-Process -Force` 殺 renderer，不是從工作管理員點。
+- debug 時 preload／renderer 故障的 console 從 `[PRELOAD:ERROR]`／`[RENDERER:GONE]` 改成 `[GGL]` 那一行（照 §2a 設計刪掉 debug 區塊的兩個事件）；桌面 `launcher.log` 不受影響。
+
 ## 施工順序
 
 1. ✅ owner 裁 N1-a、確認文件收斂 → 回寫上層 §3.6 與本檔 → plan 定稿另成一個 commit。
@@ -272,7 +311,7 @@
 - 同步、Java、啟動遊戲的錯誤還沒接 `gglError`。Phase 2 完成後**不能**宣稱「故障觀測完成」。網路錯的原因碼、登入錯誤碼要等 Phase 6 接線時處理（N1）；GGL 錯誤碼在 Phase 2 一律不落盤，允許清單與「已知 GGL 錯誤碼仍可辨識」都在 Phase 6（N1-a）。
 - 畫面沒有主動呼叫 `gglError` 的錯誤（未處理例外、未處理的 Promise、腳本沒載入）不會落盤；不加 `window.onerror`（D-LOG-RENDERER）。
 - debug 不會把畫面的錯誤寫進任何檔；DevTools 在打包版、實體鍵盤能不能開沒驗。
-- `app-ready.js:127`→`:159` 之間如果被插進 `await`，畫面所有早期 `invoke` 都會失敗，2b 也一樣〔Probe〕。這是既有的前提，本 Phase 不另加機制。
+- `app-ready.js:127`→`:159` 之間如果被插進 `await`，畫面所有早期 `invoke` 都會失敗，2b 也一樣〔Probe〕。這是既有的前提，本 Phase 不另加機制。〔對齊 2026-10-20：`app-ready.js:127`、`:159` → `9db125b`（plans/cross-review-2026-10-phase2.md 2a） 未移動〕
 - 有程式刻意把 `err.stack` 改寫成 app 內路徑形狀的假位置時，假位置會被收下（N1）。
 - `getGglLogPath()` 在 `app.whenReady` 之前能不能用沒驗；目前沒有呼叫在那之前。
 - 日誌是一般文字檔，同一個 Windows 使用者的任何程式都讀得到——落盤規則就是為了讓這件事無所謂。
