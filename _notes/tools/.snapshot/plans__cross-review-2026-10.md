@@ -149,8 +149,8 @@
 | D-LINK | GGL 管理的**修改路徑**不支援 Junction／Symlink：遇到就拒絕並說明，不追隨、不越界、不自行刪除連結指向的外部資料。〔2026-10-19：由 D-LINK-C 依修改／清理授權具體化——共用遊戲資料區照原意拒絕（D-LINK-C-SHARED）；有整包清理授權的區域可刪連結本身、不跟進（D-LINK-C-CLEAN）；唯讀與執行不自動繼承拒絕〕 | 〔轉述〕Review Report §2.3、Decision Memory §B「FS 連結」 |
 | D-LINK-SCOPE | 要擋的範圍：**`launcherRootDir` 本身**；GGL 推導的 `group`、`group/GGL`（instanceDir）、`group/GGL/.minecraft`（gameDir）三層；gameDir 底下本次會碰的路徑。**`launcherRootDir` 往上（例如 `C:\Games`、磁碟機根）不查** | owner 2026-10-14：先表態「其實我本身對 Junction 被用在這裡是很反感的。可以的話我想擋，但我想聽聽看不擋的工程品味是什麼？」，聽完 CC 的分析後「1. 好，我認可了。就照這個吧！」（Round3 §12.2） |
 | D-LINK-TEMP | `<root>/.temp` 與 `<root>/.temp/sync-staging` 本身是連結時也擋（§5.3 實測會刪到外部） | owner 2026-10-14（outside voice 回饋 §三）：「我接受 CC 的建議。……這一題我認為已有足夠證據，不需要再爭論是否應該阻擋。」 |
-| D-LINK-RUNTIME | 同步時由 runtime 安裝寫入的路徑也算「本次會碰的路徑」：gameDir 底下的 `versions`、`libraries`、`assets`，以及 `<root>/runtime`。理由：runtime 安裝就在 `applyPlan` 裡跑（`main/sync/apply.js:76`），修復時 sha1 不符的檔會先刪後下（`main/runtime/minecraft.js:384-391`）〔推論：若 `libraries/` 指向別的啟動器的共用資料夾，會刪改那邊的檔，未實測〕〔2026-10-17 實測：`libraries/com` 是 junction 時確實改寫外部，一般更新也會（§5.13）；`versions`、`assets` 的深層仍是推論。只查三個頂層擋不到深層，深層由 D-LINK-C-DEEP 處理〕 | owner 2026-10-14（SPR grilling G1）：「我的觀點是要擋。」——G1 原問「runtime 寫進 gameDir 的子資料夾算不算」；`<root>/runtime` 是 CC 依同一理由的延伸（`installJava` 同樣在 `applyPlan` 內寫入），成本 1 次 `lstat` |
-| D-LINK-CONSEQ | owner 知悉並接受產品後果：某個連結資料夾裡只要有任何 release 檔（`clearLeftovers` 會碰新記錄裡每個檔所在的資料夾，`main/sync/apply.js:136-142`），**每一次更新與修復都會被擋**，不只是「動到 mods 的更新」 | owner 2026-10-14（SPR grilling G5）：「同意。」 |
+| D-LINK-RUNTIME | 同步時由 runtime 安裝寫入的路徑也算「本次會碰的路徑」：gameDir 底下的 `versions`、`libraries`、`assets`，以及 `<root>/runtime`。理由：runtime 安裝就在 `applyPlan` 裡跑（`main/sync/apply.js:76`），修復時 sha1 不符的檔會先刪後下（`main/runtime/minecraft.js:384-391`）〔推論：若 `libraries/` 指向別的啟動器的共用資料夾，會刪改那邊的檔，未實測〕〔2026-10-17 實測：`libraries/com` 是 junction 時確實改寫外部，一般更新也會（§5.13）；`versions`、`assets` 的深層仍是推論。只查三個頂層擋不到深層，深層由 D-LINK-C-DEEP 處理〕 | owner 2026-10-14（SPR grilling G1）：「我的觀點是要擋。」——G1 原問「runtime 寫進 gameDir 的子資料夾算不算」；`<root>/runtime` 是 CC 依同一理由的延伸（`installJava` 同樣在 `applyPlan` 內寫入），成本 1 次 `lstat`〔對齊 2026-10-20：`main/sync/apply.js:76` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:109`〕 |
+| D-LINK-CONSEQ | owner 知悉並接受產品後果：某個連結資料夾裡只要有任何 release 檔（`clearLeftovers` 會碰新記錄裡每個檔所在的資料夾，`main/sync/apply.js:136-142`），**每一次更新與修復都會被擋**，不只是「動到 mods 的更新」 | owner 2026-10-14（SPR grilling G5）：「同意。」〔對齊 2026-10-20：`main/sync/apply.js:136-142` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:171-181`（改寫：刪之前看是否連結）〕 |
 | D-LINK-NOTOCTOU | 本事件**不承諾**抵抗惡意的並行改目錄（檢查完到動手之間有人把資料夾換成連結）。威脅模型是「玩家自己的設定」，不是攻擊者 | 〔轉述〕Review Report §2.3；ChatGPT 第四輪 §二.2 |
 | D-LINK-CODE | 所有連結拒絕（下載、刪除、改名、基底路徑）**共用 `GGL_SYNC_BLOCKED_BY_LINK`**；錯誤物件多帶一個欄位標出是哪一類，用它挑文案。取代 §8 Phase 1「錯誤碼與文案」條的「新錯誤碼只給刪除、改名、基底路徑三類」。理由：錯誤碼在 `_notes/` 以外只有 `apply.js` 查文案與測試在讀，畫面不看碼分流（2026-10-17 `rg`），開新碼只換得到文案；而且 `test/sync-apply.test.cjs:733` 那案的連結同時在 `remove` 與 `removeFirst`〔讀碼，`lib/sync/plan.js:153-165`〕，照原寫法「刪除類用新碼」與不變量「既有兩案錯誤碼與路徑不變」必有一條破 | owner 2026-10-17：「1. (a) 看起來乾淨許多，我選這個。如果等等思考時有出現更能治本的方式會更好。」——(a) 是 CC 當場提的選項：「全部共用 `BLOCKED_BY_LINK`，錯誤物件多帶一個欄位，標出是哪一類，用它來選文案」；另一選項 (b) 是「照原寫法開新碼，但 `removeFirst` 算下載路徑、沿用舊碼」。細部設計 → `plans/cross-review-2026-10-phase1.md` §錯誤與文案 |
 | D-LINK-TRASH | `<root>/.temp/runtime-trash` 本身是連結也擋：加進 1a 的基底路徑（共 8 個）。驗收案 L17 放在真的會呼叫 `removeStaleRuntime` 的 sync-index 層，斷言外部既有檔不變**而且沒有多出被搬進去的東西**（真反例是越界搬入，§5.14） | 〔轉述：fakechat 1792252404658（10-17 23:53）【A】〕「接受你的實測結論與最小修法：把 `tempDir/runtime-trash` 加到 Phase 1a 的 `baseLinkPaths`，新增 L17。」；放 sync-index 層：〔轉述：fakechat 1792332924199（10-18 22:15）三.4〕 |
@@ -285,7 +285,7 @@ U1、U8 早已裁（→ `defense-cleanup.md` §裁決）；U7、U9、U16 已由�
 
 | 案例 | 設定 | 結果 |
 |---|---|---|
-| S1 | `<root>/.temp/sync-staging` 本身是 junction 指向 `outside/stg/`，裡面有 `player.dat`；新版下載 `mods/new.jar` | 同步**成功、沒有報錯**；`outside/stg/player.dat` **被刪除**（`clearLeftovers` 把不屬於本次下載的項目刪掉，`apply.js:150-156`）；下載的暫存檔（以 sha256 為名）**寫進並殘留在** `outside/stg/`；收尾的 `fsp.rm(stagingDir, { recursive: true })`（`apply.js:129`）只刪掉了 junction 本身，沒有清到它指向的內容；遊戲檔有正確放進 gameDir |
+| S1 | `<root>/.temp/sync-staging` 本身是 junction 指向 `outside/stg/`，裡面有 `player.dat`；新版下載 `mods/new.jar` | 同步**成功、沒有報錯**；`outside/stg/player.dat` **被刪除**（`clearLeftovers` 把不屬於本次下載的項目刪掉，`apply.js:150-156`）；下載的暫存檔（以 sha256 為名）**寫進並殘留在** `outside/stg/`；收尾的 `fsp.rm(stagingDir, { recursive: true })`（`apply.js:129`）只刪掉了 junction 本身，沒有清到它指向的內容；遊戲檔有正確放進 gameDir〔對齊 2026-10-20：`apply.js` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:150-156` → `:189-195`、`:129` → `:161`〕 |
 | S2 | `<root>/.temp` 本身是 junction 指向 `outside/tmp/`，裡面有 `sync-staging/player.dat` 與無關的 `other.dat`；新版下載 `mods/new.jar` | 同步**成功、沒有報錯**；`outside/tmp/sync-staging/player.dat` **被刪除**，而且收尾時**整個 `outside/tmp/sync-staging/` 資料夾被刪掉**；`other.dat` 沒事 |
 
 結論：ChatGPT 疑點 A 成立，而且比它推想的多一項（S2 的整個資料夾）。根因與 §5.1、§5.2 相同——連結檢查沒涵蓋 `applyPlan` 會動的所有路徑。SPR 的正確性子 agent **獨立重現了 S1**（輸出 `S1: no error` / `S1 player.dat exists: false`）。
@@ -293,11 +293,11 @@ U1、U8 早已裁（→ `defense-cleanup.md` §裁決）；U7、U9、U16 已由�
 ### 5.4 Junction 尚未實測的部分，與 runtime 的實際呼叫關係
 
 - `remove`／`removeFirst`／`rename.from` 的**目標本身**是連結時，`fsp.rm` 會不會只刪連結而不跟進去：沒測。不影響結論，因為政策是拒絕。〔2026-10-19：原語層已測——`rm(force)` 對 file symlink、junction、dir symlink 都只刪連結本身（§5.16 原語層）；GGL 的呼叫處本身仍沒測〕
-- **runtime 安裝沒有「同步之外單獨跑」的路徑**〔讀碼〕：`prepareRuntime` 唯一的呼叫者是 `applyPlan`（`rg -n prepareRuntime main lib` 只命中 `main/sync/index.js:145-146,348-350`、`main/sync/apply.js:76`、`main/runtime/prepare.js` 自身；SPR 兩個子 agent 獨立確認並附對照組）。初版擔心的「單獨跑 Runtime 安裝不受保護」**不成立**（§7 X-15）。
+- **runtime 安裝沒有「同步之外單獨跑」的路徑**〔讀碼〕：`prepareRuntime` 唯一的呼叫者是 `applyPlan`（`rg -n prepareRuntime main lib` 只命中 `main/sync/index.js:145-146,348-350`、`main/sync/apply.js:76`、`main/runtime/prepare.js` 自身；SPR 兩個子 agent 獨立確認並附對照組）。初版擔心的「單獨跑 Runtime 安裝不受保護」**不成立**（§7 X-15）。〔對齊 2026-10-20：`main/sync/index.js:145-146,348-350` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a） 未移動；`main/sync/apply.js:76` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:109`〕
 - runtime 在 `applyPlan` 裡會寫：gameDir 底下的 `versions/`、`libraries/`、`assets/`（`main/runtime/prepare.js:43-76`、`main/runtime/minecraft.js:439-466`），`<root>/runtime/java-<major>`，以及 Java 安裝的 `<root>/.temp/java-<major>-staging`、`jre<major>.zip`。D-LINK-RUNTIME 把前兩類納入檢查；後者在 `<root>/.temp` 底下，由 D-LINK-TEMP 的 `.temp` 檢查涵蓋。〔2026-10-17：頂層的檢查擋不到更深的連結，深層改寫外部已實測（§5.13）→ D-LINK-C-DEEP。Java 的 staging 與 zip 本身是連結時的實際行為 → §5.15、§5.16，D-LINK-C-CLEAN、D-N6〕
 - **同步之後**的 `removeStaleRuntime`（`main/sync/runtime-cleanup.js:40,50-52,78-85`）會動 `<root>/.temp/runtime-trash`、`<root>/runtime/*`、`gameDir/versions/*`。它跑在 `applyPlan` 之後，屬於同一次同步；基底路徑在 `applyPlan` 開頭已檢查過，兩者之間被換成連結屬於 D-LINK-NOTOCTOU 不承諾的範圍。〔2026-10-17 更正：`<root>/.temp/runtime-trash` 不在基底路徑裡，「開頭已檢查過」不涵蓋它；它本身是 junction 時清理會把舊目錄搬到外部（§5.14，§7 X-19）→ D-LINK-TRASH〕
 - `userData`：沒查、沒測，不在本事件範圍（ChatGPT 第二輪 §2.3、第四輪 §五都要求有獨立反例才處理）。
-- `fsProbe.kind` 只用 `isSymbolicLink()` 判連結（`main/sync/apply.js:286-299`），其他種類的重新解析點（例如 OneDrive 佔位檔、掛載點）會被怎麼判，沒測。
+- `fsProbe.kind` 只用 `isSymbolicLink()` 判連結（`main/sync/apply.js:286-299`），其他種類的重新解析點（例如 OneDrive 佔位檔、掛載點）會被怎麼判，沒測。〔對齊 2026-10-20：`main/sync/apply.js:286-299` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 改寫成 `kindAt` `:326-333`＋`fsProbe.kind` `:337`（改用 `kindOf`）〕
 
 ### 5.5 Electron 重複註冊 IPC handler（CC 第三輪）〔實測〕
 
@@ -350,7 +350,7 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
 `main/runtime/minecraft.js:228-287` `ensureVersionJsons`：
 
 - `verifyAll` 為 false 時：本機檔存在且過 `checkVanillaJson` ⇒ **直接用、不打網路**。
-- `verifyAll` 為 true 時：**一律重抓並覆蓋本機那份**（`ensureOne`，`:249-256`）。修復一定帶 `verifyAll`：`main/sync/index.js:332` `const verifyAll = who === "repair" || inputs.local.inProgress; // …runtime 用同一個值`，經 `main/runtime/prepare.js:49` 傳入〔SPR #3 讀碼〕。
+- `verifyAll` 為 true 時：**一律重抓並覆蓋本機那份**（`ensureOne`，`:249-256`）。修復一定帶 `verifyAll`：`main/sync/index.js:332` `const verifyAll = who === "repair" || inputs.local.inProgress; // …runtime 用同一個值`，經 `main/runtime/prepare.js:49` 傳入〔SPR #3 讀碼〕。〔對齊 2026-10-20：`main/sync/index.js:332` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a） 未移動〕
 - 存檔用 `writeJsonReplacing`（`:212` 起），內容是 `JSON.stringify(json, null, 2)`——**本機檔是重新排版過的，位元組跟官方原檔不同**，所以事後拿 sha1 跟 manifest 比永遠對不上。
 - 既有測試編碼的三條失敗語意（5b 改寫測試時必須保住）：verifyAll 真且全部抓不到 ⇒ 丟錯、本機兩份不變；verifyAll 假 ⇒ 零請求；verifyAll 真 ⇒ 覆寫（`test/runtime-minecraft.test.cjs:254,302-308,338-344`，現在用 `MIRROR_JSON`）。
 
@@ -374,7 +374,7 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
 - **畫面的檢查**：送出前把記憶體轉成數字或 `null`（`renderer/settings-modal.js:249-254`），只擋 `> 0`，**不擋上限**——現在就能送出 100 GB 並被 main 偷偷夾回；`min > max` 會在畫面擋下（`:256-266`）。不合格時用既有的 `setSettingsError` 顯示（`:279`）。
 - **`minMemoryGb` 的 0**：啟動時 `const minMb = settings?.minMemoryGb ? mbFromGb(settings.minMemoryGb) : 0;`（`main/minecraft-launch.js:213`），0 與 `null` 效果相同（都不設下限）。
 - **寫入者**：只有 `ensureSettingsFileInitialized`（`main/app-ready.js:119`）與 `SETTINGS_SET`（`main/ipc/settings-ipc.js:47`）。初始化在 IPC 註冊（`app-ready.js:159`）之前跑完，兩者不會同時寫；真正可能並行的只有「儲存」連按兩下。
-- **讀取者**（SPR #26）：開機 `app-ready.js:122`；同步中樞每次算狀態（`main/sync/index.js:165-166` `gather()`，丟錯會被包成 `internal-error`）；`writeSettings` 先讀（`main/settings.js:169`）；診斷匯出（`main/diagnostics-export.js:43`）；`SETTINGS_SET` 換根目錄時（`settings-ipc.js:38`）。`SETTINGS_GET` 走 `readSettingsRaw`＋`normalizeSettingsObject`（`settings-ipc.js:5-19`），**繞過** `readSettings`。
+- **讀取者**（SPR #26）：開機 `app-ready.js:122`；同步中樞每次算狀態（`main/sync/index.js:165-166` `gather()`，丟錯會被包成 `internal-error`）；`writeSettings` 先讀（`main/settings.js:169`）；診斷匯出（`main/diagnostics-export.js:43`）；`SETTINGS_SET` 換根目錄時（`settings-ipc.js:38`）。`SETTINGS_GET` 走 `readSettingsRaw`＋`normalizeSettingsObject`（`settings-ipc.js:5-19`），**繞過** `readSettings`。〔對齊 2026-10-20：`main/sync/index.js:165-166` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a） 未移動〕
 - **初始化順序**：`app-ready.js:119` `ensureSettingsFileInitialized` → `:122` `readSettings` → `:125` `createMainWindow` → `:159` `setupMainIpc`。這一段丟出的錯，會被 `main/start-main.js:191-195` 接住，交給 `main/startup-failure.js` 跳原生錯誤框後結束程式（`:3-5` 寫了必須結束的理由：不結束會握著單一實例鎖，之後每次開啟都安靜退出）。錯誤框目前一律印 `err.stack`（`:11`），既有測試斷言內容含 stack（`test/startup-failure.test.cjs:~27-31`）。
 - **測試現況**（SPR #45、#46）：檔案層（`ensureSettingsFileInitialized`、`readSettings`、`writeSettings`）沒有任何測試；「兩者皆未設 ⇒ `-Xmx4096M`」沒有測試（`rg -n Xmx test` 只命中明確給定的值與輸入常數）。
 
@@ -386,7 +386,7 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
 - `:141-148` `collectErrorTexts`：gate 只收 `unreachable`。
 - `:112-124` `gateMessages`：gate `invalid` 回通用的「gate.json 讀不到或格式錯」，不帶細節。
 - `lib/sync/status-text.js:97`：畫面顯示 `[...gateMessages, ...errorTexts]`。
-- main 端的閘都讀同一個 `derive` 的結果：更新與修復的 `precheck`（`main/sync/index.js:268`）、列出清單外 jar（`:411-416` `listStrayJars`，**初版誤寫成「修復的閘」**，SPR #29）、啟動（`:438`）。
+- main 端的閘都讀同一個 `derive` 的結果：更新與修復的 `precheck`（`main/sync/index.js:268`）、列出清單外 jar（`:411-416` `listStrayJars`，**初版誤寫成「修復的閘」**，SPR #29）、啟動（`:438`）。〔對齊 2026-10-20：`main/sync/index.js` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:268` 未移動、`:411-416` → `:412-417`、`:438` → `:439`〕
 - 綁定舊規則的測試與文件：`test/sync-status-kind.test.cjs:297`（「gate invalid：kind 照 release 算；沒記錄 ⇒ not-installed 有安裝鈕」）、同檔 `gateMessages(g, "1.0.0")` 的斷言；**`docs/site-format.md:79` [SF-G8] 與 `test/site-format-doc.test.cjs:341`（案例含 `HTTP 404`，斷言 `kind === "up-to-date"`、`canLaunch === true`、訊息為通用句）**（SPR #10，初版漏列）。
 
 ### 5.12 其他
@@ -486,7 +486,7 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
 - **CC 第四輪**：實測 S1／S2 重現（§5.3）。提出 Q-1；outside voice 時 owner 裁擋（D-LINK-TEMP）。
 - **SPR**：CC 自掃發現 runtime 安裝在 `applyPlan` 裡寫 gameDir 子資料夾、但初版 Phase 1 把 runtime 排除，與 D-LINK-SCOPE 矛盾（SPR #1）；owner grilling 裁擋（D-LINK-RUNTIME）。子 agent 指出：初版描述的 `applyPlan` 順序漏了 `markInProgress` 與 `prepareRuntime`（#23）；新錯誤碼會讓既有測試紅（#20）；只做第一個檢查點的實作能通過全部驗收（#39）；產品後果寫小了（#25，owner grilling 確認 D-LINK-CONSEQ）。
 - **outside voice**：初版 Phase 1 寫「查到連結就丟錯、什麼都不動、不寫記錄」——第二個檢查點擋下時，清殘檔、中斷標記、runtime 準備、下載暫存都已發生，「什麼都不動」講過頭（§7 X-13）。改成依檢查點區分（§8 Phase 1 的契約表）。
-- **實際的 `applyPlan` 順序**〔讀碼，`main/sync/apply.js:73-80`〕：`clearLeftovers` → `markInProgress`（寫 instanceDir 的中斷標記）→ `prepareRuntime`（可能數分鐘，寫 gameDir 子資料夾與 `<root>/runtime`）→ `downloadAll`（寫 staging）→ `findBlockers` → `removeFirst`／`dirsToRemove`／`moveAside` → 放檔 → `rename` → `remove` → `writeRecord` → 清標記、清 staging。
+- **實際的 `applyPlan` 順序**〔讀碼，`main/sync/apply.js:73-80`〕：`clearLeftovers` → `markInProgress`（寫 instanceDir 的中斷標記）→ `prepareRuntime`（可能數分鐘，寫 gameDir 子資料夾與 `<root>/runtime`）→ `downloadAll`（寫 staging）→ `findBlockers` → `removeFirst`／`dirsToRemove`／`moveAside` → 放檔 → `rename` → `remove` → `writeRecord` → 清標記、清 staging。〔對齊 2026-10-20：`main/sync/apply.js:73-80` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:105-115`（改寫：`clearLeftovers` 前與 `findBlockers` 前各加一次 `refuseLinks`）〕
 - **為什麼要「兩個時間點都查」**：只在最前面查，後面幾分鐘（runtime、下載）的空窗就沒守住；只在動手前查，清殘檔、中斷標記、runtime、下載已經先碰到連結了（B、S1、S2 就是這樣發生的）。這不是 TOCTOU 承諾（D-LINK-NOTOCTOU），只是讓兩段各自不會先動手。
 - **產品後果（owner 已確認，D-LINK-CONSEQ）**：某個資料夾是連結，而新記錄裡有任何檔在它底下（例如 `mods/`），每一次更新與修復都會被擋，畫面叫玩家移走連結。這在下載路徑上本來就是如此（§5.1 對照組），修完只是讓所有路徑一致。
 - **Phase 1 細部 plan 期間（2026-10-17～19，時間線見 §2 後半）**：
@@ -610,7 +610,7 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
 | X-10 | `ci.yml` 可以刪，因為沒有 remote、CI 不會跑 | 原 `defense-cleanup.md` U12 的前提 | repo 已推上 GitHub，CI 實際跑且 success | §5.12 |
 | X-11 | D-TRUST 初版：「信任根是一份經 HTTPS 從官方取得的 manifest；其下每一層都用上一層給的 hash 驗證」 | CC 第三輪 §12.4、本檔初版 | 與 D-JAVA「不強制每個官方來源都有 SHA」、Fabric 兩個沒有 hash 的函式庫、GGL3 模組的權威（release 清單）衝突——把 Minecraft 原版那一條鏈寫成了通則 | outside voice §五；CC 核對後接受 |
 | X-12 | 不認得的設定鍵「不影響任何操作」，維持安靜剔除 | CC 本檔初版 Q-5 | 打錯字的已知鍵就是未知鍵，而它的本意影響操作（`launcherRootDri` ⇒ 改用預設根目錄）；IPC 端早就以同一理由拒絕未知鍵；檔案缺預設鍵時會整份重寫並刪掉它 | outside voice §七；`main/ipc/settings-ipc.js:22,28-31`；`main/settings.js:114-124` |
-| X-13 | Phase 1「查到連結就丟錯、什麼都不動、不寫記錄」 | CC 本檔初版 | 第二個檢查點擋下時，清殘檔、中斷標記、runtime 準備、下載暫存都已發生；「不寫記錄」也沒分清成功記錄與中斷標記 | outside voice §二；`main/sync/apply.js:73-80`；SPR #23 |
+| X-13 | Phase 1「查到連結就丟錯、什麼都不動、不寫記錄」 | CC 本檔初版 | 第二個檢查點擋下時，清殘檔、中斷標記、runtime 準備、下載暫存都已發生；「不寫記錄」也沒分清成功記錄與中斷標記 | outside voice §二；`main/sync/apply.js:73-80`；SPR #23〔對齊 2026-10-20：`main/sync/apply.js:73-80` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:105-115`（改寫：`clearLeftovers` 前與 `findBlockers` 前各加一次 `refuseLinks`）〕 |
 | X-14 | U6：4096 常數放在「唯一用到它的地方」 | CC 第一輪、本檔初版 | 這個預設值散在至少六處 | SPR #19；`rg -n 4096 main/minecraft-launch.js` |
 | X-15 | Runtime 安裝可能在同步流程之外單獨跑、不受 Phase 1 保護 | CC 本檔初版 §5.4、§9 | `prepareRuntime` 唯一的呼叫者是 `applyPlan` | SPR #24（兩個子 agent 附對照組） |
 | X-16 | 「畫面送出前已驗，壞值只可能來自手改」（不分欄位、不分範圍） | CC 第三輪、本檔初版 | 畫面只擋 `> 0`，不擋上限；但結論（檔案裡的壞值只來自手改）在 Phase 4 讓 `SETTINGS_SET` 照同一套規則驗之後仍成立 | SPR #27；`renderer/settings-modal.js:251-254` |
@@ -713,9 +713,9 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
 - 一把尺（N-27）：「什麼算連結」只有一處（`kindOf`，吃 `Stats` 也吃 `Dirent`）、連結錯誤只由一處造、文案一份；放 `lib/fs-links.js`，不長成 FS Wrapper（D-LINK-SPLIT）。`findBlockers` 的連結分支改用它。要查的路徑（gameDir 相對）：
   - `download`、`remove`、`removeFirst`、`rename.from`、`rename.to` 的每一層上層；
   - 同上五類的目標本身（D-LINK-C-SHARED：v3「連結不猜不刪」）；
-  - 新記錄裡每個檔所在的資料夾（`clearLeftovers` 的 `.ggl-tmp` 在那裡，`main/sync/apply.js:136-142`）；
+  - 新記錄裡每個檔所在的資料夾（`clearLeftovers` 的 `.ggl-tmp` 在那裡，`main/sync/apply.js:136-142`）；〔對齊 2026-10-20：`main/sync/apply.js:136-142` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:171-181`（改寫：刪之前看是否連結）〕
   - gameDir 底下 runtime 會寫的頂層子資料夾：`versions`、`libraries`、`assets`（D-LINK-RUNTIME）。
-- 基底路徑另外 `lstat`，共 8 個：`root`、`groupDir`、`instanceDir`、`gameDir`（D-LINK-SCOPE）、`tempDir`、`tempDir/sync-staging`（D-LINK-TEMP）、`tempDir/runtime-trash`（D-LINK-TRASH）、`<root>/runtime`（D-LINK-RUNTIME）。既有 `fsProbe` 的 `abs()` 以 gameDir 為根（`main/sync/apply.js:70`），基底路徑需要另一個 probe（SPR #22）。判成 `"other"` 的特殊項目一律拒絕（細部 plan Q2）。
+- 基底路徑另外 `lstat`，共 8 個：`root`、`groupDir`、`instanceDir`、`gameDir`（D-LINK-SCOPE）、`tempDir`、`tempDir/sync-staging`（D-LINK-TEMP）、`tempDir/runtime-trash`（D-LINK-TRASH）、`<root>/runtime`（D-LINK-RUNTIME）。既有 `fsProbe` 的 `abs()` 以 gameDir 為根（`main/sync/apply.js:70`），基底路徑需要另一個 probe（SPR #22）。判成 `"other"` 的特殊項目一律拒絕（細部 plan Q2）。〔對齊 2026-10-20：`main/sync/apply.js:70` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a）後 `:83`〕
 - `.ggl-tmp` 是連結：刪連結本身、更新照常、寫一行 log（D-LINK-C-TMP）。
 - **兩個檢查點**（實際順序見 §6.2）：
   1. **第一個**：在 `clearLeftovers` 與 `markInProgress` **之前**（SPR #23）。
@@ -837,7 +837,7 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
 - 讀檔四種情況分流（D-SET-FILE）；**「告知一次」的機制**（JSON 壞掉時重置並告知——此時畫面還沒起來，`startup-failure.js` 是致命框）由細部 plan 定，並註明它不是 D-SET-UI 禁止的修復視窗（SPR #5、#36）。
 - 欄位驗證：記憶體「數字或 null」（D-SET-NUM）；各欄位的正式範圍與 `minMemoryGb` 的 `0`（D-SET-RANGE，現讀後與 owner 定案）；`min > max`；`launcherRootDir` 的型別；**不認得的鍵（含退休的 `memoryGb`）一律拒絕並寫出鍵名**（D-SET-UNKNOWN）。讀檔與 `SETTINGS_SET` 用**同一份**驗證契約，不出現第二套 schema。
 - 不合法 ⇒ 帶 code 的錯誤；`startup-failure.js` 對這類錯誤只顯示訊息、不顯示 stack（D-SET-UI）。
-- **所有讀取點**的行為（SPR #26）：開機（`app-ready.js:122`）、同步中樞 `gather()`（`main/sync/index.js:165-166`，現在丟錯會變成 `internal-error`）、`writeSettings` 先讀、診斷匯出、`SETTINGS_SET` 換根目錄時、`SETTINGS_GET`（現在繞過 `readSettings`）——寫明執行中有人手改壞檔時各處怎麼表現。
+- **所有讀取點**的行為（SPR #26）：開機（`app-ready.js:122`）、同步中樞 `gather()`（`main/sync/index.js:165-166`，現在丟錯會變成 `internal-error`）、`writeSettings` 先讀、診斷匯出、`SETTINGS_SET` 換根目錄時、`SETTINGS_GET`（現在繞過 `readSettings`）——寫明執行中有人手改壞檔時各處怎麼表現。〔對齊 2026-10-20：`main/sync/index.js:165-166` → `4d7721e`（plans/cross-review-2026-10-phase1.md 1a） 未移動〕
 - 啟動時「缺預設鍵 ⇒ 整份重寫」（`main/settings.js:114-124`）會無聲刪掉不認得的鍵，隨 D-SET-UNKNOWN 一起處理。
 - `SETTINGS_SET` 照同一套規則驗；不合格時設定視窗用既有 `setSettingsError` 顯示（`renderer/settings-modal.js:279`）。
 - 原子寫入；兩次寫入搶同一個暫存檔名的問題，先評估「每次用唯一暫存檔名」是否就夠，不夠才加排隊（SPR #37）。
