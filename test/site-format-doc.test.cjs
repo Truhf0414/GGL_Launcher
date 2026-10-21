@@ -26,6 +26,7 @@ const {
   deriveUi,
   gateMessages,
 } = require("../lib/sync/status-kind.js");
+const { describeStatus } = require("../lib/sync/status-text.js");
 const { getPaths } = require("../lib/paths-layout.js");
 const { createSiteClient } = require("../main/sync/site-client.js");
 const { createNoticeFeed } = require("../main/sync/notice-feed.js");
@@ -128,28 +129,36 @@ const gateOf = (json) => {
     : { side: "invalid", reason: "invalid", detail: v.error };
 };
 
-/** 啟動器拿到這份 gate 之後的狀態：kind、按鈕、能不能啟動、能不能更新修復、gate 訊息 */
+/**
+ * 啟動器拿到這份 gate 之後的狀態：kind、按鈕、能不能啟動、能不能更新修復、gate 訊息、標題。
+ * release 預設 ok；local 給了就整個取代本機輸入（例如讀不到）。
+ */
 function statusWith(
   gate,
-  { installed = true, launcherVersion = LAUNCHER, record = RECORD } = {},
+  {
+    installed = true,
+    launcherVersion = LAUNCHER,
+    record = RECORD,
+    inProgress = false,
+    runtimeReady = true,
+    release = { side: "ok", value: RELEASE },
+    local,
+  } = {},
 ) {
   const r = computeStatusKind({
     configured: true,
     syncing: false,
-    site: {
-      index: { side: "ok", value: {} },
-      gate,
-      release: { side: "ok", value: RELEASE },
-    },
-    local: {
+    site: { index: { side: "ok", value: {} }, gate, release },
+    local: local ?? {
       side: "ok",
       record: installed ? record : null,
-      inProgress: false,
-      runtime: { ready: true },
+      inProgress,
+      runtime: { ready: runtimeReady },
     },
     launcherVersion,
   });
   const ui = deriveUi(r.kind, r.localReady);
+  const messages = gateMessages(gate, launcherVersion);
   return {
     kind: r.kind,
     button: ui.button.label,
@@ -157,8 +166,14 @@ function statusWith(
     canLaunch: ui.canLaunch,
     canUpdate: SYNC_ALLOWED_KINDS.update.includes(r.kind),
     canRepair: SYNC_ALLOWED_KINDS.repair.includes(r.kind),
-    messages: gateMessages(gate, launcherVersion),
+    messages,
     errorTexts: r.errorTexts,
+    headline: describeStatus({
+      ...r,
+      gateMessages: messages,
+      localVersion: installed ? record.version : "",
+      remoteVersion: release.side === "ok" ? release.value.version : "",
+    }).headline,
   };
 }
 
@@ -338,28 +353,102 @@ test('SF-G7 maintenance 裡的鍵拼錯不會報錯：{"enabled": true, "mesage"
   assert.deepEqual(s.messages, ["伺服器維護中"]);
 });
 
-test('SF-G8 gate.json 壞掉 ⇒ 維護與版本門檻都不生效，只多一行字：{"maintenance": {"enabled": true,}} ⇒ 玩家照常啟動', async () => {
+test('SF-G8 gate.json 壞掉 ⇒ 不能安裝、更新、修復，維護與最低版本不生效，本機已就緒的仍可啟動：{"maintenance": {"enabled": true,}} ⇒ 不算維護、已就緒的照常啟動', async (t) => {
   const broken = [
     [
       "JSON 語法錯（多一個逗號）",
       { body: '{ "maintenance": { "enabled": true, } }' },
+      "內容不是 JSON",
     ],
-    ["型別錯", { body: { maintenance: { enabled: "true" } } }],
-    ["版本有後綴", { body: { minLauncherVersion: "99.0.0-beta" } }],
-    ["HTTP 404", { status: 404 }],
+    [
+      "型別錯",
+      { body: { maintenance: { enabled: "true" }, minLauncherVersion: "99.0.0" } },
+      "gate.maintenance.enabled: 必須是布林",
+    ],
+    [
+      "版本有後綴",
+      { body: { minLauncherVersion: "99.0.0-beta" } },
+      "gate.minLauncherVersion: 必須是 x.y.z",
+    ],
+    ["HTTP 404", { status: 404 }, "HTTP 404"],
   ];
-  for (const [label, route] of broken) {
+  for (const [label, route, detail] of broken) {
     const gate = await fetchGate(route);
     assert.equal(gate.side, "invalid", label);
+    const line = `gate.json：${detail}`;
+
+    // 本機已就緒：不算維護也不算太舊、可以啟動、不能更新修復、錯在哪上畫面
     const s = statusWith(gate);
-    assert.equal(s.kind, "up-to-date", label);
-    assert.equal(s.canLaunch, true, label);
-    assert.deepEqual(s.messages, ["gate.json 讀不到或格式錯"], label);
-    assert.deepEqual(s.errorTexts, [], label);
-    // 站台有新版時照常可以更新
+    assert.deepEqual(
+      [s.kind, s.button, s.canLaunch, s.canUpdate, s.canRepair],
+      ["invalid", "啟動", true, false, false],
+      label,
+    );
+    assert.deepEqual(s.messages, [], label);
+    assert.deepEqual(s.errorTexts, [line], label);
+    assert.match(s.headline, /^伺服器上的版本資料有誤/, label);
+
+    // 站台有新版、本機舊版就緒：不能更新，仍可啟動手上的舊版
     const stale = statusWith(gate, { record: { ...RECORD, files: [] } });
-    assert.equal(stale.kind, "update-available", label);
-    assert.equal(stale.canUpdate, true, label);
+    assert.deepEqual(
+      [stale.kind, stale.canUpdate, stale.canLaunch],
+      ["invalid", false, true],
+      label,
+    );
+
+    // 本機未就緒（沒裝過、上次同步沒完成、遊戲執行環境不完整）：不能啟動、不能裝
+    for (const opts of [
+      { installed: false },
+      { inProgress: true },
+      { runtimeReady: false },
+    ]) {
+      const notReady = statusWith(gate, opts);
+      const at = `${label} ${JSON.stringify(opts)}`;
+      assert.deepEqual(
+        [notReady.kind, notReady.button, notReady.canLaunch, notReady.canRepair],
+        ["invalid", "無法啟動", false, false],
+        at,
+      );
+      assert.match(notReady.headline, /^伺服器上的版本資料有誤/, at);
+    }
+
+    // 更嚴重的狀況照那個狀況：release 同時抓不到 ⇒ 離線；讀不到本機記錄 ⇒ 先顯示那個
+    const offline = statusWith(gate, {
+      release: { side: "unreachable", reason: "http", detail: "HTTP 530" },
+    });
+    assert.equal(offline.kind, "offline", label);
+    assert.deepEqual(offline.errorTexts, ["release.json：HTTP 530", line], label);
+    const unreadable = statusWith(gate, {
+      local: { side: "unreadable", detail: "EACCES" },
+    });
+    assert.equal(unreadable.kind, "local-unreadable", label);
+    assert.ok(unreadable.errorTexts.includes(line), label);
+  }
+
+  // main 端真的照這張表擋
+  const bad = { side: "invalid", reason: "http", detail: "HTTP 404" };
+  {
+    const { sync, site } = await hub(t, { installed: true });
+    site.gate = bad;
+    let launched = false;
+    await sync.withLaunchLock(async () => {
+      launched = true;
+    });
+    assert.equal(launched, true);
+    await assert.rejects(sync.updateInstance(), {
+      code: "GGL_SYNC_NOT_ALLOWED",
+    });
+    await assert.rejects(sync.repairInstance(), {
+      code: "GGL_SYNC_NOT_ALLOWED",
+    });
+  }
+  {
+    const { sync, site } = await hub(t, { installed: false });
+    site.gate = bad;
+    await assert.rejects(
+      sync.withLaunchLock(async () => {}),
+      { code: "GGL_SYNC_LAUNCH_BLOCKED" },
+    );
   }
 });
 

@@ -294,16 +294,6 @@ test("維護中＋release invalid＋有記錄 ⇒ maintenance、canLaunch 隨 lo
   assert.deepEqual(gateMessages(m, "1.0.0"), ["伺服器維護中"]);
 });
 
-test("gate invalid：kind 照 release 算；沒記錄 ⇒ not-installed 有安裝鈕；gateMessages 有提示", () => {
-  const g = invalid("parse");
-  assert.equal(kindOf({ site: { gate: g } }), "up-to-date");
-  const r = computeStatusKind(input({ record: null, site: { gate: g } }));
-  assert.equal(r.kind, "not-installed");
-  assert.equal(deriveUi(r.kind, r.localReady).button.action, "install");
-  assert.deepEqual(r.errorTexts, []);
-  assert.deepEqual(gateMessages(g, "1.0.0"), ["gate.json 讀不到或格式錯"]);
-});
-
 test("太舊：release 抓不到 ⇒ offline、訊息照顯示；有記錄可啟動；沒記錄不可啟動；與 invalid 同時 ⇒ 太舊", () => {
   const old = gateOk({ min: "2.0.0" });
   assert.equal(kindOf({ site: { gate: old, release: unreachable() } }), "offline");
@@ -364,7 +354,7 @@ test("errorTexts：up-to-date ⇒ []", () => {
   assert.deepEqual(computeStatusKind(input()).errorTexts, []);
 });
 
-test("gateMessages：維護＋太舊 ⇒ 兩行、維護在前；unreachable／沒抓 ⇒ []", () => {
+test("gateMessages：維護＋太舊 ⇒ 兩行、維護在前；unreachable／invalid／沒抓 ⇒ []", () => {
   const g = gateOk({
     maintenance: { enabled: true, message: "維護" },
     min: "2.0.0",
@@ -374,6 +364,7 @@ test("gateMessages：維護＋太舊 ⇒ 兩行、維護在前；unreachable／�
     "啟動器版本過舊（需要 2.0.0 以上），請下載新版啟動器",
   ]);
   assert.deepEqual(gateMessages(unreachable(), "1.0.0"), []);
+  assert.deepEqual(gateMessages(invalid("parse"), "1.0.0"), []);
   assert.deepEqual(gateMessages(undefined, "1.0.0"), []);
   assert.deepEqual(
     gateMessages(gateOk({ maintenance: { enabled: false, message: "x" } }), "1.0.0"),
@@ -493,7 +484,7 @@ test("N26 local 讀不到（含 unconfigured＋讀不到）⇒ []、localReady f
   }
 });
 
-test("N26 原因清單與 localReady 對照輸入的事實（240 格）", () => {
+test("N26 原因清單與 localReady 對照輸入的事實（264 格）", () => {
   // 每種站台狀態另標「release 比得了嗎」——索引與 release 都 ok 才比得了
   const SITES = [
     ["沒設定", { configured: false, site: NO_SITE }, false],
@@ -501,6 +492,7 @@ test("N26 原因清單與 localReady 對照輸入的事實（240 格）", () => 
     ["索引壞", { site: { index: invalid(), gate: undefined, release: undefined } }, false],
     ["索引 newer", { site: { index: NEWER, gate: undefined, release: undefined } }, false],
     ["gate 連不上", { site: { gate: unreachable() } }, true],
+    ["gate 壞", { site: { gate: invalid() } }, true],
     ["release 連不上", { site: { release: unreachable() } }, false],
     ["維護中", { site: { gate: MAINT } }, true],
     ["啟動器太舊", { site: { gate: TOO_OLD } }, true],
@@ -533,7 +525,7 @@ test("N26 原因清單與 localReady 對照輸入的事實（240 格）", () => 
       }
     }
   }
-  assert.equal(cells, 240);
+  assert.equal(cells, 264);
 });
 
 // ── N27 local-unreadable（R4）──
@@ -621,4 +613,73 @@ test("C3 只改 loader／只改 minecraft ⇒ update-available 且含 release-di
   const r = computeStatusKind(input({ record: old }));
   assert.equal(r.kind, "update-available");
   assert.ok(r.syncReasons.includes("release-differs"));
+});
+
+// ── gate invalid（→ _notes/plans/cross-review-2026-10.md D-GATE 群；_notes/plans/cross-review-2026-10-phase3.md K1–K7）──
+
+test("K1 gate invalid ⇒ invalid、不能安裝更新修復；齊可啟動、沒記錄不可；錯在哪進 errorTexts、gateMessages 不另出", () => {
+  const g = invalid("parse");
+  const ready = computeStatusKind(input({ site: { gate: g } }));
+  assert.equal(ready.kind, "invalid");
+  assert.deepEqual(deriveUi(ready.kind, ready.localReady), {
+    button: { action: "launch", label: "啟動", note: null },
+    canLaunch: true,
+  });
+  assert.deepEqual(ready.errorTexts, ["gate.json：parse"]);
+  const noRecord = computeStatusKind(input({ record: null, site: { gate: g } }));
+  assert.equal(noRecord.kind, "invalid");
+  assert.deepEqual(deriveUi(noRecord.kind, noRecord.localReady), {
+    button: { action: "none", label: "無法啟動", note: null },
+    canLaunch: false,
+  });
+  assert.deepEqual(gateMessages(g, "1.0.0"), []);
+  for (const [action, kinds] of Object.entries(SYNC_ALLOWED_KINDS)) {
+    assert.equal(kinds.includes("invalid"), false, action);
+  }
+});
+
+test("K2 gate invalid＋站台有新版＋本機舊版齊 ⇒ invalid、可啟動舊版（D-GATE-STALE）", () => {
+  const r = statusOf({ record: DIFF_RECORD, site: { gate: invalid("parse") } });
+  assert.equal(r.kind, "invalid");
+  assert.deepEqual(r.syncReasons, ["release-differs"]);
+  assert.equal(r.localReady, true);
+  assert.equal(deriveUi(r.kind, r.localReady).canLaunch, true);
+});
+
+test("K3 gate invalid＋release invalid ⇒ invalid、gate 的排第一、兩筆都在", () => {
+  const r = statusOf({
+    site: { gate: invalid("invalid", "gate.maintenance.enabled: 必須是布林"), release: invalid("parse", "內容不是 JSON") },
+  });
+  assert.equal(r.kind, "invalid");
+  assert.deepEqual(r.errorTexts, [
+    "gate.json：gate.maintenance.enabled: 必須是布林",
+    "release.json：內容不是 JSON",
+  ]);
+});
+
+test("K4 gate invalid＋release unreachable ⇒ offline、release 的排第一、gate 的仍在", () => {
+  const r = statusOf({
+    site: { gate: invalid("http", "HTTP 404"), release: unreachable("http", "HTTP 530") },
+  });
+  assert.equal(r.kind, "offline");
+  assert.deepEqual(r.errorTexts, ["release.json：HTTP 530", "gate.json：HTTP 404"]);
+});
+
+test("K5 gate invalid × 本機讀不到 ⇒ local-unreadable、本機那句排第一、gate 的接在後面", () => {
+  const r = statusOf({ local: unreadable(), site: { gate: invalid("http", "HTTP 404") } });
+  assert.equal(r.kind, "local-unreadable");
+  assert.deepEqual(r.errorTexts, [LOCAL_LINE, "gate.json：HTTP 404"]);
+});
+
+test("K6 索引 newer（gate 沒抓）⇒ 不受影響；gateMessages 對沒抓、invalid 都回 []", () => {
+  const r = statusOf({ site: { index: NEWER, gate: undefined, release: undefined } });
+  assert.equal(r.kind, "launcher-too-old");
+  assert.deepEqual(r.errorTexts, [`manifest.json：${NEWER.detail}`]);
+  assert.deepEqual(gateMessages(undefined, "1.0.0"), []);
+  assert.deepEqual(gateMessages(invalid("http", "HTTP 404"), "1.0.0"), []);
+});
+
+test("K7 gate invalid 時 syncing、沒設定更新來源照樣優先", () => {
+  assert.equal(kindOf({ syncing: true, site: { gate: invalid() } }), "syncing");
+  assert.equal(kindOf({ configured: false, site: { gate: invalid() } }), "unconfigured");
 });

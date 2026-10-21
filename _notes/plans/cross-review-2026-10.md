@@ -1,6 +1,6 @@
 # 交叉審查後的收斂施工（2026-10）
 
-**狀態**：2026-10-14 建立；四輪交叉審查（owner＋ChatGPT＋CC）收斂；同日跑完 SPR（三個 Sonnet 子 agent＋ChatGPT outside voice，紀錄 → `reviews/cross-review-2026-10-v54d4d36d-20261014.md`），owner 裁完 grilling，本檔依 SPR 結果與 outside voice 修正定稿。2026-10-17 Phase 0 完成（`53a9d60`）；同日 Phase 1 細部 plan 初稿（→ `plans/cross-review-2026-10-phase1.md`）、owner 裁 D-LINK-CODE；2026-10-17～19 經 fakechat 與 outside voice 多輪收斂 Junction 的責任界線（§2 後半、§6.2 末），2026-10-19 owner 裁 D-LINK-C 群（§3.4）與 X1、N6（§3.10），同日細部 plan 依此整份重寫；2026-10-20 owner 採納 1b 兩項細節（D-LINK-C-DEEP-1B）、`<json>.tmp` 列入 N6 候選；同日 Phase 1 完成（1a `4d7721e`、1b `9906d13`，皆經 owner 驗收放行，→ `plans/cross-review-2026-10-phase1.md`）；同日 Phase 2a 完成（`9db125b`，經 owner 驗收放行，→ `plans/cross-review-2026-10-phase2.md`）；2026-10-21 Phase 2b 完成（`76b26d5`，經 owner 驗收放行），Phase 2 結案；Phase 3–6、X1、N6 **皆未動工**。本行只記已發生的事；下一步只住 `STATUS.md`（`filing.md` §本專案細則）。
+**狀態**：2026-10-14 建立；四輪交叉審查（owner＋ChatGPT＋CC）收斂；同日跑完 SPR（三個 Sonnet 子 agent＋ChatGPT outside voice，紀錄 → `reviews/cross-review-2026-10-v54d4d36d-20261014.md`），owner 裁完 grilling，本檔依 SPR 結果與 outside voice 修正定稿。2026-10-17 Phase 0 完成（`53a9d60`）；同日 Phase 1 細部 plan 初稿（→ `plans/cross-review-2026-10-phase1.md`）、owner 裁 D-LINK-CODE；2026-10-17～19 經 fakechat 與 outside voice 多輪收斂 Junction 的責任界線（§2 後半、§6.2 末），2026-10-19 owner 裁 D-LINK-C 群（§3.4）與 X1、N6（§3.10），同日細部 plan 依此整份重寫；2026-10-20 owner 採納 1b 兩項細節（D-LINK-C-DEEP-1B）、`<json>.tmp` 列入 N6 候選；同日 Phase 1 完成（1a `4d7721e`、1b `9906d13`，皆經 owner 驗收放行，→ `plans/cross-review-2026-10-phase1.md`）；同日 Phase 2a 完成（`9db125b`，經 owner 驗收放行，→ `plans/cross-review-2026-10-phase2.md`）；2026-10-21 Phase 2b 完成（`76b26d5`，經 owner 驗收放行），Phase 2 結案；同日 Phase 3 細部 plan 初稿（→ `plans/cross-review-2026-10-phase3.md`），owner 裁 D-GATE-TITLE、D-GATE-PRIO、D-GATE-STALE、D-GATE-UITEST 並授權 Phase 3 施工；Phase 4–6、X1、N6 **皆未動工**。本行只記已發生的事；下一步只住 `STATUS.md`（`filing.md` §本專案細則）。
 **這份檔是什麼**：這一整個事件的權威 plan——起點、經過、裁決、證據、被推翻的方案、各 Phase 的責任邊界與驗收。各 Phase 的**細部施工步驟不在這裡**，在該 Phase 開工前另寫（理由見 §8.0）。
 **owner 的要求（本檔的寫法依據）**：「針對最終 Plan 產物，我想請你新做一個 Plan 而不是單純的做回填。一樣保持誠實，然後不總結不壓縮原有問題。接著將討論細節、決策還有失敗方針/廢案也寫入這份文件裡。這一整個會是個有規模的事件，我想認真的分節對待。」（2026-10-14）
 **程式基準**：本檔所有行號以 `7aa85c5` 為準（2026-10-14 現查 HEAD＝`7aa85c5`）。2026-10-19 新增的段落以 `ac765af` 為準；兩者之間程式與測試沒有變動（`git diff --stat 7aa85c5 ac765af -- main lib test` 為空，同指令不帶路徑列出 14 個文件檔）。動工前每條現讀；行號漂移照 `filing.md` §本專案細則「行號對齊」加註。
@@ -39,7 +39,7 @@
 | **本檔** | 本事件的裁決、證據、廢案、Phase 邊界的權威 |
 | `reviews/cross-review-2026-10-v54d4d36d-20261014.md` | 本檔受審版本（`54d4d36d`）的 SPR 紀錄（57 列＋outside voice＋裁決）；已封存。本檔定稿已吸收其 fix-before-start 項 |
 | `plans/defense-cleanup.md` | **仍是下列內容的定義處**：§清理清單（各組位置表）、§盤點紀錄、§先補保證 的 G1–G3、§Bug 的 B1、B2、B3、B6。**被本檔取代的只有**：§裁決、§未決、§施工順序，以及 §Bug 的 B4、B5 與 §先補保證 的 G4（各自的去處見 §8）。Phase 0 在該檔加取代註記（只加註、不改原文） |
-| `plans/instance-sync-v3.md` | Sync v3 的行為契約。其中「gate.json 壞掉 ⇒ 當 `{}`」相關的八處被本檔 §3 D-GATE 取代（位置見 §8 Phase 0）；其餘全部有效。已結案的 `instance-sync-v3-commit3a1.md:50`（C9）、`commit3b3b.md:15` 也寫舊行為，依 `filing.md`「結案的 plan 不摘要、不封存、不整理」**不加註** |
+| `plans/instance-sync-v3.md` | Sync v3 的行為契約。其中「gate.json 壞掉 ⇒ 當 `{}`」相關的八處被本檔 §3 D-GATE 取代（位置見 §8 Phase 0）；另有 `:202`（站台錯誤文字只列 gate 的 `unreachable`）、`:517`（③a-1 改檔表說 `gateMessages` 產出 gate 壞掉提示）兩處同被取代，該檔沒加註（Phase 3 SPR #11 才發現，該檔已結案）；其餘全部有效。已結案的 `instance-sync-v3-commit3a1.md:50`（C9）、`commit3b3b.md:15` 也寫舊行為，依 `filing.md`「結案的 plan 不摘要、不封存、不整理」**不加註** |
 | `docs/site-format.md` | 站台格式的對外說明，條目由 `test/site-format-doc.test.cjs` 逐條綁定。其中 **[SF-G8]**（gate 壞掉 ⇒ 照常更新、啟動）被 D-GATE 推翻，在 Phase 3 與程式、測試同一個 commit 改 |
 | `conventions.md` §防禦與相容 | 判準（§1–§6）。本檔以條號引用、不重述。Phase 0 會改第 3 條並新增一條（§3.7 D-TRUST-RULE） |
 | `future-work.md` | 候選清單，不是施工單。本事件影響的條目見 §8 Phase 0 |
@@ -141,6 +141,10 @@
 | D-GATE-SUPERSEDE | 上一條**取代** 2026-09-23 的舊裁決「gate.json 壞掉 ⇒ 當成空的 `{}`＋提示，kind 照 release 算，可以安裝／更新」（舊裁決出處：owner 2026-09-23「3. 空的 + 提示。」，載於 `instance-sync-v3.md:41`；對外說明載於 `docs/site-format.md` [SF-G8]）。**這是產品規則變更，不是修 bug**——舊行為有明確裁決、有測試 | 同上；Decision Memory §C |
 | D-GATE-IMPL | 實作用既有 kind `invalid`，**不新增** `canSync`／`canLaunch` 第二套權威、不建新狀態機 | ChatGPT Round2 §4 撤回原建議、接受 CC Response §4.2；ChatGPT 第四輪 §二.3 列為已收斂 |
 | D-GATE-COST | owner 接受 D-GATE 的代價：gate.json 的 404、JSON 打錯、型別錯都算 `invalid`，所以站台沒放 gate.json 或手改打錯一個字，**所有玩家都不能安裝、更新、修復**（已就緒者仍可啟動）；舊行為只是多一行提示。2026-10-14 現查線上 gate.json 正常（§5.12），D-GATE 上線當下不會停更 | owner 2026-10-14（SPR grilling G3）：「接受，可以的話甚至想做一份驗證器來讓 gate.json 不出現壞檔的情況哈哈。」——驗證器即 `future-work.md`「手改站台檔的發佈前檢查」條；D-GATE 之後它的重要性上升，但仍是 future-work（D-FW），本事件不施工 |
+| D-GATE-TITLE | gate `invalid` 時的大標題沿用既有 `invalid` 那句「伺服器上的版本資料有誤…」；不新增 gate 專用標題、不改其他 `invalid` 情境的文字；錯在哪由細節行（如 `gate.json：HTTP 404`）指出 | owner 2026-10-21（Phase 3 Q1）：「裁決：保留原有主標題，不新增 Gate 專用標題，也不修改其他 invalid 狀態的文字。」 |
+| D-GATE-PRIO | 多重故障沿用既有優先序，不另立規則：gate `invalid`＋release `unreachable` ⇒ `offline`，錯誤文字 release 在前、gate 在後（gate 的原因仍要出現）；gate 與 release 都 `invalid` ⇒ `invalid`，gate 在前、release 在後，兩筆都顯示 | owner 2026-10-21（Phase 3 Q2）：「裁決：維持 offline；errorTexts 仍須包含 Gate 無效的詳細原因。」（Q3）「裁決：Gate 在前、Release 在後。」 |
+| D-GATE-STALE | gate `invalid`、站台有新版、本機舊版仍就緒（`localReady`）⇒ 不准更新、修復，**可以經 Launcher 啟動本機舊版**；多人伺服器可能因 mod 版本不合進不去，是已知且接受的代價。嚴格受 `localReady` 約束：有記錄≠就緒，runtime 缺、同步中斷照原規則擋；`release-differs` 本身不算不就緒；不新增繞過 Launcher 的啟動 | owner 2026-10-21（Phase 3 Q4）：「玩家手上的 Minecraft，只要完整而且能啟動，就不應因為 GGL3 站台暫時失效而失去遊玩的能力。」「裁決：甲。沿用現有 localReady、KIND_UI.invalid 與 Main 啟動閘的責任，不建立第二套權限判斷。」 |
+| D-GATE-UITEST | 不刻意改壞正式站台的 gate.json 做畫面驗收，也不新增專用的 UI 異常畫面測試；保留正常站台的實際開機驗收。理由：Phase 3 不改畫面、`invalid` 是既有畫面、gate 分類由真的 site-client＋假 HTTP 站台驗、中樞與 main 閘與狀態文字都有測試、沒有 UI 異常的反例 | owner 2026-10-21（Phase 3 Q5）：「裁決：乙。保留正常站台的實際開機驗收，不修改正式站台 Gate，也不新增專用 UI 測試系統。」 |
 
 ### 3.4 Junction／Symlink
 
