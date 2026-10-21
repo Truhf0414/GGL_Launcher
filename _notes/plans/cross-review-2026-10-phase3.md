@@ -1,4 +1,4 @@
-# Phase 3 — Gate 新裁決：細部 plan（狀態：**2026-10-21 初稿；同日 owner 裁 Q1–Q5（D-GATE-TITLE、D-GATE-PRIO、D-GATE-STALE、D-GATE-UITEST）、SF-G8 文字方向與歷史註記處置，授權施工；同日輕量 SPR（`1d37469d` → `reviews/cross-review-2026-10-phase3-v1d37469d-20261021.md`，30 列、0 blocker），無需 owner 重裁的反例，依授權施工；本檔依 SPR 修訂；同日施工完成（未 commit），交 owner 驗收**）
+# Phase 3 — Gate 新裁決：細部 plan（狀態：**2026-10-21 初稿；同日 owner 裁 Q1–Q5（D-GATE-TITLE、D-GATE-PRIO、D-GATE-STALE、D-GATE-UITEST）、SF-G8 文字方向與歷史註記處置，授權施工；同日輕量 SPR（`1d37469d` → `reviews/cross-review-2026-10-phase3-v1d37469d-20261021.md`，30 列、0 blocker），無需 owner 重裁的反例，依授權施工；本檔依 SPR 修訂；同日 Phase 3 完成（`6df5610`，owner 驗收放行），Phase 3 結案**）
 
 上層＝`plans/cross-review-2026-10.md` §8 Phase 3（目的、範圍、不做、不變量、驗收下限、回滾在那裡，本檔不重述）；裁決＝同檔 §3.3（D-GATE 群）；證據＝同檔 §5.11 與本檔 §Probe 紀錄；收斂經過＝同檔 §6.3。本檔只寫上層沒定死的細節。
 
@@ -15,30 +15,30 @@
 | owner 已裁（本體與出處 → 上層 §3.3） | D-GATE、D-GATE-SUPERSEDE、D-GATE-IMPL、D-GATE-COST；Q1＝D-GATE-TITLE、Q2／Q3＝D-GATE-PRIO、Q4＝D-GATE-STALE、Q5＝D-GATE-UITEST |
 | owner 已裁（本體與出處 → 本檔 §已裁事項） | SF-G8 文字方向；歷史註記處置 |
 | 待 owner 確認 | 無 |
-| 已實作 | 程式、測試、SF-G8、收尾回寫（工作樹，未 commit；→ §施工紀錄） |
+| 已實作 | `6df5610`（程式、測試、SF-G8、收尾回寫；owner 驗收放行；→ §施工紀錄） |
 | 已跑的測試 | 基線（→ §動工前現查）；Probe 矩陣（→ §Probe 紀錄，設計證據）；施工的紅燈、綠燈、全套、實機（→ §施工紀錄） |
 
 ## 動工前現查（2026-10-21，基準 `f296265`）
 
 - `npm test`：`tests 1065 / pass 1065 / fail 0`。三支相關檔單跑：`node --test test/sync-status-kind.test.cjs test/sync-index.test.cjs test/site-format-doc.test.cjs` ⇒ `tests 235 / pass 235`。
-- 上層 §5.11 的行號在 `f296265` **全部仍對**：`siteStatus` `lib/sync/status-kind.js:186-221`（gate 相關段 `:212-219`）、`collectErrorTexts` `:141-148`、`gateMessages` `:112-124`（`invalid` 支在 `:113`）、`SYNC_ALLOWED_KINDS` `:28-31`、`KIND_UI.invalid` `:66-72`〔讀碼〕。
+- 上層 §5.11 的行號在 `f296265` **全部仍對**：`siteStatus` `lib/sync/status-kind.js:186-221`（gate 相關段 `:212-219`）、`collectErrorTexts` `:141-148`、`gateMessages` `:112-124`（`invalid` 支在 `:113`）、`SYNC_ALLOWED_KINDS` `:28-31`、`KIND_UI.invalid` `:66-72`〔讀碼〕。〔對齊 2026-10-21：`lib/sync/status-kind.js` → `6df5610`（plans/cross-review-2026-10-phase3.md） 後 `:184-218`（gate 段改寫成 `:210-216`）、`:141-146`、`:113-124`（`:113` 那支已刪）、`:29-32`、`:67-73`〕
 - **main 端的閘全部讀同一個 `derive`**〔讀碼〕：`precheck` `main/sync/index.js:265-271`（更新、修復；`prepare` 在玩家確認關遊戲後再跑一次 `:293`）、`listStrayJars` `:412-417`、`withLaunchLock` `:439`（看 `status.ui.canLaunch`）。
 - **安裝＝修復流程**〔讀碼〕：`renderer/launch-ui.js:151` 安裝鈕 → `startRepairFlow({ entry: "install" })`（`renderer/repair-ui.js:77-97`）→ 先 `instance:listStrayJars` 再 `instance:repair`。設定頁修復鈕看 `allowed.repair`（`renderer/repair-ui.js:103-104`）。所以「擋修復」＝同時擋安裝，不必另接。
 - **寫入遊戲目錄的入口白名單**〔讀碼〕：`rg -n "prepareRuntime|applyPlan|installJava|repairInstance|updateInstance|listStrayJars" main lib preload.js`（排除 `main/sync/index.js`、`apply.js`）⇒ IPC 只有 `main/ipc/instance-ipc.js:54`、`:68`、`:80` 三處，全經上面的閘；`prepareRuntime`／`installJava` 只在 `runSync` 裡被叫。啟動路徑 `main/minecraft-launch.js` 不下載任何東西（`rg -c "fetch|download"` ＝ 0；對照組 `rg -c "spawn|unref"` ＝ 9）。
 - **gate 的三態怎麼來**〔讀碼〕：`main/sync/site-client.js:67-104` `fetchClassified`——4xx ⇒ `invalid`（detail `HTTP 404`）；2xx 非 JSON ⇒ `invalid`（`內容不是 JSON`）；驗證不過 ⇒ `invalid`（`validateGate` 的錯誤字串）；5xx／530／連線錯 ⇒ `unreachable`。gate 沒有 `newer`。索引非 ok 時 `fetchSite` 不抓 gate（`:154`），gate 為 `undefined`。
 - **錯誤文字不進 log**〔讀碼〕：`rg -n "errorTexts" main lib` 只在 `status-kind.js`、`status-text.js:97`、`main/sync/index.js:127,225`；沒有任何一處把它交給 `gglError`／`appendLauncherLog`。
-- **綁定舊字串的地方剛好四處**（`rg -n "讀不到或格式錯" --glob '!_notes/**'`）：`lib/sync/status-kind.js:113`、`test/sync-status-kind.test.cjs:304`、`test/site-format-doc.test.cjs:357`、`docs/site-format.md:79`。
+- **綁定舊字串的地方剛好四處**（`rg -n "讀不到或格式錯" --glob '!_notes/**'`）：`lib/sync/status-kind.js:113`、`test/sync-status-kind.test.cjs:304`、`test/site-format-doc.test.cjs:357`、`docs/site-format.md:79`。〔對齊 2026-10-21：四處 → `6df5610`（plans/cross-review-2026-10-phase3.md） 已刪或改寫（`rg -n "讀不到或格式錯" --glob '!_notes/**'` 零命中）〕
 - Phase 0 前置已滿足：`plans/instance-sync-v3.md` 八處都有「待 Phase 3 實作」註記（`rg -n "待 Phase 3" _notes/plans/instance-sync-v3.md` ＝ 8 行）。
 
 ## 現有保證（不改程式就成立的部分）
 
 | 情境 | 現況 | 依據 |
 |---|---|---|
-| gate `unreachable`（5xx、530、連不上） | kind `offline` ⇒ 不能更新、修復、安裝；齊 ⇒ 可啟動（附「無法確認是否為最新版」）；不齊 ⇒ 「重試連線」 | `status-kind.js:204-210`；測試 `sync-status-kind.test.cjs:209`、SF-G9 |
+| gate `unreachable`（5xx、530、連不上） | kind `offline` ⇒ 不能更新、修復、安裝；齊 ⇒ 可啟動（附「無法確認是否為最新版」）；不齊 ⇒ 「重試連線」 | `status-kind.js:204-210`；測試 `sync-status-kind.test.cjs:209`、SF-G9〔對齊 2026-10-21：`status-kind.js:204-210` → `6df5610`（plans/cross-review-2026-10-phase3.md） 後 `:202-208`〕 |
 | gate `unreachable`＋release `invalid` | `offline`；錯誤文字 gate 在前、release 在後 | `sync-status-kind.test.cjs:348` |
-| `invalid` 這個 kind 本身 | 不在 `SYNC_ALLOWED_KINDS`；`launchPolicy: "ifLocalReady"`；不齊 ⇒ 「無法啟動」 | `status-kind.js:28-31`、`:66-72` |
-| `localReady` 與 gate 無關 | `computeSyncReasons` 只看 local、索引、release | `status-kind.js:164-180` |
-| 本機讀不到 | `local-unreadable` 排在站台 kind 之前，本機那句排第一 | `status-kind.js:248-253`；N27 |
+| `invalid` 這個 kind 本身 | 不在 `SYNC_ALLOWED_KINDS`；`launchPolicy: "ifLocalReady"`；不齊 ⇒ 「無法啟動」 | `status-kind.js:28-31`、`:66-72`〔對齊 2026-10-21：`status-kind.js:28-31`、`:66-72` → `6df5610`（plans/cross-review-2026-10-phase3.md） 後 `:29-32`、`:67-73`〕 |
+| `localReady` 與 gate 無關 | `computeSyncReasons` 只看 local、索引、release | `status-kind.js:164-180`〔對齊 2026-10-21：`status-kind.js:164-180` → `6df5610`（plans/cross-review-2026-10-phase3.md） 後 `:162-178`〕 |
+| 本機讀不到 | `local-unreadable` 排在站台 kind 之前，本機那句排第一 | `status-kind.js:248-253`；N27〔對齊 2026-10-21：`status-kind.js:248-253` → `6df5610`（plans/cross-review-2026-10-phase3.md） 後 `:245-250`〕 |
 | 索引 newer／索引壞 | 不抓 gate；kind 只由索引決定 | `siteStatus` `:187-195`；N28 |
 
 **D-GATE 的「unreachable」那一半，現有程式已經做到，不用改**；Phase 3 只補「invalid」那一半。
@@ -86,7 +86,7 @@
    else if (firstInvalid) kind = "invalid";
    ```
    維護、太舊仍先判（它們要 `isOk(gate)`，gate 壞時自然不成立）。`sources` 順序 gate → release，兩者都壞 ⇒ gate 排第一。
-4. 註解：`:5` 與 `:111` 指向 `commit3a1.md` C7–C9 的地方補一句「gate `invalid` 的部分 → `plans/cross-review-2026-10.md` D-GATE」（那兩份結案 plan 寫的是舊行為且不加註，SPR #12）。
+4. 註解：`:5` 與 `:111` 指向 `commit3a1.md` C7–C9 的地方補一句「gate `invalid` 的部分 → `plans/cross-review-2026-10.md` D-GATE」（那兩份結案 plan 寫的是舊行為且不加註，SPR #12）。〔對齊 2026-10-21：`status-kind.js:5`、`:111` → `6df5610`（plans/cross-review-2026-10-phase3.md） 後 `:5-6`、`:112`；本行提到的 `plans/cross-review-2026-10.md` 不是行號〕
 
 **不動**：`KINDS`、`SYNC_ALLOWED_KINDS`、`KIND_UI`、`status-text.js`、`main/sync/index.js`、renderer、`site-client.js`。
 
@@ -102,7 +102,7 @@
 | `test/site-format-doc.test.cjs:341-363`（SF-G8） | 四種壞法 ⇒ `up-to-date`、可啟動、`messages` ＝ 通用句、`errorTexts` ＝ `[]`；有新版 ⇒ `update-available`、可更新 | 整案改寫（→ 下節 D1） |
 | 同上的案名 | 「維護與版本門檻都不生效，只多一行字…⇒ 玩家照常啟動」 | 案名跟著 SF-G8 新文字改（SF-編號對照案 `:1004` 只比編號，不比字） |
 
-`test/sync-index.test.cjs` 裡提到 gate 的地方〔讀碼，`rg -n "gate" test/sync-index.test.cjs`〕：假站台預設 `gate: {}`（`:174`，合法）、`MAINTENANCE_GATE`、`minLauncherVersion: "9.0.0"`、U10 的 hang、`requestsTo("/gate.json")` 計數——**沒有一處餵壞的 gate，不依賴舊行為，不推翻**。`test/sync-status-text.test.cjs` 只測 `describeStatus` 的文字表，不碰 `gateMessages` 的產生，不推翻。
+`test/sync-index.test.cjs` 裡提到 gate 的地方〔讀碼，`rg -n "gate" test/sync-index.test.cjs`〕：假站台預設 `gate: {}`（`:174`，合法）、`MAINTENANCE_GATE`、`minLauncherVersion: "9.0.0"`、U10 的 hang、`requestsTo("/gate.json")` 計數——**沒有一處餵壞的 gate，不依賴舊行為，不推翻**。`test/sync-status-text.test.cjs` 只測 `describeStatus` 的文字表，不碰 `gateMessages` 的產生，不推翻。〔對齊 2026-10-21：`test/sync-index.test.cjs:174` → `6df5610`（plans/cross-review-2026-10-phase3.md） 未移動〕
 
 ### 新增
 
@@ -157,7 +157,7 @@
 
 SF-G1–G5 的「⇒ gate 壞掉」不必改（它們指向 SF-G8 的後果）。同步套用中途 gate 才變壞的那段時間，詳情不會出現 gate 那句（§已知不涵蓋）；條目講的是平常檢查狀態時的行為，不另寫進條目。
 
-## 施工紀錄（2026-10-21，基準 `f296265`，未 commit）
+## 施工紀錄（2026-10-21，基準 `f296265`，commit `6df5610`）
 
 ### 結果
 
@@ -191,7 +191,7 @@ SF-G1–G5 的「⇒ gate 壞掉」不必改（它們指向 SF-G8 的後果）�
 4. 重跑 §Probe 紀錄 的 78 格對照：把 `matrix.cjs` 分別指向「暫存區改後版」與「repo 實作」各印一次，兩份輸出 `diff` 要零差異。只在本 session 可重現（腳本在 session 暫存區），且只比 78 格、沒有 syncing 維度——syncing 由 K7 守。
 5. 共同驗證：`npm test`、`npm run lint`、`npm run check:ui-css`、`env -u ELECTRON_RUN_AS_NODE npx electron .` 實際開一次（線上 gate 正常 ⇒ 畫面與 Phase 3 前相同，證不變量）。
 6. commit 前跑 `conventions.md` §防禦與相容「怎麼執行」的自審 rg；沒有新增 IPC channel，不必重產 `ARCHITECTURE.md`。
-7. 收尾回寫（與程式同一輪、commit 前）：`future-work.md:11` 依 Phase 3 後的實際行為更正（SPR #10）；上層 §0.3 `:42` 把 `instance-sync-v3.md:202`、`:517` 也列為被 D-GATE 取代（SPR #11）；本檔施工紀錄；`STATUS.md` 指向。
+7. 收尾回寫（與程式同一輪、commit 前）：`future-work.md:11` 依 Phase 3 後的實際行為更正（SPR #10）；上層 §0.3 `:42` 把 `instance-sync-v3.md:202`、`:517` 也列為被 D-GATE 取代（SPR #11）；本檔施工紀錄；`STATUS.md` 指向。〔對齊 2026-10-21：`future-work.md:11`、上層 `:42` → `6df5610`（plans/cross-review-2026-10-phase3.md） 未移動（同一行內改寫）；`instance-sync-v3.md` 未改〕
 8. 開驗收單交 owner；放行後 commit（單一 commit：程式＋測試＋SF-G8＋本輪 `_notes/`），再做行號對齊、上層狀態行、`history.md`、doc-check 快照。
 
 ## 已知不涵蓋
