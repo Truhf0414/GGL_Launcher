@@ -1,4 +1,4 @@
-# 測試與真實時鐘脫鉤：細部 plan（狀態：**2026-10-21 初稿；同日 owner 裁 Q1–Q5 全照建議並放行第 1 批；同日第 1 批完成（`0fcf826`，owner 驗收放行）；同日第 2 批完成（未 commit），待 owner 驗收**）
+# 測試與真實時鐘脫鉤：細部 plan（狀態：**2026-10-21 初稿；同日 owner 裁 Q1–Q5 全照建議並放行第 1 批；同日第 1 批完成（`0fcf826`，owner 驗收放行）；同日第 2 批完成（`6a77a80`，owner 驗收放行）**）
 
 行號以基準 `73fc173` 為準。標記照 `plans/cross-review-2026-10.md` §0.1；本檔另用〔實驗〕＝session 暫存區實際跑過（腳本不進 repo，結果寫在本檔）。
 
@@ -16,7 +16,7 @@
 
 ## 盤點
 
-子 agent 讀完 `test/` 全部用到短窗的檔，逐案分類〔讀碼＋部分實驗；CC 抽驗 6 處吻合：`main/runtime/download.js:177`、`test/runtime-download.test.cjs:23-24`、`test/sync-apply.test.cjs:122-127`、`test/sync-index.test.cjs:1485`、`test/runtime-minecraft.test.cjs:26-27`、`:70`〕：
+子 agent 讀完 `test/` 全部用到短窗的檔，逐案分類〔讀碼＋部分實驗；CC 抽驗 6 處吻合：`main/runtime/download.js:177`、`test/runtime-download.test.cjs:23-24`、`test/sync-apply.test.cjs:122-127`、`test/sync-index.test.cjs:1485`、`test/runtime-minecraft.test.cjs:26-27`、`:70`〕：〔對齊 2026-10-21：`test/runtime-download.test.cjs:23-24` → `6a77a80`（本檔第 2 批） 後 `:29-30`；`test/runtime-minecraft.test.cjs:26-27`、`:70` → 同 commit 後 `:32-33`、`:78`；其餘未移動〕
 
 - **P**：測試需要某件事（請求送達、資料到、正常下載完成）在短計時器（≤ 約 1 秒）之前發生；行程卡住超過窗口就翻盤。本事件要治的就是這類。
 - **B**：只斷言耗時上限；機器慢過上限才紅。
@@ -107,7 +107,7 @@ node:test 內建的 MockTimers（`t.mock.timers`）接管 `setTimeout`、`setInt
 - **README 與 conventions 延到第 3 批**（→ §施工分批）。
 - **1100 ms 對 `sync-index` 的基線**〔實驗〕：148 案，141 過、7 紅——U10 兩案（盤點的 P）、U9、N25、U1、N1、N11「修復套用中」；後五案與 U10「索引還沒抓到過」耗時 10.0–12.3 秒，撞到測試自己的 10 秒防卡死上限（`test/sync-index.test.cjs:31`），疑似「每個請求都卡 1.1 秒、請求一多就累積超時」的工具假象，不是 P 類〔推論，未驗〕。最後一案印完後子行程**沒有退出**（38 分鐘無輸出，手動結束），所以失敗原因的明細沒印出來；推測是被上限中斷的案沒收乾淨連線〔推論〕。`sync-notice-feed` 的 1100 ms 因此沒跑到。這三件事第 3 批逐案判讀。
 
-## 第 2 批施工紀錄（2026-10-21，基準 `07d5572`，未 commit）
+## 第 2 批施工紀錄（2026-10-21，基準 `07d5572`，commit `6a77a80`）
 
 | 項 | 結果 |
 |---|---|
