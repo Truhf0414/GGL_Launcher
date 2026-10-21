@@ -8,6 +8,7 @@ const assert = require("node:assert/strict");
 const { createNoticeFeed } = require("../main/sync/notice-feed.js");
 const { createSiteClient } = require("../main/sync/site-client.js");
 const { startServer } = require("./helpers/local-http.cjs");
+const { useMockClock } = require("./helpers/mock-clock.cjs");
 
 const URL_A = "https://ggl.test/a/manifest.json";
 const URL_B = "https://ggl.test/b/manifest.json";
@@ -371,6 +372,8 @@ async function realSite(t, state) {
 }
 
 test("F16 real site-client: notice.json 500 keeps, recovery updates; logUrl 500 after expiry keeps the log (R6)", async (t) => {
+  // 真的 site-client 帶 1 秒期限：時間交給 mock 時鐘、不推進，正常的抓取不會被判逾時（→ _notes/plans/test-real-clock.md）
+  useMockClock(t);
   const state = {
     notice500: false,
     log500: false,

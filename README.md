@@ -13,6 +13,7 @@ npm start
 - **(Later) Package installer (NSIS)**: `npm run dist:win`
 - **UI checks**: `npm run check:ui-css` (errors fail, warnings only warn; also run by pre-commit), `npm run check:ui-css:strict` (used before packaging)
 - **Format after UI edits**: `npm run format:ui`; single file: `npm run format:file -- styles.css`; everything: `npm run format`
+- **Timing-test stress check**: `npm run test:freeze` blocks the event loop on every 8th fake-server request (`FREEZE_MS`, default 350); run it with `FREEZE_OFFSET=0` … `7` to hit every request once. Tests that bet on the real clock fail here (see `test/helpers/mock-clock.cjs`).
 
 ## Project rules
 

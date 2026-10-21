@@ -5,12 +5,18 @@ const assert = require("node:assert/strict");
 
 const { startServer } = require("./helpers/local-http.cjs");
 const {
+  useMockClock,
+  until,
+  watch,
+  stillPending,
+} = require("./helpers/mock-clock.cjs");
+const {
   createSiteClient,
   SITE_TIMEOUT_MS,
 } = require("../main/sync/site-client.js");
 const { summarizeManifestFetchFailure } = require("../lib/manifest-network.js");
 
-const SHORT = 300; // 期限注入短值；斷言「在期限 × 3 內返回」
+const SHORT = 300; // 期限注入短值；時間交給 mock 時鐘，停住的案等請求到了才推進（→ _notes/plans/test-real-clock.md）
 // 退步時（例如期限在 headers 到手就解除）這些案例會永遠等下去；設上限讓它變成紅燈而不是卡住整個 npm test
 const HANG_LIMIT_MS = 5000;
 
@@ -60,15 +66,10 @@ const okSite = {
 
 const hits = (srv, p) => srv.requests.filter((r) => r.url === p).length;
 
-async function timed(p) {
-  const t0 = Date.now();
-  const v = await p;
-  return { v, ms: Date.now() - t0 };
-}
-
 // ── 分類（上層 §行為契約「抓取結果的分類」） ──
 
 test("classify: HTTP 530 ⇒ unreachable/http with status and detail", async (t) => {
+  useMockClock(t);
   const srv = await site(t, { "/m": (q, r) => json(r, {}, 530) });
   const r = await createSiteClient({ timeoutMs: SHORT }).fetchIndex(
     `${srv.url}/m`,
@@ -82,6 +83,7 @@ test("classify: HTTP 530 ⇒ unreachable/http with status and detail", async (t)
 });
 
 test("classify: HTTP 404 ⇒ invalid/http", async (t) => {
+  useMockClock(t);
   const srv = await site(t, {});
   const r = await createSiteClient({ timeoutMs: SHORT }).fetchIndex(
     `${srv.url}/m`,
@@ -95,6 +97,7 @@ test("classify: HTTP 404 ⇒ invalid/http", async (t) => {
 });
 
 test("classify: 2xx but not JSON ⇒ invalid/parse", async (t) => {
+  useMockClock(t);
   const srv = await site(t, {
     "/m": (q, r) => (r.writeHead(200), r.end("<html>")),
   });
@@ -110,6 +113,7 @@ test("classify: 2xx but not JSON ⇒ invalid/parse", async (t) => {
 });
 
 test("classify: 2xx JSON that fails validation ⇒ invalid/invalid with the validator's message", async (t) => {
+  useMockClock(t);
   const srv = await site(t, {
     "/m": (q, r) => json(r, { ...INDEX, format: 2 }),
   });
@@ -122,6 +126,7 @@ test("classify: 2xx JSON that fails validation ⇒ invalid/invalid with the vali
 });
 
 test("classify: 3xx that reaches us (no Location) ⇒ unreachable/http (D13)", async (t) => {
+  useMockClock(t);
   const srv = await site(t, { "/m": (q, r) => (r.writeHead(302), r.end()) });
   const r = await createSiteClient({ timeoutMs: SHORT }).fetchIndex(
     `${srv.url}/m`,
@@ -150,9 +155,10 @@ test("classify: connection refused ⇒ unreachable/network, detail from summariz
 });
 
 test(
-  "classify: headers then body stalls ⇒ unreachable within the deadline",
+  "classify: headers then body stalls ⇒ unreachable when the deadline passes, not before",
   { timeout: HANG_LIMIT_MS },
   async (t) => {
+    const clock = useMockClock(t);
     const srv = await site(t, {
       "/m": (q, r) => {
         r.writeHead(200, {
@@ -162,29 +168,36 @@ test(
         r.write('{"format":');
       },
     });
-    const { v, ms } = await timed(
-      createSiteClient({ timeoutMs: SHORT }).fetchIndex(`${srv.url}/m`),
-    );
+    const p = createSiteClient({ timeoutMs: SHORT }).fetchIndex(`${srv.url}/m`);
+    const w = watch(p);
+    await until(() => srv.requests.length === 1, "請求送達");
+    clock.advance(SHORT - 1);
+    assert.ok(await stillPending(w), "期限到之前不該結束");
+    clock.advance(1);
+    const v = await p;
     assert.equal(v.side, "unreachable");
     assert.equal(v.reason, "network");
     assert.equal(
       v.detail,
       summarizeManifestFetchFailure(new Error("aborted")).hint,
     );
-    assert.ok(ms < SHORT * 3, `took ${ms} ms`);
   },
 );
 
 test(
-  "classify: no headers at all ⇒ unreachable within the deadline",
+  "classify: no headers at all ⇒ unreachable when the deadline passes, not before",
   { timeout: HANG_LIMIT_MS },
   async (t) => {
+    const clock = useMockClock(t);
     const srv = await site(t, { "/m": () => {} });
-    const { v, ms } = await timed(
-      createSiteClient({ timeoutMs: SHORT }).fetchIndex(`${srv.url}/m`),
-    );
+    const p = createSiteClient({ timeoutMs: SHORT }).fetchIndex(`${srv.url}/m`);
+    const w = watch(p);
+    await until(() => srv.requests.length === 1, "請求送達");
+    clock.advance(SHORT - 1);
+    assert.ok(await stillPending(w), "期限到之前不該結束");
+    clock.advance(1);
+    const v = await p;
     assert.equal(v.side, "unreachable");
-    assert.ok(ms < SHORT * 3, `took ${ms} ms`);
   },
 );
 
@@ -355,9 +368,10 @@ test("fetchNotice: does not request release", async (t) => {
 });
 
 test(
-  "fetchNotice: logUrl stalls ⇒ returns within the deadline, other fields intact, log empty",
+  "fetchNotice: logUrl stalls ⇒ returns when the deadline passes, other fields intact, log empty",
   { timeout: HANG_LIMIT_MS },
   async (t) => {
+    const clock = useMockClock(t);
     const srv = await site(t, {
       ...okSite,
       "/s/notice.json": (q, r) =>
@@ -371,10 +385,15 @@ test(
     });
     const c = createSiteClient({ timeoutMs: SHORT });
     const index = await c.fetchIndex(`${srv.url}/s/manifest.json`);
-    const { v, ms } = await timed(c.fetchNotice(index));
+    const p = c.fetchNotice(index);
+    const w = watch(p);
+    await until(() => hits(srv, "/log") === 1, "logUrl 請求送達");
+    clock.advance(SHORT - 1);
+    assert.ok(await stillPending(w), "logUrl 的期限到之前不該結束");
+    clock.advance(1);
+    const v = await p;
     assert.equal(v.notice.title, "T");
     assert.deepEqual(v.notice.log, []);
-    assert.ok(ms < SHORT * 3 * 2, `took ${ms} ms`); // notice.json 與 logUrl 各一個期限
   },
 );
 
@@ -443,6 +462,7 @@ async function logSite(t, logMode) {
 const LOG_EXPIRE_MS = 60_001; // site-client 的 log 快取是 60 秒
 
 test("L1 logUrl ok once, cache expired, then 500 ⇒ previous lines", async (t) => {
+  useMockClock(t);
   const logMode = { value: "ok", lines: ["x", "y"] };
   const srv = await logSite(t, logMode);
   let clock = 1_000_000;
@@ -461,6 +481,7 @@ test(
   "L2 logUrl ok once, cache expired, then stalls past the deadline ⇒ previous lines",
   { timeout: HANG_LIMIT_MS },
   async (t) => {
+    const mock = useMockClock(t);
     const logMode = { value: "ok", lines: ["x", "y"] };
     const srv = await logSite(t, logMode);
     let clock = 1_000_000;
@@ -469,12 +490,16 @@ test(
     await c.fetchNotice(index);
     clock += LOG_EXPIRE_MS;
     logMode.value = "stall";
-    assert.deepEqual((await c.fetchNotice(index)).notice.log, ["x", "y"]);
+    const p = c.fetchNotice(index);
+    await until(() => hits(srv, "/log") === 2, "第二次 logUrl 請求送達");
+    mock.advance(SHORT); // 停住 ⇒ 期限到、沿用上一次的
+    assert.deepEqual((await p).notice.log, ["x", "y"]);
     assert.equal(hits(srv, "/log"), 2);
   },
 );
 
 test("L3 after falling back, the next call refetches; success replaces the lines", async (t) => {
+  useMockClock(t);
   const logMode = { value: "ok", lines: ["x", "y"] };
   const srv = await logSite(t, logMode);
   let clock = 1_000_000;
@@ -491,6 +516,7 @@ test("L3 after falling back, the next call refetches; success replaces the lines
 });
 
 test("L4 logUrl never succeeded and returns 500 ⇒ empty log", async (t) => {
+  useMockClock(t);
   const srv = await logSite(t, { value: "500", lines: [] });
   const c = createSiteClient({ timeoutMs: SHORT });
   const index = await c.fetchIndex(`${srv.url}/s/manifest.json`);
@@ -503,11 +529,11 @@ test(
   "non-2xx with a body that never ends ⇒ classified, and the connection is released",
   { timeout: HANG_LIMIT_MS },
   async (t) => {
-    let closed;
-    const socketClosed = new Promise((r) => (closed = r));
+    useMockClock(t);
+    let released = false;
     const srv = await site(t, {
       "/m": (q, r) => {
-        r.on("close", closed);
+        r.on("close", () => (released = true));
         r.writeHead(404, { "content-length": "999" });
         r.write("not found, and still sending");
       },
@@ -516,10 +542,8 @@ test(
       `${srv.url}/m`,
     );
     assert.equal(v.side, "invalid");
-    const released = await Promise.race([
-      socketClosed.then(() => true),
-      new Promise((r) => setTimeout(() => r(false), 1000)),
-    ]);
-    assert.equal(released, true, "未讀的 body 沒被丟掉，連線一直掛著");
+    // 原本是真時間 1000 ms 的賽跑；改成等事件，等不到就紅（until 的訊息）
+    await until(() => released, "未讀的 body 沒被丟掉，連線一直掛著");
+    assert.equal(released, true);
   },
 );
