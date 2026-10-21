@@ -292,8 +292,8 @@
 
 | # | 情境 | 斷言 | 刀 | 狀態 |
 |---|---|---|---|---|
-| V1 | （1）檔不存在 | 建出完整預設；之後讀得回同一份 | 4a 特徵（現行為：建預設）→ 4b 改寫（完整預設、每個鍵都在、資料夾不存在也建得出來） | 未寫 |
-| V2 | （2）合法且缺鍵 | 開機後位元組不變 | 4a 只寫「合法且不缺鍵 ⇒ 不變」（fixture 含 `memoryGb`，**4b 必改寫**，SPR #38）；缺鍵那條 4b 寫 | 未寫 |
+| V1 | （1）檔不存在 | 建出完整預設；之後讀得回同一份 | 4a 特徵（現行為：建預設）→ 4b 改寫（完整預設、每個鍵都在、資料夾不存在也建得出來） | 4a：寫＋跑（`test/settings-file.test.cjs` 兩案，含 userData 資料夾不存在） |
+| V2 | （2）合法且缺鍵 | 開機後位元組不變 | 4a 只寫「合法且不缺鍵 ⇒ 不變」（fixture 含 `memoryGb`，**4b 必改寫**，SPR #38）；缺鍵那條 4b 寫 | 4a：寫＋跑（同檔）；對照組：fixture 拿掉 `memoryGb`（預設檔的鍵）⇒ 該案紅（現行為會重寫） |
 | V3 | （3）帶 BOM 的合法 JSON | 不重置、讀得進 | 4b | 未寫 |
 | V4 | （4）壞 JSON：空檔、只有空白、語法錯、陣列、`null`、數字、**非法 UTF-8（`FF FE 7B 00`、單獨的 `80`）、只有 BOM、BOM＋壞 JSON**（SPR #15） | 備份位元組＝原檔（`Buffer.equals`）；新檔＝完整預設；`recovered` 帶備份路徑；提示文字（純函式）含備份路徑與安裝位置重置；再開一次不再恢復；有一筆 `gglEvent` | 4b（單元）＋實機看提示框 | 未寫 |
 | V5 | （5）合法 JSON 含非法值或未知鍵 | 拒絕側：記憶體 `0`、負數、65、`1e999`、`"4"`、`true`、`min>max`；ID 空字串、前後空白、非字串；路徑空字串、前後空白、`C:`、`C:foo`、`\Games`、`Games`、`\\server\share`、`\\?\C:\x`；`debugLogging` `"true"`；未知鍵 `launcherRootDri`、`memoryGb`。**接受側**（SPR #36）：記憶體 1、64、1.5、1.00048828125、`null`；路徑 `D:\我的 遊戲`、`d:\games`、`D:/Games`、`E:\Game2\GGL`。拒絕時：開機丟 `SettingsError(invalid)`、`issues` 全列、檔案位元組不變；開機框不含 stack、含鍵／原值／原因／修法／路徑 | 4b | 未寫 |
@@ -301,11 +301,11 @@
 | V7 | （7）執行中檔案被改壞或刪掉 | `compute()` ⇒ `settings-error`，details 分三種；不建預設、根目錄不換成預設；**負向**（SPR #28）：中樞的 `deps.readSettings` 丟一般 Error、丟帶 `code`＋`syscall` 但不是 `SettingsError` 的錯、丟訊息像設定錯誤的一般 Error ⇒ 三者都是 `internal-error` | 4b | 未寫 |
 | V8 | （8）畫面非法輸入不送 IPC；直接打 IPC 也被拒 | 畫面（等流程跑完再斷言）：`settings:set` 沒被呼叫、錯誤出現、焦點在對應欄位；IPC：reject、不寫。**合併後才非法**（SPR #35）：檔裡 `max=4`＋patch `{minMemoryGb:8}`；檔裡 `min=4`＋patch `{maxMemoryGb:2}`；null 改數字造成矛盾 ⇒ reject、不寫 | 4b | 未寫 |
 | V9 | （9）`min=8, max=null` | args 含 `-Xms8192M -Xmx8192M`；設定檔 `maxMemoryGb` 仍是 `null` | 4b | 未寫 |
-| V10 | （10）4／16 與 null／null | `-Xms4096M -Xmx16384M`；`-Xms1024M -Xmx4096M` | 4a 特徵 → 4b 沿用 | 未寫 |
+| V10 | （10）4／16 與 null／null | `-Xms4096M -Xmx16384M`；`-Xms1024M -Xmx4096M` | 4a 特徵 → 4b 沿用 | 4a：寫＋跑（`test/minecraft-launch.test.cjs` V10，另含「都沒設」那條） |
 | V11 | （11）自動建議不偷偷持久化 | 未設定記憶體時只改安裝路徑按儲存 ⇒ 送出的 `minMemoryGb`、`maxMemoryGb` 都是 `null` | 4b（現行為會送建議值，4a 不寫） | 未寫 |
 | V12 | （12）`settings:set` 成功、`instance:recheck` 失敗 | `settingsError` 沒有「儲存失敗」；`setStatusError` 收到「設定已儲存，但重新檢查失敗」 | 4b | 未寫 |
 | V13 | （13）中樞與啟動閘遇到設定故障都拒絕 | 逐入口（SPR #19）：`withLaunchLock` 的 `fn` 沒被呼叫且狀態是 `settings-error`；`updateInstance`、`repairInstance`、`listStrayJars` reject、`fn`／套用沒跑、鎖已放；`settings-error` 進狀態矩陣；`describeStatus` 的大標題不含「內部錯誤」（SPR #7）；既有矩陣全綠 | 4b | 未寫 |
-| V14 | （14）持鎖期間不可換根目錄 | 既有 W7–W9 改寫後全綠 | 4a（既有）→ 4b 改寫 | 既有 |
+| V14 | （14）持鎖期間不可換根目錄 | 既有 W7–W9 改寫後全綠 | 4a（既有）→ 4b 改寫 | 4a：既有 W7–W9 在全套裡跑過 |
 | V15 | （15）Windows 替換被阻止 | 開機恢復：目標被行程內 `fsp.open` 開著 ⇒ `recovery-failed`（step `replace`）、目標不變、我們的暫存檔已刪、開機框不含 stack；暫存檔（來源）被開著 ⇒ `EBUSY`、暫存留下（§不涵蓋）| 4b（黑箱） | Q5 原型已實機（R3） |
 | V16 | Q5 其餘故障，用 repo 內的真函式 | 備份名被佔（`EEXIST`，黑箱）；ACL 拒絕建備份（黑箱＋對照組）；備份寫到一半失敗 ⇒ 自建的備份已刪（需補丁）；暫存名被佔（黑箱）；備份後才拒絕建暫存（需補丁＋對照組）；**暫存建出後目標被改** ⇒ `conflict`、目標＝新內容（需補丁）；解除故障後再開機 ⇒ 第二次恢復成功、兩份備份都等於原位元組（注入時鐘，SPR #40）。每一條都斷言錯誤是 `SettingsError` 且開機框不含 stack | 4b | Q5 原型已實機 |
 | V17 | `startup-failure` | 設定錯誤碼不含 stack；其他錯誤仍含（改寫 `test/startup-failure.test.cjs:24-32`） | 4b | 未寫 |

@@ -11,6 +11,7 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 
 const { launchMinecraft, LaunchError } = require("../main/minecraft-launch.js");
+const { normalizeSettingsObject } = require("../main/settings.js");
 const { getPaths, javaExeFor } = require("../lib/paths-layout.js");
 const { windowsEnv } = require("../lib/launch-args.js");
 const { checkRuntimeReady } = require("../lib/runtime-readiness.js");
@@ -279,6 +280,29 @@ test("S2 手寫旗標只剩記憶體與 GC 7 個、緊接在 mainClass 前；記
   const big = await setup(t, { settings: { maxMemoryGb: 100 } });
   await big.launch(online);
   assert.ok(big.calls.spawn[0].args.includes("-Xmx65536M"));
+});
+
+// → _notes/plans/cross-review-2026-10-phase4.md §驗收格 V10（4a 特徵：Phase 4 前後都要成立的記憶體旗標）
+test("V10 記憶體現行為：都沒設 ⇒ 1024／4096；正規化後的預設 ⇒ 1024／4096；4／16 ⇒ 4096／16384", async (t) => {
+  const memFlags = async (settings) => {
+    // 正規化會補上預設根目錄 C:\Games\GGL；拿掉，讓 setup 用暫存資料夾
+    const { launcherRootDir: _defaultRoot, ...rest } = settings;
+    const h = await setup(t, { settings: rest });
+    await h.launch(online);
+    return h.calls.spawn[0].args.filter((a) => /^-Xm[sx]/.test(a));
+  };
+  // maxMemoryGb 與 memoryGb 都沒有（上層 §8 Phase 4 驗收第一條）
+  assert.deepEqual(await memFlags({}), ["-Xms1024M", "-Xmx4096M"]);
+  // 實際開機路徑：settings 先經 normalizeSettingsObject，未設定的 max 由 memoryGb 4 補
+  assert.deepEqual(
+    await memFlags(normalizeSettingsObject({})),
+    ["-Xms1024M", "-Xmx4096M"],
+  );
+  // owner 現在那份（memoryGb 4、min 4、max 16）
+  assert.deepEqual(
+    await memFlags(normalizeSettingsObject({ memoryGb: 4, minMemoryGb: 4, maxMemoryGb: 16 })),
+    ["-Xms4096M", "-Xmx16384M"],
+  );
 });
 
 test("S3 離線帳號：全 0 的 uuid、token 0、名字照給", async (t) => {
