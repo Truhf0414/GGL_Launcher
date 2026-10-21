@@ -1,7 +1,10 @@
 "use strict";
 
-// 測試用本機 HTTP：handler 自己決定怎麼回（含「寫了 headers 就停住」）。
+// 測試用本機 HTTP：handler 自己決定怎麼回（含「寫了 headers 就停住」）。測試要的假伺服器一律從這裡開。
 // close 一律先 closeAllConnections——停住的回應不關，node --test 會掛著不結束。
+// 一律回 connection: close：keep-alive 的連線會拖到下一案才關，fetch（undici）關它時拿前一案 mock 時鐘的
+// 計時器去呼叫下一案 mock 的 clearTimeout，弄亂下一案的計時器佇列，之後推進時間也不觸發
+// （→ _notes/plans/test-real-clock.md；回歸測試 test/local-http.test.cjs）。
 
 const http = require("http");
 
@@ -13,6 +16,7 @@ async function startServer(handler) {
   const requests = [];
   const server = http.createServer((req, res) => {
     requests.push({ method: req.method, url: req.url, headers: req.headers });
+    res.setHeader("connection", "close");
     handler(req, res, requests.length);
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));

@@ -203,9 +203,11 @@ test(
     });
     const w = watch(p);
     await until(() => srv.requests.length === 1, "請求送達");
+    // 推進到窗口前 1 ms 仍未結束、再 1 ms 才結束：窗口被改短也抓得到
+    clock.advance(GUARD.windowMs - 1);
     assert.ok(await stillPending(w), "窗口到之前不該結束");
     // signal 已中止的下載不再重試（④b R#28）：只推進一個窗口就該結束，不必再等 650 ms 的重試等待
-    clock.advance(GUARD.windowMs);
+    clock.advance(1);
     await assert.rejects(p, { code: "GGL_DOWNLOAD_STALLED" });
     assert.equal(srv.requests.length, 1);
   },

@@ -1,4 +1,4 @@
-# 測試與真實時鐘脫鉤：細部 plan（狀態：**2026-10-21 初稿；同日 owner 裁 Q1–Q5 全照建議並放行第 1 批；同日第 1 批完成（`0fcf826`，owner 驗收放行）**）
+# 測試與真實時鐘脫鉤：細部 plan（狀態：**2026-10-21 初稿；同日 owner 裁 Q1–Q5 全照建議並放行第 1 批；同日第 1 批完成（`0fcf826`，owner 驗收放行）；同日第 2 批完成（未 commit），待 owner 驗收**）
 
 行號以基準 `73fc173` 為準。標記照 `plans/cross-review-2026-10.md` §0.1；本檔另用〔實驗〕＝session 暫存區實際跑過（腳本不進 repo，結果寫在本檔）。
 
@@ -107,9 +107,38 @@ node:test 內建的 MockTimers（`t.mock.timers`）接管 `setTimeout`、`setInt
 - **README 與 conventions 延到第 3 批**（→ §施工分批）。
 - **1100 ms 對 `sync-index` 的基線**〔實驗〕：148 案，141 過、7 紅——U10 兩案（盤點的 P）、U9、N25、U1、N1、N11「修復套用中」；後五案與 U10「索引還沒抓到過」耗時 10.0–12.3 秒，撞到測試自己的 10 秒防卡死上限（`test/sync-index.test.cjs:31`），疑似「每個請求都卡 1.1 秒、請求一多就累積超時」的工具假象，不是 P 類〔推論，未驗〕。最後一案印完後子行程**沒有退出**（38 分鐘無輸出，手動結束），所以失敗原因的明細沒印出來；推測是被上限中斷的案沒收乾淨連線〔推論〕。`sync-notice-feed` 的 1100 ms 因此沒跑到。這三件事第 3 批逐案判讀。
 
+## 第 2 批施工紀錄（2026-10-21，基準 `07d5572`，未 commit）
+
+| 項 | 結果 |
+|---|---|
+| 改寫 | `runtime-download`（T4 ×5、T6a／b／c／e、T7 ×2）、`runtime-prepare`（`readyInstall` 開 mock，T23 ×2 吃到）、`runtime-java`、`runtime-minecraft`；後兩檔由兩個子 agent 各改一檔，CC 逐行審 diff、自己重跑驗收 |
+| 共用伺服器 | `test/helpers/local-http.cjs` 的 `startServer` 一律回 `connection: close`（→ §裁決 Q6）；回歸測試 `test/local-http.test.cjs` 4 案 |
+| 卡頓工具 | `scripts/freeze-on-request.cjs` 加 `FREEZE_EVERY`／`FREEZE_OFFSET`（每 n 個請求卡一個、輪流換起點），`FREEZE_MARK` 改成行程結束時記「收到幾個請求、卡了幾次」 |
+| 改寫前基線（350 ms，全部請求都卡） | `runtime-download` 10／19、`runtime-prepare` 2／9、`runtime-java` 31／51、`runtime-minecraft` 33／45 紅（任何檔都還沒改時量的） |
+| 改寫前基線（350 ms，`EVERY=8` 輪 8 輪） | `runtime-prepare` T23 兩案 16／16 紅；`runtime-java` 合計 40 紅；`runtime-minecraft` 合計 168 紅（後兩者為子 agent 以 HEAD 版暫存副本量） |
+| 改寫後 | 四檔不卡全過；`EVERY=8` 輪 8 輪 0 紅 0 取消（CC 自己重跑）；`runtime-download`、`runtime-java` 每個請求都卡也全過 |
+| 突變（`main/runtime/download.js` 暫改、還原、雜湊一致） | 5／5 抓到：期限永遠不到、期限一開始就到、期限只剩一半、停住不降級、停住不換下一台。`net-fetch` 的突變另加「看門狗窗口只剩一半」，7／7 抓到 |
+| 全套 | `npm test` 1086／1086（＋4 是回歸測試）；`npm run lint` exit 0；`check:ui-css` ok |
+| 斷言 | 原有斷言全部保留；真時間上限改形：`runtime-download` T4 停住（`< 900 ms`）、T4 外部中止（`< 200 ms`）、`runtime-java` Zulu 中止（`< 1000 ms`）、`runtime-minecraft` T16 ×4（`< 900 ms`）；T16 的 `stalledAt > 0`（mock 下 `Date.now()` 從 0 起）改成數停住的請求 `stalledReqs > 0` |
+
+### 施工中的發現
+
+- **連線外洩弄壞下一案的 mock 時鐘**〔實驗〕（`runtime-java` 子 agent 發現、CC 重現）：前一案的 keep-alive 連線在下一案才關，`fetch`（undici）關它時拿前一案 mock 的計時器呼叫下一案 mock 的 `clearTimeout`，下一案之後設的計時器推進也不觸發。最小重現：每案自己開伺服器、`t.after` 才關，8 案中 7 案紅（Node 24、22 同）；伺服器回 `connection: close` ⇒ 8／8 過。第 1 批已 push 的 `net-fetch-download` 沒踩到是時序剛好〔推論〕。
+- **卡頓工具的累積假象**〔實驗〕：一次完整 runtime 安裝約 90 個請求，每個都卡 350 ms 累積約 31 秒，必然撞到測試自己 10 秒的防卡死上限；`runtime-prepare` T23 兩案共 179 個請求。⇒ 加 `FREEZE_EVERY`／`FREEZE_OFFSET`。`sync-index` 在 1100 ms 下多出來的 5 案應是同一件事，第 3 批用輪流方式重驗。
+- **改寫讓一道隱含檢查消失**〔實驗〕：突變「期限一開始就到」第一輪沒被抓到——mock 下不推進就連 0 ms 的期限也不到，正常路徑的案抓不到「期限設太短」；改寫前的真時鐘會讓正常下載全失敗，等於隱含有這道檢查。⇒ `runtime-download` T4 停住、`runtime-minecraft` T10 鏡像停住、`net-fetch-download` headers 不來三案改成「推進到期限（窗口）前 1 ms 仍未結束、再 1 ms 才結束」，突變重跑全抓到。`net-fetch-download` 屬第 1 批的檔，這處改動併進第 2 批。
+
+### plan 沒寫死、施工時定的細節
+
+- `runtime-java`：同一案會呼叫兩次 `javaEnv`，mock 一案只能開一次 ⇒ 用 WeakMap 讓同一案共用一個時鐘（`clockFor`）。
+- `runtime-minecraft` T16：庫、asset 是 6 條平行下載，推進一次時間會讓池子裡每個還在下載的檔一起到期，誤判別的檔 ⇒ 等同組其他檔都下完（看 `onProgress` 的 `done`）才推進；為了讓進度節流不擋，注入每次跳 1000 ms 的 `deps.now`（測試端注入，既有參數）。
+- `runtime-minecraft` T15：原本真等 500 ms，改成等停住那支的連線關閉（事件）、推進 500 ms、讓出 I/O，再照原樣斷言。
+- 子行程計時器（`runJava` 三案）照 §設計 留在真時鐘。
+
 ## 裁決（owner 2026-10-21：「全部照推薦走，開始第 1 批」）
 
 Q1 甲、Q2 甲、Q3 三批三個 commit、Q4 改成「推進前未結束、推進後才結束」、Q5 跟第 1 批一起推。以下保留原本的選項與理由。
+
+**Q6（第 2 批中途新增）連線外洩怎麼治**：改共用伺服器——`test/helpers/local-http.cjs` 的 `startServer` 一律回 `connection: close`，**以後測試需要的假伺服器一律接到這裡**（第 3 批寫進 `conventions.md` 的測試規則）。出處：owner 2026-10-21「改共用伺服器，未來有需要的伺服器也煩請接至這裡。這樣可以一勞永逸。」（另兩個選項：在 `useMockClock` 包 `clearTimeout`、各檔自己繞——不採）
 
 - **Q1　做法**：
   - 甲（建議）：MockTimers，只改測試。可行性已實測（§可行性）。
