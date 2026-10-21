@@ -9,6 +9,13 @@ const path = require("path");
 
 const { startServer, serveWithRange } = require("./helpers/local-http.cjs");
 const {
+  useMockClock,
+  until,
+  watch,
+  stillPending,
+} = require("./helpers/mock-clock.cjs");
+const {
+  configureNetFetch,
   fetchWithNiceError,
   downloadToFile,
   downloadToFileWithStallGuard,
@@ -143,32 +150,37 @@ test("downloadToFile: short .part still resumes with Range when expectedSize is 
 });
 
 // ── downloadToFileWithStallGuard（D2）：期限一律注入短值 ──
+// 看門狗的時間交給 mock 時鐘，事情到了才推進；不跟真時鐘賭（→ _notes/plans/test-real-clock.md）
 
 const GUARD = { windowMs: 300, minBytes: 1000 };
 // 看門狗退步時這些案例會永遠等下去；設上限讓它變成紅燈而不是卡住整個 npm test
 const HANG_LIMIT_MS = 5000;
 
 test(
-  "stall guard: body stalls after headers ⇒ GGL_DOWNLOAD_STALLED, retried once with Range, within bound",
+  "stall guard: body stalls after headers ⇒ GGL_DOWNLOAD_STALLED, retried once with Range, not before the second window",
   { timeout: HANG_LIMIT_MS },
   async (t) => {
+    const clock = useMockClock(t);
     const srv = await startServer(stallAfterHeaders);
     t.after(() => srv.close());
     const target = await tempTarget(t);
 
-    const t0 = Date.now();
+    let chunks = 0;
+    const p = downloadToFileWithStallGuard(srv.url, target, () => chunks++, {
+      ...GUARD,
+      resume: true,
+      stallRetries: 1,
+      stallMessage: "測試：停住了",
+    });
+    const w = watch(p);
+    await until(() => srv.requests.length === 1 && chunks === 1, "第一次收到 100 bytes");
+    clock.advance(GUARD.windowMs);
+    await until(() => srv.requests.length === 2 && chunks === 2, "帶 Range 重試、收到 100 bytes");
+    assert.ok(await stillPending(w), "第二個窗口到之前不該結束");
+    clock.advance(GUARD.windowMs);
     await assert.rejects(
-      downloadToFileWithStallGuard(srv.url, target, null, {
-        ...GUARD,
-        resume: true,
-        stallRetries: 1,
-        stallMessage: "測試：停住了",
-      }),
+      p,
       (e) => e.code === "GGL_DOWNLOAD_STALLED" && e.message === "測試：停住了",
-    );
-    assert.ok(
-      Date.now() - t0 < GUARD.windowMs * 2 * 3,
-      `took ${Date.now() - t0} ms`,
     );
     assert.equal(srv.requests.length, 2);
     assert.equal(srv.requests[0].headers.range, undefined);
@@ -180,23 +192,21 @@ test(
   "stall guard: headers never arrive ⇒ also stalled",
   { timeout: HANG_LIMIT_MS },
   async (t) => {
+    const clock = useMockClock(t);
     const srv = await startServer(() => {});
     t.after(() => srv.close());
     const target = await tempTarget(t);
 
-    const t0 = Date.now();
-    await assert.rejects(
-      downloadToFileWithStallGuard(srv.url, target, null, {
-        ...GUARD,
-        stallRetries: 0,
-      }),
-      { code: "GGL_DOWNLOAD_STALLED" },
-    );
-    // signal 已中止的下載不再重試（④b R#28），沒有 650 ms 的重試等待
-    assert.ok(
-      Date.now() - t0 < GUARD.windowMs * 3,
-      `took ${Date.now() - t0} ms`,
-    );
+    const p = downloadToFileWithStallGuard(srv.url, target, null, {
+      ...GUARD,
+      stallRetries: 0,
+    });
+    const w = watch(p);
+    await until(() => srv.requests.length === 1, "請求送達");
+    assert.ok(await stillPending(w), "窗口到之前不該結束");
+    // signal 已中止的下載不再重試（④b R#28）：只推進一個窗口就該結束，不必再等 650 ms 的重試等待
+    clock.advance(GUARD.windowMs);
+    await assert.rejects(p, { code: "GGL_DOWNLOAD_STALLED" });
     assert.equal(srv.requests.length, 1);
   },
 );
@@ -205,7 +215,9 @@ test(
   "stall guard: slow but progressing download is not interrupted",
   { timeout: HANG_LIMIT_MS },
   async (t) => {
+    const clock = useMockClock(t);
     const chunk = Buffer.alloc(400, 1);
+    // server 的 setInterval 也在 mock 名單裡：每推進 50 ms 送一塊
     const srv = await startServer((req, res) => {
       res.writeHead(200, { "content-length": String(chunk.length * 8) });
       res.write(chunk);
@@ -216,15 +228,24 @@ test(
           clearInterval(iv);
           res.end();
         }
-      }, 50); // 每 300 ms 窗口 ≥ 2000 bytes，明顯高於 minBytes 1000；總長約 350 ms，跨過第一個窗口
+      }, 50); // 每 300 ms 窗口 ≥ 2000 bytes，明顯高於 minBytes 1000；總長 350 ms，跨過第一個窗口
     });
     t.after(() => srv.close());
     const target = await tempTarget(t);
 
-    await downloadToFileWithStallGuard(srv.url, target, null, {
-      ...GUARD,
-      stallRetries: 0,
-    });
+    let received = 0;
+    const p = downloadToFileWithStallGuard(
+      srv.url,
+      target,
+      (info) => (received += info.bytes),
+      { ...GUARD, stallRetries: 0 },
+    );
+    await until(() => received === chunk.length, "收到第一塊");
+    for (let n = 2; n <= 8; n++) {
+      clock.advance(50);
+      await until(() => received === chunk.length * n, `收到第 ${n} 塊`);
+    }
+    await p;
     assert.equal((await fsp.stat(target)).size, chunk.length * 8);
     assert.equal(srv.requests.length, 1);
   },
@@ -261,16 +282,26 @@ test(
   "downloadToFile: timeoutMs reaches the header timeout (the stall guard relies on it)",
   { timeout: HANG_LIMIT_MS },
   async (t) => {
+    const clock = useMockClock(t);
     const srv = await startServer(() => {}); // 永不回 headers
     t.after(() => srv.close());
     const target = await tempTarget(t);
-    const t0 = Date.now();
-    await assert.rejects(
-      downloadToFile(srv.url, target, null, { timeoutMs: 200 }),
-      /連線失敗/,
-    );
+    // 重試提示在排上 650 ms 等待的同一段同步程式裡發出：拿它當「等待已排上」的訊號
+    let retries = 0;
+    configureNetFetch({ onRetryNotify: () => retries++ });
+    t.after(() => configureNetFetch({}));
+
+    const p = downloadToFile(srv.url, target, null, { timeoutMs: 200 });
+    const w = watch(p);
     // 一次 200 ms 逾時＋650 ms 重試等待＋第二次 200 ms
-    assert.ok(Date.now() - t0 < 2000, `took ${Date.now() - t0} ms`);
+    await until(() => srv.requests.length === 1, "第一次請求送達");
+    clock.advance(200);
+    await until(() => retries === 1, "排上重試等待");
+    clock.advance(650);
+    await until(() => srv.requests.length === 2, "第二次請求送達");
+    assert.ok(await stillPending(w), "第二次逾時之前不該結束");
+    clock.advance(200);
+    await assert.rejects(p, /連線失敗/);
   },
 );
 
@@ -285,22 +316,27 @@ test(
     const target = await tempTarget(t);
 
     const outer = new AbortController();
-    const p = downloadToFileWithStallGuard(srv.url, target, null, {
+    let chunks = 0;
+    const p = downloadToFileWithStallGuard(srv.url, target, () => chunks++, {
       windowMs: 60_000,
       minBytes: 1,
       stallRetries: 1,
       signal: outer.signal,
     });
-    setTimeout(() => outer.abort(), 200);
+    // 收到 body 之後才中止：「body 讀到一半」由事件決定，不靠計時器
+    await until(() => chunks === 1, "收到第一塊 body");
+    outer.abort();
     await assert.rejects(p, (e) => e.code !== "GGL_DOWNLOAD_STALLED");
     assert.equal(srv.requests.length, 1);
   },
 );
 
 test(
-  "T2b stall guard: external abort while waiting for headers ⇒ rejects within 300 ms, no retry",
+  "T2b stall guard: external abort while waiting for headers ⇒ rejects on the abort itself, no retry",
   { timeout: HANG_LIMIT_MS },
   async (t) => {
+    // 時間不推進：結束只可能來自中止本身，不是哪個計時器（取代原本「中止後 300 ms 內」的真時間上限）
+    useMockClock(t);
     const srv = await startServer(() => {}); // 永不回 headers
     t.after(() => srv.close());
     const target = await tempTarget(t);
@@ -311,16 +347,11 @@ test(
       minBytes: 1,
       signal: outer.signal,
     });
-    let abortedAt = 0;
-    setTimeout(() => {
-      abortedAt = Date.now();
-      outer.abort();
-    }, 200);
+    const w = watch(p);
+    await until(() => srv.requests.length === 1, "請求送達");
+    assert.ok(await stillPending(w), "中止之前不該結束");
+    outer.abort();
     await assert.rejects(p);
-    assert.ok(
-      Date.now() - abortedAt < 300,
-      `rejected ${Date.now() - abortedAt} ms after abort`,
-    );
     assert.equal(srv.requests.length, 1);
   },
 );

@@ -22,6 +22,7 @@
     "check:renderer-scripts": "node scripts/check-renderer-scripts.cjs",
     "check:packaged-artifacts": "node scripts/check-packaged-artifacts.cjs",
     "test": "node --require ./test/helpers/forbid-electron.cjs --test \"test/*.test.cjs\"",
+    "test:freeze": "node --require ./test/helpers/forbid-electron.cjs --require ./scripts/freeze-on-request.cjs --test \"test/*.test.cjs\"",
     "publish": "node scripts/publish.js",
     "video:bg:downscale": "node scripts/downscale-bg-video.cjs",
     "prepare": "husky",
