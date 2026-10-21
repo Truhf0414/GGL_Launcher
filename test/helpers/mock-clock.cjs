@@ -22,7 +22,33 @@ async function until(cond, what, limitMs = 5000) {
  */
 function useMockClock(t) {
   t.mock.timers.enable({ apis: APIS });
+  ignoreForeignClears();
   return { advance: (ms) => t.mock.timers.tick(ms), until };
+}
+
+// fetch（undici）會在下一案才收尾前一案被中斷的連線，收尾時拿前一案 mock 建的計時器呼叫 clearTimeout；
+// MockTimers 照 handle 上記的佇列位置刪，刪掉的會是本案的計時器（推進時間也不觸發）。
+// connection: close 擋不到回應停在半路的連線（Node 22 實測），所以這裡只放行本案自己建的 handle
+// （→ _notes/plans/test-real-clock.md；回歸測試 test/mock-clock.test.cjs）。
+// 包的是 enable 之後的 mock 版本；測試結束 node:test 換回真的計時器，這層跟著消失。
+function ignoreForeignClears() {
+  const mine = new WeakSet();
+  for (const [set, clear] of [
+    ["setTimeout", "clearTimeout"],
+    ["setInterval", "clearInterval"],
+  ]) {
+    const mockSet = globalThis[set];
+    const mockClear = globalThis[clear];
+    globalThis[set] = function (...args) {
+      const handle = mockSet.apply(this, args);
+      mine.add(handle);
+      return handle;
+    };
+    globalThis[clear] = function (handle) {
+      if (handle !== null && typeof handle === "object" && !mine.has(handle)) return;
+      return mockClear.call(this, handle);
+    };
+  }
 }
 
 /** 記下 p 結束了沒；p 本身照常可再 await／assert.rejects（這裡接住了，不會變成未處理的 rejection） */

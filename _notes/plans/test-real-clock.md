@@ -134,9 +134,19 @@ node:test 內建的 MockTimers（`t.mock.timers`）接管 `setTimeout`、`setInt
 - `runtime-minecraft` T15：原本真等 500 ms，改成等停住那支的連線關閉（事件）、推進 500 ms、讓出 I/O，再照原樣斷言。
 - 子行程計時器（`runJava` 三案）照 §設計 留在真時鐘。
 
+## 第 2 批後續修正（2026-10-21，基準 `5ab3725`，未 commit）
+
+- **起因**：push `5ab3725` 後 CI run `39561642026`（Node 22）紅：`runtime-java` 「T22 Zulu 查詢 body 停住」10 秒逾時（cancelled），1085／1086。
+- **機制**〔實驗〕：前一案被中斷、回應停在半路的連線，到下一案才收尾；undici 的 `Parser.destroy` 收尾時拿前一案 mock 建的計時器呼叫 `clearTimeout`（堆疊：`Parser.destroy` ← `Socket` close），MockTimers 照 handle 上的佇列位置刪，刪掉本案的計時器。偵測：每案記自己建的 handle、包住 clear——Node 22.18 6 案中出現 5 次跨案 clear，Node 24.14 0 次；`connection: close` 擋不到這種連線。
+- **本機重現**〔實驗〕：Node 22 跑 `runtime-java` 5 次，沒防護 5 次各紅 1 案、有防護 0。
+- **修正**：`test/helpers/mock-clock.cjs` 的 `useMockClock` 在 enable 後包住 `clearTimeout`／`clearInterval`，只放行本案自己建的 handle（`ignoreForeignClears`）；測試結束 node:test 換回真的計時器，這層跟著消失。回歸測試 `test/mock-clock.test.cjs`：不靠 fetch，直接拿前一案的 handle clear；拿掉防護必紅（Node 22／24 都驗），並驗測試結束後全域計時器已換回。
+- **驗收漏洞**：第 1 批用 Node 24 與 22.18 都驗過，第 2 批只用 Node 24，CI 是 Node 22（`.github/workflows/ci.yml` `node-version: "22"`）。⇒ 之後每批的驗收一律 Node 24 與 Node 22 都跑（本機 Node 22：`H:\OpenChatX\runtime\bin\node.exe`，v22.18.0）。
+
 ## 裁決（owner 2026-10-21：「全部照推薦走，開始第 1 批」）
 
 Q1 甲、Q2 甲、Q3 三批三個 commit、Q4 改成「推進前未結束、推進後才結束」、Q5 跟第 1 批一起推。以下保留原本的選項與理由。
+
+**Q6 修正（第 2 批 push 後，2026-10-21）**：helper 加防護＋保留關連線——`useMockClock` 只放行本案自己建的計時器被 clear，別案的略過；`startServer` 的 `connection: close` 照留，「假伺服器一律接到這裡」不變。出處：owner 2026-10-21 選「helper 加防護＋保留關連線」。理由見 §第 2 批後續修正。
 
 **Q6（第 2 批中途新增）連線外洩怎麼治**：改共用伺服器——`test/helpers/local-http.cjs` 的 `startServer` 一律回 `connection: close`，**以後測試需要的假伺服器一律接到這裡**（第 3 批寫進 `conventions.md` 的測試規則）。出處：owner 2026-10-21「改共用伺服器，未來有需要的伺服器也煩請接至這裡。這樣可以一勞永逸。」（另兩個選項：在 `useMockClock` 包 `clearTimeout`、各檔自己繞——不採）
 
