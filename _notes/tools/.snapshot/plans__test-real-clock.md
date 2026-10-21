@@ -1,4 +1,4 @@
-# 測試與真實時鐘脫鉤：細部 plan（狀態：**2026-10-21 初稿；同日 owner 裁 Q1–Q5 全照建議並放行第 1 批；同日第 1 批完成（`0fcf826`，owner 驗收放行）；同日第 2 批完成（`6a77a80`，owner 驗收放行）**）
+# 測試與真實時鐘脫鉤：細部 plan（狀態：**2026-10-21 初稿；同日 owner 裁 Q1–Q5 全照建議並放行第 1 批；同日第 1 批完成（`0fcf826`，owner 驗收放行）；同日第 2 批完成（`6a77a80`，owner 驗收放行）；同日第 2 批後續修正（`4a7c714`）；同日第 3 批完成（`28e9190`，owner 驗收放行），本事件結案**）
 
 行號以基準 `73fc173` 為準。標記照 `plans/cross-review-2026-10.md` §0.1；本檔另用〔實驗〕＝session 暫存區實際跑過（腳本不進 repo，結果寫在本檔）。
 
@@ -16,7 +16,7 @@
 
 ## 盤點
 
-子 agent 讀完 `test/` 全部用到短窗的檔，逐案分類〔讀碼＋部分實驗；CC 抽驗 6 處吻合：`main/runtime/download.js:177`、`test/runtime-download.test.cjs:23-24`、`test/sync-apply.test.cjs:122-127`、`test/sync-index.test.cjs:1485`、`test/runtime-minecraft.test.cjs:26-27`、`:70`〕：〔對齊 2026-10-21：`test/runtime-download.test.cjs:23-24` → `6a77a80`（本檔第 2 批） 後 `:29-30`；`test/runtime-minecraft.test.cjs:26-27`、`:70` → 同 commit 後 `:32-33`、`:78`；其餘未移動〕
+子 agent 讀完 `test/` 全部用到短窗的檔，逐案分類〔讀碼＋部分實驗；CC 抽驗 6 處吻合：`main/runtime/download.js:177`、`test/runtime-download.test.cjs:23-24`、`test/sync-apply.test.cjs:122-127`、`test/sync-index.test.cjs:1485`、`test/runtime-minecraft.test.cjs:26-27`、`:70`〕：〔對齊 2026-10-21：`test/runtime-download.test.cjs:23-24` → `6a77a80`（本檔第 2 批） 後 `:29-30`；`test/runtime-minecraft.test.cjs:26-27`、`:70` → 同 commit 後 `:32-33`、`:78`；其餘未移動〕〔對齊 2026-10-21：`test/sync-apply.test.cjs:122-127` → `28e9190`（本檔第 3 批） 後 `:131-136`；`test/sync-index.test.cjs:1485` → 同 commit 後 `:1492`〕
 
 - **P**：測試需要某件事（請求送達、資料到、正常下載完成）在短計時器（≤ 約 1 秒）之前發生；行程卡住超過窗口就翻盤。本事件要治的就是這類。
 - **B**：只斷言耗時上限；機器慢過上限才紅。
@@ -134,9 +134,39 @@ node:test 內建的 MockTimers（`t.mock.timers`）接管 `setTimeout`、`setInt
 - `runtime-minecraft` T15：原本真等 500 ms，改成等停住那支的連線關閉（事件）、推進 500 ms、讓出 I/O，再照原樣斷言。
 - 子行程計時器（`runJava` 三案）照 §設計 留在真時鐘。
 
+## 第 2 批後續修正（2026-10-21，基準 `5ab3725`，commit `4a7c714`）
+
+- **起因**：push `5ab3725` 後 CI run `39561642026`（Node 22）紅：`runtime-java` 「T22 Zulu 查詢 body 停住」10 秒逾時（cancelled），1085／1086。
+- **機制**〔實驗〕：前一案被中斷、回應停在半路的連線，到下一案才收尾；undici 的 `Parser.destroy` 收尾時拿前一案 mock 建的計時器呼叫 `clearTimeout`（堆疊：`Parser.destroy` ← `Socket` close），MockTimers 照 handle 上的佇列位置刪，刪掉本案的計時器。偵測：每案記自己建的 handle、包住 clear——Node 22.18 6 案中出現 5 次跨案 clear，Node 24.14 0 次；`connection: close` 擋不到這種連線。
+- **本機重現**〔實驗〕：Node 22 跑 `runtime-java` 5 次，沒防護 5 次各紅 1 案、有防護 0。
+- **修正**：`test/helpers/mock-clock.cjs` 的 `useMockClock` 在 enable 後包住 `clearTimeout`／`clearInterval`，只放行本案自己建的 handle（`ignoreForeignClears`）；測試結束 node:test 換回真的計時器，這層跟著消失。回歸測試 `test/mock-clock.test.cjs`：不靠 fetch，直接拿前一案的 handle clear；拿掉防護必紅（Node 22／24 都驗），並驗測試結束後全域計時器已換回。
+- **驗收漏洞**：第 1 批用 Node 24 與 22.18 都驗過，第 2 批只用 Node 24，CI 是 Node 22（`.github/workflows/ci.yml` `node-version: "22"`）。⇒ 之後每批的驗收一律 Node 24 與 Node 22 都跑（本機 Node 22：`H:\OpenChatX\runtime\bin\node.exe`，v22.18.0）。
+
+## 第 3 批施工紀錄（2026-10-21，基準 `4a7c714`，commit `28e9190`）
+
+| 項 | 結果 |
+|---|---|
+| 改寫 | `sync-site-client`（分類 ×5、停住 ×2、logUrl 停住、L1–L4、回應永遠不結束）、`sync-notice-feed`（F16）、`sync-index`（U10 ×2）、`sync-apply`（`setup()` 開 mock；停住、中斷續傳兩案推進時間） |
+| helper | `useMockClock` 同一案重複呼叫回同一個時鐘（`sync-apply` C4 呼叫兩次 `setup`）；`runtime-java` 自己的 `clockFor` 拿掉；註解寫明「一次推進不跨過一個窗口」 |
+| 卡頓工具 | 預設改成每 8 個請求卡 1 個（`FREEZE_EVERY` 預設 8）：每個都卡時約 90 個請求的安裝必然撞到測試自己的 10 秒上限，`npm run test:freeze` 用預設值永遠是假紅 |
+| 文件 | README「Useful commands」加 `npm run test:freeze`；`conventions.md` 新增「測試」一節（mock 時鐘、假伺服器一律走 `startServer`、改這類測試要輪流卡頓全過、Node 22 與本機版本都跑） |
+| 改寫前基線（Node 22，`EVERY=8` 輪 8 輪同時跑） | 350 ms：`sync-site-client` 21、`sync-apply` 11、`sync-notice-feed` 0；1100 ms：`sync-index` 3（只有 U10）、`sync-notice-feed` 7 |
+| 改寫後（Node 22） | 10 個計時測試檔 350 ms 輪 8 輪全 0；`sync-index`、`sync-notice-feed` 1100 ms 輪 8 輪全 0 |
+| 全套 | Node 24 與 Node 22：`npm test` 1093／1093；`eslint` exit 0；`check:ui-css` ok |
+| 突變（`main/sync/site-client.js` 暫改、還原、雜湊一致） | 3／3 抓到：期限永遠不到、期限只剩一半、gate 與 release 改成一個接一個抓（U10 抓到） |
+| 斷言 | 原有斷言保留；真時間上限改形：`sync-site-client` 停住 ×2（`< 900 ms`）、logUrl 停住（`< 1800 ms`）、回應永遠不結束（1000 ms 賽跑 ⇒ 等事件）、`sync-index` U10 ×2（`< 1.8` 個期限 ⇒ 兩個請求都到了才推進）、`sync-apply` 停住（`< 1800 ms`）；`sync-site-client` 的 `timed()` 因此沒人用，拿掉 |
+
+### 施工中的發現
+
+- **一次推進只檢查得到一次**〔實驗〕：`sync-apply` 中斷續傳案每次嘗試先送 600 bytes（≥ `minBytes` 100），第一個窗口算有進度，第二個窗口才判停滯。一次 `advance(600)` 看門狗不中止（請求只有 1 次），分兩次各 `advance(300)` 才中止（2 次）；Node 22、24 同。最小實驗在 session 暫存區。⇒ helper 註解與 `conventions.md` 寫明一次不跨過一個窗口。
+- **`sync-index` 1100 ms 的「多 5 案」是工具假象**〔實驗〕：改用輪流卡頓（每 8 個卡 1 個）後，改寫前也只剩盤點標的 U10 紅。
+- **省時**：輪流卡頓 8 輪改成同時開 8 個行程；改寫後的測試不怕 CPU 被搶，結果不受影響。3 個檔的基線 14 秒；整批最後驗收 295 秒。
+
 ## 裁決（owner 2026-10-21：「全部照推薦走，開始第 1 批」）
 
 Q1 甲、Q2 甲、Q3 三批三個 commit、Q4 改成「推進前未結束、推進後才結束」、Q5 跟第 1 批一起推。以下保留原本的選項與理由。
+
+**Q6 修正（第 2 批 push 後，2026-10-21）**：helper 加防護＋保留關連線——`useMockClock` 只放行本案自己建的計時器被 clear，別案的略過；`startServer` 的 `connection: close` 照留，「假伺服器一律接到這裡」不變。出處：owner 2026-10-21 選「helper 加防護＋保留關連線」。理由見 §第 2 批後續修正。
 
 **Q6（第 2 批中途新增）連線外洩怎麼治**：改共用伺服器——`test/helpers/local-http.cjs` 的 `startServer` 一律回 `connection: close`，**以後測試需要的假伺服器一律接到這裡**（第 3 批寫進 `conventions.md` 的測試規則）。出處：owner 2026-10-21「改共用伺服器，未來有需要的伺服器也煩請接至這裡。這樣可以一勞永逸。」（另兩個選項：在 `useMockClock` 包 `clearTimeout`、各檔自己繞——不採）
 

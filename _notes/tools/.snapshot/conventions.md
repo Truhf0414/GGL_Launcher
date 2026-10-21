@@ -59,3 +59,9 @@
 
 ## 本機打包
 - 本機 `~/.npmrc` 的 allow-scripts 設定會讓 `npm run pack:win` 在 rpc-helper install 那步失敗；驗打包直接跑：`node scripts/generate-electron-builder-config.cjs && npx electron-builder --config scripts/.electron-builder.generated.json --win dir --x64 && npm run check:packaged-artifacts`。
+
+## 測試
+- 會等計時器的測試（期限、看門狗、重試等待）：時間交給 `test/helpers/mock-clock.cjs` 的 `useMockClock`，事情發生了（請求到、資料到）才 `advance`，一次不跨過一個窗口；不拿真時鐘的短窗口去賭「正常的事一定在期限前做完」。
+- 測試要的假 HTTP 伺服器一律從 `test/helpers/local-http.cjs` 的 `startServer` 開（它關連線，`useMockClock` 擋別案的計時器；兩者合起來才不會跨案互相干擾）。
+- 新增或改這類測試：改到的檔用 `npm run test:freeze` 的方式（`--require ./scripts/freeze-on-request.cjs`），`FREEZE_OFFSET` 0–7 各跑一次要全過；Node 22（CI 的版本）與本機版本都跑。
+- 出處：owner 2026-10-21「全部照推薦走」（→ `plans/test-real-clock.md` Q2：以後新增的計時測試同一把尺驗）、Q6「改共用伺服器，未來有需要的伺服器也煩請接至這裡。」
