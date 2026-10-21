@@ -11,6 +11,12 @@ const os = require("os");
 const path = require("path");
 
 const { startServer, serveWithRange } = require("./helpers/local-http.cjs");
+const {
+  useMockClock,
+  until,
+  watch,
+  stillPending,
+} = require("./helpers/mock-clock.cjs");
 const { snapshot } = require("./helpers/fs-snapshot.cjs");
 const { getPaths } = require("../lib/paths-layout.js");
 const { planSync } = require("../lib/sync/plan.js");
@@ -45,6 +51,9 @@ const RUNTIME = () => ({ minecraft: "1.21.11", loader: { type: "fabric", version
  * linkedRoot：安裝位置是 <root>/link，它是指向 <root>/real 的 junction（Windows 才用）
  */
 async function setup(t, { behave, linkedRoot = false } = {}) {
+  // 下載的看門狗只有 300 ms（deps()）：時間交給 mock 時鐘，正常的下載不會被判停滯；
+  // 停住是預期結果的案用 ctx.clock 推進（→ _notes/plans/test-real-clock.md）
+  const clock = useMockClock(t);
   const root = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-apply-"));
   t.after(() => fsp.rm(root, { recursive: true, force: true }));
   let launcherRootDir = root;
@@ -72,7 +81,7 @@ async function setup(t, { behave, linkedRoot = false } = {}) {
   t.after(() => srv.close());
   const blobRequests = (buf) =>
     srv.requests.filter((r) => r.url === `/files/${sha(buf)}`);
-  return { root, paths, srv, blobRequests, filesBaseUrl: `${srv.url}/files/` };
+  return { root, paths, srv, blobRequests, clock, filesBaseUrl: `${srv.url}/files/` };
 }
 
 const abs = (paths, rel) => path.join(paths.gameDir, ...rel.split("/"));
@@ -375,7 +384,7 @@ for (const [label, wrong] of [
 }
 
 test(
-  "download stalls after headers ⇒ fails within bound, marker stays, destination untouched",
+  "download stalls after headers ⇒ fails when the second window passes, not before; marker stays, destination untouched",
   { timeout: HANG_LIMIT_MS },
   async (t) => {
     const ctx = await setup(t, {
@@ -385,11 +394,16 @@ test(
         return true;
       },
     });
-    const t0 = Date.now();
-    await assert.rejects(run(ctx, { next: [entry("mods/a.jar", A)] }), {
-      code: "GGL_DOWNLOAD_STALLED",
-    });
-    assert.ok(Date.now() - t0 < 300 * 2 * 3, `took ${Date.now() - t0} ms`);
+    const p = run(ctx, { next: [entry("mods/a.jar", A)] });
+    const w = watch(p);
+    // 看門狗停滯會重試一次：兩次嘗試各等請求到了才推進一個窗口
+    await until(() => ctx.blobRequests(A).length === 1, "第一次請求送達");
+    ctx.clock.advance(300);
+    await until(() => ctx.blobRequests(A).length === 2, "停滯重試的請求送達");
+    ctx.clock.advance(299);
+    assert.ok(await stillPending(w), "第二個窗口到之前不該結束");
+    ctx.clock.advance(1);
+    await assert.rejects(p, { code: "GGL_DOWNLOAD_STALLED" });
     assert.equal(await isInProgress(ctx.paths), true);
     assert.equal(await exists(abs(ctx.paths, "mods/a.jar")), false);
   },
@@ -409,7 +423,25 @@ test(
       },
     });
     const next = [entry("mods/a.jar", A)];
-    await assert.rejects(run(ctx, { next }), { code: "GGL_DOWNLOAD_STALLED" });
+    // 每次嘗試收到前一半之後才推進一個窗口：第二次執行才有 .part 可以續傳
+    let halves = 0;
+    const first = run(ctx, {
+      next,
+      depsOverride: {
+        sendSyncProgress: (x) => {
+          if (x.phase === "download" && x.fileReceived === half) halves++;
+        },
+      },
+    });
+    // 前一半（600 bytes）≥ minBytes 100：第一個窗口算有進度、不停；第二個窗口沒進度才判停滯 ⇒ 每次推進兩個窗口，
+    // 一次一個窗口（一次推 600 看門狗只看得到一次，不會中止）
+    await until(() => halves === 1, "第一次嘗試收到前一半");
+    ctx.clock.advance(300);
+    ctx.clock.advance(300);
+    await until(() => halves === 2, "停滯重試也收到前一半");
+    ctx.clock.advance(300);
+    ctx.clock.advance(300);
+    await assert.rejects(first, { code: "GGL_DOWNLOAD_STALLED" });
     await run(ctx, { next });
     assert.equal(ctx.blobRequests(A).at(-1).headers.range, `bytes=${half}-`);
     assert.deepEqual(await read(ctx.paths, "mods/a.jar"), A);

@@ -47,6 +47,16 @@ test("mock-clock：本案自己的計時器照常可以 clear", (t) => {
   assert.equal(fired, false);
 });
 
+test("mock-clock：同一案呼叫兩次（共用的 setup 被叫兩次）⇒ 同一個時鐘、不丟錯", (t) => {
+  const a = useMockClock(t);
+  const b = useMockClock(t);
+  assert.equal(a, b);
+  let fired = false;
+  setTimeout(() => (fired = true), 100);
+  b.advance(100);
+  assert.equal(fired, true);
+});
+
 test("mock-clock：測試結束後全域計時器換回真的", () => {
   for (const [name, fn] of Object.entries(REAL)) {
     assert.equal(globalThis[name], fn, name);

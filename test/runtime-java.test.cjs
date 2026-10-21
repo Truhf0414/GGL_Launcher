@@ -58,19 +58,14 @@ async function listFiles(dir, base = dir) {
 
 // 期限（deadlineMs）與看門狗（stall.windowMs）都只有 300 ms：時間交給 mock 時鐘，正常的案不推進
 // （期限不會自己到），停住的案等請求到了才推進（→ _notes/plans/test-real-clock.md）。
-// 同一案呼叫兩次 javaEnv 時共用同一個時鐘（mock 一個測試只能開一次）。
-const clocks = new WeakMap();
-function clockFor(t) {
-  if (!clocks.has(t)) clocks.set(t, useMockClock(t));
-  return clocks.get(t);
-}
+// 同一案呼叫兩次 javaEnv 時 useMockClock 回同一個時鐘。
 
 /**
  * @param {{ extract?: "ok" | "two-roots" | "no-java" | "throw", versionCode?: number,
  *   component?: string, major?: number }} [opts]
  */
 async function javaEnv(t, opts = {}) {
-  const clock = clockFor(t);
+  const clock = useMockClock(t);
   const major = opts.major ?? 21;
   const component = opts.component ?? "java-runtime-delta";
   const base = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-rt-java-"));

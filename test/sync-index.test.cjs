@@ -12,6 +12,12 @@ const os = require("os");
 const path = require("path");
 
 const { startServer, serveWithRange } = require("./helpers/local-http.cjs");
+const {
+  useMockClock,
+  until,
+  watch,
+  stillPending,
+} = require("./helpers/mock-clock.cjs");
 const { snapshot } = require("./helpers/fs-snapshot.cjs");
 const { getPaths } = require("../lib/paths-layout.js");
 const { windowsEnv } = require("../lib/launch-args.js");
@@ -1482,25 +1488,30 @@ test(
   },
 );
 
+// 期限交給 mock 時鐘：請求都到了才推進，推進到期限前 1 ms 仍未結束、再 1 ms 才結束（→ _notes/plans/test-real-clock.md）
 const TIMEOUT_MS = 1000;
 const hangOn = (files) => (req) => files.includes(req.url); // 不回應、不關：只等期限
 const requestsTo = (h, file) =>
   h.srv.requests.filter((r) => r.url === file).length;
 
 test(
-  "U10 站台不回應（索引還沒抓到過）⇒ withLaunchLock 在 1.8 個期限內返回、kind offline、只多一個索引的請求",
+  "U10 站台不回應（索引還沒抓到過）⇒ withLaunchLock 在一個期限到時返回、kind offline、只多一個索引的請求",
   { timeout: HANG_LIMIT_MS },
   async (t) => {
+    const clock = useMockClock(t);
     const h = await setup(t, {
       installed: { release: REL_1 },
       site: { respond: hangOn(["/manifest.json"]) },
       timeoutMs: TIMEOUT_MS,
     });
-    const started = Date.now();
-    const status = await h.sync.withLaunchLock(async (s) => s);
-    const elapsed = Date.now() - started;
+    const p = h.sync.withLaunchLock(async (s) => s);
+    const w = watch(p);
+    await until(() => requestsTo(h, "/manifest.json") === 1, "索引請求送達");
+    clock.advance(TIMEOUT_MS - 1);
+    assert.ok(await stillPending(w), "期限到之前不該結束");
+    clock.advance(1);
+    const status = await p;
     assertKind(status, "offline");
-    assert.ok(elapsed < TIMEOUT_MS * 1.8, `花了 ${elapsed} ms`);
     assert.equal(requestsTo(h, "/manifest.json"), 1);
     assert.equal(requestsTo(h, "/gate.json"), 0);
     assert.equal(requestsTo(h, "/release.json"), 0);
@@ -1508,9 +1519,10 @@ test(
 );
 
 test(
-  "U10 站台不回應（索引已在快取）⇒ 1.8 個期限內返回、kind offline、gate 與 release 各多一個請求、索引 0 個",
+  "U10 站台不回應（索引已在快取）⇒ gate 與 release 同時等、一個期限到時返回、kind offline、各多一個請求、索引 0 個",
   { timeout: HANG_LIMIT_MS },
   async (t) => {
+    const clock = useMockClock(t);
     const h = await setup(t, {
       installed: { release: REL_1 },
       timeoutMs: TIMEOUT_MS,
@@ -1523,11 +1535,20 @@ test(
     };
     h.site.respond = hangOn(["/gate.json", "/release.json"]);
 
-    const started = Date.now();
-    const status = await h.sync.withLaunchLock(async (s) => s);
-    const elapsed = Date.now() - started;
+    const p = h.sync.withLaunchLock(async (s) => s);
+    const w = watch(p);
+    // 兩個請求都到了才推進：一個接一個抓的話，第二個在推進前不會出現（取代原本「1.8 個期限內」）
+    await until(
+      () =>
+        requestsTo(h, "/gate.json") === before.gate + 1 &&
+        requestsTo(h, "/release.json") === before.release + 1,
+      "gate 與 release 的請求都送達",
+    );
+    clock.advance(TIMEOUT_MS - 1);
+    assert.ok(await stillPending(w), "期限到之前不該結束");
+    clock.advance(1);
+    const status = await p;
     assertKind(status, "offline");
-    assert.ok(elapsed < TIMEOUT_MS * 1.8, `花了 ${elapsed} ms`);
     assert.equal(requestsTo(h, "/manifest.json"), before.index);
     assert.equal(requestsTo(h, "/gate.json"), before.gate + 1);
     assert.equal(requestsTo(h, "/release.json"), before.release + 1);

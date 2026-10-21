@@ -16,14 +16,21 @@ async function until(cond, what, limitMs = 5000) {
   }
 }
 
+const clocks = new WeakMap();
+
 /**
- * 在這個測試裡開 mock 時鐘；測試結束 node:test 會自己還原。
+ * 在這個測試裡開 mock 時鐘；測試結束 node:test 會自己還原。同一案呼叫第二次（例如共用的 setup 被叫兩次）回同一個時鐘。
+ * advance 一次不要跨過一個以上的窗口：一次推進裡 Date 已經在終點，看門狗只檢查得到一次
+ * （一次推 600 不會在第二個 300 窗口中止；分兩次各推 300 才會，Node 22／24 實測）。
  * @returns {{ advance: (ms: number) => void, until: typeof until }}
  */
 function useMockClock(t) {
-  t.mock.timers.enable({ apis: APIS });
-  ignoreForeignClears();
-  return { advance: (ms) => t.mock.timers.tick(ms), until };
+  if (!clocks.has(t)) {
+    t.mock.timers.enable({ apis: APIS });
+    ignoreForeignClears();
+    clocks.set(t, { advance: (ms) => t.mock.timers.tick(ms), until });
+  }
+  return clocks.get(t);
 }
 
 // fetch（undici）會在下一案才收尾前一案被中斷的連線，收尾時拿前一案 mock 建的計時器呼叫 clearTimeout；
