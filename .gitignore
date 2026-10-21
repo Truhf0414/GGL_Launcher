@@ -15,6 +15,8 @@ release/
 
 # project notes: tracked, except pre-edit snapshots (git history is the backup)
 _notes/_backup/
+# doc-check snapshot of a memory note about the owner's machine, not this project
+_notes/tools/.snapshot/ext__claude-desktop-cowork-off.md
 __pycache__/
 
 # graphify knowledge graph output (rebuildable)
