@@ -1,4 +1,4 @@
-# 測試與真實時鐘脫鉤：細部 plan（狀態：**2026-10-21 初稿；同日 owner 裁 Q1–Q5 全照建議並放行第 1 批；同日第 1 批完成（`0fcf826`，owner 驗收放行）；同日第 2 批完成（`6a77a80`，owner 驗收放行）；同日第 2 批後續修正（`4a7c714`）；同日第 3 批完成（未 commit），待 owner 驗收**）
+# 測試與真實時鐘脫鉤：細部 plan（狀態：**2026-10-21 初稿；同日 owner 裁 Q1–Q5 全照建議並放行第 1 批；同日第 1 批完成（`0fcf826`，owner 驗收放行）；同日第 2 批完成（`6a77a80`，owner 驗收放行）；同日第 2 批後續修正（`4a7c714`）；同日第 3 批完成（`28e9190`，owner 驗收放行），本事件結案**）
 
 行號以基準 `73fc173` 為準。標記照 `plans/cross-review-2026-10.md` §0.1；本檔另用〔實驗〕＝session 暫存區實際跑過（腳本不進 repo，結果寫在本檔）。
 
@@ -16,7 +16,7 @@
 
 ## 盤點
 
-子 agent 讀完 `test/` 全部用到短窗的檔，逐案分類〔讀碼＋部分實驗；CC 抽驗 6 處吻合：`main/runtime/download.js:177`、`test/runtime-download.test.cjs:23-24`、`test/sync-apply.test.cjs:122-127`、`test/sync-index.test.cjs:1485`、`test/runtime-minecraft.test.cjs:26-27`、`:70`〕：〔對齊 2026-10-21：`test/runtime-download.test.cjs:23-24` → `6a77a80`（本檔第 2 批） 後 `:29-30`；`test/runtime-minecraft.test.cjs:26-27`、`:70` → 同 commit 後 `:32-33`、`:78`；其餘未移動〕
+子 agent 讀完 `test/` 全部用到短窗的檔，逐案分類〔讀碼＋部分實驗；CC 抽驗 6 處吻合：`main/runtime/download.js:177`、`test/runtime-download.test.cjs:23-24`、`test/sync-apply.test.cjs:122-127`、`test/sync-index.test.cjs:1485`、`test/runtime-minecraft.test.cjs:26-27`、`:70`〕：〔對齊 2026-10-21：`test/runtime-download.test.cjs:23-24` → `6a77a80`（本檔第 2 批） 後 `:29-30`；`test/runtime-minecraft.test.cjs:26-27`、`:70` → 同 commit 後 `:32-33`、`:78`；其餘未移動〕〔對齊 2026-10-21：`test/sync-apply.test.cjs:122-127` → `28e9190`（本檔第 3 批） 後 `:131-136`；`test/sync-index.test.cjs:1485` → 同 commit 後 `:1492`〕
 
 - **P**：測試需要某件事（請求送達、資料到、正常下載完成）在短計時器（≤ 約 1 秒）之前發生；行程卡住超過窗口就翻盤。本事件要治的就是這類。
 - **B**：只斷言耗時上限；機器慢過上限才紅。
@@ -142,7 +142,7 @@ node:test 內建的 MockTimers（`t.mock.timers`）接管 `setTimeout`、`setInt
 - **修正**：`test/helpers/mock-clock.cjs` 的 `useMockClock` 在 enable 後包住 `clearTimeout`／`clearInterval`，只放行本案自己建的 handle（`ignoreForeignClears`）；測試結束 node:test 換回真的計時器，這層跟著消失。回歸測試 `test/mock-clock.test.cjs`：不靠 fetch，直接拿前一案的 handle clear；拿掉防護必紅（Node 22／24 都驗），並驗測試結束後全域計時器已換回。
 - **驗收漏洞**：第 1 批用 Node 24 與 22.18 都驗過，第 2 批只用 Node 24，CI 是 Node 22（`.github/workflows/ci.yml` `node-version: "22"`）。⇒ 之後每批的驗收一律 Node 24 與 Node 22 都跑（本機 Node 22：`H:\OpenChatX\runtime\bin\node.exe`，v22.18.0）。
 
-## 第 3 批施工紀錄（2026-10-21，基準 `4a7c714`，未 commit）
+## 第 3 批施工紀錄（2026-10-21，基準 `4a7c714`，commit `28e9190`）
 
 | 項 | 結果 |
 |---|---|
