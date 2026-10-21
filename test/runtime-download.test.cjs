@@ -12,6 +12,12 @@ const path = require("path");
 
 const { startServer } = require("./helpers/local-http.cjs");
 const {
+  useMockClock,
+  until,
+  watch,
+  stillPending,
+} = require("./helpers/mock-clock.cjs");
+const {
   fetchJsonWithDeadline,
   fetchTextWithDeadline,
   createSourceHealth,
@@ -51,8 +57,11 @@ async function tempDir(t) {
 const exists = (p) => fsp.stat(p).then(() => true, () => false);
 
 // ── T4 fetchJsonWithDeadline／fetchTextWithDeadline ──
+// 期限交給 mock 時鐘：正常的案不推進時間（期限不會自己到），停住的案等請求到了才推進
+// （→ _notes/plans/test-real-clock.md）
 
 test("T4 fetchJsonWithDeadline: 正常 ⇒ 物件", async (t) => {
+  useMockClock(t);
   const srv = await startServer(serve(Buffer.from('{"a":1}')));
   t.after(() => srv.close());
   assert.deepEqual(await fetchJsonWithDeadline(srv.url, { deadlineMs: DEADLINE_MS }), {
@@ -64,23 +73,29 @@ test(
   "T4 fetchJsonWithDeadline: headers 後 body 停住 ⇒ 期限內以 GGL_FETCH_DEADLINE 失敗",
   { timeout: HANG_LIMIT_MS },
   async (t) => {
+    const clock = useMockClock(t);
     const srv = await startServer(stallAfterHeaders);
     t.after(() => srv.close());
-    const t0 = Date.now();
-    await assert.rejects(fetchJsonWithDeadline(srv.url, { deadlineMs: DEADLINE_MS }), {
-      code: "GGL_FETCH_DEADLINE",
-    });
-    assert.ok(Date.now() - t0 < DEADLINE_MS * 3, `took ${Date.now() - t0} ms`);
+    const p = fetchJsonWithDeadline(srv.url, { deadlineMs: DEADLINE_MS });
+    const w = watch(p);
+    await until(() => srv.requests.length === 1, "請求送達");
+    // 推進到期限前 1 ms 仍未結束、再 1 ms 才結束：期限被改短（甚至 0）也抓得到
+    clock.advance(DEADLINE_MS - 1);
+    assert.ok(await stillPending(w), "期限到之前不該結束");
+    clock.advance(1);
+    await assert.rejects(p, { code: "GGL_FETCH_DEADLINE" });
   },
 );
 
 test("T4 fetchJsonWithDeadline: 404 ⇒ 錯誤含 HTTP 404", async (t) => {
+  useMockClock(t);
   const srv = await startServer(status(404));
   t.after(() => srv.close());
   await assert.rejects(fetchJsonWithDeadline(srv.url, { deadlineMs: DEADLINE_MS }), /HTTP 404/);
 });
 
 test("T4 fetchJsonWithDeadline: 不是 JSON ⇒ 丟錯", async (t) => {
+  useMockClock(t);
   const srv = await startServer(serve(Buffer.from("<html>")));
   t.after(() => srv.close());
   await assert.rejects(fetchJsonWithDeadline(srv.url, { deadlineMs: DEADLINE_MS }), /JSON/);
@@ -90,17 +105,17 @@ test(
   "T4 fetchJsonWithDeadline: 外部中止 ⇒ 立刻丟、不是期限錯",
   { timeout: HANG_LIMIT_MS },
   async (t) => {
+    // 時間不推進：結束只可能來自中止本身（取代原本「中止後 200 ms 內」的真時間上限）
+    useMockClock(t);
     const srv = await startServer(stallAfterHeaders);
     t.after(() => srv.close());
     const outer = new AbortController();
     const p = fetchJsonWithDeadline(srv.url, { deadlineMs: 60_000, signal: outer.signal });
-    let abortedAt = 0;
-    setTimeout(() => {
-      abortedAt = Date.now();
-      outer.abort();
-    }, 100);
+    const w = watch(p);
+    await until(() => srv.requests.length === 1, "請求送達");
+    assert.ok(await stillPending(w), "中止之前不該結束");
+    outer.abort();
     await assert.rejects(p, (e) => e?.code !== "GGL_FETCH_DEADLINE");
-    assert.ok(Date.now() - abortedAt < 200, `took ${Date.now() - abortedAt} ms`);
 
     const pre = new AbortController();
     pre.abort();
@@ -114,12 +129,14 @@ test(
   "T4 fetchTextWithDeadline: body 停住 ⇒ GGL_FETCH_DEADLINE；正常 ⇒ 文字",
   { timeout: HANG_LIMIT_MS },
   async (t) => {
+    const clock = useMockClock(t);
     const stuck = await startServer(stallAfterHeaders);
     const ok = await startServer(serve(Buffer.from("abc  x.zip\n")));
     t.after(() => Promise.all([stuck.close(), ok.close()]));
-    await assert.rejects(fetchTextWithDeadline(stuck.url, { deadlineMs: DEADLINE_MS }), {
-      code: "GGL_FETCH_DEADLINE",
-    });
+    const p = fetchTextWithDeadline(stuck.url, { deadlineMs: DEADLINE_MS });
+    await until(() => stuck.requests.length === 1, "請求送達");
+    clock.advance(DEADLINE_MS);
+    await assert.rejects(p, { code: "GGL_FETCH_DEADLINE" });
     assert.equal(
       await fetchTextWithDeadline(ok.url, { deadlineMs: DEADLINE_MS }),
       "abc  x.zip\n",
@@ -237,6 +254,7 @@ test("T5 空陣列 ⇒ resolve；worker 同步 throw ⇒ 當成 reject", async (
 const SHA1 = sha("sha1", BODY);
 
 test("T6a 第一台 520、第二台正常 ⇒ 檔到、sha1 對", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const a = await startServer(status(520));
   const b = await startServer(serve(BODY));
   t.after(() => Promise.all([a.close(), b.close()]));
@@ -254,6 +272,7 @@ test("T6a 第一台 520、第二台正常 ⇒ 檔到、sha1 對", { timeout: HAN
 });
 
 test("T6b 第一台內容錯、第二台對 ⇒ 成功、dest 是對的內容", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const a = await startServer(serve(WRONG));
   const b = await startServer(serve(BODY));
   t.after(() => Promise.all([a.close(), b.close()]));
@@ -272,6 +291,7 @@ test("T6b 第一台內容錯、第二台對 ⇒ 成功、dest 是對的內容", 
 });
 
 test("T6c 全部內容錯 ⇒ GGL_RUNTIME_DOWNLOAD_FAILED、訊息含每台、dest 與 .tmp 都不在", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const a = await startServer(serve(WRONG));
   const b = await startServer(serve(WRONG));
   t.after(() => Promise.all([a.close(), b.close()]));
@@ -320,6 +340,7 @@ test("T6d 外部中止 ⇒ 丟錯、第二台零請求", { timeout: HANG_LIMIT_M
 });
 
 test("T6e 每台各自的 sha256：第一台對不上、第二台對 ⇒ 成功", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const a = await startServer(serve(BODY));
   const b = await startServer(serve(BODY));
   t.after(() => Promise.all([a.close(), b.close()]));
@@ -373,6 +394,7 @@ test("T7 createSourceHealth：排序穩定、降級的排最後、降兩個維�
 });
 
 test("T7 停住一次就降級：第二個檔對第一台零請求", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const clock = useMockClock(t);
   const a = await startServer(stallAfterHeaders);
   const b = await startServer(serve(BODY));
   t.after(() => Promise.all([a.close(), b.close()]));
@@ -389,7 +411,10 @@ test("T7 停住一次就降級：第二個檔對第一台零請求", { timeout: 
     health,
     deps: { stall: STALL, log: (l) => lines.push(l) },
   });
-  await downloadRuntimeFile(opts("one"));
+  const one = downloadRuntimeFile(opts("one"));
+  await until(() => a.requests.length === 1, "第一台收到請求");
+  clock.advance(STALL.windowMs); // 第一台停住 ⇒ 看門狗中止、降級、改抓第二台
+  await one;
   assert.equal(a.requests.length, 1);
   await downloadRuntimeFile(opts("two"));
   assert.equal(a.requests.length, 1, "第二個檔不該再試被降級的來源");
@@ -398,6 +423,7 @@ test("T7 停住一次就降級：第二個檔對第一台零請求", { timeout: 
 });
 
 test("T7 立刻失敗（520）不降級：第二個檔仍先試第一台（A13）", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const a = await startServer(status(520));
   const b = await startServer(serve(BODY));
   t.after(() => Promise.all([a.close(), b.close()]));

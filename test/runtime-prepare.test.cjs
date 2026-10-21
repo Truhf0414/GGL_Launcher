@@ -12,6 +12,7 @@ const path = require("path");
 const { prepareRuntime } = require("../main/runtime/prepare.js");
 const { installRuntimeFiles } = require("../main/runtime/minecraft.js");
 const { startFakeRuntime, MC, LOADER, LAUNCH_ID } = require("./helpers/fake-runtime.cjs");
+const { useMockClock } = require("./helpers/mock-clock.cjs");
 
 const HANG_LIMIT_MS = 10_000;
 const ENV = Object.freeze({
@@ -104,7 +105,10 @@ test("T23 Java 那步丟錯 ⇒ 檔案那步沒被呼叫", async () => {
 
 // ── 真的步驟 ──
 
+// 期限與看門狗交給 mock 時鐘、這裡不推進：正常的安裝不會因行程被搶走 CPU 而被判逾時
+// （→ _notes/plans/test-real-clock.md）
 async function readyInstall(t, { withVanillaJson }) {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const root = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-rt-prep-"));
   t.after(() => fsp.rm(root, { recursive: true, force: true }));

@@ -12,6 +12,12 @@ const path = require("path");
 
 const { startFakeRuntime, MC, LOADER, LAUNCH_ID } = require("./helpers/fake-runtime.cjs");
 const { snapshot } = require("./helpers/fs-snapshot.cjs");
+const {
+  useMockClock,
+  until,
+  watch,
+  stillPending,
+} = require("./helpers/mock-clock.cjs");
 const { runtimeNeeds } = require("../lib/runtime-needs.js");
 const {
   runtimeCandidates,
@@ -65,6 +71,8 @@ const json = (obj) => (req, res) => {
 
 const noMirror = async () => ({ name: "Mojang 官方", base: "" });
 
+// 期限與看門狗的時間交給 mock 時鐘：會發請求的案一開頭就 useMockClock，正常路徑不推進時間（不會自己到期）；
+// 停住是預期結果的案等停住的請求到了才推進（→ _notes/plans/test-real-clock.md）
 function setup(fake, extra = {}) {
   return {
     deps: { ...fake.endpoints, stall: STALL, deadlineMs: DEADLINE_MS, ...extra },
@@ -126,6 +134,7 @@ test("T9 runtimeCandidates：照 §候選清單 的表逐格", () => {
 const MIRROR_JSON = `/mirror/version/${MC}/json`;
 
 test("T10 鏡像正常 ⇒ manifest 零請求", async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const j = await fetchVanillaVersionJson({
     minecraft: MC,
@@ -137,6 +146,7 @@ test("T10 鏡像正常 ⇒ manifest 零請求", async (t) => {
 });
 
 test("T10 鏡像 404 ⇒ 抓 manifest、再抓官方", async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   fake.overrides.set(MIRROR_JSON, status(404));
   const j = await fetchVanillaVersionJson({
@@ -149,6 +159,7 @@ test("T10 鏡像 404 ⇒ 抓 manifest、再抓官方", async (t) => {
 });
 
 test("T10 鏡像 200 但 id 錯 ⇒ 改抓官方（R#3）", async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   fake.overrides.set(MIRROR_JSON, json({ ...fake.vanilla, id: "1.21.10" }));
   const j = await fetchVanillaVersionJson({
@@ -161,18 +172,28 @@ test("T10 鏡像 200 但 id 錯 ⇒ 改抓官方（R#3）", async (t) => {
 });
 
 test("T10 鏡像 body 停住 ⇒ 期限後改抓官方", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const clock = useMockClock(t);
   const fake = await startFakeRuntime(t);
   fake.overrides.set(MIRROR_JSON, stallAfterHeaders);
-  const j = await fetchVanillaVersionJson({
+  const p = fetchVanillaVersionJson({
     minecraft: MC,
     getMirror: async () => fake.mirror,
     ...setup(fake),
   });
+  const w = watch(p);
+  await until(() => fake.requests.length === 1, "鏡像收到請求");
+  // 期限前 1 ms 還在等鏡像、沒碰官方；再 1 ms 才改抓官方：期限被改短也抓得到
+  clock.advance(DEADLINE_MS - 1);
+  assert.ok(await stillPending(w), "期限到之前不該結束");
+  assert.ok(!reqPaths(fake).includes("/official/version.json"), "期限到之前不該改抓官方");
+  clock.advance(1); // 鏡像停住 ⇒ 期限到、改抓官方
+  const j = await p;
   assert.equal(j.id, MC);
   assert.ok(reqPaths(fake).includes("/official/version.json"));
 });
 
 test("T10 全部失敗 ⇒ 丟錯、訊息列出每個候選", async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   fake.overrides.set(MIRROR_JSON, status(404));
   fake.overrides.set("/official/manifest.json", status(503));
@@ -196,6 +217,7 @@ const fabricArgs = (fake) => ({
 });
 
 test("T11 第一台 500 ⇒ 第二台", async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   fake.overrides.set("/fabric-1/profile.json", status(500));
   const j = await fetchFabricProfileJson(fabricArgs(fake));
@@ -204,6 +226,7 @@ test("T11 第一台 500 ⇒ 第二台", async (t) => {
 });
 
 test("T11 第一台回的 json 沒有 mainClass ⇒ 第二台", async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const { mainClass, ...noMain } = fake.fabric;
   void mainClass;
@@ -214,13 +237,18 @@ test("T11 第一台回的 json 沒有 mainClass ⇒ 第二台", async (t) => {
 });
 
 test("T11 第一台 body 停住 ⇒ 期限後第二台", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const clock = useMockClock(t);
   const fake = await startFakeRuntime(t);
   fake.overrides.set("/fabric-1/profile.json", stallAfterHeaders);
-  const j = await fetchFabricProfileJson(fabricArgs(fake));
+  const p = fetchFabricProfileJson(fabricArgs(fake));
+  await until(() => fake.requests.length === 1, "第一台收到請求");
+  clock.advance(DEADLINE_MS); // 第一台停住 ⇒ 期限到、改抓第二台
+  const j = await p;
   assert.equal(j.id, LAUNCH_ID);
 });
 
 test("T11 三台全失敗 ⇒ 訊息含三個網址", async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   for (const n of [1, 2, 3]) fake.overrides.set(`/fabric-${n}/profile.json`, status(500));
   await assert.rejects(fetchFabricProfileJson(fabricArgs(fake)), (e) =>
@@ -274,6 +302,7 @@ test("T12 本機兩份有效、verifyAll 假 ⇒ 零請求、回 javaMajor／com
 });
 
 test("T12 本機目標 json 的 inheritsFrom 錯 ⇒ 只重抓目標那份", async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const gameDir = await tempDir(t);
   await writeLocal(gameDir, VANILLA_REL, fake.vanilla);
@@ -289,6 +318,7 @@ for (const [name, content] of [
   ["內容是 {", "{"],
 ]) {
   test(`T12 本機原版${name} ⇒ 重抓原版`, async (t) => {
+    useMockClock(t);
     const fake = await startFakeRuntime(t);
     const gameDir = await tempDir(t);
     if (content !== null) await writeLocal(gameDir, VANILLA_REL, content);
@@ -301,6 +331,7 @@ for (const [name, content] of [
 }
 
 test("T12 verifyAll 真 ⇒ 兩份都抓、檔案被覆寫", async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const gameDir = await tempDir(t);
   await writeLocal(gameDir, VANILLA_REL, { ...fake.vanilla, marker: 1 });
@@ -320,6 +351,7 @@ function failAllFetches(fake) {
 }
 
 test("T12 抓到的全部驗不過 ⇒ 丟錯、本機兩份 bytes 不變", async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const gameDir = await tempDir(t);
   const badTarget = JSON.stringify({ ...fake.fabric, inheritsFrom: "1.21.10" });
@@ -337,6 +369,7 @@ test("T12 抓到的全部驗不過 ⇒ 丟錯、本機兩份 bytes 不變", asyn
 });
 
 test("T12 verifyAll 真且全部抓不到 ⇒ 丟錯、本機兩份 bytes 不變", async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const gameDir = await tempDir(t);
   await writeLocal(gameDir, VANILLA_REL, fake.vanilla);
@@ -392,6 +425,7 @@ const needs = (fake) =>
   });
 
 test("T13 白名單：空 gameDir 裝完，該有的都有、沒多下", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const gameDir = await tempDir(t);
   await installRuntimeFiles(installArgs(fake, gameDir, { getMirror: async () => fake.mirror }));
@@ -431,6 +465,7 @@ test("T13 白名單：空 gameDir 裝完，該有的都有、沒多下", { timeo
 // ── ⑤b K6、K8：log4j 設定檔、env（→ _notes/plans/instance-sync-v3-commit5b.md）──
 
 test("K6 log4j 設定檔的內容與宣告的 sha1 不符 ⇒ 失敗、檔不留", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const gameDir = await tempDir(t);
   fake.overrides.set(fake.officialPathOf(fake.logConfigRel), json({ wrong: true }));
@@ -441,6 +476,7 @@ test("K6 log4j 設定檔的內容與宣告的 sha1 不符 ⇒ 失敗、檔不留
 });
 
 test("K6 verifyAll 假：本機的 log4j 設定檔內容錯 ⇒ 重下（每次都驗）", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const gameDir = await tempDir(t);
   await writeLocal(gameDir, fake.logConfigRel, "corrupted");
@@ -450,6 +486,7 @@ test("K6 verifyAll 假：本機的 log4j 設定檔內容錯 ⇒ 重下（每次�
 });
 
 test("K6 Fabric 自己有 logging ⇒ 下載 Fabric 那份、不下原版那份（與就緒同一套合併，V-a）", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const gameDir = await tempDir(t);
   const id = "fabric-log.xml";
@@ -478,6 +515,7 @@ test("K8 installRuntimeFiles 沒給 env ⇒ TypeError，一個請求都沒發", 
 });
 
 test("T13 某支 library 的內容與宣告的 sha1 不符 ⇒ 失敗（驗證真的在跑）", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const gameDir = await tempDir(t);
   const rel = fake.windowsLibraryRels()[0];
@@ -489,6 +527,7 @@ test("T13 某支 library 的內容與宣告的 sha1 不符 ⇒ 失敗（驗證�
 });
 
 test("T14 verifyAll 假：正確的 library 不重下；錯內容的版本 jar 與 asset index 會重下", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const gameDir = await tempDir(t);
   const lib = fake.windowsLibraryRels()[0];
@@ -508,6 +547,7 @@ test("T14 verifyAll 假：正確的 library 不重下；錯內容的版本 jar �
 });
 
 test("T14 verifyAll 假：內容錯但存在的 library 不驗、不重下（更新只看存在）", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const gameDir = await tempDir(t);
   const lib = fake.windowsLibraryRels()[0];
@@ -517,6 +557,7 @@ test("T14 verifyAll 假：內容錯但存在的 library 不驗、不重下（更
 });
 
 test("T14 verifyAll 真：一支 library 內容錯 ⇒ 只有它被重下", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const gameDir = await tempDir(t);
   await installRuntimeFiles(installArgs(fake, gameDir));
@@ -530,12 +571,14 @@ test("T14 verifyAll 真：一支 library 內容錯 ⇒ 只有它被重下", { ti
 });
 
 test("T14 asset index 的 sha1 對、但 objects 不是物件 ⇒ 丟錯", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t, { indexJson: { objects: [] } });
   const gameDir = await tempDir(t);
   await assert.rejects(installRuntimeFiles(installArgs(fake, gameDir)), /objects 不是物件/);
 });
 
 test("T14 小 index 兩筆共用同一個 hash ⇒ 只請求一次（R#34）", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t, { duplicateObject: true });
   const gameDir = await tempDir(t);
   await installRuntimeFiles(installArgs(fake, gameDir));
@@ -545,6 +588,7 @@ test("T14 小 index 兩筆共用同一個 hash ⇒ 只請求一次（R#34）", {
 });
 
 test("T15 失敗收尾：一支 404、一支停住 ⇒ 丟 404 那個、之後沒請求沒進度、連線已關、沒暫存檔", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const clock = useMockClock(t);
   const fake = await startFakeRuntime(t);
   const gameDir = await tempDir(t);
   const [h404, hStall] = fake.objectHashes;
@@ -566,7 +610,11 @@ test("T15 失敗收尾：一支 404、一支停住 ⇒ 丟 404 那個、之後�
 
   const reqsAtReject = fake.requests.length;
   const progressAtReject = progress.length;
-  await new Promise((r) => setTimeout(r, 500));
+  // 原本真等 500 ms：改成等停住那支的連線真的關掉（事件），再推進 500 ms（殘留的計時器會在這裡觸發）、
+  // 讓出幾輪 I/O（殘留的請求、進度會在這裡到）
+  await until(() => stalledClosed, "停住那支的連線關閉");
+  clock.advance(500);
+  for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r));
   assert.equal(fake.requests.length, reqsAtReject, "丟錯之後不該再有請求");
   assert.equal(progress.length, progressAtReject, "丟錯之後不該再有進度");
   assert.equal(stalledClosed, true, "停住那支的連線應已關閉");
@@ -575,29 +623,47 @@ test("T15 失敗收尾：一支 404、一支停住 ⇒ 丟 404 那個、之後�
 });
 
 const stallCases = [
-  ["版本 jar", (fake) => fake.officialPathOf(`versions/${MC}/${MC}.jar`)],
-  ["library", (fake) => fake.officialPathOf(fake.windowsLibraryRels()[0])],
-  ["asset index", (fake) => fake.officialPathOf("assets/indexes/29.json")],
-  ["asset object", (fake) => fake.officialPathOf(`assets/objects/${fake.objectHashes[0].slice(0, 2)}/${fake.objectHashes[0]}`)],
+  ["版本 jar", "version-jar", (fake) => fake.officialPathOf(`versions/${MC}/${MC}.jar`)],
+  ["library", "libraries", (fake) => fake.officialPathOf(fake.windowsLibraryRels()[0])],
+  ["asset index", "asset-index", (fake) => fake.officialPathOf("assets/indexes/29.json")],
+  ["asset object", "assets", (fake) => fake.officialPathOf(`assets/objects/${fake.objectHashes[0].slice(0, 2)}/${fake.objectHashes[0]}`)],
 ];
-for (const [name, pathOf] of stallCases) {
-  test(`T16 ${name} 所有候選都停住 ⇒ 3 個窗口內以停滯失敗（18-13、R#20）`, { timeout: HANG_LIMIT_MS }, async (t) => {
+for (const [name, group, pathOf] of stallCases) {
+  test(`T16 ${name} 所有候選都停住 ⇒ 窗口到之前不結束、到了以停滯失敗（18-13、R#20）`, { timeout: HANG_LIMIT_MS }, async (t) => {
+    const clock = useMockClock(t);
     const fake = await startFakeRuntime(t);
     const gameDir = await tempDir(t);
-    let stalledAt = 0;
+    let stalledReqs = 0;
     fake.overrides.set(pathOf(fake), (req, res) => {
-      stalledAt = Date.now();
+      stalledReqs += 1;
       stallAfterHeaders(req, res);
     });
-    await assert.rejects(installRuntimeFiles(installArgs(fake, gameDir)), (e) =>
-      e.message.includes("停滯"),
+    // 推進時間會讓池子裡每個還在下載的檔的看門狗一起到期：同組其他檔都下完、只剩停住那支才推進。
+    // 「下完」看進度的 done；注入的 now 每次跳 1000 ms，節流不擋，每次 finish 都送得出來
+    let fakeNow = 0;
+    const latest = new Map();
+    const p = installRuntimeFiles(
+      installArgs(fake, gameDir, {
+        deps: { ...setup(fake).deps, now: () => (fakeNow += 1000) },
+        onProgress: (x) => latest.set(x.group, x),
+      }),
     );
-    assert.ok(stalledAt > 0);
-    assert.ok(Date.now() - stalledAt < STALL.windowMs * 3, `took ${Date.now() - stalledAt} ms`);
+    const w = watch(p);
+    await until(
+      () => stalledReqs > 0 && latest.get(group)?.done === latest.get(group)?.total - 1,
+      `停住那支收到請求、${group} 其他檔都下完`,
+      HANG_LIMIT_MS,
+    );
+    assert.ok(await stillPending(w), "窗口到之前不該結束");
+    clock.advance(STALL.windowMs);
+    await assert.rejects(p, (e) => e.message.includes("停滯"));
+    assert.ok(stalledReqs > 0);
   });
 }
 
 test("T17 進度：同 group 的非最後一筆間隔 ≥ 180 ms、最後一筆 done === total、欄位形狀", { timeout: HANG_LIMIT_MS }, async (t) => {
+  // 節流用的是下面注入的 now；全域時鐘照樣交給 mock，期限、看門狗才不會自己到期
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const gameDir = await tempDir(t);
   let clock = 0;
@@ -638,21 +704,25 @@ test("T17 進度：同 group 的非最後一筆間隔 ≥ 180 ms、最後一筆 
 });
 
 test("T17 log：換台 RUNTIME_SOURCE、降級 RUNTIME_DEMOTE、池子中止 RUNTIME_ABORT", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const clock = useMockClock(t);
   const fake = await startFakeRuntime(t);
   const gameDir = await tempDir(t);
-  fake.overrides.set(`/mirror/version/${MC}/client`, stallAfterHeaders);
+  const stalledJar = `/mirror/version/${MC}/client`;
+  fake.overrides.set(stalledJar, stallAfterHeaders);
   const h = fake.objectHashes[0];
   fake.overrides.set(`/official/objects/${h.slice(0, 2)}/${h}`, status(404));
   fake.overrides.set(`/mirror/assets/${h.slice(0, 2)}/${h}`, status(404));
   const lines = [];
-  await assert.rejects(
-    installRuntimeFiles(
-      installArgs(fake, gameDir, {
-        getMirror: async () => fake.mirror,
-        deps: { ...setup(fake).deps, log: (l) => lines.push(l) },
-      }),
-    ),
+  const p = installRuntimeFiles(
+    installArgs(fake, gameDir, {
+      getMirror: async () => fake.mirror,
+      deps: { ...setup(fake).deps, log: (l) => lines.push(l) },
+    }),
   );
+  // 版本 jar 這組只有它一個檔：請求到了就只剩它的看門狗在跑
+  await until(() => reqPaths(fake).includes(stalledJar), "鏡像收到版本 jar 的請求");
+  clock.advance(STALL.windowMs); // 鏡像停住 ⇒ 降級、換官方
+  await assert.rejects(p);
   const text = lines.join("\n");
   assert.match(text, /^RUNTIME_DEMOTE mirror$/m);
   assert.match(text, /^RUNTIME_SOURCE .*\.jar mirror → mojang$/m);
@@ -708,6 +778,7 @@ async function expectLinkRefused({ act, gameDir, outside, linkRel, wantPath }) {
 }
 
 test("D1 libraries/com 是 junction、verifyAll 真、外部的 jar 內容壞 ⇒ 拒絕；外部 jar 原樣、沒有請求打到它", { skip: !onWindows, timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const { gameDir, outside } = await installedGame(t, fake);
   const rel = comJar(fake);
@@ -727,6 +798,7 @@ test("D1 libraries/com 是 junction、verifyAll 真、外部的 jar 內容壞 �
 });
 
 test("D2 libraries/com 是 junction、verifyAll 假、外部缺那個 jar ⇒ 拒絕；外部沒有多出它", { skip: !onWindows, timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const { gameDir, outside } = await installedGame(t, fake);
   const rel = comJar(fake);
@@ -744,6 +816,7 @@ test("D2 libraries/com 是 junction、verifyAll 假、外部缺那個 jar ⇒ �
 });
 
 test("D3 對照：libraries/com 是 junction、verifyAll 假、外部 jar 內容壞（不用修改）⇒ 不拒、外部不變", { skip: !onWindows, timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const { gameDir, outside } = await installedGame(t, fake);
   await junctionAt(gameDir, "libraries/com", outside);
@@ -755,6 +828,7 @@ test("D3 對照：libraries/com 是 junction、verifyAll 假、外部 jar 內容
 });
 
 test("D4 versions/<mc> 是 junction、verifyAll 真、外部 client jar 內容壞 ⇒ 拒絕、外部不變", { skip: !onWindows, timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const { gameDir, outside } = await installedGame(t, fake);
   const dirRel = `versions/${MC}`;
@@ -770,6 +844,7 @@ test("D4 versions/<mc> 是 junction、verifyAll 真、外部 client jar 內容�
 });
 
 test("D5 assets/objects/<xx> 是 junction、那個 asset 不在 ⇒ 拒絕、外部不變", { skip: !onWindows, timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const { gameDir, outside } = await installedGame(t, fake);
   const h = fake.objectHashes[0];
@@ -786,6 +861,7 @@ test("D5 assets/objects/<xx> 是 junction、那個 asset 不在 ⇒ 拒絕、外
 });
 
 test("D6 ensureVersionJsons：versions/<mc> 是 junction、verifyAll 真 ⇒ 寫 json 之前拒絕；外部 json 位元組不變、沒有 .tmp", { skip: !onWindows, timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const { gameDir, outside } = await installedGame(t, fake);
   const dirRel = `versions/${MC}`;
@@ -800,6 +876,7 @@ test("D6 ensureVersionJsons：versions/<mc> 是 junction、verifyAll 真 ⇒ 寫
 });
 
 test("D8 目標本身：某支 library 的 jar 位置是 junction ⇒ 拒絕、junction 還在、外部不變", { skip: !onWindows, timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
   const fake = await startFakeRuntime(t);
   const { gameDir, outside } = await installedGame(t, fake);
   const rel = comJar(fake);

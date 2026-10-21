@@ -13,6 +13,12 @@ const path = require("path");
 
 const { startServer } = require("./helpers/local-http.cjs");
 const { snapshot } = require("./helpers/fs-snapshot.cjs");
+const {
+  useMockClock,
+  until,
+  watch,
+  stillPending,
+} = require("./helpers/mock-clock.cjs");
 const { installJava, runJava, DEFAULT_ENDPOINTS } = require("../main/runtime/java.js");
 
 const HANG_LIMIT_MS = 10_000;
@@ -50,11 +56,21 @@ async function listFiles(dir, base = dir) {
   return out;
 }
 
+// 期限（deadlineMs）與看門狗（stall.windowMs）都只有 300 ms：時間交給 mock 時鐘，正常的案不推進
+// （期限不會自己到），停住的案等請求到了才推進（→ _notes/plans/test-real-clock.md）。
+// 同一案呼叫兩次 javaEnv 時共用同一個時鐘（mock 一個測試只能開一次）。
+const clocks = new WeakMap();
+function clockFor(t) {
+  if (!clocks.has(t)) clocks.set(t, useMockClock(t));
+  return clocks.get(t);
+}
+
 /**
  * @param {{ extract?: "ok" | "two-roots" | "no-java" | "throw", versionCode?: number,
  *   component?: string, major?: number }} [opts]
  */
 async function javaEnv(t, opts = {}) {
+  const clock = clockFor(t);
   const major = opts.major ?? 21;
   const component = opts.component ?? "java-runtime-delta";
   const base = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-rt-java-"));
@@ -124,6 +140,7 @@ async function javaEnv(t, opts = {}) {
   };
   const dir = path.join(root, "runtime", `java-${major}`);
   return {
+    clock,
     paths,
     root,
     base,
@@ -429,14 +446,20 @@ test("T22 Mojang all.json body 停住 ⇒ 期限內失敗、正式目錄原狀",
   const env = await javaEnv(t, { extract: "throw" });
   await putA(env.dir);
   env.overrides.set("/mojang/all.json", stallAfterHeaders);
-  await assert.rejects(installJava(env.args({ reinstall: true })), /秒沒完成/);
+  const p = installJava(env.args({ reinstall: true }));
+  await until(() => env.srv.requests.some((q) => q.url === "/mojang/all.json"), "all.json 請求送達");
+  env.clock.advance(env.deps.deadlineMs); // all.json 停住 ⇒ 期限到
+  await assert.rejects(p, /秒沒完成/);
   await assertIsA(env.dir);
 });
 
 test("T22 Zulu 查詢 body 停住 ⇒ 那個來源被跳過、其他照用", { timeout: HANG_LIMIT_MS }, async (t) => {
   const env = await javaEnv(t);
   env.overrides.set("/zulu/21", stallAfterHeaders);
-  const r = await installJava(env.args());
+  const p = installJava(env.args());
+  await until(() => env.srv.requests.some((q) => q.url === "/zulu/21"), "Zulu 查詢送達");
+  env.clock.advance(env.deps.deadlineMs); // Zulu 停住 ⇒ 期限到、跳過那個來源
+  const r = await p;
   assert.equal(await fsp.readFile(r.javaExe, "utf8"), ZIP_JAVA);
   assert.ok(env.srv.requests.some((q) => q.url === "/zulu/21"), "Zulu 真的有被查");
   assert.ok(!env.srv.requests.some((q) => q.url === "/dl/zulu.zip"));
@@ -450,15 +473,16 @@ test("中止：Zulu 查詢期間外部中止 ⇒ 不再測速、不下載、很�
   env.overrides.set("/zulu/21", stallAfterHeaders);
   let ranked = false;
   const outer = new AbortController();
-  setTimeout(() => outer.abort(), 100);
-  const t0 = Date.now();
-  await assert.rejects(
-    installJava({
-      ...env.args({ deps: { deadlineMs: 60_000, rankSources: async (s) => ((ranked = true), s) } }),
-      signal: outer.signal,
-    }),
-  );
-  assert.ok(Date.now() - t0 < 1000, `took ${Date.now() - t0} ms`);
+  // 時間不推進：結束只可能來自中止本身（取代原本「1000 ms 內」的真時間上限）
+  const p = installJava({
+    ...env.args({ deps: { deadlineMs: 60_000, rankSources: async (s) => ((ranked = true), s) } }),
+    signal: outer.signal,
+  });
+  const w = watch(p);
+  await until(() => env.srv.requests.some((q) => q.url === "/zulu/21"), "Zulu 查詢送達");
+  assert.ok(await stillPending(w), "中止之前不該結束");
+  outer.abort();
+  await assert.rejects(p);
   assert.equal(ranked, false, "取消後不該再測速");
   assert.ok(!env.srv.requests.some((q) => q.url.startsWith("/adoptium/") || q.url.startsWith("/mojang/")));
   assert.equal(await exists(env.dir), false);
