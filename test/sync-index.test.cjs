@@ -374,6 +374,14 @@ const respond503 = (file) => (req, res) => {
   res.end();
   return true;
 };
+const respondBody = (file, status, body) => (req, res) => {
+  if (req.url !== file) return false;
+  res.writeHead(status, { "content-type": "application/json" });
+  res.end(body);
+  return true;
+};
+// 型別錯 ⇒ site-client 判 invalid（D-GATE：不准安裝、更新、修復，就緒仍可啟動）
+const BAD_GATE = { maintenance: { enabled: "yes" } };
 
 test("U6 啟動持鎖期間呼叫 getInstanceStatus ⇒ kind 不是 syncing", async (t) => {
   const h = await setup(t, { installed: { release: REL_1 } });
@@ -770,6 +778,24 @@ const KIND_CASES = [
       installed: { release: REL_1 },
       site: { release: { version: "x" } },
     },
+  },
+  {
+    kind: "invalid",
+    name: "gate 型別錯",
+    opts: { installed: { release: REL_1 }, site: { gate: BAD_GATE } },
+  },
+  {
+    kind: "invalid",
+    name: "gate 404",
+    opts: {
+      installed: { release: REL_1 },
+      site: { respond: respondBody("/gate.json", 404, "") },
+    },
+  },
+  {
+    kind: "invalid",
+    name: "gate 型別錯＋沒有記錄（不能安裝）",
+    opts: { site: { gate: BAD_GATE } },
   },
   { kind: "not-installed", opts: { site: { release: REL_1 } } },
   {
@@ -1549,6 +1575,30 @@ test("N11 listStrayJars：站台抓不到 ⇒ GGL_SYNC_NOT_ALLOWED", async (t) =
   await assert.rejects(h.sync.listStrayJars(), isCode("GGL_SYNC_NOT_ALLOWED"));
 });
 
+test("N11 listStrayJars：gate 壞 ⇒ GGL_SYNC_NOT_ALLOWED（安裝流程的第一步就擋）", async (t) => {
+  const h = await setup(t, { site: { gate: BAD_GATE } });
+  await assert.rejects(h.sync.listStrayJars(), (e) => {
+    isCode("GGL_SYNC_NOT_ALLOWED")(e);
+    assert.equal(e.kind, "invalid");
+    return true;
+  });
+});
+
+test("gate 壞經真的 site-client：404、非 JSON 的原因進 errorTexts，gateMessages 不另出", async (t) => {
+  for (const [respond, line] of [
+    [respondBody("/gate.json", 404, ""), "gate.json：HTTP 404"],
+    [respondBody("/gate.json", 200, "{ not json"), "gate.json：內容不是 JSON"],
+  ]) {
+    const h = await setup(t, { installed: { release: REL_1 }, site: { respond } });
+    const s = await h.sync.getInstanceStatus();
+    assertKind(s, "invalid");
+    assert.deepEqual(s.gateMessages, [], line);
+    assert.deepEqual(s.errorTexts, [line]);
+    assert.deepEqual(s.allowed, { update: false, repair: false }, line);
+    assert.equal(s.ui.canLaunch, true, line);
+  }
+});
+
 test(
   "N11 listStrayJars：修復套用中 ⇒ GGL_SYNC_NOT_ALLOWED（syncing）；啟動持鎖時照常回",
   { timeout: HANG_LIMIT_MS },
@@ -1773,6 +1823,30 @@ const LAUNCH_MATRIX = [
     kind: "invalid",
     localReady: false,
     reasons: ["runtime-missing"],
+  },
+  {
+    name: "invalid＋齊（gate 型別錯）",
+    opts: { installed: { release: REL_1 }, site: { gate: BAD_GATE } },
+    kind: "invalid",
+    localReady: true,
+    launch: true,
+  },
+  {
+    name: "invalid＋不齊（gate 型別錯、沒有 Java）",
+    opts: { installed: noJava(REL_1), site: { gate: BAD_GATE } },
+    kind: "invalid",
+    localReady: false,
+    reasons: ["runtime-missing"],
+  },
+  {
+    name: "invalid＋齊、站台有新版（gate 型別錯）⇒ 啟動本機舊版（D-GATE-STALE）",
+    opts: {
+      installed: { release: REL_1 },
+      site: { gate: BAD_GATE, release: REL_2 },
+    },
+    kind: "invalid",
+    localReady: true,
+    launch: true,
   },
   {
     name: "not-installed（沒有記錄、沒有 Java）",
