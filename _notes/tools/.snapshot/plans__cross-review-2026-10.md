@@ -126,10 +126,10 @@
 | 用語 | 意思 |
 |---|---|
 | 站台離線仍可啟動 | GGL3 站台連不上，但本機已就緒，仍可**經 Launcher** 啟動 |
-| Minecraft 離線帳號啟動 | 走 `minecraft:launchOffline`，用設定裡的 `playerId` 當名字；**仍經同一個 Launcher 啟動閘**（`main/ipc/minecraft-ipc.js:137-141`〔讀碼〕） |
+| Minecraft 離線帳號啟動 | 走 `minecraft:launchOffline`，用設定裡的 `playerId` 當名字；**仍經同一個 Launcher 啟動閘**（`main/ipc/minecraft-ipc.js:137-141`〔讀碼〕）〔對齊 2026-10-22：`main/ipc/minecraft-ipc.js:137-141` → `1695ed2`（Phase 4 後續：設定錯誤的顯示，→ history 2026-10-22） 改寫（拿掉 `withPlainErrors`）後 `:127-129`〕 |
 | 不經 Launcher 啟動 | 玩家繞過 Launcher 自己啟動遊戲。**本事件沒有承諾支援** |
 
-另：正版帳號的 token 到期時，啟動前要連微軟換新（`main/ipc/minecraft-ipc.js:100-122`〔讀碼〕），微軟連不上就無法用正版啟動。所以「站台離線可啟動」**不等於**「沒網路也能用正版啟動」。遊戲行程是 detached（`minecraft-launch.js` 的 `unref()`），**不等於**能不經 Launcher 發起。
+另：正版帳號的 token 到期時，啟動前要連微軟換新（`main/ipc/minecraft-ipc.js:100-122`〔讀碼〕）〔對齊 2026-10-22：`main/ipc/minecraft-ipc.js:100-122` → `1695ed2`（Phase 4 後續：設定錯誤的顯示，→ history 2026-10-22） 後 `:91-113`〕，微軟連不上就無法用正版啟動。所以「站台離線可啟動」**不等於**「沒網路也能用正版啟動」。遊戲行程是 detached（`minecraft-launch.js` 的 `unref()`），**不等於**能不經 Launcher 發起。
 
 出處：〔轉述〕Review Report §1.2、Decision Memory §B「啟動術語」；CC 讀碼確認（Response §4.5）。
 
@@ -270,7 +270,7 @@ ChatGPT Round2 開頭記載「owner 已表示除 U7 的新決定之外，目前�
 | U12 | `ci.yml` 留或刪 | **留**。原前提「repo 沒有 remote，CI 不會跑」已不成立：2026-10-13 推上 GitHub 後 CI 實際跑了，結果 success〔實測：`gh run list`〕。owner 2026-10-13 推 repo 時的回應：「我傾向讓他跑。」——這是傾向，不是明確裁決，所以仍列未決 | — | owner 一句話 |
 | U13 | `changelog.json` 的 `logUrl` 接受四種格式 | **只收純文字，一行一筆**。手改最好寫，`future-work.md`「公告與通知顯示的毛病」(c) 的「空清單顯示原始 JSON」會跟著消失。前提：站上現在的 changelog 是哪種格式，CC 沒看到；是 JSON 的話要一起改檔。ChatGPT：「唯一格式的具體樣式尚未決議」 | 6 | owner 確認站台現況後裁 |
 | U14 | 站台根目錄的 v2 殘留 `changelog.json`、`notice-thumb.jpg` | **清**。但 ChatGPT 提醒：repo 的文件不等於站台實況，要 owner 確認哪些檔真的還在、有沒有被引用，且站台操作由 owner 動手（CC 先前刪站台檔被權限擋過） | — | owner 確認後自己動手 |
-| U15 | IPC 三層別名（`ipc-setup` → `ipc-handlers` → `ipc-runtime`） | **三層全刪**；帳號 handler 的註冊搬進 `main/ipc/index.js` 的 `registerAllMainIpc`，成為唯一註冊入口；`scripts/lib/ipc-registry.js:23` 改成直接呼叫它；`microsoft-auth.js:626-636` 的 `removeHandler` 拿掉（§5.5 實測：重複註冊會丟錯，加上 ipc-registry 的重複檢查，兩層會抓到）。**另要定**：`ipc-handlers.js` 不只是別名，它還組裝 `createIpcBridgeSenders`、`createShowInfoDialog`、`createIpcRuntime` 並回傳整包 `send*`（SPR #38），這段組裝搬去哪要一起定，不要丟給 `start-main.js` 了事。**拒絕**只改名不減層 | 6 | owner 裁〔對齊 2026-10-22：`microsoft-auth.js:626-636` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 未移動〕 |
+| U15 | IPC 三層別名（`ipc-setup` → `ipc-handlers` → `ipc-runtime`） | **三層全刪**；帳號 handler 的註冊搬進 `main/ipc/index.js` 的 `registerAllMainIpc`，成為唯一註冊入口；`scripts/lib/ipc-registry.js:23` 改成直接呼叫它〔對齊 2026-10-22：`scripts/lib/ipc-registry.js:23` → `1695ed2`（Phase 4 後續：設定錯誤的顯示，→ history 2026-10-22） 後 `:28`〕；`microsoft-auth.js:626-636` 的 `removeHandler` 拿掉（§5.5 實測：重複註冊會丟錯，加上 ipc-registry 的重複檢查，兩層會抓到）。**另要定**：`ipc-handlers.js` 不只是別名，它還組裝 `createIpcBridgeSenders`、`createShowInfoDialog`、`createIpcRuntime` 並回傳整包 `send*`（SPR #38），這段組裝搬去哪要一起定，不要丟給 `start-main.js` 了事。**拒絕**只改名不減層 | 6 | owner 裁〔對齊 2026-10-22：`microsoft-auth.js:626-636` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 未移動〕 |
 
 U1、U8 早已裁（→ `defense-cleanup.md` §裁決）；U7、U9、U16 已由本檔 §3 D-JAVA、D-SET-NUM、D-SET-FILE 取代。
 
