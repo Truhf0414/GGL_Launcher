@@ -77,7 +77,7 @@ Use this table to find code after splits. **When you add or extract a new `main/
 | `main/mc-mirror.js` | BMCL / 自訂 / 官方鏡像、`rankSourcesByQuickProbe`、`getMcMirrorDecision`（TTL + 併發 single-flight） |
 | `main/runtime/download.js` | runtime 安裝的下載底層：整段有期限的 json／文字抓取、候選網址逐台下載並逐台驗 hash、來源健康度（停滯過的排最後）、第一個錯就全停且等全部停下的池 |
 | `main/runtime/minecraft.js` | 候選清單（鏡像／官方／Fabric 三台）、原版與 Fabric 兩份 version json（本機有效就沿用）、版本 jar／library／asset index／objects 的安裝與進度 |
-| `main/runtime/java.js` | 依大版本把 Java 裝到 `<root>/runtime/java-<major>`：zip 主路徑任何一步失敗就走 Mojang runtime 退路，暫存區驗過 `-version` 才經 `.old` 換上 |
+| `main/runtime/java.js` | 依大版本把 Java 裝到 `<root>/runtime/java-<major>`：官方 zip 候選逐一完整驗證（下載與 hash → 解壓 → `-version`），全部失敗才走 Mojang runtime 退路，取消立刻停；暫存區驗過才經 `.old` 換上 |
 | `main/runtime/prepare.js` | `prepareRuntime`：兩份 json → Java → 檔案串成一條，鏡像測速 lazy；同步中樞在更新／修復時呼叫 |
 | `lib/runtime-json.js` | 原版與 Fabric version json 的驗證（`checkVanillaJson`／`checkFabricJson`），本機讀到的與網路抓到的都用它；不支援 classifiers 式 natives。不 require electron |
 | `lib/launch-args.js` | version json → argv：rules、合併版本鏈、library 過濾、classpath、log4j 設定檔、placeholder 展開（`buildLaunchArgv`）；「啟動給什麼值」（`launchPlaceholders`）與「啟動吃不吃得下」（`checkLaunchable`，就緒與安裝共用）。不 require electron |

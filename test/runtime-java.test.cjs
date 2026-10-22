@@ -56,13 +56,54 @@ async function listFiles(dir, base = dir) {
   return out;
 }
 
+/** Adoptium feature_releases 回應的形狀（2026-10-22 實測）：一筆 GA release，binaries 裡一個 Windows x64 JRE zip */
+function adoptiumRelease(url, vendor, pkg = {}) {
+  const name = `adoptium-${vendor}.zip`;
+  return [
+    {
+      release_type: "ga",
+      binaries: [
+        {
+          os: "windows",
+          architecture: "x64",
+          image_type: "jre",
+          jvm_impl: "hotspot",
+          heap_size: "normal",
+          package: { name, link: `${url}/dl/${name}`, checksum: sha("sha256", ZIP), ...pkg },
+        },
+      ],
+    },
+  ];
+}
+
+const SEMERU_ZIP = "ibm-semeru-open-jre_x64_windows_21.0.1.zip";
+/**
+ * Semeru release（實測形狀）：別的平台的 sha256 檔排在前面，Windows zip 配 <zip 檔名>.sha256.txt。
+ * shaText＝那個 .sha256.txt 的內容；null ⇒ release 裡沒有那個檔
+ */
+function useSemeru(env, shaText = `${sha("sha256", ZIP)}  ${SEMERU_ZIP}\n`) {
+  const u = env.srv.url;
+  const assets = [
+    { name: "ibm-semeru-open-21-jre-21.0.1-1.aarch64.rpm.sha256.txt", browser_download_url: `${u}/dl/semeru-rpm.sha256.txt` },
+    { name: SEMERU_ZIP, browser_download_url: `${u}/dl/semeru.zip` },
+  ];
+  if (shaText !== null) assets.push({ name: `${SEMERU_ZIP}.sha256.txt`, browser_download_url: `${u}/dl/semeru.zip.sha256.txt` });
+  env.overrides.set("/semeru/21", sendJson({ assets }));
+  env.overrides.set("/dl/semeru-rpm.sha256.txt", send(Buffer.from(`${sha("sha256", ZIP)}  ibm-semeru-open-21-jre-21.0.1-1.aarch64.rpm\n`)));
+  env.overrides.set("/dl/semeru.zip", send(ZIP));
+  if (shaText !== null) env.overrides.set("/dl/semeru.zip.sha256.txt", send(Buffer.from(shaText)));
+}
+
 // 期限（deadlineMs）與看門狗（stall.windowMs）都只有 300 ms：時間交給 mock 時鐘，正常的案不推進
 // （期限不會自己到），停住的案等請求到了才推進（→ _notes/plans/test-real-clock.md）。
 // 同一案呼叫兩次 javaEnv 時 useMockClock 回同一個時鐘。
 
 /**
- * @param {{ extract?: "ok" | "two-roots" | "no-java" | "throw", versionCode?: number,
+ * extract／versionCode 給陣列 ⇒ 第 i 次呼叫用第 i 個（候選各自的下場）。
+ * 假的解壓在根目錄留 cand-<i>.txt，用來看前一個候選的殘留有沒有跟進下一個。
+ * @param {{ extract?: Extract | Extract[], versionCode?: number | number[],
  *   component?: string, major?: number }} [opts]
+ * @typedef {"ok" | "two-roots" | "no-java" | "throw"} Extract
  */
 async function javaEnv(t, opts = {}) {
   const clock = useMockClock(t);
@@ -99,7 +140,10 @@ async function javaEnv(t, opts = {}) {
   routes.set(`/zulu/${major}`, sendJson([{ download_url: `${url}/dl/zulu.zip`, sha256_hash: sha("sha256", ZIP) }]));
   routes.set(`/semeru/${major}`, sendJson({ assets: [] }));
   routes.set("/dl/zulu.zip", send(ZIP));
-  for (const v of ["eclipse", "adoptium"]) routes.set(`/adoptium/${major}/${v}`, send(ZIP));
+  for (const v of ["eclipse", "adoptium"]) {
+    routes.set(`/adoptium/${major}/${v}`, sendJson(adoptiumRelease(url, v)));
+    routes.set(`/dl/adoptium-${v}.zip`, send(ZIP));
+  }
   routes.set(
     "/mojang/all.json",
     sendJson({ "windows-x64": { [component]: [{ manifest: { url: `${url}/mojang/manifest.json` } }] } }),
@@ -107,7 +151,8 @@ async function javaEnv(t, opts = {}) {
   routes.set("/mojang/manifest.json", (req, res) => sendJson(manifest)(req, res));
 
   const runJavaCalls = [];
-  const extract = opts.extract ?? "ok";
+  const calls = { extract: 0 };
+  const nth = (v, i) => (Array.isArray(v) ? v[i] : v);
   const deps = {
     endpoints: {
       zuluQuery: (m) => `${url}/zulu/${m}`,
@@ -115,22 +160,25 @@ async function javaEnv(t, opts = {}) {
       adoptium: (m, v) => `${url}/adoptium/${m}/${v}`,
       mojangAll: `${url}/mojang/all.json`,
     },
-    env: {},
     rankSources: async (s) => s,
     stall: { windowMs: 300, minBytes: 1 },
     deadlineMs: 300,
     extractZip: async (zipPath, { dir }) => {
+      const i = calls.extract++;
+      const extract = nth(opts.extract ?? "ok", i);
       assert.deepEqual(await fsp.readFile(zipPath), ZIP, "解壓的是下載到的 zip");
       if (extract === "throw") throw new Error("假的解壓失敗");
       const jdk = path.join(dir, "jdk-fake-jre");
       await fsp.mkdir(path.join(jdk, "bin"), { recursive: true });
       await fsp.writeFile(path.join(jdk, "release"), "fake");
+      await fsp.writeFile(path.join(jdk, `cand-${i}.txt`), "residue marker");
       if (extract !== "no-java") await fsp.writeFile(path.join(jdk, "bin", "java.exe"), ZIP_JAVA);
       if (extract === "two-roots") await fsp.mkdir(path.join(dir, "second-root"));
     },
     runJava: async (exe, args, runOpts) => {
+      const code = nth(opts.versionCode ?? 0, runJavaCalls.length);
       runJavaCalls.push({ exe, args, runOpts });
-      return { code: opts.versionCode ?? 0, timedOut: false };
+      return { code, timedOut: false };
     },
   };
   const dir = path.join(root, "runtime", `java-${major}`);
@@ -146,6 +194,7 @@ async function javaEnv(t, opts = {}) {
     dir,
     old: `${dir}.old`,
     runJavaCalls,
+    calls,
     args: (extra = {}) => ({ paths, major, component, reinstall: false, ...extra, deps: { ...deps, ...extra.deps } }),
   };
 }
@@ -168,7 +217,7 @@ async function assertCleaned(env) {
 
 const zipFails = (env) => {
   env.overrides.set("/dl/zulu.zip", status(404));
-  for (const v of ["eclipse", "adoptium"]) env.overrides.set(`/adoptium/21/${v}`, status(404));
+  for (const v of ["eclipse", "adoptium"]) env.overrides.set(`/dl/adoptium-${v}.zip`, status(404));
 };
 
 // ── T18 參數表 ──
@@ -246,7 +295,6 @@ test("T19 major 25：來源網址都帶 25、zip 叫 jre25.zip、裝到 java-25�
   await fsp.writeFile(path.join(env.root, "runtime", "java-21", "標記檔"), "21");
 
   const fetched = [];
-  let ranked = [];
   const downloads = [];
   const fakeFetch = async (u) => {
     fetched.push(u);
@@ -264,10 +312,6 @@ test("T19 major 25：來源網址都帶 25、zip 叫 jre25.zip、裝到 java-25�
       ...env.deps,
       endpoints: undefined,
       fetchImpl: fakeFetch,
-      rankSources: async (s) => {
-        ranked = s.map((x) => x.url);
-        return s;
-      },
       download: async (u, dest) => {
         downloads.push({ u, dest });
         await fsp.mkdir(path.dirname(dest), { recursive: true });
@@ -278,7 +322,7 @@ test("T19 major 25：來源網址都帶 25、zip 叫 jre25.zip、裝到 java-25�
 
   const zuluQuery = fetched.find((u) => u.includes("api.azul.com"));
   const semeruQuery = fetched.find((u) => u.includes("api.github.com"));
-  const adoptium = ranked.filter((u) => u.includes("api.adoptium.net"));
+  const adoptium = fetched.filter((u) => u.includes("api.adoptium.net"));
   assert.equal(adoptium.length, 2);
   for (const u of [zuluQuery, semeruQuery, ...adoptium]) {
     assert.ok(u.includes("25"), u);
@@ -344,18 +388,36 @@ test("T20 reinstall 假且已有 bin/java.exe ⇒ 零下載", async (t) => {
   assert.equal(env.runJavaCalls.length, 0);
 });
 
-for (const extract of ["two-roots", "no-java", "throw"]) {
-  test(`T20 解壓 ${extract} ⇒ 走 Mojang 退路；退路也失敗 ⇒ 原狀、訊息含兩段`, { timeout: HANG_LIMIT_MS }, async (t) => {
+// javaEnv 的候選依序：Zulu（Semeru 查無 asset，不成候選）、Adoptium 兩條
+const ZIP_URLS = ["/dl/zulu.zip", "/dl/adoptium-eclipse.zip", "/dl/adoptium-adoptium.zip"];
+const ZIP_NAMES = ["Azul Zulu", "Adoptium(eclipse)", "Adoptium(adoptium)"];
+
+for (const [extract, stage] of [
+  ["two-roots", "解壓"],
+  ["no-java", "執行驗證"],
+  ["throw", "解壓"],
+]) {
+  test(`T20 每個候選解壓都 ${extract} ⇒ 全部試過才走 Mojang；退路也失敗 ⇒ 原狀、訊息列出每個來源與階段`, { timeout: HANG_LIMIT_MS }, async (t) => {
     const env = await javaEnv(t, { extract });
     const r = await installJava(env.args());
     assert.equal(await fsp.readFile(r.javaExe, "utf8"), "java from mojang");
+    const urls = env.srv.requests.map((q) => q.url);
+    const firstMojang = urls.findIndex((u) => u.startsWith("/mojang/"));
+    for (const u of ZIP_URLS) {
+      const i = urls.indexOf(u);
+      assert.ok(i >= 0 && i < firstMojang, `${u} 要在轉 Mojang 之前試過：${urls.join(" ")}`);
+    }
 
     const env2 = await javaEnv(t, { extract });
     await putA(env2.dir);
     env2.overrides.set("/mojang/manifest.json", status(500));
-    await assert.rejects(installJava(env2.args({ reinstall: true })), (e) =>
-      e.code === "GGL_JAVA_INSTALL_FAILED" && /zip 主路徑：/.test(e.message) && /Mojang 退路：.*HTTP 500/.test(e.message),
-    );
+    await assert.rejects(installJava(env2.args({ reinstall: true })), (e) => {
+      assert.equal(e.code, "GGL_JAVA_INSTALL_FAILED");
+      for (const name of ZIP_NAMES) assert.ok(e.message.includes(`${name}／${stage}：`), e.message);
+      assert.ok(e.message.includes("IBM Semeru／查詢："), "不成候選的來源也要在彙總裡");
+      assert.match(e.message, /Mojang 退路：.*HTTP 500/);
+      return true;
+    });
     await assertIsA(env2.dir);
     await assertCleaned(env2);
   });
@@ -371,20 +433,47 @@ test("T20 暫存目錄留有上次的舊檔 ⇒ 新正式目錄裡沒有那個�
   assert.equal(await exists(path.join(env.dir, "leftover.txt")), false);
 });
 
-test("T20 每個來源的 zip 都驗不過 ⇒ 走 Mojang 退路", { timeout: HANG_LIMIT_MS }, async (t) => {
-  const env = await javaEnv(t);
-  env.overrides.set("/zulu/21", sendJson([{ download_url: `${env.srv.url}/dl/zulu.zip`, sha256_hash: "0".repeat(64) }]));
-  // Adoptium 沒有 sha256 可驗：只留帶 sha256 的來源，才是「每個來源都驗不過」
-  env.deps.rankSources = async (s) => s.filter((x) => x.sha256);
-  let extracted = false;
-  env.deps.extractZip = async () => {
-    extracted = true;
-  };
-  const r = await installJava(env.args());
-  assert.equal(await fsp.readFile(r.javaExe, "utf8"), "java from mojang");
-  assert.ok(env.srv.requests.some((q) => q.url === "/dl/zulu.zip"));
-  assert.equal(extracted, false, "sha256 不符就不該解壓");
-});
+const BAD = "0".repeat(64);
+for (const [label, arrange, zip, next] of [
+  [
+    "Zulu",
+    (env) => env.overrides.set("/zulu/21", sendJson([{ download_url: `${env.srv.url}/dl/zulu.zip`, sha256_hash: BAD }])),
+    "/dl/zulu.zip",
+    "/dl/adoptium-eclipse.zip",
+  ],
+  [
+    "Semeru（別的平台的 sha256 檔排在前面）",
+    (env) => {
+      env.overrides.set("/zulu/21", status(404));
+      useSemeru(env, `${BAD}  ${SEMERU_ZIP}\n`);
+    },
+    "/dl/semeru.zip",
+    "/dl/adoptium-eclipse.zip",
+  ],
+  [
+    "Adoptium",
+    (env) => {
+      env.overrides.set("/zulu/21", status(404));
+      env.overrides.set("/adoptium/21/eclipse", sendJson(adoptiumRelease(env.srv.url, "eclipse", { checksum: BAD })));
+    },
+    "/dl/adoptium-eclipse.zip",
+    "/dl/adoptium-adoptium.zip",
+  ],
+]) {
+  test(`T20 第一個候選 ${label} 的 zip 與發行商的 sha256 不符 ⇒ 不解壓它、下一個候選裝成功、不碰 Mojang`, { timeout: HANG_LIMIT_MS }, async (t) => {
+    const env = await javaEnv(t);
+    arrange(env);
+    const r = await installJava(env.args());
+    assert.equal(await fsp.readFile(r.javaExe, "utf8"), ZIP_JAVA);
+    const urls = env.srv.requests.map((q) => q.url);
+    assert.ok(urls.includes(zip), urls.join(" "));
+    // 不符的若被解壓就會直接成功、輪不到下一個；兩條合起來才證明「不符 ⇒ 不解壓、換下一個」
+    assert.ok(urls.includes(next), urls.join(" "));
+    assert.equal(env.calls.extract, 1, "只有下一個候選被解壓");
+    assert.ok(!urls.some((u) => u.startsWith("/mojang/")));
+    assert.ok(!urls.includes("/dl/semeru-rpm.sha256.txt"), "別的平台的 sha256 檔不該被讀");
+  });
+}
 
 test("T20 runJava 預設實作逾時 ⇒ 回失敗、子程序已結束", { timeout: HANG_LIMIT_MS }, async () => {
   const r = await runJava(process.execPath, ["-e", "setTimeout(()=>{},1e6)"], { timeoutMs: 300 });
@@ -458,7 +547,177 @@ test("T22 Zulu 查詢 body 停住 ⇒ 那個來源被跳過、其他照用", { t
   assert.equal(await fsp.readFile(r.javaExe, "utf8"), ZIP_JAVA);
   assert.ok(env.srv.requests.some((q) => q.url === "/zulu/21"), "Zulu 真的有被查");
   assert.ok(!env.srv.requests.some((q) => q.url === "/dl/zulu.zip"));
-  assert.ok(env.srv.requests.some((q) => q.url === "/adoptium/21/eclipse"));
+  assert.ok(env.srv.requests.some((q) => q.url === "/dl/adoptium-eclipse.zip"));
+});
+
+// ── T23 官方 zip 候選逐一完整驗證（→ _notes/plans/cross-review-2026-10-phase5a.md §測試）──
+
+for (const first of ["throw", "two-roots", "no-java"]) {
+  test(`T23 第一個候選 ${first}、第二個好 ⇒ 裝第二個、不碰 Mojang、第一個的殘留沒跟進來`, { timeout: HANG_LIMIT_MS }, async (t) => {
+    const env = await javaEnv(t, { extract: [first, "ok"] });
+    const r = await installJava(env.args());
+    assert.equal(await fsp.readFile(r.javaExe, "utf8"), ZIP_JAVA);
+    const urls = env.srv.requests.map((q) => q.url);
+    assert.ok(urls.includes("/dl/adoptium-eclipse.zip"), urls.join(" "));
+    assert.ok(!urls.some((u) => u.startsWith("/mojang/")), urls.join(" "));
+    assert.equal(await exists(path.join(env.dir, "cand-0.txt")), false, "第一個候選的殘留");
+    assert.equal(await exists(path.join(env.dir, "cand-1.txt")), true);
+    await assertCleaned(env);
+  });
+}
+
+test("T23 重裝：第一個候選 -version 失敗 ⇒ 試下一個；過程中正式目錄不被碰", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const env = await javaEnv(t, { versionCode: [1, 0] });
+  await putA(env.dir);
+  const run = env.deps.runJava;
+  env.deps.runJava = async (...a) => {
+    await assertIsA(env.dir);
+    return run(...a);
+  };
+  const r = await installJava(env.args({ reinstall: true }));
+  assert.equal(await fsp.readFile(r.javaExe, "utf8"), ZIP_JAVA);
+  assert.equal(env.runJavaCalls.length, 2);
+  assert.ok(!env.srv.requests.some((q) => q.url.startsWith("/mojang/")));
+  await assertCleaned(env);
+});
+
+// ── T24 發行商給的 sha256 要拿到、要對得上這個 zip（S1、S2 → _notes/plans/cross-review-2026-10-phase5a.md）──
+
+for (const [label, arrange, zip, logName] of [
+  [
+    "Semeru：只認 <zip 檔名>.sha256.txt",
+    (env) => {
+      env.overrides.set("/zulu/21", status(404));
+      useSemeru(env);
+    },
+    "/dl/semeru.zip",
+    "IBM Semeru",
+  ],
+  ["Adoptium：網址與 checksum 取自同一筆 package", (env) => env.overrides.set("/zulu/21", status(404)), "/dl/adoptium-eclipse.zip", "Adoptium(eclipse)"],
+]) {
+  test(`T24 ${label} ⇒ 照常裝成功`, { timeout: HANG_LIMIT_MS }, async (t) => {
+    const env = await javaEnv(t);
+    arrange(env);
+    const lines = [];
+    const r = await installJava(env.args({ deps: { log: (l) => lines.push(l) } }));
+    assert.equal(await fsp.readFile(r.javaExe, "utf8"), ZIP_JAVA);
+    assert.ok(env.srv.requests.some((q) => q.url === zip));
+    assert.equal(env.calls.extract, 1);
+    assert.ok(lines.includes(`RUNTIME_JAVA zip 來源 ${logName} 驗過`), lines.join("\n"));
+  });
+}
+
+/** 改掉 Adoptium(eclipse) 回應裡那筆 release */
+const adoptiumEclipse = (env, edit) => {
+  const rel = adoptiumRelease(env.srv.url, "eclipse");
+  edit(rel);
+  env.overrides.set("/adoptium/21/eclipse", sendJson(rel));
+};
+const zuluGives = (env, item) => env.overrides.set("/zulu/21", sendJson([{ download_url: `${env.srv.url}/dl/zulu.zip`, ...item }]));
+const noZulu = (env) => env.overrides.set("/zulu/21", status(404));
+const pkgOf = (rel) => rel[0].binaries[0].package;
+
+for (const [label, arrange, name, zip, fallback] of [
+  ["Zulu 沒給 sha256", (env) => zuluGives(env, {}), "Azul Zulu", "/dl/zulu.zip", "/dl/adoptium-eclipse.zip"],
+  ["Zulu 的 sha256 格式錯", (env) => zuluGives(env, { sha256_hash: "xyz" }), "Azul Zulu", "/dl/zulu.zip", "/dl/adoptium-eclipse.zip"],
+  ["Semeru 沒有 <zip 檔名>.sha256.txt（只有別平台的）", (env) => (noZulu(env), useSemeru(env, null)), "IBM Semeru", "/dl/semeru.zip", "/dl/adoptium-eclipse.zip"],
+  [
+    "Semeru 的 sha256 檔抓不到",
+    (env) => (noZulu(env), useSemeru(env), env.overrides.set("/dl/semeru.zip.sha256.txt", status(404))),
+    "IBM Semeru",
+    "/dl/semeru.zip",
+    "/dl/adoptium-eclipse.zip",
+  ],
+  [
+    "Semeru 的 sha256 檔裡寫的是別的檔",
+    (env) => (noZulu(env), useSemeru(env, `${sha("sha256", ZIP)}  other.zip\n`)),
+    "IBM Semeru",
+    "/dl/semeru.zip",
+    "/dl/adoptium-eclipse.zip",
+  ],
+  ["Adoptium 沒給 checksum", (env) => (noZulu(env), adoptiumEclipse(env, (rel) => delete pkgOf(rel).checksum)), "Adoptium(eclipse)", "/dl/adoptium-eclipse.zip", "/dl/adoptium-adoptium.zip"],
+  ["Adoptium 的 checksum 格式錯", (env) => (noZulu(env), adoptiumEclipse(env, (rel) => (pkgOf(rel).checksum = "xyz"))), "Adoptium(eclipse)", "/dl/adoptium-eclipse.zip", "/dl/adoptium-adoptium.zip"],
+  [
+    "Adoptium 網址的檔名不是 package.name（checksum 不是這個檔的）",
+    (env) => (noZulu(env), adoptiumEclipse(env, (rel) => (pkgOf(rel).name = "other.zip"))),
+    "Adoptium(eclipse)",
+    "/dl/adoptium-eclipse.zip",
+    "/dl/adoptium-adoptium.zip",
+  ],
+  [
+    "Adoptium 有兩個符合條件的 zip",
+    (env) => (noZulu(env), adoptiumEclipse(env, (rel) => rel[0].binaries.push(structuredClone(rel[0].binaries[0])))),
+    "Adoptium(eclipse)",
+    "/dl/adoptium-eclipse.zip",
+    "/dl/adoptium-adoptium.zip",
+  ],
+  ["Adoptium 回的不是 GA release", (env) => (noZulu(env), adoptiumEclipse(env, (rel) => (rel[0].release_type = "ea"))), "Adoptium(eclipse)", "/dl/adoptium-eclipse.zip", "/dl/adoptium-adoptium.zip"],
+]) {
+  test(`T24 ${label} ⇒ 那個來源不成候選（不下載、不當成沒有 hash）、記下原因、下一個照用`, { timeout: HANG_LIMIT_MS }, async (t) => {
+    const env = await javaEnv(t);
+    arrange(env);
+    const lines = [];
+    const r = await installJava(env.args({ deps: { log: (l) => lines.push(l) } }));
+    assert.equal(await fsp.readFile(r.javaExe, "utf8"), ZIP_JAVA);
+    const urls = env.srv.requests.map((q) => q.url);
+    assert.ok(!urls.includes(zip), `${zip} 不該被下載：${urls.join(" ")}`);
+    assert.ok(urls.includes(fallback), urls.join(" "));
+    assert.ok(lines.some((l) => l.startsWith(`RUNTIME_JAVA zip 候選失敗 ${name}／查詢：`)), lines.join("\n"));
+  });
+}
+
+/** 取消：丟出的就是取消的 reason（漏檢查的迴圈會丟彙總錯誤）、不碰下一個候選與 Mojang、正式目錄與暫存照規矩 */
+async function assertCancelled(env, p, reason) {
+  await assert.rejects(p, (e) => e === reason);
+  const urls = env.srv.requests.map((q) => q.url);
+  assert.ok(!urls.some((u) => u.startsWith("/dl/adoptium-")), `不碰下一個候選：${urls.join(" ")}`);
+  assert.ok(!urls.some((u) => u.startsWith("/mojang/")), `不轉 Mojang：${urls.join(" ")}`);
+  await assertIsA(env.dir);
+  await assertCleaned(env);
+}
+
+async function cancelEnv(t) {
+  const env = await javaEnv(t);
+  await putA(env.dir);
+  const outer = new AbortController();
+  const reason = new Error("使用者取消");
+  return { env, outer, reason, start: () => installJava({ ...env.args({ reinstall: true }), signal: outer.signal }) };
+}
+
+test("T23 取消：下載 zip 中 ⇒ 立刻停", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const { env, outer, reason, start } = await cancelEnv(t);
+  env.overrides.set("/dl/zulu.zip", stallAfterHeaders);
+  const p = start();
+  const w = watch(p);
+  await until(() => env.srv.requests.some((q) => q.url === "/dl/zulu.zip"), "zip 請求送達");
+  assert.ok(await stillPending(w), "取消之前不該結束"); // 時間不推進：看門狗不會自己到
+  outer.abort(reason);
+  await assertCancelled(env, p, reason);
+  assert.equal(env.calls.extract, 0);
+});
+
+test("T23 取消：解壓中（extract-zip 停不下來，做完才回）⇒ 不跑 -version、立刻停", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const { env, outer, reason, start } = await cancelEnv(t);
+  const extract = env.deps.extractZip;
+  env.deps.extractZip = async (...a) => {
+    await extract(...a);
+    outer.abort(reason);
+  };
+  await assertCancelled(env, start(), reason);
+  assert.equal(env.runJavaCalls.length, 0);
+});
+
+test("T23 取消：java -version 中 ⇒ 立刻停", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const { env, outer, reason, start } = await cancelEnv(t);
+  let runs = 0;
+  // 預設 runJava 收到中止會 kill 並回 code: null，不丟錯
+  env.deps.runJava = async () => {
+    runs++;
+    outer.abort(reason);
+    return { code: null, timedOut: false };
+  };
+  await assertCancelled(env, start(), reason);
+  assert.equal(runs, 1);
 });
 
 // ── 外部中止（Codex 驗收 #1、#2）──
@@ -508,7 +767,12 @@ test("中止：runJava 預設實作收到外部中止 ⇒ kill、等程序結束
 test("預設端點：Adoptium 兩條、Semeru、Zulu 都以 major 組", () => {
   assert.match(DEFAULT_ENDPOINTS.zuluQuery(21), /java_version=21&/);
   assert.match(DEFAULT_ENDPOINTS.semeruRelease(21), /semeru21-binaries/);
-  assert.match(DEFAULT_ENDPOINTS.adoptium(21, "eclipse"), /\/latest\/21\/.*\/eclipse$/);
+  const adoptium = DEFAULT_ENDPOINTS.adoptium(21, "eclipse");
+  assert.match(adoptium, /\/v3\/assets\/feature_releases\/21\/ga\?/);
+  for (const q of ["os=windows", "architecture=x64", "image_type=jre", "jvm_impl=hotspot", "page_size=1", "sort_order=DESC"]) {
+    assert.ok(adoptium.includes(q), `${q}：${adoptium}`);
+  }
+  assert.match(adoptium, /vendor=eclipse$/);
 });
 
 // ── 連結回歸釘 R 組：B1–B5、B3b（→ _notes/plans/cross-review-2026-10-phase1.md §測試「1b 回歸釘」；上層 §5.15、§5.16 ②）──
