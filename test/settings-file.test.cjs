@@ -309,6 +309,16 @@ test("writeSettings：寫出合併後的完整物件（null 照存）、回傳�
   assert.deepEqual(await readSettings(), expected);
 });
 
+test("writeSettings 比對的是讀到的原始位元組：帶 BOM、缺鍵、四格縮排的合法檔 ⇒ 儲存成功、寫出完整設定（無 BOM）", async (t) => {
+  const { file, dir } = await useUserData(t);
+  await fsp.writeFile(file, Buffer.concat([BOM, Buffer.from(JSON.stringify({ playerId: "Steve" }, null, 4))]));
+  const next = await writeSettings({ maxMemoryGb: 8 });
+  const expected = { ...DEFAULT_SETTINGS, playerId: "Steve", maxMemoryGb: 8 };
+  assert.deepEqual(next, expected);
+  assert.ok((await fsp.readFile(file)).equals(json(expected)));
+  assert.deepEqual(await listDir(dir), ["settings.json"]);
+});
+
 test("V20 writeSettings 遇壞檔或不合法的檔 ⇒ reject、位元組不變、沒有備份、沒有暫存", async (t) => {
   const { file, dir } = await useUserData(t);
   const cases = [...BROKEN.map(([label, bytes]) => [label, bytes]), ["未知鍵", json({ memoryGb: 4 })]];
