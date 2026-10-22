@@ -2,6 +2,7 @@
 // Intentionally does NOT import Electron; all Electron deps are injected.
 const { registerAccountIpcHandlers } = require("./microsoft-auth");
 const { registerAllMainIpc } = require("./ipc");
+const { plainErrorIpcMain } = require("../lib/ipc-plain-errors");
 
 function createIpcRuntime({
   ipcMain,
@@ -19,10 +20,13 @@ function createIpcRuntime({
     if (registered) return;
     registered = true;
 
-    registerAccountIpcHandlers(ipcMain);
+    // 所有 handler 丟的錯在這裡統一換成普通 Error（→ lib/ipc-plain-errors.js）
+    const plainIpcMain = plainErrorIpcMain(ipcMain);
+
+    registerAccountIpcHandlers(plainIpcMain);
 
     registerAllMainIpc({
-      ipcMain,
+      ipcMain: plainIpcMain,
       deps,
       showInfoDialog,
       sendSyncStatus,

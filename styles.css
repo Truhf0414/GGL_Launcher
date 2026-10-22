@@ -1473,6 +1473,8 @@ textarea,
   color: rgba(255, 220, 220, 0.92);
   font-size: 12px;
   line-height: 1.4;
+  /* 設定錯誤是多行文字（main/settings.js 以換行連接），照換行顯示 */
+  white-space: pre-line;
 }
 .form-group {
   margin-top: 8px;
