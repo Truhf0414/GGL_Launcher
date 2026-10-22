@@ -74,11 +74,10 @@ Use this table to find code after splits. **When you add or extract a new `main/
 | `main/ipc-handlers.js` | `createMainIpcBridge(deps)`：經 `main/ipc-bridge.js` 建立 `sendSync*` / `sendMc*` / `sendInstanceStatus` / `sendServerStatus` 等推播；`setupMainIpc()` 交給 `main/ipc-runtime.js` 註冊 |
 | `main/ipc-runtime.js` | `createIpcRuntime({...}).setupOnce()`：只註冊一次；先 `registerAccountIpcHandlers`，再 `main/ipc/index.js` 的 `registerAllMainIpc`。不 require electron（`ipcMain`、`shell`、`dialog` 由注入） |
 | `main/ipc/*.js` | 各組 `ipcMain.handle`（視窗、外部連結、設定、伺服器預設值、目錄選擇、通知、Minecraft 啟動、實例、診斷、畫面錯誤進常駐日誌），由 `main/ipc/index.js` 統一接；新檔要接進 `index.js`。handler 與 allowlist 對不對得上由 `test/ipc-registry.test.cjs` 守 |
-| `main/mc-mirror.js` | BMCL / 自訂 / 官方鏡像、`rankSourcesByQuickProbe`、`getMcMirrorDecision`（TTL + 併發 single-flight） |
-| `main/runtime/download.js` | runtime 安裝的下載底層：整段有期限的 json／文字抓取、候選網址逐台下載並逐台驗 hash、來源健康度（停滯過的排最後）、第一個錯就全停且等全部停下的池 |
-| `main/runtime/minecraft.js` | 候選清單（鏡像／官方／Fabric 三台）、原版與 Fabric 兩份 version json（本機有效就沿用）、版本 jar／library／asset index／objects 的安裝與進度 |
+| `main/runtime/download.js` | runtime 安裝的下載底層：整段有期限的 json／文字抓取、候選網址逐台下載並逐台驗 hash、來源健康度（停滯過的排最後）、Java zip 候選的小範圍測速（`rankSourcesByQuickProbe`）、第一個錯就全停且等全部停下的池 |
+| `main/runtime/minecraft.js` | 只走發布者的主機（Mojang 一條、Fabric 三台）：原版與 Fabric 兩份 version json（本機有效就沿用；原版以 manifest 的 sha1 驗官方原檔的位元組、驗過才換上）、版本 jar／library／asset index／objects 的安裝與進度 |
 | `main/runtime/java.js` | 依大版本把 Java 裝到 `<root>/runtime/java-<major>`：官方 zip 候選逐一完整驗證（下載與 hash → 解壓 → `-version`），全部失敗才走 Mojang runtime 退路，取消立刻停；暫存區驗過才經 `.old` 換上 |
-| `main/runtime/prepare.js` | `prepareRuntime`：兩份 json → Java → 檔案串成一條，鏡像測速 lazy；同步中樞在更新／修復時呼叫 |
+| `main/runtime/prepare.js` | `prepareRuntime`：兩份 json → Java → 檔案串成一條；同步中樞在更新／修復時呼叫 |
 | `lib/runtime-json.js` | 原版與 Fabric version json 的驗證（`checkVanillaJson`／`checkFabricJson`），本機讀到的與網路抓到的都用它；不支援 classifiers 式 natives。不 require electron |
 | `lib/launch-args.js` | version json → argv：rules、合併版本鏈、library 過濾、classpath、log4j 設定檔、placeholder 展開（`buildLaunchArgv`）；「啟動給什麼值」（`launchPlaceholders`）與「啟動吃不吃得下」（`checkLaunchable`，就緒與安裝共用）。不 require electron |
 | `main/minecraft-launch.js` | `launchMinecraft`：用閘交的成品（就緒算好的合併 json、過濾後的 library、jar 與 log4j 的位置、`env`）組 argv、不讀 json（launchId 與 Java 由記錄推）、不連網、不裝 runtime、不跳對話框（丟帶 `code` 的 `LaunchError`，`main/ipc/minecraft-ipc.js` 依 code 跳框）；完整 argv 寫進 launcher log（token 遮成 `***`）；等 child 的 `spawn` 事件才算啟動成功（併發由中樞的 `withLaunchLock` 擋）；argv 照 version json 組，手寫的只剩記憶體與 GC 旗標（`-Xmx` 上限）、`runningMcProcess` / `cleanupStaleMcProcessIfNeeded` / `isMinecraftRunning`（供 `minecraft:isRunning` IPC）；`configureMinecraftLaunch({...})` 注入 `sendMcStatus`、`sendMcRunning`、`tryStartDiscordRpcHelper`（實作在 `discord-rpc.js`）、`log` |

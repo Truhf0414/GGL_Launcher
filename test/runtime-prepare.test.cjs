@@ -11,7 +11,7 @@ const path = require("path");
 
 const { prepareRuntime } = require("../main/runtime/prepare.js");
 const { installRuntimeFiles } = require("../main/runtime/minecraft.js");
-const { startFakeRuntime, MC, LOADER, LAUNCH_ID } = require("./helpers/fake-runtime.cjs");
+const { startFakeRuntime, makeFakeRuntime, MC, LOADER, LAUNCH_ID } = require("./helpers/fake-runtime.cjs");
 const { useMockClock } = require("./helpers/mock-clock.cjs");
 
 const HANG_LIMIT_MS = 10_000;
@@ -41,7 +41,6 @@ function fakeSteps(overrides = {}) {
 
 const PATHS = { root: "R", tempDir: "R/.temp", gameDir: "R/game" };
 const base = (extra = {}) => ({
-  settings: {},
   paths: PATHS,
   minecraft: MC,
   loader: LOADER,
@@ -77,8 +76,6 @@ for (const verifyAll of [false, true]) {
       }
       assert.deepEqual(files.vanilla, { v: 1 });
       assert.deepEqual(files.target, { t: 1 });
-      assert.equal(files.health, json.health, "兩步共用同一個來源健康度");
-      assert.equal(files.getMirror, json.getMirror, "兩步共用同一個 lazy 鏡像");
       assert.equal(files.env, ENV, "K9 env 原樣轉給檔案那步");
     });
   }
@@ -121,7 +118,6 @@ async function readyInstall(t, { withVanillaJson }) {
     vanilla: fake.vanilla,
     target: fake.fabric,
     verifyAll: false,
-    getMirror: async () => ({ base: "" }),
     env: ENV,
     deps,
   });
@@ -137,28 +133,71 @@ async function readyInstall(t, { withVanillaJson }) {
   await fsp.writeFile(java, "java");
 
   fake.requests.length = 0;
-  let mirrorCalls = 0;
-  deps.mirrorDecision = async () => {
-    mirrorCalls += 1;
-    return fake.mirror;
-  };
-  return { fake, paths, deps, mirrorCalls: () => mirrorCalls };
+  return { fake, paths, deps };
 }
 
-test("T23 真的步驟、gameDir 與 Java 都齊全 ⇒ 鏡像測速零呼叫、零請求（R#41）", { timeout: HANG_LIMIT_MS }, async (t) => {
+test("T23 真的步驟、gameDir 與 Java 都齊全 ⇒ 零請求（R#41）", { timeout: HANG_LIMIT_MS }, async (t) => {
   const env = await readyInstall(t, { withVanillaJson: true });
   const r = await prepareRuntime(base({ paths: env.paths, deps: env.deps }));
   assert.equal(r.javaMajor, 21);
-  assert.equal(env.mirrorCalls(), 0);
   assert.deepEqual(env.fake.requests, []);
 });
 
-test("T23 真的步驟、本機沒有原版 json ⇒ 原版 version json 只發 1 個請求（v2 #33）", { timeout: HANG_LIMIT_MS }, async (t) => {
+test("T23 真的步驟、本機沒有原版 json ⇒ manifest 與原版 version json 各 1 個請求、之後沒有別的（v2 #33）", { timeout: HANG_LIMIT_MS }, async (t) => {
   const env = await readyInstall(t, { withVanillaJson: false });
   await prepareRuntime(base({ paths: env.paths, deps: env.deps }));
-  const versionJsonReqs = env.fake.requests.filter(
-    (q) => q.url === `/mirror/version/${MC}/json` || q.url === "/official/version.json",
+  assert.deepEqual(env.fake.requests.map((q) => q.url), ["/official/manifest.json", "/official/version.json"]);
+});
+
+// ── 5b H：完整安裝的每個請求都打官方主機（→ _notes/plans/cross-review-2026-10-phase5b.md §測試 H）──
+// 不注入任何端點：網址全是 fixture 與程式內建的官方網址；deps.fetchImpl／deps.download 換成 transport，記下網址、回假內容、不連網。
+// 白名單是生產主機；本檔其他案打本機 server，那是測試注入的網址。
+
+const OFFICIAL_HOSTS = new Set([
+  "piston-meta.mojang.com",
+  "piston-data.mojang.com",
+  "libraries.minecraft.net",
+  "resources.download.minecraft.net",
+  "meta.fabricmc.net",
+  "meta2.fabricmc.net",
+  "meta3.fabricmc.net",
+  "maven.fabricmc.net",
+  "maven2.fabricmc.net",
+  "maven3.fabricmc.net",
+]);
+
+test("H 空 gameDir 完整安裝（Java 那步換成假的）⇒ 每個網址的主機都在官方白名單、九類請求都出現、原版 json 是官方原檔", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
+  const fake = makeFakeRuntime(null);
+  const root = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-rt-prep-"));
+  t.after(() => fsp.rm(root, { recursive: true, force: true }));
+  const paths = { root, tempDir: path.join(root, ".temp"), gameDir: path.join(root, "game") };
+  const { steps } = fakeSteps();
+  await prepareRuntime(
+    base({
+      paths,
+      deps: {
+        steps: { installJava: steps.installJava },
+        fetchImpl: fake.transport.fetchImpl,
+        download: fake.transport.download,
+      },
+    }),
   );
-  assert.equal(versionJsonReqs.length, 1);
-  assert.equal(env.mirrorCalls(), 1);
+
+  const urls = fake.transport.urls;
+  for (const u of urls) assert.ok(OFFICIAL_HOSTS.has(new URL(u).host), `不是官方主機：${u}`);
+  const v = fake.vanilla;
+  const kinds = {
+    manifest: (u) => u === "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
+    "原版 version json": (u) => u === fake.versionJsonUrl,
+    "client jar": (u) => u === v.downloads.client.url,
+    原版library: (u) => u.startsWith("https://libraries.minecraft.net/"),
+    "asset index": (u) => u === v.assetIndex.url,
+    "asset object": (u) => u.startsWith("https://resources.download.minecraft.net/"),
+    "Fabric profile": (u) => /^https:\/\/meta\.fabricmc\.net\/v2\/versions\/loader\/.+\/profile\/json$/.test(u),
+    "Fabric library": (u) => u.startsWith("https://maven.fabricmc.net/"),
+    log4j: (u) => u === v.logging.client.file.url,
+  };
+  for (const [kind, is] of Object.entries(kinds)) assert.ok(urls.some(is), `${kind} 沒有被請求：\n${urls.join("\n")}`);
+  assert.deepEqual(await fsp.readFile(path.join(paths.gameDir, "versions", MC, `${MC}.json`)), fake.vanillaBytes);
 });

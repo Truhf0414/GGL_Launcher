@@ -1100,7 +1100,6 @@ test("D7 runtime 深層 junction 經 applyPlan 被拒 ⇒ IPC 之後仍是 game 
   const ctx = await setup(t);
   const fake = await startFakeRuntime(t);
   const runtimeArgs = (verifyAll) => ({
-    settings: {},
     paths: ctx.paths,
     minecraft: MC,
     loader: LOADER,
@@ -1111,7 +1110,6 @@ test("D7 runtime 深層 junction 經 applyPlan 被拒 ⇒ IPC 之後仍是 game 
       ...fake.endpoints,
       stall: { windowMs: 300, minBytes: 1 },
       deadlineMs: 300,
-      mirrorDecision: async () => ({ name: "Mojang 官方", base: "" }),
       steps: { installJava: async () => {} },
     },
   });

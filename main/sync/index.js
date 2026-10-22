@@ -338,7 +338,7 @@ function createInstanceSync(deps) {
 
   async function runSync(who, strayJars) {
     const inputs = await prepare(who);
-    const { settings, paths, index, release } = inputs;
+    const { paths, index, release } = inputs;
     if (strayJars.length > 0) {
       assertRemovableStrayJars(strayJars, {
         gameDir: paths.gameDir,
@@ -369,7 +369,6 @@ function createInstanceSync(deps) {
         prepareRuntime: async () => {
           const fields = pickRuntimeFields(
             await prepareRuntime({
-              settings,
               paths,
               minecraft,
               loader,

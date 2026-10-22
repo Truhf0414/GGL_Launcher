@@ -4,7 +4,6 @@
 // （→ _notes/plans/instance-sync-v3-commit4b.md §設計「串成一條」）。不 require("electron")。
 
 const { launchIdFor } = require("../../lib/runtime-target.js");
-const { getMcMirrorDecision } = require("../mc-mirror.js");
 const { createSourceHealth } = require("./download.js");
 const { ensureVersionJsons, installRuntimeFiles } = require("./minecraft.js");
 const { installJava } = require("./java.js");
@@ -18,7 +17,6 @@ const DEFAULT_STEPS = { ensureVersionJsons, installJava, installRuntimeFiles };
  * @returns {Promise<{ minecraft: string, loader: { type: string, version: string }, javaMajor: number }>}
  */
 async function prepareRuntime({
-  settings,
   paths,
   minecraft,
   loader,
@@ -33,13 +31,8 @@ async function prepareRuntime({
   launchIdFor({ minecraft, loader });
 
   const steps = { ...DEFAULT_STEPS, ...deps.steps };
+  // 只有檔案那步有多個來源（Fabric 三台 maven）會用到
   const health = createSourceHealth();
-  // 鏡像測速是 lazy 的：第一次真的要網路才測，之後沿用；什麼都不用下載時零呼叫（R#41）
-  let mirror;
-  const getMirror = () =>
-    (mirror ??= Promise.resolve().then(() =>
-      (deps.mirrorDecision ?? getMcMirrorDecision)(settings),
-    ));
 
   const { vanilla, target, javaMajor, component } =
     await steps.ensureVersionJsons({
@@ -47,8 +40,6 @@ async function prepareRuntime({
       minecraft,
       loader,
       verifyAll,
-      getMirror,
-      health,
       signal,
       onProgress,
       deps,
@@ -70,7 +61,6 @@ async function prepareRuntime({
     target,
     verifyAll,
     env,
-    getMirror,
     health,
     signal,
     onProgress,

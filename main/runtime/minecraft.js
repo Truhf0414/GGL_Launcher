@@ -2,16 +2,12 @@
 
 // runtime 安裝的 Minecraft 段：候選清單、兩份 version json、版本 jar／library／asset index／objects
 // （→ _notes/plans/instance-sync-v3-commit4b.md §設計「候選清單」「兩份 json」「檔案」）。
+// 全部只走發布者自己的主機：Mojang 一條、Fabric 三台（→ _notes/plans/cross-review-2026-10-phase5b.md）。
 // 不 require("electron")。
 
 const fsp = require("fs/promises");
 const path = require("path");
 
-const {
-  mcUrlFor,
-  rewriteLibraryUrlToMirror,
-  stripTrailingSlashes,
-} = require("../mc-mirror.js");
 const { hashFile } = require("../fs-utils.js");
 const { libraryArtifact } = require("../../lib/library-filter.js");
 const {
@@ -45,37 +41,13 @@ const POOL_CONCURRENCY = 6;
 const PROGRESS_THROTTLE_MS = 180;
 
 /**
- * 每個檔的候選網址（純）。asset index 與原版 version json 不在這裡（各自只走官方／自己做退路）。
- * @param {"client-jar" | "vanilla-library" | "fabric-library" | "asset-object"} kind
- * @param {{ minecraft?: string, url?: string, hash?: string, resourcesBase?: string }} info
- * @param {{ base?: string } | null | undefined} mirror
+ * 網址要自己拼、或不只一個官方來源的檔（純）。版本 jar、原版 library、asset index、log4j
+ * 只有 json 裡寫的那一條官方網址，不經這裡。
+ * @param {"fabric-library" | "asset-object"} kind
+ * @param {{ url?: string, hash?: string, resourcesBase?: string }} info
  * @returns {{ source: string, url: string }[]}
  */
-function runtimeCandidates(kind, info, mirror) {
-  const base = stripTrailingSlashes(mirror?.base);
-  if (kind === "client-jar") {
-    const official = { source: "mojang", url: info.url };
-    if (!base) return [official];
-    return [
-      {
-        source: "mirror",
-        url: mcUrlFor({
-          mirrorBase: base,
-          kind: "clientJar",
-          value: info.minecraft,
-        }),
-      },
-      official,
-    ];
-  }
-  if (kind === "vanilla-library") {
-    const official = { source: "mojang", url: info.url };
-    const rewritten = base
-      ? rewriteLibraryUrlToMirror(info.url, base)
-      : info.url;
-    if (rewritten === info.url) return [official];
-    return [{ source: "mirror", url: rewritten }, official];
-  }
+function runtimeCandidates(kind, info) {
   if (kind === "fabric-library") {
     return mavenUrlCandidates(info.url).map((url, i) => ({
       source: `fabric-${i + 1}`,
@@ -84,17 +56,11 @@ function runtimeCandidates(kind, info, mirror) {
   }
   if (kind === "asset-object") {
     const rel = `${info.hash.slice(0, 2)}/${info.hash}`;
-    const official = {
-      source: "mojang",
-      url: `${info.resourcesBase ?? RESOURCES_BASE}/${rel}`,
-    };
-    if (!base) return [official];
     return [
       {
-        source: "mirror",
-        url: mcUrlFor({ mirrorBase: base, kind: "assetObject", value: rel }),
+        source: "mojang",
+        url: `${info.resourcesBase ?? RESOURCES_BASE}/${rel}`,
       },
-      official,
     ];
   }
   throw new Error(`runtimeCandidates: 不認得的 kind ${kind}`);
@@ -113,14 +79,13 @@ async function fetchFirstValidJson(
   for (const c of candidates) {
     if (signal?.aborted) throw signal.reason ?? new Error("已中止");
     try {
-      const url = typeof c.url === "function" ? await c.url() : c.url;
-      const json = await fetchJsonWithDeadline(url, {
+      const json = await fetchJsonWithDeadline(c.url, {
         signal,
         deadlineMs: deps.deadlineMs,
         fetchImpl: deps.fetchImpl,
       });
       const r = check(json);
-      if (!r.ok) throw new Error(`內容驗不過：${r.error}（${url}）`);
+      if (!r.ok) throw new Error(`內容驗不過：${r.error}（${c.url}）`);
       return json;
     } catch (e) {
       if (signal?.aborted) throw e;
@@ -131,53 +96,67 @@ async function fetchFirstValidJson(
 }
 
 /**
- * 鏡像（有才有）→ 官方。官方網址要先抓 manifest 才知道，只在輪到官方時才抓（R#43）。
+ * 原版 version json：官方 manifest 給網址與 sha1 → 下載到 <abs>.tmp、驗原始位元組的 sha1 → 解析、checkVanillaJson
+ * → 改名成 <abs>。任何一步失敗：刪 <abs>.tmp、丟錯，<abs> 沒被碰過。存的是官方原檔、不重新序列化，
+ * 之後拿 sha1 跟 manifest 比得上（→ _notes/plans/cross-review-2026-10-phase5b.md §設計 2）。
+ * @returns {Promise<object>} 驗過的 json
  */
-async function fetchVanillaVersionJson({
+async function installVanillaVersionJson({
   minecraft,
-  getMirror,
-  health,
+  abs,
   signal,
   deps = {},
 }) {
-  const mirror = await getMirror();
-  const candidates = [];
-  if (stripTrailingSlashes(mirror?.base)) {
-    candidates.push({
-      source: "mirror",
-      url: mcUrlFor({
-        mirrorBase: mirror.base,
-        kind: "versionJson",
-        value: minecraft,
-      }),
-    });
-  }
-  candidates.push({
-    source: "mojang",
-    url: async () => {
-      const manifest = await fetchJsonWithDeadline(
-        deps.manifestUrl ?? MANIFEST_URL,
-        {
-          signal,
-          deadlineMs: deps.deadlineMs,
-          fetchImpl: deps.fetchImpl,
-        },
-      );
-      const entry = Array.isArray(manifest?.versions)
-        ? manifest.versions.find((v) => v?.id === minecraft)
-        : undefined;
-      if (typeof entry?.url !== "string") {
-        throw new Error(`version manifest 裡沒有 ${minecraft}`);
-      }
-      return entry.url;
-    },
-  });
-  return await fetchFirstValidJson(
-    `原版 ${minecraft} 的 version json `,
-    health ? health.order(candidates) : candidates,
-    (json) => checkVanillaJson(json, minecraft),
-    { signal, deps },
+  const fs = deps.fsp ?? fsp;
+  const manifest = await fetchJsonWithDeadline(
+    deps.manifestUrl ?? MANIFEST_URL,
+    { signal, deadlineMs: deps.deadlineMs, fetchImpl: deps.fetchImpl },
   );
+  const entry = Array.isArray(manifest?.versions)
+    ? manifest.versions.find((v) => v?.id === minecraft)
+    : undefined;
+  if (typeof entry?.url !== "string") {
+    throw new Error(`version manifest 裡沒有 ${minecraft}`);
+  }
+  // downloadRuntimeFile 把空的 sha1 當成「不驗」：manifest 沒給就在這裡拒，不能交給它
+  const sha1 = String(entry.sha1 ?? "");
+  if (!/^[0-9a-f]{40}$/i.test(sha1)) {
+    throw new Error(
+      `version manifest 裡 ${minecraft} 的 sha1 不合法（${sha1 || "沒有"}）`,
+    );
+  }
+
+  await fs.mkdir(path.dirname(abs), { recursive: true });
+  const tmp = `${abs}.tmp`;
+  try {
+    await downloadRuntimeFile({
+      candidates: [{ source: "mojang", url: entry.url }],
+      dest: tmp,
+      sha1,
+      signal,
+      deps,
+    });
+    let json;
+    try {
+      json = JSON.parse(await fs.readFile(tmp, "utf8"));
+    } catch (e) {
+      throw new Error(
+        `原版 ${minecraft} 的 version json 不是 JSON：${firstLine(e)}`,
+      );
+    }
+    const r = checkVanillaJson(json, minecraft);
+    if (!r.ok) {
+      throw new Error(
+        `原版 ${minecraft} 的 version json 內容驗不過：${r.error}（${entry.url}）`,
+      );
+    }
+    await fs.rename(tmp, abs);
+    return json;
+  } catch (e) {
+    // 清理：刪不掉也要讓原本的錯出去（下載失敗時它多半已經不在）
+    await fs.rm(tmp, { force: true }).catch(() => {});
+    throw e;
+  }
 }
 
 async function fetchFabricProfileJson({
@@ -247,7 +226,7 @@ async function writeJsonReplacing(fs, abs, json) {
 }
 
 /**
- * 本機的過了驗證且不是 verifyAll ⇒ 用本機的、不打網路；否則重抓並蓋掉本機那份。
+ * 本機的過了驗證且不是 verifyAll ⇒ 用本機的、不打網路；否則重抓並蓋掉本機那份（驗過才蓋）。
  * @returns {Promise<{ vanilla: object, target: object, javaMajor: number, component: string }>}
  */
 async function ensureVersionJsons({
@@ -255,8 +234,6 @@ async function ensureVersionJsons({
   minecraft,
   loader,
   verifyAll,
-  getMirror,
-  health,
   signal,
   onProgress,
   deps = {},
@@ -272,7 +249,8 @@ async function ensureVersionJsons({
   const report = (step) => onProgress?.({ phase: "runtime", step });
   const guardLinks = linkGuard(fs, gameDir);
 
-  async function ensureOne(rel, check, fetchIt, step) {
+  /** install(abs)：抓、驗、寫進 abs（驗過才寫），回傳 json */
+  async function ensureOne(rel, check, install, step) {
     const abs = absUnder(gameDir, rel);
     if (!verifyAll) {
       const local = await readJsonOrNull(fs, abs);
@@ -281,29 +259,30 @@ async function ensureVersionJsons({
     // 走到這裡就一定會寫：先查連結再打網路
     await guardLinks(rel);
     report(step);
-    const json = await fetchIt();
-    await writeJsonReplacing(fs, abs, json);
-    return json;
+    return await install(abs);
   }
 
   const vanilla = await ensureOne(
     vanillaRel,
     (j) => checkVanillaJson(j, minecraft),
-    () =>
-      fetchVanillaVersionJson({ minecraft, getMirror, health, signal, deps }),
+    (abs) => installVanillaVersionJson({ minecraft, abs, signal, deps }),
     "vanilla-json",
   );
+  // Fabric profile 從來沒經過鏡像（→ 上層 §6.9 第 5 點末）：照舊抓三台、解析過才寫
   const target = await ensureOne(
     targetRel,
     (j) => checkFabricJson(j, { minecraft, launchId }),
-    () =>
-      fetchFabricProfileJson({
+    async (abs) => {
+      const json = await fetchFabricProfileJson({
         minecraft,
         loaderVersion: loader.version,
         launchId,
         signal,
         deps,
-      }),
+      });
+      await writeJsonReplacing(fs, abs, json);
+      return json;
+    },
     "loader-json",
   );
   return {
@@ -391,7 +370,6 @@ async function installRuntimeFiles({
   target,
   verifyAll,
   env,
-  getMirror,
   health,
   signal,
   onProgress,
@@ -449,7 +427,7 @@ async function installRuntimeFiles({
             const dest = absUnder(gameDir, task.rel);
             if (action === "replace") await fs.rm(dest, { force: true });
             await downloadRuntimeFile({
-              candidates: await task.candidates(),
+              candidates: task.candidates,
               dest,
               sha1: task.sha1,
               signal: sig,
@@ -476,12 +454,7 @@ async function installRuntimeFiles({
       sha1: client.sha1,
       size: client.size,
       alwaysVerify: true,
-      candidates: async () =>
-        runtimeCandidates(
-          "client-jar",
-          { minecraft, url: client.url },
-          await getMirror(),
-        ),
+      candidates: [{ source: "mojang", url: client.url }],
     },
   ]);
 
@@ -492,16 +465,11 @@ async function installRuntimeFiles({
       sha1: a.sha1,
       size: a.size,
       alwaysVerify: false,
-      // Fabric 的 library 沒有 downloads（libraryArtifact 由 name 推路徑）；鏡像只管原版的
+      // Fabric 的 library 沒有 downloads（libraryArtifact 由 name 推路徑）：三台 maven；原版的只有官方一條
       candidates:
         lib.downloads === undefined
-          ? async () => runtimeCandidates("fabric-library", { url: a.url })
-          : async () =>
-              runtimeCandidates(
-                "vanilla-library",
-                { url: a.url },
-                await getMirror(),
-              ),
+          ? runtimeCandidates("fabric-library", { url: a.url })
+          : [{ source: "mojang", url: a.url }],
     };
   });
   await runGroup("libraries", libs);
@@ -515,7 +483,7 @@ async function installRuntimeFiles({
       sha1: ai.sha1,
       size: ai.size,
       alwaysVerify: true,
-      candidates: async () => [{ source: "mojang", url: ai.url }],
+      candidates: [{ source: "mojang", url: ai.url }],
     },
   ]);
 
@@ -528,7 +496,7 @@ async function installRuntimeFiles({
         sha1: logConfig.sha1,
         size: logConfig.size,
         alwaysVerify: true,
-        candidates: async () => [{ source: "mojang", url: logConfig.url }],
+        candidates: [{ source: "mojang", url: logConfig.url }],
       },
     ]);
   }
@@ -547,19 +515,16 @@ async function installRuntimeFiles({
       sha1: h,
       size,
       alwaysVerify: false,
-      candidates: async () =>
-        runtimeCandidates(
-          "asset-object",
-          { hash: h, resourcesBase: deps.resourcesBase },
-          await getMirror(),
-        ),
+      candidates: runtimeCandidates("asset-object", {
+        hash: h,
+        resourcesBase: deps.resourcesBase,
+      }),
     })),
   );
 }
 
 module.exports = {
   runtimeCandidates,
-  fetchVanillaVersionJson,
   fetchFabricProfileJson,
   ensureVersionJsons,
   installRuntimeFiles,

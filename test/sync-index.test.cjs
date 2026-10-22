@@ -677,7 +677,7 @@ test("U3 repairInstance 帶 strayJarsToRemove ⇒ 那些檔進入刪除清單、
   assert.equal(await exists(abs(h.paths, "mods/stray.jar")), false);
 });
 
-test("U4 applyPlan 收到的 prepareRuntime()（無參數）⇒ 新管線被以 settings、paths、release 的 minecraft／loader 呼叫一次", async (t) => {
+test("U4 applyPlan 收到的 prepareRuntime()（無參數）⇒ 新管線被以 paths、release 的 minecraft／loader 呼叫一次", async (t) => {
   const h = await setup(t, {
     installed: { release: REL_1 },
     site: { release: REL_2 },
@@ -688,7 +688,6 @@ test("U4 applyPlan 收到的 prepareRuntime()（無參數）⇒ 新管線被以 
   assert.equal(typeof onProgress, "function");
   assert.equal(deps.log, h.deps.log);
   assert.deepEqual(rest, {
-    settings: h.settings,
     paths: h.paths,
     minecraft: REL_2.minecraft,
     loader: REL_2.loader,

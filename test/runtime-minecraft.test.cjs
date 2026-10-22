@@ -1,6 +1,6 @@
 "use strict";
 
-// → _notes/plans/instance-sync-v3-commit4b.md T9–T17
+// → _notes/plans/instance-sync-v3-commit4b.md T9–T17；5b（官方來源、原版 json 的 sha1）→ _notes/plans/cross-review-2026-10-phase5b.md
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -10,7 +10,7 @@ const fsp = require("fs/promises");
 const os = require("os");
 const path = require("path");
 
-const { startFakeRuntime, MC, LOADER, LAUNCH_ID } = require("./helpers/fake-runtime.cjs");
+const { startFakeRuntime, makeFakeRuntime, MC, LOADER, LAUNCH_ID } = require("./helpers/fake-runtime.cjs");
 const { snapshot } = require("./helpers/fs-snapshot.cjs");
 const {
   useMockClock,
@@ -21,7 +21,6 @@ const {
 const { runtimeNeeds } = require("../lib/runtime-needs.js");
 const {
   runtimeCandidates,
-  fetchVanillaVersionJson,
   fetchFabricProfileJson,
   ensureVersionJsons,
   installRuntimeFiles,
@@ -69,8 +68,6 @@ const json = (obj) => (req, res) => {
   res.end(buf);
 };
 
-const noMirror = async () => ({ name: "Mojang 官方", base: "" });
-
 // 期限與看門狗的時間交給 mock 時鐘：會發請求的案一開頭就 useMockClock，正常路徑不推進時間（不會自己到期）；
 // 停住是預期結果的案等停住的請求到了才推進（→ _notes/plans/test-real-clock.md）
 function setup(fake, extra = {}) {
@@ -83,128 +80,23 @@ const reqPaths = (fake) => fake.requests.map((r) => r.url);
 
 // ── T9 runtimeCandidates ──
 
-test("T9 runtimeCandidates：照 §候選清單 的表逐格", () => {
-  const mirror = { base: "https://bmclapi2.bangbang93.com/" };
-  const none = { base: "" };
-  const jarUrl = "https://piston-data.mojang.com/v1/objects/abc/client.jar";
-  assert.deepEqual(runtimeCandidates("client-jar", { minecraft: MC, url: jarUrl }, mirror), [
-    { source: "mirror", url: "https://bmclapi2.bangbang93.com/version/1.21.11/client" },
-    { source: "mojang", url: jarUrl },
-  ]);
-  assert.deepEqual(runtimeCandidates("client-jar", { minecraft: MC, url: jarUrl }, none), [
-    { source: "mojang", url: jarUrl },
-  ]);
-
-  const libUrl = "https://libraries.minecraft.net/com/x/y/1/y-1.jar";
-  assert.deepEqual(runtimeCandidates("vanilla-library", { url: libUrl }, mirror), [
-    { source: "mirror", url: "https://bmclapi2.bangbang93.com/maven/com/x/y/1/y-1.jar" },
-    { source: "mojang", url: libUrl },
-  ]);
-  assert.deepEqual(runtimeCandidates("vanilla-library", { url: libUrl }, none), [
-    { source: "mojang", url: libUrl },
-  ]);
-  const odd = "https://example.com/z.jar";
-  assert.deepEqual(runtimeCandidates("vanilla-library", { url: odd }, mirror), [
-    { source: "mojang", url: odd },
-  ], "改寫不了 ⇒ 只有官方");
-
+test("T9 runtimeCandidates：Fabric library 三台 maven、asset object 官方 resources；其他種類不在這裡", () => {
   const fab = "https://maven.fabricmc.net/net/fabricmc/x/1/x-1.jar";
-  const fabExpect = [
+  assert.deepEqual(runtimeCandidates("fabric-library", { url: fab }), [
     { source: "fabric-1", url: fab },
     { source: "fabric-2", url: "https://maven2.fabricmc.net/net/fabricmc/x/1/x-1.jar" },
     { source: "fabric-3", url: "https://maven3.fabricmc.net/net/fabricmc/x/1/x-1.jar" },
-  ];
-  assert.deepEqual(runtimeCandidates("fabric-library", { url: fab }, mirror), fabExpect);
-  assert.deepEqual(runtimeCandidates("fabric-library", { url: fab }, none), fabExpect);
+  ]);
 
   const h = "ab" + "c".repeat(38);
-  assert.deepEqual(runtimeCandidates("asset-object", { hash: h }, mirror), [
-    { source: "mirror", url: `https://bmclapi2.bangbang93.com/assets/ab/${h}` },
-    { source: "mojang", url: `https://resources.download.minecraft.net/ab/${h}` },
-  ]);
-  assert.deepEqual(runtimeCandidates("asset-object", { hash: h }, none), [
+  assert.deepEqual(runtimeCandidates("asset-object", { hash: h }), [
     { source: "mojang", url: `https://resources.download.minecraft.net/ab/${h}` },
   ]);
 
-  assert.throws(() => runtimeCandidates("asset-index", { url: "x" }, mirror), /不認得/);
-});
-
-// ── T10 fetchVanillaVersionJson ──
-
-const MIRROR_JSON = `/mirror/version/${MC}/json`;
-
-test("T10 鏡像正常 ⇒ manifest 零請求", async (t) => {
-  useMockClock(t);
-  const fake = await startFakeRuntime(t);
-  const j = await fetchVanillaVersionJson({
-    minecraft: MC,
-    getMirror: async () => fake.mirror,
-    ...setup(fake),
-  });
-  assert.equal(j.id, MC);
-  assert.deepEqual(reqPaths(fake), [MIRROR_JSON]);
-});
-
-test("T10 鏡像 404 ⇒ 抓 manifest、再抓官方", async (t) => {
-  useMockClock(t);
-  const fake = await startFakeRuntime(t);
-  fake.overrides.set(MIRROR_JSON, status(404));
-  const j = await fetchVanillaVersionJson({
-    minecraft: MC,
-    getMirror: async () => fake.mirror,
-    ...setup(fake),
-  });
-  assert.equal(j.id, MC);
-  assert.deepEqual(reqPaths(fake), [MIRROR_JSON, "/official/manifest.json", "/official/version.json"]);
-});
-
-test("T10 鏡像 200 但 id 錯 ⇒ 改抓官方（R#3）", async (t) => {
-  useMockClock(t);
-  const fake = await startFakeRuntime(t);
-  fake.overrides.set(MIRROR_JSON, json({ ...fake.vanilla, id: "1.21.10" }));
-  const j = await fetchVanillaVersionJson({
-    minecraft: MC,
-    getMirror: async () => fake.mirror,
-    ...setup(fake),
-  });
-  assert.equal(j.id, MC);
-  assert.ok(reqPaths(fake).includes("/official/version.json"));
-});
-
-test("T10 鏡像 body 停住 ⇒ 期限後改抓官方", { timeout: HANG_LIMIT_MS }, async (t) => {
-  const clock = useMockClock(t);
-  const fake = await startFakeRuntime(t);
-  fake.overrides.set(MIRROR_JSON, stallAfterHeaders);
-  const p = fetchVanillaVersionJson({
-    minecraft: MC,
-    getMirror: async () => fake.mirror,
-    ...setup(fake),
-  });
-  const w = watch(p);
-  await until(() => fake.requests.length === 1, "鏡像收到請求");
-  // 期限前 1 ms 還在等鏡像、沒碰官方；再 1 ms 才改抓官方：期限被改短也抓得到
-  clock.advance(DEADLINE_MS - 1);
-  assert.ok(await stillPending(w), "期限到之前不該結束");
-  assert.ok(!reqPaths(fake).includes("/official/version.json"), "期限到之前不該改抓官方");
-  clock.advance(1); // 鏡像停住 ⇒ 期限到、改抓官方
-  const j = await p;
-  assert.equal(j.id, MC);
-  assert.ok(reqPaths(fake).includes("/official/version.json"));
-});
-
-test("T10 全部失敗 ⇒ 丟錯、訊息列出每個候選", async (t) => {
-  useMockClock(t);
-  const fake = await startFakeRuntime(t);
-  fake.overrides.set(MIRROR_JSON, status(404));
-  fake.overrides.set("/official/manifest.json", status(503));
-  await assert.rejects(
-    fetchVanillaVersionJson({
-      minecraft: MC,
-      getMirror: async () => fake.mirror,
-      ...setup(fake),
-    }),
-    (e) => /mirror：.*HTTP 404/.test(e.message) && /mojang：.*HTTP 503/.test(e.message),
-  );
+  // 版本 jar、原版 library、asset index、log4j 只有 json 裡寫的那一條官方網址，不經這裡
+  for (const kind of ["client-jar", "vanilla-library", "asset-index"]) {
+    assert.throws(() => runtimeCandidates(kind, { url: "x" }), /不認得/, kind);
+  }
 });
 
 // ── T11 fetchFabricProfileJson ──
@@ -273,29 +165,21 @@ function ensureArgs(fake, gameDir, extra = {}) {
     minecraft: MC,
     loader: LOADER,
     verifyAll: false,
-    getMirror: async () => fake.mirror,
-    health: createSourceHealth(),
     ...setup(fake),
     ...extra,
   };
 }
+
+const MANIFEST = "/official/manifest.json";
+const VERSION_JSON = "/official/version.json";
 
 test("T12 本機兩份有效、verifyAll 假 ⇒ 零請求、回 javaMajor／component", async (t) => {
   const fake = await startFakeRuntime(t);
   const gameDir = await tempDir(t);
   await writeLocal(gameDir, VANILLA_REL, fake.vanilla);
   await writeLocal(gameDir, TARGET_REL, fake.fabric);
-  let mirrorCalls = 0;
-  const r = await ensureVersionJsons(
-    ensureArgs(fake, gameDir, {
-      getMirror: async () => {
-        mirrorCalls += 1;
-        return fake.mirror;
-      },
-    }),
-  );
+  const r = await ensureVersionJsons(ensureArgs(fake, gameDir));
   assert.equal(fake.requests.length, 0);
-  assert.equal(mirrorCalls, 0);
   assert.equal(r.javaMajor, 21);
   assert.equal(r.component, "java-runtime-delta");
   assert.equal(r.target.id, LAUNCH_ID);
@@ -324,7 +208,7 @@ for (const [name, content] of [
     if (content !== null) await writeLocal(gameDir, VANILLA_REL, content);
     await writeLocal(gameDir, TARGET_REL, fake.fabric);
     await ensureVersionJsons(ensureArgs(fake, gameDir));
-    assert.deepEqual(reqPaths(fake), [MIRROR_JSON]);
+    assert.deepEqual(reqPaths(fake), [MANIFEST, VERSION_JSON]);
     const written = JSON.parse(await fsp.readFile(abs(gameDir, VANILLA_REL), "utf8"));
     assert.equal(written.id, MC);
   });
@@ -337,7 +221,7 @@ test("T12 verifyAll 真 ⇒ 兩份都抓、檔案被覆寫", async (t) => {
   await writeLocal(gameDir, VANILLA_REL, { ...fake.vanilla, marker: 1 });
   await writeLocal(gameDir, TARGET_REL, { ...fake.fabric, marker: 1 });
   await ensureVersionJsons(ensureArgs(fake, gameDir, { verifyAll: true }));
-  assert.deepEqual(reqPaths(fake), [MIRROR_JSON, "/fabric-1/profile.json"]);
+  assert.deepEqual(reqPaths(fake), [MANIFEST, VERSION_JSON, "/fabric-1/profile.json"]);
   for (const rel of [VANILLA_REL, TARGET_REL]) {
     const written = JSON.parse(await fsp.readFile(abs(gameDir, rel), "utf8"));
     assert.equal(written.marker, undefined, rel);
@@ -345,8 +229,7 @@ test("T12 verifyAll 真 ⇒ 兩份都抓、檔案被覆寫", async (t) => {
 });
 
 function failAllFetches(fake) {
-  fake.overrides.set(MIRROR_JSON, status(404));
-  fake.overrides.set("/official/manifest.json", status(404));
+  fake.overrides.set(MANIFEST, status(404));
   for (const n of [1, 2, 3]) fake.overrides.set(`/fabric-${n}/profile.json`, status(500));
 }
 
@@ -398,6 +281,112 @@ for (const [name, extra] of [
   });
 }
 
+// ── T10 原版 version json：manifest 的 sha1 驗官方回的原始位元組（5b V1–V6 → _notes/plans/cross-review-2026-10-phase5b.md）──
+// 都走 verifyAll 真（修復）：本機已有一份可用的舊檔，拒絕時它的位元組不能變
+
+const sha1Of = (buf) => crypto.createHash("sha1").update(buf).digest("hex");
+const mcEntry = (fake) => fake.manifest.versions.find((v) => v.id === MC);
+/** 本機的舊檔：可用、但跟官方原檔的位元組不同 */
+const OLD_VANILLA = (fake) => JSON.stringify({ ...fake.vanilla, marker: "old" });
+
+async function repairVanilla(t, fake) {
+  const gameDir = await tempDir(t);
+  await writeLocal(gameDir, VANILLA_REL, OLD_VANILLA(fake));
+  await writeLocal(gameDir, TARGET_REL, fake.fabric);
+  return { gameDir, run: () => ensureVersionJsons(ensureArgs(fake, gameDir, { verifyAll: true })) };
+}
+
+/** 拒絕之後：原版的舊檔位元組不變、資料夾裡沒有多出任何暫存檔、Fabric 那份還沒輪到 */
+async function assertVanillaKept(fake, gameDir) {
+  assert.equal(await fsp.readFile(abs(gameDir, VANILLA_REL), "utf8"), OLD_VANILLA(fake));
+  assert.deepEqual(await listFiles(abs(gameDir, `versions/${MC}`)), [`${MC}.json`]);
+  assert.ok(!reqPaths(fake).includes("/fabric-1/profile.json"));
+}
+
+test("T10 V1 manifest 的 sha1 對、結構對 ⇒ 正式檔就是官方回的原始位元組（不是重排過的）", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
+  const fake = await startFakeRuntime(t);
+  const { gameDir, run } = await repairVanilla(t, fake);
+  const r = await run();
+  assert.equal(r.vanilla.id, MC);
+  assert.deepEqual(await fsp.readFile(abs(gameDir, VANILLA_REL)), fake.vanillaBytes);
+  assert.equal(sha1Of(await fsp.readFile(abs(gameDir, VANILLA_REL))), mcEntry(fake).sha1);
+  assert.deepEqual(reqPaths(fake).slice(0, 2), [MANIFEST, VERSION_JSON]);
+  assert.deepEqual(await listFiles(abs(gameDir, `versions/${MC}`)), [`${MC}.json`]);
+});
+
+for (const [label, bytesOf] of [
+  ["V2 官方回的內容被改過（mainClass 換了，結構照樣合法）", (fake) => JSON.stringify({ ...fake.vanilla, mainClass: "evil.Main" })],
+  // 解析後重新序列化再算 hash 的實作會讓這條過：內容一模一樣，只有位元組不同
+  ["V3 同一份 json 只是重新排版", (fake) => JSON.stringify(fake.vanilla, null, 2)],
+]) {
+  test(`T10 ${label} ⇒ 與 manifest 的 sha1 不符、拒絕、舊檔不變`, { timeout: HANG_LIMIT_MS }, async (t) => {
+    useMockClock(t);
+    const fake = await startFakeRuntime(t);
+    const { gameDir, run } = await repairVanilla(t, fake);
+    const bytes = Buffer.from(bytesOf(fake));
+    assert.deepEqual(JSON.parse(bytes).id, MC, "對照：它本身是合法的原版 json");
+    fake.setVersionJsonBytes(bytes);
+    await assert.rejects(run(), /sha1 不符/);
+    await assertVanillaKept(fake, gameDir);
+  });
+}
+
+for (const [label, bytes, pattern] of [
+  ["V4 sha1 對、但 id 是別的版本", (fake) => JSON.stringify({ ...fake.vanilla, id: "1.21.10" }), /內容驗不過：原版 json 的 id 是 1\.21\.10/],
+  ["V4 sha1 對、但不是 JSON", () => "{", /version json 不是 JSON/],
+]) {
+  test(`T10 ${label} ⇒ 仍要拒絕、舊檔不變`, { timeout: HANG_LIMIT_MS }, async (t) => {
+    useMockClock(t);
+    const fake = await startFakeRuntime(t);
+    const { gameDir, run } = await repairVanilla(t, fake);
+    const buf = Buffer.from(bytes(fake));
+    fake.setVersionJsonBytes(buf);
+    mcEntry(fake).sha1 = sha1Of(buf);
+    await assert.rejects(run(), pattern);
+    await assertVanillaKept(fake, gameDir);
+  });
+}
+
+for (const [label, edit] of [
+  ["V5 manifest 條目沒有 sha1", (entry) => delete entry.sha1],
+  ["V5 manifest 條目的 sha1 不是 40 位 hex", (entry) => (entry.sha1 = "xyz")],
+  ["V5 manifest 條目的 sha1 是空字串", (entry) => (entry.sha1 = "")],
+]) {
+  test(`T10 ${label} ⇒ 不下載 version json、拒絕、舊檔不變`, { timeout: HANG_LIMIT_MS }, async (t) => {
+    useMockClock(t);
+    const fake = await startFakeRuntime(t);
+    const { gameDir, run } = await repairVanilla(t, fake);
+    edit(mcEntry(fake));
+    await assert.rejects(run(), /sha1/);
+    assert.deepEqual(reqPaths(fake), [MANIFEST]);
+    await assertVanillaKept(fake, gameDir);
+  });
+}
+
+test("T10 V6 version json 的 body 停住 ⇒ 窗口到之前不結束、到了以停滯失敗、舊檔不變、沒有暫存", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const clock = useMockClock(t);
+  const fake = await startFakeRuntime(t);
+  const { gameDir, run } = await repairVanilla(t, fake);
+  fake.overrides.set(VERSION_JSON, stallAfterHeaders);
+  const p = run();
+  const w = watch(p);
+  await until(() => reqPaths(fake).includes(VERSION_JSON), "version json 收到請求");
+  assert.ok(await stillPending(w), "窗口到之前不該結束");
+  clock.advance(STALL.windowMs); // 停住 ⇒ 看門狗到期
+  await assert.rejects(p, /停滯/);
+  await assertVanillaKept(fake, gameDir);
+});
+
+test("T10 manifest 503 ⇒ 丟錯帶 HTTP 503、舊檔不變", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
+  const fake = await startFakeRuntime(t);
+  const { gameDir, run } = await repairVanilla(t, fake);
+  fake.overrides.set(MANIFEST, status(503));
+  await assert.rejects(run(), /HTTP 503/);
+  await assertVanillaKept(fake, gameDir);
+});
+
 // ── T13–T17 installRuntimeFiles ──
 
 function installArgs(fake, gameDir, extra = {}) {
@@ -409,7 +398,6 @@ function installArgs(fake, gameDir, extra = {}) {
     target: fake.fabric,
     verifyAll: false,
     env: ENV,
-    getMirror: noMirror,
     health: createSourceHealth(),
     ...setup(fake),
     ...extra,
@@ -428,7 +416,7 @@ test("T13 白名單：空 gameDir 裝完，該有的都有、沒多下", { timeo
   useMockClock(t);
   const fake = await startFakeRuntime(t);
   const gameDir = await tempDir(t);
-  await installRuntimeFiles(installArgs(fake, gameDir, { getMirror: async () => fake.mirror }));
+  await installRuntimeFiles(installArgs(fake, gameDir));
 
   const n = needs(fake);
   assert.deepEqual(n.problems, []);
@@ -457,7 +445,7 @@ test("T13 白名單：空 gameDir 裝完，該有的都有、沒多下", { timeo
   }
   const indexReqs = paths.filter((p) => p.includes("/indexes/"));
   assert.deepEqual(indexReqs, ["/official/indexes/29.json"], "asset index 只走官方");
-  // ⑤b K6：給了鏡像，log4j 設定檔也只走官方（V-c）
+  // ⑤b K6：log4j 設定檔只走官方（V-c）
   const logReqs = paths.filter((p) => p.includes("/log_configs/"));
   assert.deepEqual(logReqs, [fake.officialPathOf(fake.logConfigRel)]);
 });
@@ -498,7 +486,7 @@ test("K6 Fabric 自己有 logging ⇒ 下載 Fabric 那份、不下原版那份�
     size: buf.length,
     url: `${fake.url}/official/log_configs/${id}`,
   });
-  fake.routes.set(`/official/log_configs/${id}`, buf);
+  fake.route(`${fake.url}/official/log_configs/${id}`, buf);
 
   await installRuntimeFiles(installArgs(fake, gameDir));
   assert.deepEqual(await fsp.readFile(abs(gameDir, `assets/log_configs/${id}`)), buf);
@@ -703,30 +691,41 @@ test("T17 進度：同 group 的非最後一筆間隔 ≥ 180 ms、最後一筆 
   assert.equal(sends.at(-1).x.step, "files");
 });
 
-test("T17 log：換台 RUNTIME_SOURCE、降級 RUNTIME_DEMOTE、池子中止 RUNTIME_ABORT", { timeout: HANG_LIMIT_MS }, async (t) => {
-  const clock = useMockClock(t);
-  const fake = await startFakeRuntime(t);
+// Fabric 的官方備援（maven／maven2／maven3）只有真的 maven.fabricmc.net 網址才展開：用官方網址模式，下載換成 transport
+test("T17 Fabric library 第一台停滯 ⇒ 降級 RUNTIME_DEMOTE、換台 RUNTIME_SOURCE 到第二台；之後 asset 404 ⇒ RUNTIME_ABORT", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
+  const fake = makeFakeRuntime(null);
   const gameDir = await tempDir(t);
-  const stalledJar = `/mirror/version/${MC}/client`;
-  fake.overrides.set(stalledJar, stallAfterHeaders);
+  const rel = fake.windowsLibraryRels().find((r) => r.startsWith("libraries/net/fabricmc/"));
+  const first = `https://maven.fabricmc.net/${rel.slice("libraries/".length)}`;
+  const second = first.replace("://maven.", "://maven2.");
+  fake.route(second, fake.files.get(rel));
   const h = fake.objectHashes[0];
-  fake.overrides.set(`/official/objects/${h.slice(0, 2)}/${h}`, status(404));
-  fake.overrides.set(`/mirror/assets/${h.slice(0, 2)}/${h}`, status(404));
+  const objectUrl = `https://resources.download.minecraft.net/${h.slice(0, 2)}/${h}`;
+  const download = async (url, ...rest) => {
+    if (url === first) {
+      fake.transport.urls.push(url);
+      throw Object.assign(new Error("假的停滯"), { code: "GGL_DOWNLOAD_STALLED" });
+    }
+    if (url === objectUrl) {
+      fake.transport.urls.push(url);
+      throw new Error("HTTP 404");
+    }
+    return fake.transport.download(url, ...rest);
+  };
   const lines = [];
-  const p = installRuntimeFiles(
-    installArgs(fake, gameDir, {
-      getMirror: async () => fake.mirror,
-      deps: { ...setup(fake).deps, log: (l) => lines.push(l) },
+  await assert.rejects(
+    installRuntimeFiles({
+      ...installArgs(fake, gameDir),
+      deps: { stall: STALL, download, log: (l) => lines.push(l) },
     }),
   );
-  // 版本 jar 這組只有它一個檔：請求到了就只剩它的看門狗在跑
-  await until(() => reqPaths(fake).includes(stalledJar), "鏡像收到版本 jar 的請求");
-  clock.advance(STALL.windowMs); // 鏡像停住 ⇒ 降級、換官方
-  await assert.rejects(p);
   const text = lines.join("\n");
-  assert.match(text, /^RUNTIME_DEMOTE mirror$/m);
-  assert.match(text, /^RUNTIME_SOURCE .*\.jar mirror → mojang$/m);
+  assert.match(text, /^RUNTIME_DEMOTE fabric-1$/m);
+  assert.match(text, /^RUNTIME_SOURCE .* fabric-1 → fabric-2$/m);
   assert.match(text, /^RUNTIME_ABORT assets /m);
+  assert.ok(fake.transport.urls.includes(second), "第二台真的被請求");
+  assert.deepEqual(await fsp.readFile(abs(gameDir, rel)), fake.files.get(rel));
 });
 
 // → _notes/plans/instance-sync-v3-commit5c.md N6（D1：安裝與就緒同一把尺，否則「更新成功、就緒判壞」會無聲循環）
