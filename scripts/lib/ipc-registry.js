@@ -7,6 +7,8 @@
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..", "..");
+// createIpcRuntime 交給各 register* 的是這一層包過的 ipcMain（錯誤換成普通 Error），它不是註冊端
+const PLAIN_ERROR_WRAPPER = path.join(ROOT, "lib", "ipc-plain-errors.js");
 
 /** 呼叫 ipcMain.handle 的那支檔（相對 repo 根目錄、正斜線）。 */
 function handleCallerFile() {
@@ -14,8 +16,11 @@ function handleCallerFile() {
   Error.prepareStackTrace = (_err, callSites) => callSites;
   const callSites = new Error().stack;
   Error.prepareStackTrace = original;
-  // [0] 本函式、[1] 假的 handle、[2] 呼叫 handle 的地方
-  return path.relative(ROOT, callSites[2].getFileName()).replace(/\\/g, "/");
+  // [0] 本函式、[1] 假的 handle；之後第一個不在包裝層裡的就是呼叫 handle 的地方
+  const caller = callSites
+    .slice(2)
+    .find((s) => s.getFileName() !== PLAIN_ERROR_WRAPPER);
+  return path.relative(ROOT, caller.getFileName()).replace(/\\/g, "/");
 }
 
 /** @returns {{ channel: string, file: string }[]} 依註冊順序 */

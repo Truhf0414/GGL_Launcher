@@ -9,6 +9,7 @@ const path = require("path");
 
 const accountStore = require("../main/account-store.js");
 const { registerMinecraftIpc } = require("../main/ipc/minecraft-ipc.js");
+const { plainErrorIpcMain } = require("../lib/ipc-plain-errors.js");
 const { IPC } = require("../lib/ipc-channels.js");
 const { ACCOUNT_STATE, REFRESH_OUTCOME } = require("../lib/account-secret.js");
 const {
@@ -76,7 +77,8 @@ function setupIpc(depsOverrides = {}) {
   const showInfoDialog = async (title, message) => {
     calls.dialogs.push({ title, message });
   };
-  registerMinecraftIpc({ ipcMain, deps, showInfoDialog });
+  // 跟正式接線一樣：錯誤換成普通 Error 由 createIpcRuntime 包的這一層做
+  registerMinecraftIpc({ ipcMain: plainErrorIpcMain(ipcMain), deps, showInfoDialog });
   return { ipcMain, calls };
 }
 

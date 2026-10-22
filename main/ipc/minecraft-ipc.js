@@ -10,15 +10,6 @@ const { describeStatus } = require("../../lib/sync/status-text.js");
 function registerMinecraftIpc(ctx) {
   const { ipcMain, deps, showInfoDialog } = ctx || {};
 
-  // Electron 跨 IPC 只帶得過 message，自訂類別的名稱還會黏在畫面上：一律換成普通 Error、訊息照原文
-  async function withPlainErrors(fn) {
-    try {
-      return await fn();
-    } catch (e) {
-      throw new Error(String(e?.message ?? e), { cause: e });
-    }
-  }
-
   // 啟動本體不跳框（④c：minecraft-launch.js 不 require electron），依 code 在這裡跳；文字照搬 ④c 前
   const LAUNCH_ERROR_DIALOGS = {
     GGL_LAUNCH_NO_JAVA: [
@@ -120,24 +111,21 @@ function registerMinecraftIpc(ctx) {
     throw new Error(msg);
   }
 
-  ipcMain.handle(IPC.invoke.MINECRAFT_LAUNCH, () =>
-    withPlainErrors(async () => {
-      let acct = await readAccountOrThrow();
-      await requireLoggedInOrThrow(acct);
-      acct = await ensureActiveAccountOrThrow(acct);
+  // 錯誤換成普通 Error 由 main/ipc-runtime.js 統一做（→ lib/ipc-plain-errors.js）
+  ipcMain.handle(IPC.invoke.MINECRAFT_LAUNCH, async () => {
+    let acct = await readAccountOrThrow();
+    await requireLoggedInOrThrow(acct);
+    acct = await ensureActiveAccountOrThrow(acct);
 
-      await launchThroughGate(() => ({
-        name: acct.name,
-        uuid: acct.uuid,
-        accessToken: acct.mcAccessToken,
-      }));
-    }),
-  );
+    await launchThroughGate(() => ({
+      name: acct.name,
+      uuid: acct.uuid,
+      accessToken: acct.mcAccessToken,
+    }));
+  });
 
   ipcMain.handle(IPC.invoke.MINECRAFT_LAUNCH_OFFLINE, () =>
-    withPlainErrors(() =>
-      launchThroughGate((settings) => ({ name: settings.playerId })),
-    ),
+    launchThroughGate((settings) => ({ name: settings.playerId })),
   );
 
   ipcMain.handle(IPC.invoke.MINECRAFT_IS_RUNNING, async () =>
