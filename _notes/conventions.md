@@ -14,7 +14,7 @@
 - 講「現在的狀態」的事件（目前是 `instance:status`、`notice:changed`、`server:status`、`window:power`）一律經 `main/ipc-bridge.js` 的 `sendState` 送：送出時記住最後一筆，畫面在 `renderer/bootstrap.js` 的 `start()` 最後喊 `renderer:ready`，main 把記住的各重送一筆給喊的那個 `webContents`。新增這類事件就加進 `STATE_CHANNELS`；畫面端要在 `renderer:ready` 之前同步掛好監聽。不這樣送，送出當下畫面還沒在聽（開啟、Ctrl+R）就漏掉。出處：owner 2026-10-07 G6「要要要哈哈，非常要。」→ plans/instance-sync-v3-commit3b2b.md B10。
 
 ## 防禦與相容
-前提：啟動器從未發行，沒有玩家裝過；舊東西只在 owner 與一位測試者的機器上，丟掉重來即可。第 5 條在首次對外發版前要重審（提醒掛在 future-work.md「打包邊界」）。
+前提：啟動器從未發行，沒有玩家裝過；舊東西只在 owner 的機器上，丟掉重來即可。第 5 條在首次對外發版前要重審（提醒掛在 future-work.md「打包邊界」）。
 
 **一把尺：值從哪來。** 外部邊界只有這些：
 - 網路回應（站台、Mojang／Fabric、Java 來源、微軟登入）
@@ -40,7 +40,7 @@
 - commit 前：`git diff --cached -U0 | rg '^\+.*(\?\.|\?\?|catch|typeof)'`，命中的逐條答同一題。
 - 機器擋：載入順序（`scripts/check-renderer-scripts.cjs`）；空 catch（ESLint `no-empty`，舊的清完才開）。
 - 既有的違規：清單在 `plans/defense-cleanup.md`，照 plan 分批清；新寫的不准再犯，舊的不在別的 commit 裡順手清。
-- 出處：owner 2026-10-11「從來沒發行過，所以沒有玩家有東西。」；owner 2026-10-13「我想完全治本，不是這種修修補補的。」，判準 owner 2026-10-13「可以，重寫版好多了。」。
+- 出處：owner 2026-10-11「從來沒發行過，所以沒有玩家有東西。」；只有 owner 一台：owner 2026-10-22「測試者從頭到尾只有我。」；owner 2026-10-13「我想完全治本，不是這種修修補補的。」，判準 owner 2026-10-13「可以，重寫版好多了。」。
 
 ## 下載來源
 - 內容的正確答案由發布者給，下載點只負責搬。會被安裝或執行的檔，它的 hash、清單、版本描述只能來自該內容的發布者（GGL3 站台管模組與設定檔、Mojang 管 Minecraft、Fabric 管 loader、各 Java 發行商管自己的 JRE）；發布者有給 hash 就必須驗；沒給 hash 的官方發行物，照該來源已裁的驗證方式（例如 Java 的完整安裝驗證，→ `plans/cross-review-2026-10.md` D-JAVA）；第三方搬運者（鏡像、轉址節點）不得提供或改寫正確答案。新增下載來源時以此為判準。〔2026-10-14 起。現有程式尚未符合：Java 自訂鏡像（`main/runtime/java.js`）與 Minecraft 第三方鏡像（`main/mc-mirror.js`）仍在，待 Phase 5 實作〕
