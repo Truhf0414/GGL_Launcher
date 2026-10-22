@@ -1,4 +1,4 @@
-# Phase 4 — Settings：細部 plan（狀態：**2026-10-21 初稿（Q1–Q10 待裁）；同日 owner 第二輪裁決 Q1–Q10（細化 Q1、Q5、Q7），條件式授權施工——條件＝Q5 Windows 實測沒有不可接受的反例、輕量 SPR 沒有需要 owner 重裁的反例；每刀 owner 放行前不 commit；同日 Q5 Windows 實測完成（→ §Probe 紀錄 Q5）；同日輕量 SPR（`68bc108e` → `reviews/cross-review-2026-10-phase4-v68bc108e-20261021.md`，48 列），兩項交 owner（#13 Q8 重評、#14 診斷匯出），本檔依 SPR 修訂；2026-10-22 owner 裁 SPR #13（乙：行程內序列化）、#14（甲：接受）、#15（接受）、三項不涵蓋（接受），本檔回寫，SPR 紀錄封存；放行一個 docs(notes) commit 與 4a 施工；4b／4c 照逐刀驗收**）
+# Phase 4 — Settings：細部 plan（狀態：**2026-10-21 初稿（Q1–Q10 待裁）；同日 owner 第二輪裁決 Q1–Q10（細化 Q1、Q5、Q7），條件式授權施工——條件＝Q5 Windows 實測沒有不可接受的反例、輕量 SPR 沒有需要 owner 重裁的反例；每刀 owner 放行前不 commit；同日 Q5 Windows 實測完成（→ §Probe 紀錄 Q5）；同日輕量 SPR（`68bc108e` → `reviews/cross-review-2026-10-phase4-v68bc108e-20261021.md`，48 列），兩項交 owner（#13 Q8 重評、#14 診斷匯出），本檔依 SPR 修訂；2026-10-22 owner 裁 SPR #13（乙：行程內序列化）、#14（甲：接受）、#15（接受）、三項不涵蓋（接受），本檔回寫，SPR 紀錄封存；放行一個 docs(notes) commit 與 4a 施工；4b／4c 照逐刀驗收；同日 4c 經 owner 驗收放行（`99383f8`），Phase 4 結案**）
 
 上層＝`plans/cross-review-2026-10.md` §8 Phase 4（目的、範圍下限、不做、不變量、驗收下限、回滾）；裁決本體與出處＝同檔 §3.5（D-SET 群；本輪新增 D-SET-MEM-DYN、D-SET-MEM-UI、D-SET-DEFAULTS、D-SET-FIELDS、D-SET-RECOVER、D-SET-BOM、D-SET-KIND、D-SET-WRITE）；證據＝同檔 §5.10 與本檔 §動工前現查、§Probe 紀錄；收斂經過＝同檔 §6.5；U6＝同檔 §4.2。本檔只寫上層沒定死的細節，不重述裁決本體。
 
@@ -16,8 +16,8 @@
 | owner 已裁（本檔 §已裁事項） | Q9 三刀、Q10 跑輕量 SPR；初稿建議被改判的部分與理由 |
 | 施工條件 | Q5 Windows 實測：完成，沒有不可接受的反例（→ §Probe 紀錄 Q5、§Q5 實測的結論）；輕量 SPR：完成，需重裁的 #13、#14 已由 owner 2026-10-22 裁定（→ 上層 §3.5 D-SET-SERIAL、D-SET-DIAG、D-SET-UTF8）；owner 放行 4a |
 | 待 owner 裁 | 無 |
-| 已實作 | 4a（`064fe14`）；4b（`a4d4eb9`，owner 2026-10-22 驗收放行，→ §4b 施工紀錄） |
-| 已跑的測試 | P1–P5、Q5 實測 R0–R6（設計證據，不是施工驗收）；基線 `npm test` 2026-10-21 現跑 `tests 1093 / pass 1093 / fail 0`（HEAD `d1a147e`）；4b → §驗收格、§4b 施工紀錄 |
+| 已實作 | 4a（`064fe14`）；4b（`a4d4eb9`，owner 2026-10-22 驗收放行，→ §4b 施工紀錄）；4c（`99383f8`，owner 2026-10-22 驗收放行，→ §4c 施工紀錄） |
+| 已跑的測試 | P1–P5、Q5 實測 R0–R6（設計證據，不是施工驗收）；基線 `npm test` 2026-10-21 現跑 `tests 1093 / pass 1093 / fail 0`（HEAD `d1a147e`）；4b、4c → §驗收格、各刀施工紀錄 |
 
 ## 動工前現查（2026-10-21，基準 `d1a147e`）〔讀碼〕
 
@@ -29,34 +29,34 @@
 |---|---|---|
 | 開機初始化 | `main/app-ready.js:119`（`ensureSettingsFileInitialized`） | 讀不到（任何原因）⇒ 寫預設；壞 JSON ⇒ 寫預設；缺鍵 ⇒ 正規化後整份重寫〔對齊 2026-10-22：`main/app-ready.js:119` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 改寫（改呼叫 `initSettingsAtBoot`）〕 |
 | 開機讀 debug 開關 | `main/app-ready.js:122` | `readSettingsRaw` 吞錯回 `{}`〔對齊 2026-10-22：`main/app-ready.js:122` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除（debug 開關改用 `initSettingsAtBoot` 回的設定）〕 |
-| 同步中樞 `gather()` | `main/sync/index.js:166` | 同上吞錯。`compute()` 的 catch（`:238-240`）把任何丟錯都包成 `internal-error`（`:120-130`），畫面大標題「啟動器內部錯誤，請按「複製錯誤詳情」回報」（`lib/sync/status-text.js:91-92`）、按鈕「重新檢查」、不能啟動（`lib/sync/status-kind.js:87`）〔對齊 2026-10-22：`main/sync/index.js:166` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 後 `:183`；`:238-240` 原地改寫（catch 先判 `SettingsError`）後 `:255-261`；`:120-130` 後 `:121-131`；`lib/sync/status-text.js:91-92` 未移動；`lib/sync/status-kind.js:87` 後 `:88`〕 |
-| `SETTINGS_GET` | `main/ipc/settings-ipc.js:6-7` | 直接 `readSettingsRaw`＋`normalizeSettingsObject`；`userMemoryConfigured` 用 `isExplicitNumberLike`（收數字字串，`main/settings.js:156-166`）〔對齊 2026-10-22：`main/ipc/settings-ipc.js:6-7` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 改寫（`SETTINGS_GET` 改走 `readSettings`）；`main/settings.js:156-166` 刪除（`isExplicitNumberLike`）〕 |
-| `SETTINGS_SET` 換根目錄檢查 | `main/ipc/settings-ipc.js:34-46` | `readSettings`；比的是正規化後的根目錄〔對齊 2026-10-22：`main/ipc/settings-ipc.js:34-46` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 改寫（比驗過的字串）後 `:23-31`〕 |
-| `writeSettings` 先讀 | `main/settings.js:169` | 讀壞 ⇒ `{}` ⇒ 以「預設＋patch」覆寫原檔（B4）〔對齊 2026-10-22：`main/settings.js:169` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 改寫（`writeSettings` 讀壞即拒，整份改寫）〕 |
-| 診斷匯出 | `main/diagnostics-export.js:45` | `readSettings`〔對齊 2026-10-22：`main/diagnostics-export.js:45` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 後 `:44`（移到建資料夾之前）〕 |
+| 同步中樞 `gather()` | `main/sync/index.js:166` | 同上吞錯。`compute()` 的 catch（`:238-240`）把任何丟錯都包成 `internal-error`（`:120-130`），畫面大標題「啟動器內部錯誤，請按「複製錯誤詳情」回報」（`lib/sync/status-text.js:91-92`）、按鈕「重新檢查」、不能啟動（`lib/sync/status-kind.js:87`）〔對齊 2026-10-22：`main/sync/index.js:166` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 後 `:183`；`:238-240` 原地改寫（catch 先判 `SettingsError`）後 `:255-261`；`:120-130` 後 `:121-131`；`lib/sync/status-text.js:91-92` 未移動；`lib/sync/status-kind.js:87` 後 `:88`〕〔對齊 2026-10-22：→ `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 未移動（行內行號指的檔不在本 commit）〕 |
+| `SETTINGS_GET` | `main/ipc/settings-ipc.js:6-7` | 直接 `readSettingsRaw`＋`normalizeSettingsObject`；`userMemoryConfigured` 用 `isExplicitNumberLike`（收數字字串，`main/settings.js:156-166`）〔對齊 2026-10-22：`main/ipc/settings-ipc.js:6-7` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 改寫（`SETTINGS_GET` 改走 `readSettings`）；`main/settings.js:156-166` 刪除（`isExplicitNumberLike`）〕〔對齊 2026-10-22：`main/settings.js:156-166` → `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 不適用（已於 `a4d4eb9` 刪除或改寫）〕 |
+| `SETTINGS_SET` 換根目錄檢查 | `main/ipc/settings-ipc.js:34-46` | `readSettings`；比的是正規化後的根目錄〔對齊 2026-10-22：`main/ipc/settings-ipc.js:34-46` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 改寫（比驗過的字串）後 `:23-31`〕〔對齊 2026-10-22：→ `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 未移動（行內行號指的檔不在本 commit）〕 |
+| `writeSettings` 先讀 | `main/settings.js:169` | 讀壞 ⇒ `{}` ⇒ 以「預設＋patch」覆寫原檔（B4）〔對齊 2026-10-22：`main/settings.js:169` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 改寫（`writeSettings` 讀壞即拒，整份改寫）〕〔對齊 2026-10-22：`main/settings.js:169` → `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 再改寫（`writeSettings` 改走 `replaceFileWithBytes`）〕 |
+| 診斷匯出 | `main/diagnostics-export.js:45` | `readSettings`〔對齊 2026-10-22：`main/diagnostics-export.js:45` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 後 `:44`（移到建資料夾之前）〕〔對齊 2026-10-22：→ `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 未移動（行內行號指的檔不在本 commit）〕 |
 
 **記憶體預設的實際落點**（更正上層 U6 的行號敘述；`rg -n "4096|1024|mbFromGb" main/minecraft-launch.js`）：
 
 - `main/minecraft-launch.js:102-106` `mbFromGb`：非數字或 `<= 0` ⇒ 4096。〔對齊 2026-10-22：`main/minecraft-launch.js:102-106` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除（`mbFromGb`；推導搬到 `lib/launch-memory.js`）〕
-- `:109-117` `memoryAndGcFlags`：Xmx 夾在 1024–65536 MB，`|| 4096`；Xms 未設或 `<= 0` ⇒ `min(1024, Xmx)`；Xms 大於 Xmx ⇒ 等於 Xmx。〔對齊 2026-10-22：`main/minecraft-launch.js:109-117` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 改寫（`memoryAndGcFlags` 只組旗標、不夾值）〕
-- `:210-213`：`maxMemoryGb` 為 truthy 才用它，否則退到 `memoryGb`；`minMemoryGb` 為 truthy 才用，否則 0。〔對齊 2026-10-22：`main/minecraft-launch.js:210-213` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 改寫（改呼叫 `heapMbFromSettings`）〕
-- `main/settings.js:58-64,69`：`memoryGb` 未設 ⇒ 4，夾 1–64。〔對齊 2026-10-22：`main/settings.js:58-64,69` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除（`memoryGb` 退休）〕
+- `:109-117` `memoryAndGcFlags`：Xmx 夾在 1024–65536 MB，`|| 4096`；Xms 未設或 `<= 0` ⇒ `min(1024, Xmx)`；Xms 大於 Xmx ⇒ 等於 Xmx。〔對齊 2026-10-22：`main/minecraft-launch.js:109-117` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 改寫（`memoryAndGcFlags` 只組旗標、不夾值）〕〔對齊 2026-10-22：→ `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 未移動（行內行號指的檔不在本 commit）〕
+- `:210-213`：`maxMemoryGb` 為 truthy 才用它，否則退到 `memoryGb`；`minMemoryGb` 為 truthy 才用，否則 0。〔對齊 2026-10-22：`main/minecraft-launch.js:210-213` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 改寫（改呼叫 `heapMbFromSettings`）〕〔對齊 2026-10-22：→ `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 未移動（行內行號指的檔不在本 commit）〕
+- `main/settings.js:58-64,69`：`memoryGb` 未設 ⇒ 4，夾 1–64。〔對齊 2026-10-22：`main/settings.js:58-64,69` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除（`memoryGb` 退休）〕〔對齊 2026-10-22：`main/settings.js:58-64,69` → `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 不適用（已於 `a4d4eb9` 刪除或改寫）〕
 - `lib/settings-logic.js:42,57-61`：畫面在 `maxMemoryGb` 沒值時拿 `memoryGb` 填最大欄。〔對齊 2026-10-22：`lib/settings-logic.js:42,57-61` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除（`memoryGb` 後備）〕
-- `assets/default-settings.json:2`、`main/settings.js:22`：`memoryGb: 4`。〔對齊 2026-10-22：`assets/default-settings.json:2` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 整檔刪除；`main/settings.js:22` 刪除〕
+- `assets/default-settings.json:2`、`main/settings.js:22`：`memoryGb: 4`。〔對齊 2026-10-22：`assets/default-settings.json:2` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 整檔刪除；`main/settings.js:22` 刪除〕〔對齊 2026-10-22：`main/settings.js:22` → `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 不適用（已於 `a4d4eb9` 刪除或改寫）〕
 
-**畫面**：記憶體欄是 `type="number" min="1" step="0.5"`（`index.html:399-414`）。`computeMemoryUiModel`（`lib/settings-logic.js:38-84`）在「使用者沒設過」時把系統記憶體的建議值**直接填進兩個欄位**（`:70-75`），而儲存（`renderer/settings-modal.js:240-281`）把欄位內容當正式設定送出——只改安裝路徑按儲存，建議值就被存成正式設定（D-SET-MEM-UI 要修的就是這個）。送出前把 `<= 0` 與非數字轉成 `null`（`:249-254`），擋 `min > max`（`:256-266`），不擋上限；安裝位置空白擋下（`:243`）；離線 ID 空白換成 `"Player001"`（`:247`）。`settings:set` 與 `instance:recheck` 在**同一個** try（`:268-280`），重新檢查失敗會被報成「儲存失敗：…」，而且這時視窗已經關了（`:275` 先關）。既有出口：`無法載入設定：`（`:220`，用 `setStatusError`）、`儲存失敗：`（`:279`）、`匯出失敗：`（`:289`）。〔對齊 2026-10-22：`index.html:399-414` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 部分改寫（`step="any"`、`max="64"`、提示改寫）；`lib/settings-logic.js:38-84` 改寫（`computeMemoryUiModel`）；`renderer/settings-modal.js:240-281` 改寫（`saveSettings`，本行其餘 `:243`～`:280` 隨之消失）；`:220` 後 `:215`；`:289` 後 `:296`〕
+**畫面**：記憶體欄是 `type="number" min="1" step="0.5"`（`index.html:399-414`）。`computeMemoryUiModel`（`lib/settings-logic.js:38-84`）在「使用者沒設過」時把系統記憶體的建議值**直接填進兩個欄位**（`:70-75`），而儲存（`renderer/settings-modal.js:240-281`）把欄位內容當正式設定送出——只改安裝路徑按儲存，建議值就被存成正式設定（D-SET-MEM-UI 要修的就是這個）。送出前把 `<= 0` 與非數字轉成 `null`（`:249-254`），擋 `min > max`（`:256-266`），不擋上限；安裝位置空白擋下（`:243`）；離線 ID 空白換成 `"Player001"`（`:247`）。`settings:set` 與 `instance:recheck` 在**同一個** try（`:268-280`），重新檢查失敗會被報成「儲存失敗：…」，而且這時視窗已經關了（`:275` 先關）。既有出口：`無法載入設定：`（`:220`，用 `setStatusError`）、`儲存失敗：`（`:279`）、`匯出失敗：`（`:289`）。〔對齊 2026-10-22：`index.html:399-414` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 部分改寫（`step="any"`、`max="64"`、提示改寫）；`lib/settings-logic.js:38-84` 改寫（`computeMemoryUiModel`）；`renderer/settings-modal.js:240-281` 改寫（`saveSettings`，本行其餘 `:243`～`:280` 隨之消失）；`:220` 後 `:215`；`:289` 後 `:296`〕〔對齊 2026-10-22：→ `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 未移動（行內行號指的檔不在本 commit）〕
 
 **畫面不看 kind 名稱**：`rg -n "\.kind\b|kind ===" renderer` 零命中（對照組：同指令對 `main/ipc-bridge.js` 命中 `status?.kind === "internal-error"`），畫面只吃 `status.ui` 與 `text`。新增 kind 不必動畫面分流。
 
 **欄位的使用者**：`playerId` 只在離線啟動用（`main/ipc/minecraft-ipc.js:139`）；`debugLogging` 只進 `computeDebugLoggingEnabled`（`lib/launcher-debug-logging.js:9`），畫面沒有開關，只能手改；`launcherRootDir` 經 `normalizeRootDir`（`lib/paths-layout.js:12-15`，空白 ⇒ `lib/server-config.js:33` 的 `C:\Games\GGL`）。〔對齊 2026-10-22：`lib/paths-layout.js:12-15` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除（`normalizeRootDir`）〕
 
-**預設值的份數**（M-SET）：`assets/default-settings.json`；`main/settings.js:21-25`（預設檔讀不到的退路）；`main/settings.js:58,74`；`renderer/settings-modal.js:199,247`。預設檔另綁 `package.json:68,82-83`（打包）、`scripts/check-packaged-artifacts.cjs:30,36`、`test/settings-normalize.test.cjs` K4。〔對齊 2026-10-22：`main/settings.js:21-25`、`:58,74` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除；`renderer/settings-modal.js:199,247` 刪除（不再補 `Player001`）；`package.json:68,82-83`、`scripts/check-packaged-artifacts.cjs:30,36` 刪除；`assets/default-settings.json` 整檔刪除〕
+**預設值的份數**（M-SET）：`assets/default-settings.json`；`main/settings.js:21-25`（預設檔讀不到的退路）；`main/settings.js:58,74`；`renderer/settings-modal.js:199,247`。預設檔另綁 `package.json:68,82-83`（打包）、`scripts/check-packaged-artifacts.cjs:30,36`、`test/settings-normalize.test.cjs` K4。〔對齊 2026-10-22：`main/settings.js:21-25`、`:58,74` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除；`renderer/settings-modal.js:199,247` 刪除（不再補 `Player001`）；`package.json:68,82-83`、`scripts/check-packaged-artifacts.cjs:30,36` 刪除；`assets/default-settings.json` 整檔刪除〕〔對齊 2026-10-22：`main/settings.js:21-25`、`:58,74` → `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 不適用（已於 `a4d4eb9` 刪除或改寫）〕
 
 **文件裡綁著舊契約的地方**（`rg -n "normalizeSettingsObject|default-settings|settings\.json|memoryGb" --glob '*.md' --glob '!_notes/**'`）：`ARCHITECTURE.md:44,54,58`；`README.md:74-80`（教人在 `settings.json` 寫 `discordClientId` 等鍵——那些鍵現在已被正規化丟掉，D-SET-UNKNOWN 之後照做會開不起來）、`README.md:93-97`（預設檔）；`docs/pre-release-audit-source-of-truth.md:37,47`。`conventions.md` §防禦與相容 第 1 條拿 `normalizeSettingsObject` 當邊界範例。
 
 **M-SET 的第三列**：`main/microsoft-auth.js:663` `msClientId.includes("PUT_YOUR")`（舊範本佔位）——和設定檔無關，但上層列在歸本 Phase 的 M-SET；放進 4b，照清單的修法留 `!msClientId`。〔對齊 2026-10-22：`main/microsoft-auth.js:663` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 原地改寫（留 `!msClientId`）〕
 
-**常駐日誌的 code**：`lib/ggl-structured-log.js:80-82` 只收 `os.constants.errno` 的鍵；GGL 碼的允許清單**還沒建**（conventions §防禦與相容 第 3 條：「清單在接到需要它的路徑時才建」）。開機失敗走 `gglError("main", "start_main_failed", err)`（`main/start-main.js:193`），設定錯誤的 code 現在會被丟掉。〔對齊 2026-10-22：`lib/ggl-structured-log.js:80-82` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 後 `:85-87`（同處接上 GGL 碼允許清單，只收 `GGL_SETTINGS`）；`main/start-main.js:193` 後 `:214`〕
+**常駐日誌的 code**：`lib/ggl-structured-log.js:80-82` 只收 `os.constants.errno` 的鍵；GGL 碼的允許清單**還沒建**（conventions §防禦與相容 第 3 條：「清單在接到需要它的路徑時才建」）。開機失敗走 `gglError("main", "start_main_failed", err)`（`main/start-main.js:193`），設定錯誤的 code 現在會被丟掉。〔對齊 2026-10-22：`lib/ggl-structured-log.js:80-82` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 後 `:85-87`（同處接上 GGL 碼允許清單，只收 `GGL_SETTINGS`）；`main/start-main.js:193` 後 `:214`〕〔對齊 2026-10-22：→ `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 未移動（行內行號指的檔不在本 commit）〕
 
 **owner 機器的 `settings.json`**（`%APPDATA%\GGL_launcher\settings.json`，2026-10-21 現讀）：鍵＝`memoryGb, minMemoryGb, maxMemoryGb, playerId, launcherRootDir, debugLogging`，`memoryGb: 4`、`minMemoryGb: 4`、`maxMemoryGb: 16`。4b 之後 `memoryGb` 會被拒（→ §owner 設定檔）。測試者的檔仍沒查。
 
@@ -148,7 +148,7 @@
 
 | 檔 | 責任 | 不做 |
 |---|---|---|
-| `lib/settings-format.js`（新，UMD，比照 `lib/settings-logic.js` 的 Browser／Node 雙載入；包裝直接用 `globalThis`，不抄 `settings-logic.js:12` 的防線） | 唯一的欄位契約：`SETTINGS_KEYS`；記憶體範圍常數；錯誤碼常數 `SETTINGS_ERROR_CODE = "GGL_SETTINGS"`；`checkSettings(obj)` 回**全部**問題 `[{ key, value, reason, fix }]`（不認得的鍵、各欄、min > max）；`formatIssue(issue)`——開機框、`settings-error` 細節、IPC 訊息、畫面錯誤四處共用的唯一文字（SPR #22） | 不碰 fs、不知道預設根目錄、不補預設〔對齊 2026-10-22：`lib/settings-logic.js:12` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 後 `:18`〕 |
+| `lib/settings-format.js`（新，UMD，比照 `lib/settings-logic.js` 的 Browser／Node 雙載入；包裝直接用 `globalThis`，不抄 `settings-logic.js:12` 的防線） | 唯一的欄位契約：`SETTINGS_KEYS`；記憶體範圍常數；錯誤碼常數 `SETTINGS_ERROR_CODE = "GGL_SETTINGS"`；`checkSettings(obj)` 回**全部**問題 `[{ key, value, reason, fix }]`（不認得的鍵、各欄、min > max）；`formatIssue(issue)`——開機框、`settings-error` 細節、IPC 訊息、畫面錯誤四處共用的唯一文字（SPR #22） | 不碰 fs、不知道預設根目錄、不補預設〔對齊 2026-10-22：`lib/settings-logic.js:12` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 後 `:18`〕〔對齊 2026-10-22：→ `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 未移動（行內行號指的檔不在本 commit）〕 |
 | `lib/launch-memory.js`（新，Node 用） | `heapMbFromSettings({ minMemoryGb, maxMemoryGb })` ⇒ `{ xmsMb, xmxMb }`；具名常數 `DEFAULT_MAX_HEAP_MB = 4096`、`DEFAULT_MIN_HEAP_CAP_MB = 1024`；GB→MB＝`Math.round(gb * 1024)` | 不驗值（已驗過）、不夾值；收到的一定是驗過、補過預設的完整物件（SPR #42） |
 | `main/settings.js`（改寫） | 預設物件（唯一一份，根目錄取 `DEFAULT_LAUNCHER_ROOT_DIR`）；`SettingsError`；開機 `initSettingsAtBoot`；執行中 `readSettings`；`writeSettings`；位元組解析（§解析） | 不正規化、不 trim、不夾值 |
 | `main/fs-utils.js`（加兩個函式） | `writeExclusive(path, bytes)`：`open(path, "wx")` → 寫 → `sync` → `close`；**寫或 `sync` 失敗時刪掉自己剛建的檔**（`wx` 保證是自己建的）再丟原錯（SPR #16）。`replaceFileWithBytes(target, bytes, { expectCurrent })`：暫存檔名 `<target>.<pid>-<序號>-<4 bytes 隨機>.tmp`（SPR #27）→ `writeExclusive` → 再讀目標比對 `expectCurrent`（不同 ⇒ 刪暫存、丟 `CONFLICT`）→ `rename`；比對或改名失敗 ⇒ 刪暫存（刪不掉就留著，見 §不涵蓋）、丟原錯。兩個函式在**呼叫當下**才取 `fsp.open`／`fsp.rename`，測試可在共用的 `fs/promises` 物件上包一層插故障（SPR #32），不另加注入參數 | 不重試、不排隊 |
@@ -232,15 +232,15 @@
 ### 記憶體
 
 - `heapMbFromSettings`：`xmxMb = max !== null ? mb(max) : Math.max(4096, min !== null ? mb(min) : 0)`；`xmsMb = min !== null ? mb(min) : Math.min(1024, xmxMb)`。驗證保證 `min ≤ max`（GB），`Math.round` 單調，換成 MB 後 `xms ≤ xmx` 仍成立（SPR #44：519,690 組實測），不需要再夾。
-- `main/minecraft-launch.js`：`mbFromGb` 刪；`memoryAndGcFlags` 改吃 `{ xmsMb, xmxMb }`，只組旗標；`:210-213` 改呼叫 `heapMbFromSettings(settings)`。〔對齊 2026-10-22：`main/minecraft-launch.js:210-213` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 已照本條改寫〕
+- `main/minecraft-launch.js`：`mbFromGb` 刪；`memoryAndGcFlags` 改吃 `{ xmsMb, xmxMb }`，只組旗標；`:210-213` 改呼叫 `heapMbFromSettings(settings)`。〔對齊 2026-10-22：`main/minecraft-launch.js:210-213` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 已照本條改寫〕〔對齊 2026-10-22：→ `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 未移動（行內行號指的檔不在本 commit）〕
 
 ### 畫面（`renderer/settings-modal.js`、`renderer/bootstrap.js`、`renderer/bootstrap-ctx.js`、`index.html`、`lib/settings-logic.js`）
 
-- **拆掉數字解析的注入鏈**（SPR #18）：`bootstrap.js:167-192` 的 `parseFiniteNumberOrUnset` 後備與「GglSettingsLogic missing」檢查、`bootstrap.js:327`、`bootstrap-ctx.js:85-86,106-107` 的傳遞、`settings-modal.js:23-26` 的後備，連同 `lib/settings-logic.js` 的 `parseFiniteNumberOrUnset` 一起刪。`settings-modal.js` 直接讀 `window.GglSettingsFormat`，不加 `||` 後備。`computeMemoryUiModel` 的注入（R-B 雙輸入形狀）不在本 Phase 範圍，不動。〔對齊 2026-10-22：`bootstrap.js:167-192` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除 parse 後備與 missing 檢查（`computeMemoryUiModel` 後備留著）；`bootstrap.js:327` 原寫有誤，當時是 `:328`，已刪除；`bootstrap-ctx.js:85-86,106-107` 刪除 `:86`、`:107`（`computeMemoryUiModel` 那兩行留著）；`settings-modal.js:23-26` 刪除〕
+- **拆掉數字解析的注入鏈**（SPR #18）：`bootstrap.js:167-192` 的 `parseFiniteNumberOrUnset` 後備與「GglSettingsLogic missing」檢查、`bootstrap.js:327`、`bootstrap-ctx.js:85-86,106-107` 的傳遞、`settings-modal.js:23-26` 的後備，連同 `lib/settings-logic.js` 的 `parseFiniteNumberOrUnset` 一起刪。`settings-modal.js` 直接讀 `window.GglSettingsFormat`，不加 `||` 後備。`computeMemoryUiModel` 的注入（R-B 雙輸入形狀）不在本 Phase 範圍，不動。〔對齊 2026-10-22：`bootstrap.js:167-192` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除 parse 後備與 missing 檢查（`computeMemoryUiModel` 後備留著）；`bootstrap.js:327` 原寫有誤，當時是 `:328`，已刪除；`bootstrap-ctx.js:85-86,106-107` 刪除 `:86`、`:107`（`computeMemoryUiModel` 那兩行留著）；`settings-modal.js:23-26` 刪除〕〔對齊 2026-10-22：→ `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 未移動（行內行號指的檔不在本 commit）〕
 - **填表**：`settings:get` 回的是驗過、補過預設的設定；`null` 的記憶體欄留空。`computeMemoryUiModel` 改成：欄位值＝設定值（`null` ⇒ 空字串）；建議值只放進提示文字（「建議：最小 X、最大 Y（依系統記憶體 Z GB）」）＋動態規則說明（「最大留空＝4 GB；最小超過 4 GB 時跟著最小」，數字從常數組，SPR #22）；不再填欄位。`settingsMeta.userMemoryConfigured`、`memoryGb` 分支刪除。`SETTINGS_GET` 不再回 `settingsMeta`。
 - **儲存前檢查**：patch 直接取欄位原文——安裝位置、離線 ID **不 trim**；記憶體欄空字串 ⇒ `null`、`input.validity.badInput` ⇒ 錯誤（「請輸入數字」）、其他 ⇒ `Number(值)`（`0` 照送進檢查，被拒）。然後 `GglSettingsFormat.checkSettings(patch)`——**與 main 同一份規則**；有問題 ⇒ `setSettingsError(formatIssue(第一條))` 並聚焦對應欄位、不送 IPC。離線 ID 清空不再換成 `"Player001"`。
 - **儲存與重新檢查分開**：`settings:set` 失敗 ⇒「儲存失敗：…」，視窗不關；成功 ⇒ 關視窗，再 `instance:recheck`；重新檢查失敗 ⇒ `setStatusError("設定已儲存，但重新檢查失敗：…")`。
-- `index.html`：兩個記憶體欄 `step="any"`、`max="64"`；`lib/settings-format.js` 的 `<script>` 加在 `settings-logic.js` 前；`scripts/check-renderer-scripts.cjs` 的 `expected` **與 `actual` 的 lib filter（`:54`）**一起改（SPR #18）。〔對齊 2026-10-22：`scripts/check-renderer-scripts.cjs:54` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 改寫（改成 `RENDERER_LIBS`）；本行其餘已照本條改寫（另加 `lib/launch-memory.js`，→ §4b 施工紀錄 D1）〕
+- `index.html`：兩個記憶體欄 `step="any"`、`max="64"`；`lib/settings-format.js` 的 `<script>` 加在 `settings-logic.js` 前；`scripts/check-renderer-scripts.cjs` 的 `expected` **與 `actual` 的 lib filter（`:54`）**一起改（SPR #18）。〔對齊 2026-10-22：`scripts/check-renderer-scripts.cjs:54` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 改寫（改成 `RENDERER_LIBS`）；本行其餘已照本條改寫（另加 `lib/launch-memory.js`，→ §4b 施工紀錄 D1）〕〔對齊 2026-10-22：→ `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 未移動（行內行號指的檔不在本 commit）〕
 
 ### `launcherRootDir` 的精確規則（SPR #4、#36）
 
@@ -258,19 +258,19 @@
 
 | 列 | 處置 |
 |---|---|
-| B4（`settings.js:146-154`） | 4b 消失（`readSettings` 分流、`writeSettings` 讀壞即拒）〔對齊 2026-10-22：`settings.js:146-154` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除（`readSettingsRaw`）〕 |
+| B4（`settings.js:146-154`） | 4b 消失（`readSettings` 分流、`writeSettings` 讀壞即拒）〔對齊 2026-10-22：`settings.js:146-154` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除（`readSettingsRaw`）〕〔對齊 2026-10-22：`settings.js:146-154` → `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 不適用（已於 `a4d4eb9` 刪除或改寫）〕 |
 | M-SET（預設值四份、`mergeMissingDefaults`） | 4b 消失 |
 | M-SET（`memoryGb` 三層） | 4b 消失（U6） |
 | M-SET（`microsoft-auth.js:663` `PUT_YOUR`） | 4b，留 `!msClientId`〔對齊 2026-10-22：`microsoft-auth.js:663` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 原地改寫〕 |
-| M-SILENT 的 `settings.js:95-111,125-138` | 4b 消失；同列其他檔留 Phase 6〔對齊 2026-10-22：`settings.js:95-111,125-138` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 改寫（`initSettingsAtBoot`）〕 |
+| M-SILENT 的 `settings.js:95-111,125-138` | 4b 消失；同列其他檔留 Phase 6〔對齊 2026-10-22：`settings.js:95-111,125-138` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 改寫（`initSettingsAtBoot`）〕〔對齊 2026-10-22：`settings.js:95-111,125-138` → `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 不適用（已於 `a4d4eb9` 刪除或改寫）〕 |
 | M-IPCARG 的 `settings-ipc.js:9-10,13` | 4b 消失（`SETTINGS_GET` 重寫）；同列其他檔留 Phase 6〔對齊 2026-10-22：`settings-ipc.js:9-10,13` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除〕 |
 | M-RE 的 `paths.js` 轉出 | `normalizeRootDir`、`resolveDefaultSettingsPath` 的部分 4b 消失；其餘留 Phase 6 |
-| R-B 的 `settings-modal.js:10-42` | 只拆 `parseFiniteNumberOrUnset` 那一支（SPR #18 必要）；其餘留 Phase 6〔對齊 2026-10-22：`settings-modal.js:10-42` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 只刪 `:23-26`（`parseFiniteNumberOrUnset`），其餘未動〕 |
+| R-B 的 `settings-modal.js:10-42` | 只拆 `parseFiniteNumberOrUnset` 那一支（SPR #18 必要）；其餘留 Phase 6〔對齊 2026-10-22：`settings-modal.js:10-42` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 只刪 `:23-26`（`parseFiniteNumberOrUnset`），其餘未動〕〔對齊 2026-10-22：→ `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 未移動（行內行號指的檔不在本 commit）〕 |
 | R-C、R-D 的 `settings-modal.js` 段 | 留 Phase 6（4b 不碰） |
 | R-CONTRACT 的 `settings-modal.js:194,197,199,247` | 4b 消失（填表與儲存重寫）〔對齊 2026-10-22：`settings-modal.js:194,197,199,247` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除（填表與儲存重寫）〕 |
-| R-SWALLOW `settings-modal.js:229-231`、R-SILENT `:235-237`（選資料夾） | 留 Phase 6（4b 不碰）〔對齊 2026-10-22：`settings-modal.js:229-231` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 後 `:224-226`；`:235-237` 後 `:230-232`〕 |
-| L-SET `lib/settings-logic.js:39,44-45,61` | 4b 消失（`computeMemoryUiModel` 重寫）；`:12` 留 Phase 6〔對齊 2026-10-22：`lib/settings-logic.js:39,44-45,61` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除；`:12` 後 `:18`〕 |
-| L-DUP 的 `settings.js:23,74`、`settings-modal.js:199,247` | 4b 消失；`launch-args.js:467` 不屬本 Phase〔對齊 2026-10-22：`settings.js:23,74`、`settings-modal.js:199,247` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除〕 |
+| R-SWALLOW `settings-modal.js:229-231`、R-SILENT `:235-237`（選資料夾） | 留 Phase 6（4b 不碰）〔對齊 2026-10-22：`settings-modal.js:229-231` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 後 `:224-226`；`:235-237` 後 `:230-232`〕〔對齊 2026-10-22：→ `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 未移動（行內行號指的檔不在本 commit）〕 |
+| L-SET `lib/settings-logic.js:39,44-45,61` | 4b 消失（`computeMemoryUiModel` 重寫）；`:12` 留 Phase 6〔對齊 2026-10-22：`lib/settings-logic.js:39,44-45,61` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除；`:12` 後 `:18`〕〔對齊 2026-10-22：→ `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 未移動（行內行號指的檔不在本 commit）〕 |
+| L-DUP 的 `settings.js:23,74`、`settings-modal.js:199,247` | 4b 消失；`launch-args.js:467` 不屬本 Phase〔對齊 2026-10-22：`settings.js:23,74`、`settings-modal.js:199,247` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除〕〔對齊 2026-10-22：`settings.js:23,74` → `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 不適用（已於 `a4d4eb9` 刪除或改寫）〕 |
 
 收尾時在 `defense-cleanup.md` 各列加「→ Phase 4 `<commit>`」註記（只加註，不改原文）。
 
@@ -278,7 +278,7 @@
 
 | 刀 | 內容 | 刀結束時仍成立的已知缺口（記錄在案） |
 |---|---|---|
-| 4a | 只加測試，現有程式全綠（§驗收格標「4a」） | 全部 D-SET 都還沒實作（就是現狀）；現行「缺預設鍵 ⇒ 正規化後整份重寫」寫進驗收單當現行為記錄（讀碼位置 `main/settings.js:114-124`），不寫成會紅的測試（SPR #11）〔對齊 2026-10-22：`main/settings.js:114-124` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除（合法檔開機不再重寫）〕 |
+| 4a | 只加測試，現有程式全綠（§驗收格標「4a」） | 全部 D-SET 都還沒實作（就是現狀）；現行「缺預設鍵 ⇒ 正規化後整份重寫」寫進驗收單當現行為記錄（讀碼位置 `main/settings.js:114-124`），不寫成會紅的測試（SPR #11）〔對齊 2026-10-22：`main/settings.js:114-124` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除（合法檔開機不再重寫）〕〔對齊 2026-10-22：`main/settings.js:114-124` → `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 不適用（已於 `a4d4eb9` 刪除或改寫）〕 |
 | 4b | §設計 除了「一般儲存走替換原語」以外的全部，**含 D-SET-SERIAL 的序列化入口**（`writeSettings` 的讀—合併—寫本來就在 4b 重寫，不相交 patch 的遺失在非原子寫法下同樣會發生，所以序列化跟著 4b）；**建** `writeExclusive`、`replaceFileWithBytes`（Q5 要用）並在 4b 就做它們的 Windows 故障測試。理由：Q5 屬 4b（owner 裁），恢復不能沒有原語 | 一般儲存仍是 `fsp.writeFile` 非原子；D-SET-WRITE 的替換未落實；「行程內讀寫不擋替換」要到有替換的 4c 才驗得出來 |
 | 4c | `writeSettings` 的寫入改用 `replaceFileWithBytes`（帶 `expectCurrent`＝區段開頭讀到的位元組）；一般儲存的 Windows 故障與序列化效果測試（V26–V29） | 無（Phase 4 範圍內） |
 
@@ -298,7 +298,7 @@
 
 **實機（隔離 userData：`npx electron . --user-data-dir=<暫存>`；旗標先以最小探針驗過會換 userData 與單一實例鎖）**，Electron 內建 Node v24.20.0：首次開機建完整預設並開完；壞 JSON ⇒ 備份＝原位元組、正式檔＝預設、15 秒內沒有 `main_window_created`（停在提示框，主視窗在後）；owner 形狀的檔（含 `memoryGb`）與資料夾 ⇒ 常駐日誌 `start_main_failed` 帶 `{name: SettingsError, code: GGL_SETTINGS}`、檔不變。對話框的畫面沒看（按不到），歸 E1 owner 看。owner 正式檔前後 `cmp` 一致、未動。
 
-## 4c 施工紀錄（2026-10-22，未 commit）
+## 4c 施工紀錄（2026-10-22，commit `99383f8`）
 
 改的程式只有 `main/settings.js`：私有的 `readCurrent` 改回傳 `{ settings, bytes }`（`bytes`＝這次讀到的原始位元組）；`writeSettings` 在同一個 `exclusive` 區段裡改呼叫 `replaceFileWithBytes(…, { expectCurrent: bytes })`，替換成功才套用 debug 開關。`fs-utils.js`、IPC、畫面都沒改。
 
@@ -373,6 +373,8 @@ owner 的 `settings.json` 有 `"memoryGb": 4`，4b 之後開機會被拒（D-SET
 3. 若實機要測壞檔情境，在另一個 `userData` 位置（或測完用第 1 步的備份還原）做，不拿 owner 的正式檔當實驗品。
 
 〔2026-10-22 4b〕第 1 步做了（sha256 開頭 `ef047ba8`，備份在該 session 暫存區，不進 repo）；第 2 步已告知 owner，**`memoryGb` 那一行由 owner 自己刪、測試者待提醒**（出口：owner 刪掉並告知測試者）；第 3 步照做（隔離 userData），E1 前後正式檔 `cmp` 一致。
+
+〔2026-10-22 Phase 4 收尾〕owner 要求（「能幫我刪嗎？」）下，CC 刪掉 owner 正式檔的 `memoryGb` 那一行：刪前備份到 session 暫存區（`cmp` 一致），`diff` 只少那一行，刪後 `checkSettings` 0 個問題；安裝位置與記憶體值不變。測試者的檔仍待提醒（出口：owner 告知測試者）。
 
 ## 施工順序
 
