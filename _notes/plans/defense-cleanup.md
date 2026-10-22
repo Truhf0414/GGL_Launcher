@@ -72,7 +72,7 @@
 | B2 | `styles.css:772`（`.offline-link{display:grid}`）vs `:142`（`.hidden`） | 權重相同、後者寫在前，`renderer/launch-ui.js:40` 切 `hidden` 無效，離線按鈕藏不起來〔畫面效果為推論〕 | 〔查過 CSS／JS〕 |
 | B3 | `styles.css:111` 字型 vs `package.json` `build.files` | 打包產物缺字型 | 已在 future-work.md「打包邊界」，不在本輪 |
 | B4 | `main/settings.js:146-154` | 任何讀檔／解析錯誤都回 `{}`、無 log；之後 `writeSettings` 以「預設＋patch」覆寫原檔。只有 ENOENT 該當成「沒有」 | 〔查過〕〔裁決已於 2026-10-14 改變（→ `plans/cross-review-2026-10.md` D-SET-FILE），待 Phase 4 實作〕〔→ Phase 4 `a4d4eb9`（plans/cross-review-2026-10-phase4.md §defense-cleanup 歸本 Phase 的列）：消失〕 |
-| B5 | `main/runtime/java.js:155-200` | Semeru sha 抓不到時 sha256 留空；自訂鏡像與兩個 Adoptium 來源寫死空字串；過濾只擋格式錯的、放行空字串 ⇒ 多數來源不驗 hash | 〔查過〕U7〔裁決已於 2026-10-14 改變（→ `plans/cross-review-2026-10.md` D-JAVA），待 Phase 5 實作〕 |
+| B5 | `main/runtime/java.js:155-200` | Semeru sha 抓不到時 sha256 留空；自訂鏡像與兩個 Adoptium 來源寫死空字串；過濾只擋格式錯的、放行空字串 ⇒ 多數來源不驗 hash | 〔查過〕U7〔裁決已於 2026-10-14 改變（→ `plans/cross-review-2026-10.md` D-JAVA），待 Phase 5 實作〕〔對齊 2026-10-23：`main/runtime/java.js:155-200` → `7141f9f`（plans/cross-review-2026-10-phase5a.md） 改寫（來源解析，S1、S2）後 `:126-245`〕 |
 | B6 | `lib/account-secret.js:79-81` | 加密失敗退明文（既有裁決），全程無 log | 〔agent〕只補 log |
 
 ## 先補保證
@@ -108,7 +108,7 @@
 | M-LAUNCH | `minecraft-launch.js:237-240` | 重複啟動第二道（會大聲） | §2 | — | 〔agent〕 |
 | M-MISC | `system-memory.js:4-12`、`start-main.js:84`、`diagnostics-export.js:71,78-81`、`main-window.js:80-101` | Node 內建 API／package.json 版本／一定回物件的值再防 | §2 | — | 〔agent〕 |
 | M-MISC | `ipc/minecraft-ipc.js:31-37` | describeStatus 丟錯時的第二個退路 | §6? | — | 〔agent〕 |
-| M-SILENT | `runtime/java.js:122-124,171-173`；`settings.js:95-111,125-138`（寫入失敗回 false 無人看）；`sync/apply.js:230-233`；`sync/site-client.js:134-136`；`microsoft-auth.js:621` | 外部失敗無聲 | §3 | — | 〔agent〕〔→ Phase 4 `a4d4eb9`（plans/cross-review-2026-10-phase4.md §defense-cleanup 歸本 Phase 的列）：只有 `settings.js` 那段；同列其他檔留 Phase 6〕 |
+| M-SILENT | `runtime/java.js:122-124,171-173`；`settings.js:95-111,125-138`（寫入失敗回 false 無人看）；`sync/apply.js:230-233`；`sync/site-client.js:134-136`；`microsoft-auth.js:621` | 外部失敗無聲 | §3 | — | 〔agent〕〔→ Phase 4 `a4d4eb9`（plans/cross-review-2026-10-phase4.md §defense-cleanup 歸本 Phase 的列）：只有 `settings.js` 那段；同列其他檔留 Phase 6〕〔對齊 2026-10-23：`runtime/java.js:122-124,171-173` → `7141f9f`（plans/cross-review-2026-10-phase5a.md） 刪除（查詢改為丟錯，不再 `catch` 回 null）；`settings.js` 不在本 commit〕 |
 | M-OTHER | `discord-rpc.js:31` 寫死 `"rpc:notice"`（應用 `IPC.on.RPC_NOTICE`）；`mc-mirror.js:113` 與 `runtime/minecraft.js:40` 各一份 piston-meta 網址；`net-fetch.js` 中止訊息「切換鏡像」字面過期；`app-ready.js:11-38`／`start-main.js:148-175`／`app-ready.js:79-106` 同一份鍵名手寫三遍 | §6 | — | 〔agent〕 |
 
 ### renderer/（含 preload、main.js、index.html）
