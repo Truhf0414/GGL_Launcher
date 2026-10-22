@@ -44,7 +44,7 @@
 - 出處：owner 2026-10-11「從來沒發行過，所以沒有玩家有東西。」；只有 owner 一台：owner 2026-10-22「測試者從頭到尾只有我。」；owner 2026-10-13「我想完全治本，不是這種修修補補的。」，判準 owner 2026-10-13「可以，重寫版好多了。」。
 
 ## 下載來源
-- 內容的正確答案由發布者給，下載點只負責搬。會被安裝或執行的檔，它的 hash、清單、版本描述只能來自該內容的發布者（GGL3 站台管模組與設定檔、Mojang 管 Minecraft、Fabric 管 loader、各 Java 發行商管自己的 JRE）；發布者有給 hash 就必須驗；沒給 hash 的官方發行物，照該來源已裁的驗證方式（例如 Java 的完整安裝驗證，→ `plans/cross-review-2026-10.md` D-JAVA）；第三方搬運者（鏡像、轉址節點）不得提供或改寫正確答案。新增下載來源時以此為判準。〔2026-10-14 起。現有程式尚未符合：Java 自訂鏡像（`main/runtime/java.js`）與 Minecraft 第三方鏡像（`main/mc-mirror.js`）仍在，待 Phase 5 實作〕
+- 內容的正確答案由發布者給，下載點只負責搬。會被安裝或執行的檔，它的 hash、清單、版本描述只能來自該內容的發布者（GGL3 站台管模組與設定檔、Mojang 管 Minecraft、Fabric 管 loader、各 Java 發行商管自己的 JRE）；發布者有給 hash 就必須驗；沒給 hash 的官方發行物，照該來源已裁的驗證方式（例如 Java 的完整安裝驗證，→ `plans/cross-review-2026-10.md` D-JAVA）；第三方搬運者（鏡像、轉址節點）不得提供或改寫正確答案。新增下載來源時以此為判準。〔2026-10-14 起。現有程式尚未符合：Minecraft 第三方鏡像（`main/mc-mirror.js`）仍在，待 Phase 5b；Java 自訂鏡像已於 Phase 5a 刪除、三家 Java 發行商的 sha256 都驗（`7141f9f`，→ `plans/cross-review-2026-10-phase5a.md`）〕
 - 出處：owner 2026-10-14「我同意把 D-TRUST 寫入 `conventions.md`，作為未來新增下載來源時的工程判準。」「我不想因為一次下載來源修正，就建立龐大的供應鏈政策文件。」→ `plans/cross-review-2026-10.md` D-TRUST、D-TRUST-RULE。
 
 ## UI / CSS
