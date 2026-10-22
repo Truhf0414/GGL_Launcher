@@ -165,12 +165,6 @@
     } catch {}
 
     const SL = window.GglSettingsLogic;
-    const parseFiniteNumberOrUnset =
-      SL?.parseFiniteNumberOrUnset ||
-      ((v) => {
-        const n = Number(String(v ?? "").trim());
-        return Number.isFinite(n) ? n : null;
-      });
     const computeMemoryUiModel =
       SL?.computeMemoryUiModel ||
       (() => ({
@@ -179,17 +173,6 @@
         hintShow: false,
         hintText: "",
       }));
-    if (
-      !SL ||
-      typeof SL.parseFiniteNumberOrUnset !== "function" ||
-      typeof SL.computeMemoryUiModel !== "function"
-    ) {
-      try {
-        console.error(
-          "GglSettingsLogic missing: ensure ./lib/settings-logic.js is loaded before renderer.js.",
-        );
-      } catch {}
-    }
 
     const K = window.GglRendererConstants || {};
 
@@ -325,7 +308,6 @@
       setStatusError,
       setStatusVisibility,
       computeMemoryUiModel,
-      parseFiniteNumberOrUnset,
       ui: {
         btnMinimize,
         btnClose,

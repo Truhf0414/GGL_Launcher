@@ -2360,6 +2360,140 @@ test(
   },
 );
 
+// ── 設定故障：settings-error（→ _notes/plans/cross-review-2026-10-phase4.md §驗收格 V7、V13；D-SET-KIND）──
+
+const { SettingsError } = require("../main/settings.js");
+const { describeStatus } = require("../lib/sync/status-text.js");
+
+const SETTINGS_PATH = "C:\\Users\\a\\AppData\\Roaming\\GGL_launcher\\settings.json";
+const settingsErrors = () => [
+  new SettingsError("invalid", SETTINGS_PATH, {
+    issues: [{ key: "memoryGb", value: 4, reason: "不認得的設定", fix: "刪掉這一行" }],
+  }),
+  new SettingsError("unreadable", SETTINGS_PATH, {
+    cause: Object.assign(new Error("EBUSY: resource busy or locked, open"), {
+      code: "EBUSY",
+      syscall: "open",
+    }),
+  }),
+  new SettingsError("missing", SETTINGS_PATH),
+];
+
+function assertSettingsError(s, err) {
+  assertKind(s, "settings-error");
+  assert.deepEqual(s.ui, {
+    button: { action: "retry", label: "重新檢查", note: null },
+    canLaunch: false,
+  });
+  assert.deepEqual(s.allowed, { update: false, repair: false });
+  assert.deepEqual(s.errorTexts, [err.message]);
+  assert.equal(s.errorDetail, null);
+  const { headline } = describeStatus(s);
+  assert.ok(!headline.includes("內部錯誤"), headline);
+  assert.ok(headline.includes("設定檔"), headline);
+}
+
+test("V7 中樞讀設定丟 SettingsError（不合法／讀取失敗／不見）⇒ settings-error，細節分得出三種", async (t) => {
+  const texts = new Set();
+  for (const err of settingsErrors()) {
+    const h = await setup(t, {
+      installed: { release: REL_1 },
+      deps: {
+        readSettings: async () => {
+          throw err;
+        },
+      },
+    });
+    const s = await h.sync.getInstanceStatus();
+    assertSettingsError(s, err);
+    assert.deepEqual(h.last(), s);
+    texts.add(s.errorTexts[0]);
+  }
+  assert.equal(texts.size, 3);
+});
+
+test("V7 負向：一般 Error、帶 code＋syscall 的 errno 錯、訊息像設定錯誤、帶 GGL_SETTINGS 碼但不是 SettingsError ⇒ 都是 internal-error", async (t) => {
+  for (const err of [
+    new Error("boom"),
+    Object.assign(new Error("EISDIR: illegal operation on a directory, read"), {
+      code: "EISDIR",
+      syscall: "read",
+    }),
+    new Error("設定檔內容不合法：memoryGb"),
+    Object.assign(new Error("假的"), { name: "SettingsError", code: "GGL_SETTINGS", reason: "invalid" }),
+  ]) {
+    const h = await setup(t, {
+      installed: { release: REL_1 },
+      deps: {
+        readSettings: async () => {
+          throw err;
+        },
+      },
+    });
+    assertKind(await h.sync.getInstanceStatus(), "internal-error");
+  }
+});
+
+test("V13 啟動閘遇到設定故障 ⇒ fn 沒被呼叫、GGL_SYNC_LAUNCH_BLOCKED 帶 settings-error、鎖已放", async (t) => {
+  const [err] = settingsErrors();
+  const h = await setup(t, {
+    installed: { release: REL_1 },
+    deps: {
+      readSettings: async () => {
+        throw err;
+      },
+    },
+  });
+  let called = false;
+  await assert.rejects(
+    h.sync.withLaunchLock(async () => {
+      called = true;
+    }),
+    (e) => {
+      isCode("GGL_SYNC_LAUNCH_BLOCKED")(e);
+      assertSettingsError(e.status, err);
+      return true;
+    },
+  );
+  assert.equal(called, false);
+  assert.equal(h.sync.getLockHolder(), null);
+});
+
+test("V13 更新、修復遇到設定故障 ⇒ reject 那個 SettingsError、沒套用、鎖已放、最後送出 settings-error", async (t) => {
+  for (const run of [(s) => s.updateInstance(), (s) => s.repairInstance()]) {
+    const [err] = settingsErrors();
+    const h = await setup(t, {
+      installed: { release: REL_1 },
+      site: { release: REL_2 },
+      deps: {
+        readSettings: async () => {
+          throw err;
+        },
+      },
+    });
+    const sentBefore = h.sent.length;
+    await assert.rejects(run(h.sync), (e) => e === err);
+    assert.equal(h.calls.applyPlan.length, 0);
+    assertRecomputed(h, sentBefore, "settings-error", { exactlyOne: true });
+    assertSettingsError(h.last(), err);
+  }
+});
+
+test("V13 listStrayJars 遇到設定故障 ⇒ reject 那個 SettingsError、不重算（現行為）", async (t) => {
+  const [err] = settingsErrors();
+  const h = await setup(t, {
+    installed: { release: REL_1 },
+    deps: {
+      readSettings: async () => {
+        throw err;
+      },
+    },
+  });
+  const sentBefore = h.sent.length;
+  await assert.rejects(h.sync.listStrayJars(), (e) => e === err);
+  assert.equal(h.sent.length, sentBefore);
+});
+
 // ── 全檔收尾：必須是最後一個案例 ──
 
 test("N18 整個測試檔跑完，假站台的 notice.json 被請求 0 次", () => {

@@ -47,6 +47,11 @@ function makeEl(tag = "div") {
     setAttribute: (k, v) => {
       el.attrs[k] = String(v);
     },
+    removeAttribute: (k) => {
+      delete el.attrs[k];
+    },
+    // <input type="number"> 打了不是數字的字：value 是 ""、badInput 為真（真瀏覽器的語意只能靠實機）
+    validity: { badInput: false },
     focus: () => {},
     addEventListener: (type, fn) => {
       if (!listeners.has(type)) listeners.set(type, []);

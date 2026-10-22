@@ -20,10 +20,8 @@
       input?.loadServerDefaults || fx.loadServerDefaults;
     const computeMemoryUiModel =
       input?.computeMemoryUiModel || fx.computeMemoryUiModel || (() => ({}));
-    const parseFiniteNumberOrUnset =
-      input?.parseFiniteNumberOrUnset ||
-      fx.parseFiniteNumberOrUnset ||
-      (() => null);
+    // 與 main 同一份欄位規則（lib/settings-format.js，index.html 先載）；畫面只是提前回饋，main 照樣再驗
+    const settingsFormat = window.GglSettingsFormat;
 
     const btnSettings = input?.btnSettings || ui.btnSettings;
     const settingsModal = input?.settingsModal || ui.settingsModal;
@@ -190,19 +188,16 @@
       document.addEventListener("keydown", settingsKeydownHandler, true);
     }
 
+    /** settings：settings:get 的回應（main 驗過、補過預設，每個鍵都在） */
     function fillSettingsForm(settings) {
-      const s = settings && typeof settings === "object" ? settings : {};
-      if (inputInstallDir)
-        // settings:get 回來的 launcherRootDir 已經過 main 的 normalizeRootDir，不會是空的
-        inputInstallDir.value = s.launcherRootDir ?? "";
-      if (inputOfflinePlayerId)
-        inputOfflinePlayerId.value = s.playerId ?? "Player001";
+      if (inputInstallDir) inputInstallDir.value = settings.launcherRootDir;
+      if (inputOfflinePlayerId) inputOfflinePlayerId.value = settings.playerId;
       if (memAutoHint) {
         memAutoHint.textContent = "";
         memAutoHint.classList.add("hidden");
       }
 
-      const m = computeMemoryUiModel(s);
+      const m = computeMemoryUiModel(settings);
       if (inputMinMemoryGb) inputMinMemoryGb.value = m.minInput;
       if (inputMaxMemoryGb) inputMaxMemoryGb.value = m.maxInput;
       if (memAutoHint && m.hintShow) {
@@ -237,46 +232,58 @@
       }
     }
 
+    /**
+     * 欄位原文就是 patch：不 trim、清空的離線 ID 不換成預設；記憶體空白＝null（不指定），其他照數字送檢查（0 會被拒）。
+     * 與 main 同一份 checkSettings 擋明顯非法的，不送 IPC（D-SET-KIND）。
+     */
     async function saveSettings() {
-      const dir = (inputInstallDir?.value ?? "").trim();
-      if (!dir) {
-        setSettingsError("請輸入安裝位置。", { focusEl: inputInstallDir });
-        return;
+      const fieldOf = {
+        launcherRootDir: inputInstallDir,
+        playerId: inputOfflinePlayerId,
+        minMemoryGb: inputMinMemoryGb,
+        maxMemoryGb: inputMaxMemoryGb,
+      };
+      // <input type="number"> 打了不是數字的字：value 是空字串，只有 badInput 分得出來
+      for (const key of ["minMemoryGb", "maxMemoryGb"]) {
+        if (fieldOf[key].validity.badInput) {
+          setSettingsError(
+            `${settingsFormat.SETTINGS_LABELS[key]}：請輸入數字`,
+            {
+              focusEl: fieldOf[key],
+            },
+          );
+          return;
+        }
       }
-      const offlineId =
-        (inputOfflinePlayerId?.value ?? "").trim() || "Player001";
-
-      const minGbRaw = parseFiniteNumberOrUnset(inputMinMemoryGb?.value);
-      const maxGbRaw = parseFiniteNumberOrUnset(inputMaxMemoryGb?.value);
-      const minMemoryGb =
-        Number.isFinite(minGbRaw) && minGbRaw > 0 ? minGbRaw : null;
-      const maxMemoryGb =
-        Number.isFinite(maxGbRaw) && maxGbRaw > 0 ? maxGbRaw : null;
-
-      // 最小不能大於最大（若只填其中一個，交由 main.js fallback）
-      if (
-        minMemoryGb !== null &&
-        maxMemoryGb !== null &&
-        minMemoryGb > maxMemoryGb
-      ) {
-        setSettingsError("最小記憶體不能大於最大記憶體。", {
-          focusEl: inputMinMemoryGb || inputMaxMemoryGb,
+      const memory = (el) => (el.value === "" ? null : Number(el.value));
+      const patch = {
+        launcherRootDir: inputInstallDir.value,
+        playerId: inputOfflinePlayerId.value,
+        minMemoryGb: memory(inputMinMemoryGb),
+        maxMemoryGb: memory(inputMaxMemoryGb),
+      };
+      const [issue] = settingsFormat.checkSettings(patch);
+      if (issue) {
+        setSettingsError(settingsFormat.formatIssue(issue), {
+          focusEl: fieldOf[issue.key],
         });
         return;
       }
 
       try {
-        await safeInvoke("settings:set", {
-          launcherRootDir: dir,
-          playerId: offlineId,
-          minMemoryGb,
-          maxMemoryGb,
-        });
-        closeSettingsModal();
-        // 重新檢查版本狀態（路徑變了）
-        await safeInvoke("instance:recheck");
+        await safeInvoke("settings:set", patch);
       } catch (e) {
         setSettingsError(`儲存失敗：${String(e?.message ?? e)}`);
+        return;
+      }
+      closeSettingsModal();
+      // 重新檢查版本狀態（路徑可能變了）；這裡失敗不是儲存失敗，視窗也已經關了
+      try {
+        await safeInvoke("instance:recheck");
+      } catch (e) {
+        setStatusError(
+          `設定已儲存，但重新檢查失敗：${String(e?.message ?? e)}`,
+        );
       }
     }
 

@@ -39,7 +39,7 @@
 | **本檔** | 本事件的裁決、證據、廢案、Phase 邊界的權威 |
 | `reviews/cross-review-2026-10-v54d4d36d-20261014.md` | 本檔受審版本（`54d4d36d`）的 SPR 紀錄（57 列＋outside voice＋裁決）；已封存。本檔定稿已吸收其 fix-before-start 項 |
 | `plans/defense-cleanup.md` | **仍是下列內容的定義處**：§清理清單（各組位置表）、§盤點紀錄、§先補保證 的 G1–G3、§Bug 的 B1、B2、B3、B6。**被本檔取代的只有**：§裁決、§未決、§施工順序，以及 §Bug 的 B4、B5 與 §先補保證 的 G4（各自的去處見 §8）。Phase 0 在該檔加取代註記（只加註、不改原文） |
-| `plans/instance-sync-v3.md` | Sync v3 的行為契約。其中「gate.json 壞掉 ⇒ 當 `{}`」相關的八處被本檔 §3 D-GATE 取代（位置見 §8 Phase 0）；另有 `:202`（站台錯誤文字只列 gate 的 `unreachable`）、`:517`（③a-1 改檔表說 `gateMessages` 產出 gate 壞掉提示）兩處同被取代，該檔沒加註（Phase 3 SPR #11 才發現，該檔已結案）；其餘全部有效。已結案的 `instance-sync-v3-commit3a1.md:50`（C9）、`commit3b3b.md:15` 也寫舊行為，依 `filing.md`「結案的 plan 不摘要、不封存、不整理」**不加註** |
+| `plans/instance-sync-v3.md` | Sync v3 的行為契約。其中「gate.json 壞掉 ⇒ 當 `{}`」相關的八處被本檔 §3 D-GATE 取代（位置見 §8 Phase 0）；另有 `:202`（站台錯誤文字只列 gate 的 `unreachable`）、`:517`（③a-1 改檔表說 `gateMessages` 產出 gate 壞掉提示）兩處同被取代，該檔沒加註（Phase 3 SPR #11 才發現，該檔已結案）；其餘全部有效。已結案的 `instance-sync-v3-commit3a1.md:50`（C9）、`commit3b3b.md:15` 也寫舊行為，依 `filing.md`「結案的 plan 不摘要、不封存、不整理」**不加註**。kind 清單另多一個 `settings-error`（§3.5 D-SET-KIND，Phase 4b），該檔同樣不加註 |
 | `docs/site-format.md` | 站台格式的對外說明，條目由 `test/site-format-doc.test.cjs` 逐條綁定。其中 **[SF-G8]**（gate 壞掉 ⇒ 照常更新、啟動）被 D-GATE 推翻，在 Phase 3 與程式、測試同一個 commit 改 |
 | `conventions.md` §防禦與相容 | 判準（§1–§6）。本檔以條號引用、不重述。Phase 0 會改第 3 條並新增一條（§3.7 D-TRUST-RULE） |
 | `future-work.md` | 候選清單，不是施工單。本事件影響的條目見 §8 Phase 0 |

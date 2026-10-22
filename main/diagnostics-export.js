@@ -31,6 +31,7 @@ async function safeCopyFile(src, dest) {
  *
  * @param {{
  *  readSettings: () => Promise<any>;
+ *  copySettingsFileTo: (dest:string) => Promise<void>;
  *  getPaths: (settings:any) => any;
  *  readSyncRecord: (paths:any) => Promise<any>;
  *  getRemoteManifestUrl: () => string;
@@ -39,11 +40,11 @@ async function safeCopyFile(src, dest) {
  * }} deps
  */
 async function exportDiagnostics(deps) {
-  const outDir = path.join(app.getPath("userData"), "diagnostics", tsId());
-  await fsp.mkdir(outDir, { recursive: true });
-
+  // 先讀設定再建資料夾：設定壞了就 reject，不留空資料夾（D-SET-DIAG）
   const settings = await deps.readSettings();
   const paths = deps.getPaths(settings);
+  const outDir = path.join(app.getPath("userData"), "diagnostics", tsId());
+  await fsp.mkdir(outDir, { recursive: true });
   // 讀不到記錄也要把診斷匯出來：錯誤訊息放進報告
   const syncRecord = { version: "", fileCount: null, readError: "" };
   try {
@@ -106,9 +107,12 @@ async function exportDiagnostics(deps) {
     );
   }
 
-  // settings.json lives under userData
-  const settingsPath = path.join(app.getPath("userData"), "settings.json");
-  await safeCopyFile(settingsPath, path.join(outDir, "settings.json"));
+  // settings.json 經 main/settings.js 的序列化區段複製（D-SET-SERIAL：複製開著來源時會擋住替換）
+  try {
+    await deps.copySettingsFileTo(path.join(outDir, "settings.json"));
+  } catch {
+    // 同其他快照（safeCopyFile）：複製不到不擋匯出
+  }
 
   // 常駐故障日誌與剛輪替的那份（故障可能就在舊的那份裡）
   for (const src of [getGglLogPath(), rotatedPath(getGglLogPath())]) {

@@ -35,6 +35,7 @@ const { checkGameRunning } = require("./game-running.js");
 const { makeRuntimeProbe } = require("./runtime-probe.js");
 const { removeStaleRuntime } = require("./runtime-cleanup.js");
 const { hashFile } = require("../fs-utils.js");
+const { SettingsError } = require("../settings.js");
 
 class SyncStateError extends Error {
   constructor(code, message, extra = {}) {
@@ -126,6 +127,22 @@ function internalErrorStatus(err) {
     syncReasons: [],
     errorTexts: [`啟動器內部錯誤，請回報：${err?.message ?? String(err)}`],
     errorDetail: err?.stack ?? String(err),
+    gateMessages: [],
+    localVersion: "",
+    remoteVersion: "",
+  };
+}
+
+/** 設定檔故障（只認 main/settings.js 丟的 SettingsError）：玩家修得好，不是內部錯誤、不給 stack（D-SET-KIND） */
+function settingsErrorStatus(err) {
+  return {
+    kind: "settings-error",
+    localReady: false,
+    ui: deriveUi("settings-error", false),
+    allowed: { update: false, repair: false },
+    syncReasons: [],
+    errorTexts: [err.message],
+    errorDetail: null,
     gateMessages: [],
     localVersion: "",
     remoteVersion: "",
@@ -236,7 +253,11 @@ function createInstanceSync(deps) {
       const inputs = await gather();
       return { status: derive(inputs, syncing), inputs };
     } catch (err) {
-      return { status: internalErrorStatus(err), inputs: null };
+      const status =
+        err instanceof SettingsError
+          ? settingsErrorStatus(err)
+          : internalErrorStatus(err);
+      return { status, inputs: null };
     }
   }
 

@@ -660,7 +660,7 @@ function registerAccountIpcHandlers(ipcMain) {
       deps.sendSyncStatus("登入仍在進行中…");
       return await getAccountPayloadForRenderer();
     }
-    if (!msClientId || msClientId.includes("PUT_YOUR")) {
+    if (!msClientId) {
       const { dialog } = require("electron");
       dialog.showMessageBox({
         type: "warning",

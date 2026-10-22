@@ -21,7 +21,7 @@ const { createInstanceSync, SyncStateError } = require("../main/sync/index.js");
 const { writeRecord } = require("../main/sync/instance-record.js");
 const { getPaths } = require("../lib/paths-layout.js");
 const { registerSettingsIpc } = require("../main/ipc/settings-ipc.js");
-const { normalizeSettingsObject } = require("../main/settings.js");
+const { DEFAULT_SETTINGS } = require("../main/settings.js");
 const { RUNTIME, LAUNCH_ID, installRuntime } = require("./helpers/installed-runtime.cjs");
 const { LaunchError } = require("../main/minecraft-launch.js");
 
@@ -493,7 +493,7 @@ const HUB_RELEASE = {
 async function setupRealHub(t, ipcDepsOverrides = {}) {
   const root = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-launch-hub-"));
   t.after(() => fsp.rm(root, { recursive: true, force: true }));
-  const settings = normalizeSettingsObject({ launcherRootDir: root });
+  const settings = { ...DEFAULT_SETTINGS, launcherRootDir: root };
   const paths = getPaths(settings);
   await writeRecord(paths, {
     format: 3,
@@ -603,7 +603,6 @@ test("W18 real hub: while launching the lock is held and changing the root dir i
     ipcMain: { handle: (ch, fn) => handlers.set(ch, fn) },
     deps: {
       readSettings: async () => h.settings,
-      normalizeSettingsObject,
       getLockHolder: h.sync.getLockHolder,
       writeSettings: async () => {
         writes++;

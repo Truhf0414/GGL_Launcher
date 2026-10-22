@@ -34,7 +34,6 @@ Priority order:
 - Runtime resource path helpers: `main/paths.js`, `lib/paths-layout.js`
 - Packaged runtime assets:
   - `resources/assets/rpc-helper.exe`
-  - `resources/assets/default-settings.json`
   - `resources/assets/sakura_field_BG.mp4`
 
 ## Known Risk Areas
@@ -44,7 +43,7 @@ Priority order:
 - `package.json` currently uses a broad `build.files` pattern. This can include source, scripts, tests, docs, and other development files in `app.asar`.
 - Runtime assets can be duplicated between `app.asar` and `extraResources` unless they are explicitly excluded from the asar file set.
 - `rpc-helper.exe` must be available outside asar at `process.resourcesPath/assets/rpc-helper.exe`.
-- `default-settings.json` and the background video are runtime resources and must resolve correctly in a packaged app.
+- The background video is a runtime resource and must resolve correctly in a packaged app.
 - Build verification should inspect the final packaged layout, not only development mode.
 
 ### Main / Renderer IPC

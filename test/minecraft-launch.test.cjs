@@ -11,7 +11,7 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 
 const { launchMinecraft, LaunchError } = require("../main/minecraft-launch.js");
-const { normalizeSettingsObject } = require("../main/settings.js");
+const { DEFAULT_SETTINGS } = require("../main/settings.js");
 const { getPaths, javaExeFor } = require("../lib/paths-layout.js");
 const { windowsEnv } = require("../lib/launch-args.js");
 const { checkRuntimeReady } = require("../lib/runtime-readiness.js");
@@ -41,7 +41,8 @@ function fakeChild() {
 async function setup(t, { record = { ...RUNTIME }, fabric, vanilla, settings: over = {} } = {}) {
   const root = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-launch-"));
   t.after(() => fsp.rm(root, { recursive: true, force: true }));
-  const settings = { launcherRootDir: root, ...over };
+  // 啟動收到的一定是驗過、補過預設的完整設定（閘交的那份）
+  const settings = { ...DEFAULT_SETTINGS, launcherRootDir: root, ...over };
   const paths = getPaths(settings);
   await installRuntime(paths);
   for (const [rel, change] of [[FABRIC_REL, fabric], [VANILLA_REL, vanilla]]) {
@@ -263,7 +264,7 @@ test("S1c 原版沒有 logging ⇒ 成品的 logConfigRel 是 null、照樣啟�
   assert.equal(h.calls.spawn[0].args.some((a) => a.startsWith("-Dlog4j")), false);
 });
 
-test("S2 手寫旗標只剩記憶體與 GC 7 個、緊接在 mainClass 前；記憶體照 settings、上限 64 GB", async (t) => {
+test("S2 手寫旗標只剩記憶體與 GC 7 個、緊接在 mainClass 前；記憶體照 settings", async (t) => {
   const h = await setup(t, { settings: { maxMemoryGb: 8, minMemoryGb: 2 } });
   await h.launch(online);
   const a = h.calls.spawn[0].args;
@@ -277,32 +278,33 @@ test("S2 手寫旗標只剩記憶體與 GC 7 個、緊接在 mainClass 前；記
     "-XX:+UseStringDeduplication",
     "-XX:+DisableExplicitGC",
   ]);
-  const big = await setup(t, { settings: { maxMemoryGb: 100 } });
-  await big.launch(online);
-  assert.ok(big.calls.spawn[0].args.includes("-Xmx65536M"));
+  // 超過 64 GB 的值進不到這裡（設定驗證拒絕，D-SET-RANGE）；舊的「100 ⇒ 夾成 65536」已退休
 });
 
-// → _notes/plans/cross-review-2026-10-phase4.md §驗收格 V10（4a 特徵：Phase 4 前後都要成立的記憶體旗標）
-test("V10 記憶體現行為：都沒設 ⇒ 1024／4096；正規化後的預設 ⇒ 1024／4096；4／16 ⇒ 4096／16384", async (t) => {
-  const memFlags = async (settings) => {
-    // 正規化會補上預設根目錄 C:\Games\GGL；拿掉，讓 setup 用暫存資料夾
-    const { launcherRootDir: _defaultRoot, ...rest } = settings;
-    const h = await setup(t, { settings: rest });
-    await h.launch(online);
-    return h.calls.spawn[0].args.filter((a) => /^-Xm[sx]/.test(a));
-  };
-  // maxMemoryGb 與 memoryGb 都沒有（上層 §8 Phase 4 驗收第一條）
-  assert.deepEqual(await memFlags({}), ["-Xms1024M", "-Xmx4096M"]);
-  // 實際開機路徑：settings 先經 normalizeSettingsObject，未設定的 max 由 memoryGb 4 補
+const memFlags = async (t, settings) => {
+  const h = await setup(t, { settings });
+  await h.launch(online);
+  return h.calls.spawn[0].args.filter((a) => /^-Xm[sx]/.test(a));
+};
+
+// → _notes/plans/cross-review-2026-10-phase4.md §驗收格 V10（4a 特徵 → 4b 沿用：預設與 owner 那份）
+test("V10 記憶體：都沒設 ⇒ 1024／4096；4／16 ⇒ 4096／16384", async (t) => {
+  assert.deepEqual(await memFlags(t, {}), ["-Xms1024M", "-Xmx4096M"]);
   assert.deepEqual(
-    await memFlags(normalizeSettingsObject({})),
+    await memFlags(t, { minMemoryGb: null, maxMemoryGb: null }),
     ["-Xms1024M", "-Xmx4096M"],
   );
-  // owner 現在那份（memoryGb 4、min 4、max 16）
   assert.deepEqual(
-    await memFlags(normalizeSettingsObject({ memoryGb: 4, minMemoryGb: 4, maxMemoryGb: 16 })),
+    await memFlags(t, { minMemoryGb: 4, maxMemoryGb: 16 }),
     ["-Xms4096M", "-Xmx16384M"],
   );
+});
+
+// → 同檔 §驗收格 V9（D-SET-MEM-DYN：max 未設定跟著 min，玩家要的 8 GB 不被吃掉）
+test("V9 min=8、max=null ⇒ -Xms8192M -Xmx8192M；設定本身的 max 仍是 null", async (t) => {
+  const settings = { minMemoryGb: 8, maxMemoryGb: null };
+  assert.deepEqual(await memFlags(t, settings), ["-Xms8192M", "-Xmx8192M"]);
+  assert.equal(settings.maxMemoryGb, null);
 });
 
 test("S3 離線帳號：全 0 的 uuid、token 0、名字照給", async (t) => {

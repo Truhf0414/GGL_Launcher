@@ -65,7 +65,6 @@
       "assets/icon.ico",
       "node_modules/**/*",
       "!assets/rpc-helper.exe",
-      "!assets/default-settings.json",
       "!assets/*.mp4",
       "!node_modules/**/test{,s}/**",
       "!node_modules/**/__tests__/**",
@@ -77,10 +76,6 @@
       {
         "from": "assets/rpc-helper.exe",
         "to": "assets/rpc-helper.exe"
-      },
-      {
-        "from": "assets/default-settings.json",
-        "to": "assets/default-settings.json"
       },
       {
         "from": "assets/sakura_field_BG.mp4",

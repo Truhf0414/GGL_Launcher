@@ -13,6 +13,7 @@ const {
   assertLaunchBundle,
 } = require("../lib/runtime-needs.js");
 const { javaExeFor } = require("../lib/paths-layout.js");
+const { heapMbFromSettings } = require("../lib/launch-memory.js");
 const {
   buildClasspath,
   buildLaunchArgv,
@@ -99,26 +100,14 @@ function cleanupStaleMcProcessIfNeeded() {
   return false;
 }
 
-function mbFromGb(gb) {
-  const n = Number(gb);
-  if (!Number.isFinite(n) || n <= 0) return 4096;
-  return Math.round(n * 1024);
-}
-
-/** 手寫的只剩記憶體與 GC；其餘照 version json（→ _notes/plans/instance-sync-v3-commit5c.md §設計「手寫 jvm 旗標的去留」） */
-function memoryAndGcFlags({ minMemoryMb, maxMemoryMb }) {
-  const MAX_HEAP_MB = 64 * 1024;
-  const xmx = Math.min(
-    MAX_HEAP_MB,
-    Math.max(1024, Math.floor(Number(maxMemoryMb) || 4096)),
-  );
-  let xms = Math.floor(Number(minMemoryMb) || 0);
-  if (!Number.isFinite(xms) || xms <= 0) xms = Math.min(1024, xmx);
-  if (xms > xmx) xms = xmx;
-
+/**
+ * 手寫的只剩記憶體與 GC；其餘照 version json（→ _notes/plans/instance-sync-v3-commit5c.md §設計「手寫 jvm 旗標的去留」）。
+ * 記憶體由 lib/launch-memory.js 唯一一份推導算好（D-SET-MEM-DYN），這裡只組旗標。
+ */
+function memoryAndGcFlags({ xmsMb, xmxMb }) {
   return [
-    `-Xms${xms}M`,
-    `-Xmx${xmx}M`,
+    `-Xms${xmsMb}M`,
+    `-Xmx${xmxMb}M`,
 
     "-XX:+UseG1GC",
     "-XX:+ParallelRefProcEnabled",
@@ -207,10 +196,6 @@ async function launchMinecraft({
   const nativesDir = path.join(gameDir, "natives");
   await fsp.mkdir(nativesDir, { recursive: true });
 
-  const maxMb = settings?.maxMemoryGb
-    ? mbFromGb(settings.maxMemoryGb)
-    : mbFromGb(settings?.memoryGb);
-  const minMb = settings?.minMemoryGb ? mbFromGb(settings.minMemoryGb) : 0;
   const placeholders = launchPlaceholders({
     merged: launch.merged,
     gameDir,
@@ -228,7 +213,7 @@ async function launchMinecraft({
     merged: launch.merged,
     env: launch.env,
     placeholders,
-    extras: memoryAndGcFlags({ minMemoryMb: minMb, maxMemoryMb: maxMb }),
+    extras: memoryAndGcFlags(heapMbFromSettings(settings)),
     ...logArg,
   });
 
