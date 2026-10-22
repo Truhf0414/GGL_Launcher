@@ -263,7 +263,7 @@ ChatGPT Round2 開頭記載「owner 已表示除 U7 的新決定之外，目前�
 | U2 | `renderer/self-check.js` 留或刪 | **留，但縮到只查 preload（`window.ggl`）**。其他模組檢查在 R-A 清完後由 `check-renderer-scripts` 保證；preload 壞掉時 IPC 不存在，畫面上那行字是唯一出口（ChatGPT 同意：Review Report §3.3） | 6 | owner 裁 |
 | U3 | 同一值一路重驗 | **assertEnv 每個入口留一次、內層刪**；`runtime-readiness.js:29` 那個留（它是入口，不是重驗——註解寫明不先驗會讓「沒記錄就 return」那條路無聲通過）；merged 再驗、`mergeLibraries` 非陣列分支刪；**`rel-path` 的 `isResolvedPathUnderGameDir` 留**並寫一行理由（它守同步刪寫不跑出 gameDir，屬路徑安全）。ChatGPT 同意（Review Report §3.3） | 6 | owner 逐項裁 |
 | U4 | `lib/server-config.js` 算程式碼還是設定 | **算程式碼**（凍結的 JS、跟著安裝包出貨、改了要重打包），補一支測試驗它的值，再刪 `manifest-url-configured`、`discord-button-url` 對它的型別防護。動工前要查 `filterButtonUrl` 有沒有收過站台來的網址——有的話那部分是邊界要留。ChatGPT 同意方向（Review Report §3.3） | 6 | owner 裁 |
-| U5 | ③ 格式實例記錄（缺 `minecraft`／`loader`／`javaMajor`）收緊 | **收緊**。代價：owner 與測試者兩台的舊安裝會被當成未安裝、重裝一次。ChatGPT 傾向同意，但要求 owner 對「舊本機資料怎麼處置」逐字批准（Review Report §3.3、§8.1） | 6 | owner 裁 |
+| U5 | ③ 格式實例記錄（缺 `minecraft`／`loader`／`javaMajor`）收緊 | **收緊**。代價：owner 與測試者兩台的舊安裝會被當成未安裝、重裝一次。〔2026-10-22 更正：沒有其他測試者，只有 owner 一台（owner 2026-10-22「測試者從頭到尾只有我。」）〕ChatGPT 傾向同意，但要求 owner 對「舊本機資料怎麼處置」逐字批准（Review Report §3.3、§8.1） | 6 | owner 裁 |
 | U6 | memoryGb 移除後，「max 未設定 ⇒ 4096 MB」的唯一來源放哪 | **事實更正**（SPR #19）：這個預設值目前散在多處——`main/minecraft-launch.js:104`（`return 4096`）、`:113`（`\|\| 4096`）、`:210-212`（`maxMb` 以 `memoryGb` 為退路）、`main/settings.js:22,58`、`assets/default-settings.json:2`（`memoryGb: 4`）、`lib/settings-logic.js:42,53-60`（legacy 後備）。初版說「放在唯一用到它的地方」是錯的。**建議**：先把這幾處收成一個有名字的常數，優先放 `lib/`（專案 CLAUDE.md：可測的邏輯放 `lib/`）；不放進設定正規化（理由見 D-SET-MEM） | 4 | Phase 4 細部 plan 定案、owner 看過〔2026-10-21 已裁 → §3.5 D-SET-MEM-DYN〕〔對齊 2026-10-22：`main/minecraft-launch.js:104`、`:113`、`:210-212`、`main/settings.js:22,58`、`assets/default-settings.json:2`、`lib/settings-logic.js:42,53-60` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除或改寫；唯一來源＝`lib/launch-memory.js`〕〔對齊 2026-10-22：`main/settings.js:22,58` → `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 不適用（已於 `a4d4eb9` 刪除或改寫）〕 |
 | U10 | rpc-helper 的清理 | **維持等**。`future-work.md`「Discord RPC 去留」（保留外掛／搬回 main／整個砍）未裁；改 `rpc-helper/index.js` 要重 build exe | — | 等去留裁決 |
 | U11 | tailwind v4 CLI 吃 v3 寫法 | **另開一刀，記進 future-work**。會改 CSS 產出、要看畫面，跟防禦清理不同根；ChatGPT 要求先驗產物與畫面、不要憑猜測大改（Review Report §3.3） | — | owner 裁「另開」或「本輪」〔2026-10-14 已裁「另開」：owner「好，另開。」→ `future-work.md`「tailwind 的 v3 寫法配 v4 CLI」〕 |
@@ -352,7 +352,7 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
 
 ### 5.8 Runtime 來源（CC 第一、三、四輪）
 
-- **Java Mirror 在 owner 機器上沒設**〔實測〕：shell 環境、使用者環境變數（`HKCU\Environment`）、系統環境變數（`HKLM\...\Session Manager\Environment`）三處都沒有；兩個登錄機碼查詢都先用 `Path` 做對照，確認查詢有效。測試者的機器沒查。（註：D-JAVA 的理由**不是**「沒人設」，見 §6.7。）
+- **Java Mirror 在 owner 機器上沒設**〔實測〕：shell 環境、使用者環境變數（`HKCU\Environment`）、系統環境變數（`HKLM\...\Session Manager\Environment`）三處都沒有；兩個登錄機碼查詢都先用 `Path` 做對照，確認查詢有效。測試者的機器沒查。〔2026-10-22 更正：沒有其他測試者，只有 owner 一台（owner 2026-10-22「測試者從頭到尾只有我。」）〕（註：D-JAVA 的理由**不是**「沒人設」，見 §6.7。）
 - **Java Mirror 的來歷**〔讀碼〕：2026-04-17 第一個 commit `25f26a7`（Cursor 時期的初始匯入）帶進來，2026-10-11 新 runtime 管線 `8d5f4d6` 沿用；repo 裡沒有任何文件提到它；`test/runtime-java.test.cjs` 沒有任何關於它的測試。
 - **Java 既有測試數**：`node --test test/runtime-java.test.cjs` 實跑 **39 個**（含參數化；SPR #28 sub-code 實跑）。初版寫的「17 個」是 `rg -n "^test\("` 數的頂層 `test(` 呼叫。其中幾個編碼了舊行為（`-version` 回 1、解壓失敗／無 java／兩個根目錄 ⇒ Mojang、每個來源 zip 都驗不過；`test/runtime-java.test.cjs:203,335,361`），5a 後要逐一確認；測試 helper 的 `env: {}` 會變孤兒。
 - **Minecraft 鏡像的結構**〔讀碼〕：`main/mc-mirror.js:10-19` 清單＝`GGL_MC_MIRROR_BASE`（有設才有、排第一）→ **BMCLAPI2（`https://bmclapi2.bangbang93.com`，內建、預設啟用）** → Mojang 官方；`pickFastestMcMirror` 以抓 `version_manifest_v2.json` 前 256 KB 測速選最快，10 分鐘快取。`main/runtime/minecraft.js:135-179` `fetchVanillaVersionJson`：有鏡像時**先從鏡像抓原版 version json**；抓回來只經 `checkVanillaJson`（`lib/runtime-json.js:45-73`）檢查格式——`downloads.client.url` 是任何 http(s) 就過、`sha1` 是任何 40 位 hex 就過，**沒有拿官方 manifest 的 sha1 比對這份 json 本身**。之後 client jar、函式庫、assets 驗的 sha1 都來自這份 json（`minecraft.js:420,442,458`）。〔對齊 2026-10-20：`main/runtime/minecraft.js` → `9906d13`（plans/cross-review-2026-10-phase1.md 1b）後 `:135-179` → `:136-180`、`:420,442,458` → `:454,476,492`〕
@@ -393,7 +393,7 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
 | 不認得的鍵 ⇒ 剔除 | `:54` 註解 | 靜默（D-SET-UNKNOWN 改為拒絕）〔對齊 2026-10-22：`main/settings.js:54` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除（改為拒絕）〕〔對齊 2026-10-22：`main/settings.js:54` → `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 不適用（已於 `a4d4eb9` 刪除或改寫）〕 |
 
 - **認得的鍵**：`memoryGb, minMemoryGb, maxMemoryGb, playerId, launcherRootDir, debugLogging`〔實測：`normalizeSettingsObject({})` 的輸出鍵〕。`assets/default-settings.json` 的鍵：`debugLogging, maxMemoryGb, memoryGb, minMemoryGb, playerId`。
-- **owner 機器上的 settings.json**（`%APPDATA%\GGL_launcher\settings.json`）鍵＝`debugLogging, launcherRootDir, maxMemoryGb, memoryGb, minMemoryGb, playerId`〔實測，2026-10-14〕——沒有不認得的鍵；U6 移除 `memoryGb` 後，它會變成不認得的鍵（D-SET-UNKNOWN ⇒ owner 與測試者各要刪一次那一行，或刪掉整個設定檔）。**測試者的設定檔沒查**。
+- **owner 機器上的 settings.json**（`%APPDATA%\GGL_launcher\settings.json`）鍵＝`debugLogging, launcherRootDir, maxMemoryGb, memoryGb, minMemoryGb, playerId`〔實測，2026-10-14〕——沒有不認得的鍵；U6 移除 `memoryGb` 後，它會變成不認得的鍵（D-SET-UNKNOWN ⇒ owner 與測試者各要刪一次那一行，或刪掉整個設定檔）。**測試者的設定檔沒查**。〔2026-10-22 更正：沒有其他測試者，只有 owner 一台（owner 2026-10-22「測試者從頭到尾只有我。」）〕
 - **IPC 端已拒絕不認得的鍵**：`main/ipc/settings-ipc.js:22,28-31`，註解寫「不認得的鍵直接擋下：normalizeSettingsObject 只輸出認得的鍵，放行只會被悄悄丟掉、設定視窗還顯示儲存成功」——同一個理由對檔案一樣成立（§6.5）。〔對齊 2026-10-22：`main/ipc/settings-ipc.js:22,28-31` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 改寫（改用 `checkSettings`）〕
 - **畫面的檢查**：送出前把記憶體轉成數字或 `null`（`renderer/settings-modal.js:249-254`），只擋 `> 0`，**不擋上限**——現在就能送出 100 GB 並被 main 偷偷夾回；`min > max` 會在畫面擋下（`:256-266`）。不合格時用既有的 `setSettingsError` 顯示（`:279`）。〔對齊 2026-10-22：`renderer/settings-modal.js:249-254`、`:256-266` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除（`saveSettings` 重寫）；`:279` 後 `:276`〕〔對齊 2026-10-22：→ `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 未移動（行內行號指的檔不在本 commit）〕
 - **`minMemoryGb` 的 0**：啟動時 `const minMb = settings?.minMemoryGb ? mbFromGb(settings.minMemoryGb) : 0;`（`main/minecraft-launch.js:213`），0 與 `null` 效果相同（都不設下限）。〔對齊 2026-10-22：`main/minecraft-launch.js:213` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 刪除〕
@@ -582,8 +582,8 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
 ### 6.9 舊的本機 version json 快取（ChatGPT 第四輪疑點 C）
 
 1. **既有修復流程夠不夠重建信任？** 夠。修復一定帶 `verifyAll`，會一律重抓並覆蓋本機那份（§5.9）。5b 之後重抓只會打官方，所以按一次修復就重建了信任。
-2. **一般更新沿用舊快取，跟新的信任根裁決衝突嗎？** 對**未來**不衝突：5b 之後新寫入的 version json 都來自官方且驗過 sha1。對**已存在**的快取，理論上衝突（它可能來自鏡像）。但**這種快取全世界只存在兩台機器上**：啟動器從未發行（`conventions.md` §防禦與相容 前提），只有 owner 與一位測試者的機器裝過。
-3. **最小遷移做法？** **不寫任何遷移程式。** 5b 的驗收步驟包含「owner 與測試者各按一次修復」，並在修復後比對本機 version json 的 sha1 等於 manifest（這要靠第 5 點改成存原檔才比得了）。這和 `conventions.md` §防禦與相容 第 5 條（不接舊版，舊東西只在兩台機器上，丟掉重來即可）一致。
+2. **一般更新沿用舊快取，跟新的信任根裁決衝突嗎？** 對**未來**不衝突：5b 之後新寫入的 version json 都來自官方且驗過 sha1。對**已存在**的快取，理論上衝突（它可能來自鏡像）。但**這種快取全世界只存在兩台機器上**：啟動器從未發行（`conventions.md` §防禦與相容 前提），只有 owner 與一位測試者的機器裝過。〔2026-10-22 更正：沒有其他測試者，只有 owner 一台（owner 2026-10-22「測試者從頭到尾只有我。」）〕
+3. **最小遷移做法？** **不寫任何遷移程式。** 5b 的驗收步驟包含「owner 與測試者各按一次修復」，並在修復後比對本機 version json 的 sha1 等於 manifest（這要靠第 5 點改成存原檔才比得了）。這和 `conventions.md` §防禦與相容 第 5 條（不接舊版，舊東西只在兩台機器上，丟掉重來即可）一致。〔2026-10-22 更正：沒有其他測試者，只有 owner 一台（owner 2026-10-22「測試者從頭到尾只有我。」）〕
 4. **能否避免永久遷移狀態檔、第二套版本權威、每次啟動都要連網？** 依第 3 點，三者都不需要。
 5. **原始位元組算 SHA-1，怎麼最小幅度取得？** **讓 version json 走跟 client jar 一樣的下載路**——用既有的 `downloadRuntimeFile`（下載到檔案、用給定的 sha1 驗**檔案的原始位元組**），sha1 取自官方 manifest 的那一筆；驗過之後再讀檔、解析、`checkVanillaJson`。不需要新的「抓原始位元組」函式，version json 也不再是特例；本機存的就是官方原檔。
    - SPR #31 確認：`downloadRuntimeFile` 不收 `expectedSize`、`onChunk` 可省，小 JSON 能用；但它走 `deps.download`、不走 `deps.fetchImpl`，現有 version json 測試的注入方式要跟著改。
@@ -877,7 +877,7 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
 - `SETTINGS_SET` 拒絕不合法 patch（既有 K5 只測未知鍵，`test/settings-ipc.test.cjs:82`）。
 - Windows 上改名覆蓋被鎖住：實測時斷言「不回報成功、原 `settings.json` 完好」；鎖的製造法在細部 plan 定（SPR #48）。
 - owner 看設定視窗行為。
-- 實施後提醒 owner 與測試者：設定檔裡的 `memoryGb` 那一行要刪掉（或刪掉整個設定檔），否則啟動會被拒（§5.10）。
+- 實施後提醒 owner 與測試者：設定檔裡的 `memoryGb` 那一行要刪掉（或刪掉整個設定檔），否則啟動會被拒（§5.10）。〔2026-10-22 更正：沒有其他測試者（owner 2026-10-22「測試者從頭到尾只有我。」）；owner 那份已刪，→ `plans/cross-review-2026-10-phase4.md` §owner 設定檔〕
 **回滾**：2–3 個 commit（讀取／原子寫入／IPC 與畫面），各自可回滾。〔2026-10-21 owner 裁 Phase 4 Q9：改為三刀 4a 特徵測試／4b 契約、讀取、IPC、畫面、Q5 恢復／4c 一般儲存的原子寫入（→ `plans/cross-review-2026-10-phase4.md` §刀界）〕
 **前置**：Phase 2（才能出聲）；U6。
 
@@ -906,7 +906,7 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
   - **反向案例（SPR #51，原唯一 blocker）**：官方回傳的位元組與 manifest sha1 不符 ⇒ 拒絕、本機舊檔不變；**內容相同但排版不同**的 json ⇒ 也要拒絕（證明驗的是原始位元組，不是解析後重新序列化的內容）。
   - `npm test` 全過；`rg -i 'bmcl|GGL_MC_MIRROR'` 在程式碼零命中（附對照組）。
   - **「請求只打官方主機」的觀察法**（SPR #6、#53）：測試裡注入下載函式，記錄完整安裝過程的所有網址並斷言主機在官方清單內（Mojang、Fabric 的主機）；實機另以可觀察的方式（例如系統層的連線紀錄）抽查一次。不准用「看起來有裝好」代替。
-  - **owner 與測試者各按一次修復**（§6.9 第 3 點），修復後本機 version json 的 sha1 等於 manifest 那一筆。
+  - **owner 按一次修復**（§6.9 第 3 點）〔2026-10-22 更正：原寫「owner 與測試者各按一次」；owner 2026-10-22「測試者從頭到尾只有我。」〕，修復後本機 version json 的 sha1 等於 manifest 那一筆。
 **回滾**：5a、5b 各一個 commit。
 **前置**：無硬性前置（不依賴 Phase 6；Phase 2 不是前置，失敗原因寫在錯誤訊息裡）。
 
@@ -936,7 +936,7 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
 
 1. **§6.6 同步寫入「頻率可忽略」**：推論，沒量。如果 Phase 6 之後 `gglError` 的呼叫處變多、而某處在迴圈裡被頻繁呼叫，同步寫入會卡住 main。Phase 6 加呼叫處時要看頻率。
 2. **§6.9「舊快取只在兩台機器上」**：依據是「從未發行」的前提。如果曾經把啟動器私下給過第三個人（例如早期測試），那台的快取不在這個範圍內。owner 最清楚。
-3. **D-SET-UNKNOWN 的反例只想到「發行後降級」一種**：如果有工具或使用習慣會自動往 `settings.json` 塞鍵（例如編輯器的 `$schema`、使用者自己加的註解鍵），那是另一類反例；目前沒有證據顯示有。**測試者的設定檔沒查**，裡面可能有 Cursor 時期留下的舊鍵，Phase 4 上線後他啟動會先被拒一次（訊息會寫出鍵名）。
+3. **D-SET-UNKNOWN 的反例只想到「發行後降級」一種**：如果有工具或使用習慣會自動往 `settings.json` 塞鍵（例如編輯器的 `$schema`、使用者自己加的註解鍵），那是另一類反例；目前沒有證據顯示有。**測試者的設定檔沒查**，裡面可能有 Cursor 時期留下的舊鍵，Phase 4 上線後他啟動會先被拒一次（訊息會寫出鍵名）。〔2026-10-22 更正：沒有其他測試者，只有 owner 一台（owner 2026-10-22「測試者從頭到尾只有我。」）〕
 4. **§4.2 把 U2–U15 全部列為未決**：這是照 ChatGPT 的轉述與 outside voice 的確認保守處理。如果 owner 在與 ChatGPT 的對話裡其實已經逐項放行過，這裡會多問。
 5. **§3 標〔轉述〕的裁決**：CC 沒看到原話，只能依 ChatGPT 文件的轉述。轉述和 owner 本意有落差時，以 owner 為準。
 6. **D-LINK-RUNTIME 的後果**是推論，沒實測（「`libraries/` 是 junction 時修復會刪改外部檔」）。Phase 1 的驗收案**釘不住它**：那些案在第一個檢查點就擋下，runtime 還沒跑，只證明得了「擋住了」，證明不了「不擋會刪到外部」。這條在本事件裡始終是推論；要釘住得另做實驗（真的 `prepareRuntime`＋`libraries/` 是 junction＋修復），本事件不做。〔2026-10-17 更正：原寫「Phase 1 的驗收案會把它釘住。」，寫細部 plan 時發現不成立 → `plans/cross-review-2026-10-phase1.md`〕〔2026-10-19 更正：2026-10-17 稍晚另做了實驗，`libraries/com` 已實測會改寫外部（§5.13，§7 X-18）；`versions`、`assets` 的深層仍是推論，由 1b 補測試（D-LINK-C-DEEP）〕
