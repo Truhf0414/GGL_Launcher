@@ -82,6 +82,7 @@ test("KINDS 與上層優先序逐字相同", () => {
     "update-available",
     "up-to-date",
     "internal-error",
+    "settings-error",
   ]);
 });
 
@@ -124,8 +125,9 @@ test("KIND_UI／deriveUi：11 kind × localReady 共 22 格", () => {
     ],
     ["up-to-date", "always", launch(), launch()],
     ["internal-error", "never", recheck, recheck],
+    ["settings-error", "never", recheck, recheck],
   ];
-  assert.equal(table.length, 11);
+  assert.equal(table.length, 12);
   assert.deepEqual(Object.keys(KIND_UI).sort(), [...KINDS].sort());
   for (const [kind, policy, ready, notReady] of table) {
     assert.equal(KIND_UI[kind].launchPolicy, policy, kind);
@@ -569,8 +571,9 @@ test("N27 讀不到時 syncing 優先、沒設定更新來源優先", () => {
   assert.equal(statusOf({ local: unreadable(), configured: false }).kind, "unconfigured");
 });
 
-test("N27 兩個新 kind：never＋重新檢查、不在任何允許同步的集合", () => {
-  for (const kind of ["local-unreadable", "internal-error"]) {
+// settings-error → _notes/plans/cross-review-2026-10.md D-SET-KIND（Phase 4 V13）
+test("N27 local-unreadable、internal-error、settings-error：never＋重新檢查、不在任何允許同步的集合", () => {
+  for (const kind of ["local-unreadable", "internal-error", "settings-error"]) {
     assert.ok(KINDS.includes(kind), kind);
     assert.deepEqual(deriveUi(kind, true), {
       button: { action: "retry", label: "重新檢查", note: null },

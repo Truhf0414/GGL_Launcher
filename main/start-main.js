@@ -9,15 +9,14 @@ const {
   logSyncProgressThrottled,
 } = require("./launcher-log");
 const { readAccount, writeAccount } = require("./account-store");
-const { getPaths } = require("./paths");
+const { getPaths, DEFAULT_LAUNCHER_ROOT_DIR } = require("./paths");
 const {
-  ensureSettingsFileInitialized,
+  initSettingsAtBoot,
   readSettings,
-  readSettingsRaw,
   writeSettings,
-  normalizeSettingsObject,
-  isExplicitNumberLike,
+  copySettingsFileTo,
 } = require("./settings");
+const { recoveredNoticeText } = require("../lib/settings-format.js");
 const {
   readDismissedNotificationIds,
   writeDismissedNotificationIds,
@@ -63,6 +62,30 @@ const { exportDiagnostics } = require("./diagnostics-export");
 const { runMainAppReady } = require("./app-ready");
 const { gglEvent, gglError } = require("./ggl-log");
 
+/**
+ * 開機恢復了壞掉的設定檔：主視窗建立前告知一次（只有「確定」，不是 D-SET-UI 禁的修復視窗）。
+ * 非致命：框跳不出來照樣開機（D-SET-RECOVER 接受「下次不一定再提示」）。
+ */
+async function showSettingsRecoveredNotice({ backupPath, why }) {
+  const { dialog } = require("electron");
+  try {
+    await dialog.showMessageBox({
+      type: "warning",
+      title: "設定檔已換成預設值",
+      message: "設定檔壞了，已換成預設值",
+      detail: recoveredNoticeText({
+        why,
+        backupPath,
+        defaultRootDir: DEFAULT_LAUNCHER_ROOT_DIR,
+      }),
+      buttons: ["確定"],
+    });
+  } catch (err) {
+    // 告知失敗不擋開機：備份與恢復都已完成，留一筆常駐日誌
+    gglError("main", "settings_recovered_notice_failed", err, {});
+  }
+}
+
 const getRemoteManifestUrl = () => serverConfig.manifestUrl;
 const isManifestUrlConfigured = () =>
   isRemoteManifestUrlConfigured(serverConfig.manifestUrl);
@@ -105,10 +128,7 @@ function createMainAppReadyContext({ app, appRoot }) {
     writeAccount,
     refreshMicrosoftAndMinecraftTokens,
     readSettings,
-    readSettingsRaw,
     writeSettings,
-    normalizeSettingsObject,
-    isExplicitNumberLike,
     getSystemMemoryGb,
     getPaths,
     launchMinecraft,
@@ -122,6 +142,7 @@ function createMainAppReadyContext({ app, appRoot }) {
     exportDiagnostics: () =>
       exportDiagnostics({
         readSettings,
+        copySettingsFileTo,
         getPaths,
         readSyncRecord,
         getRemoteManifestUrl,
@@ -148,8 +169,8 @@ function createMainAppReadyContext({ app, appRoot }) {
   /** 回傳鍵須與 `main/app-ready.js` 的 `MAIN_APP_READY_KEYS` 一致（啟動時會先 assert）。 */
   return {
     app,
-    ensureSettingsFileInitialized,
-    readSettings,
+    initSettingsAtBoot,
+    showSettingsRecoveredNotice,
     computeDebugLoggingEnabled,
     setDebugLoggingEnabled,
     rotateLauncherLogIfTooLarge,

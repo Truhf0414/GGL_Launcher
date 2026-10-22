@@ -16,8 +16,8 @@
 | owner 已裁（本檔 §已裁事項） | Q9 三刀、Q10 跑輕量 SPR；初稿建議被改判的部分與理由 |
 | 施工條件 | Q5 Windows 實測：完成，沒有不可接受的反例（→ §Probe 紀錄 Q5、§Q5 實測的結論）；輕量 SPR：完成，需重裁的 #13、#14 已由 owner 2026-10-22 裁定（→ 上層 §3.5 D-SET-SERIAL、D-SET-DIAG、D-SET-UTF8）；owner 放行 4a |
 | 待 owner 裁 | 無 |
-| 已實作 | 無 |
-| 已跑的測試 | P1–P5、Q5 實測 R0–R6（設計證據，不是施工驗收）；基線 `npm test` 2026-10-21 現跑 `tests 1093 / pass 1093 / fail 0`（HEAD `d1a147e`） |
+| 已實作 | 4a（`064fe14`）；4b 施工完成、**未 commit**，待 owner 驗收（→ §4b 施工紀錄） |
+| 已跑的測試 | P1–P5、Q5 實測 R0–R6（設計證據，不是施工驗收）；基線 `npm test` 2026-10-21 現跑 `tests 1093 / pass 1093 / fail 0`（HEAD `d1a147e`）；4b → §驗收格、§4b 施工紀錄 |
 
 ## 動工前現查（2026-10-21，基準 `d1a147e`）〔讀碼〕
 
@@ -108,6 +108,10 @@
 - 斷電或藍屏時，`sync` 之後的檔案內容是否完整——沒法在這裡測，依上面的文件只能說「已請求寫入」。
 - 防毒或索引軟體在改名那一刻短暫開著檔——形狀應同 R3（`EPERM`），沒有實際用防毒重現。
 - 網路磁碟、FAT32／exFAT——沒測；`userData` 在本機 NTFS。
+
+### P6：4b 動工前的舊行為（2026-10-22，HEAD `064fe14`，main／lib／renderer 未改）
+
+一次性腳本對舊 `main/settings.js`（假 electron、暫存 userData）。結果：不合法值＋未知鍵開機不丟錯、`minMemoryGb: 0` 照讀；壞 JSON 直接蓋成預設、沒有備份；BOM＋合法 JSON 被蓋成預設（`playerId` 變 `Player001`）；寫入遇壞檔照蓋；`settings.json` 是資料夾時 `readSettings` 回預設根 `C:\Games\GGL`；**兩次不相交的 `writeSettings` 同時跑，檔案被交錯寫成壞 JSON**（`}true`，解析失敗）——比 SPR #13 的「遺失其中一次修改」更糟。
 
 ### Q5 實測的結論
 
@@ -278,6 +282,22 @@
 | 4b | §設計 除了「一般儲存走替換原語」以外的全部，**含 D-SET-SERIAL 的序列化入口**（`writeSettings` 的讀—合併—寫本來就在 4b 重寫，不相交 patch 的遺失在非原子寫法下同樣會發生，所以序列化跟著 4b）；**建** `writeExclusive`、`replaceFileWithBytes`（Q5 要用）並在 4b 就做它們的 Windows 故障測試。理由：Q5 屬 4b（owner 裁），恢復不能沒有原語 | 一般儲存仍是 `fsp.writeFile` 非原子；D-SET-WRITE 的替換未落實；「行程內讀寫不擋替換」要到有替換的 4c 才驗得出來 |
 | 4c | `writeSettings` 的寫入改用 `replaceFileWithBytes`（帶 `expectCurrent`＝區段開頭讀到的位元組）；一般儲存的 Windows 故障與序列化效果測試（V26–V29） | 無（Phase 4 範圍內） |
 
+## 4b 施工紀錄（2026-10-22，未 commit）
+
+**與 §設計 不同的五處**（owner 2026-10-22 全數接受：「D1–D5 全數接受；4b 程式與測試審查通過。」）：
+
+| # | §設計 原寫 | 實作 | 理由 |
+|---|---|---|---|
+| D1 | `lib/launch-memory.js`「Node 用」 | 也是 UMD（`GglLaunchMemory`），`index.html` 在 `settings-logic.js` 前載入，`check-renderer-scripts.cjs` 一起改 | 設定視窗的動態規則提示要「數字從常數組」；畫面拿得到常數的路只有載它 |
+| D2 | `replaceFileWithBytes` 失敗「丟原錯」 | fs 的錯包成 `ReplaceFileError`（`step`＋`cause`＝原錯）；不帶 `syscall` 的錯照原樣丟 | 不包就分不出開機框要寫的是哪一步（temp／compare／replace）；包的只有 fs 錯，bug 不會被誤歸成 `SettingsError` |
+| D3 | `settings-error` 的 details 分三種前綴；開機框與 IPC 各自的文字 | 三處都用 `SettingsError.message`（由 `main/settings.js` 依 reason 組，含路徑） | 一份文字；三種 reason 的 message 各自不同（V7 斷言三者互異） |
+| D4 | V16「暫存名被佔」黑箱 | 需補丁（建暫存那一刻才放資料夾佔位） | 暫存名帶 4 bytes 亂數，事前猜不到 |
+| D5 | `settings:set` 步驟 1 只驗鍵 | 驗整個 patch（`checkSettings(patch)`），合併後的矛盾仍在 `writeSettings` | 鍵與值同一個函式、同一句文字；不合法的根目錄（如前後空白）先被當不合法拒，不會被誤報成「同步中請稍後」 |
+
+**沒照 §設計、但不改行為的小處**：`exportDiagnostics` 的設定檔快照複製失敗照舊不擋匯出（同其他快照）；`copySettingsFileTo` 遇檔不見丟原始 `ENOENT`。
+
+**實機（隔離 userData：`npx electron . --user-data-dir=<暫存>`；旗標先以最小探針驗過會換 userData 與單一實例鎖）**，Electron 內建 Node v24.20.0：首次開機建完整預設並開完；壞 JSON ⇒ 備份＝原位元組、正式檔＝預設、15 秒內沒有 `main_window_created`（停在提示框，主視窗在後）；owner 形狀的檔（含 `memoryGb`）與資料夾 ⇒ 常駐日誌 `start_main_failed` 帶 `{name: SettingsError, code: GGL_SETTINGS}`、檔不變。對話框的畫面沒看（按不到），歸 E1 owner 看。owner 正式檔前後 `cmp` 一致、未動。
+
 ## 測試手法（SPR 修訂）
 
 - **4a 測 `main/settings.js`**：它經 `main/paths.js` 呼叫 `require("electron")`，會被 `test/helpers/forbid-electron.cjs` 擋；在測試檔內包一層 `Module._load`，只對 `electron` 回假物件（`app.getPath` 指暫存資料夾），`forbid-electron` 本身保留（SPR #38）。4b 可以照用。
@@ -292,32 +312,32 @@
 
 | # | 情境 | 斷言 | 刀 | 狀態 |
 |---|---|---|---|---|
-| V1 | （1）檔不存在 | 建出完整預設；之後讀得回同一份 | 4a 特徵（現行為：建預設）→ 4b 改寫（完整預設、每個鍵都在、資料夾不存在也建得出來） | 4a：寫＋跑（`test/settings-file.test.cjs` 兩案，含 userData 資料夾不存在） |
-| V2 | （2）合法且缺鍵 | 開機後位元組不變 | 4a 只寫「合法且不缺鍵 ⇒ 不變」（fixture 含 `memoryGb`，**4b 必改寫**，SPR #38）；缺鍵那條 4b 寫 | 4a：寫＋跑（同檔）；對照組：fixture 拿掉 `memoryGb`（預設檔的鍵）⇒ 該案紅（現行為會重寫） |
-| V3 | （3）帶 BOM 的合法 JSON | 不重置、讀得進 | 4b | 未寫 |
-| V4 | （4）壞 JSON：空檔、只有空白、語法錯、陣列、`null`、數字、**非法 UTF-8（`FF FE 7B 00`、單獨的 `80`）、只有 BOM、BOM＋壞 JSON**（SPR #15） | 備份位元組＝原檔（`Buffer.equals`）；新檔＝完整預設；`recovered` 帶備份路徑；提示文字（純函式）含備份路徑與安裝位置重置；再開一次不再恢復；有一筆 `gglEvent` | 4b（單元）＋實機看提示框 | 未寫 |
-| V5 | （5）合法 JSON 含非法值或未知鍵 | 拒絕側：記憶體 `0`、負數、65、`1e999`、`"4"`、`true`、`min>max`；ID 空字串、前後空白、非字串；路徑空字串、前後空白、`C:`、`C:foo`、`\Games`、`Games`、`\\server\share`、`\\?\C:\x`；`debugLogging` `"true"`；未知鍵 `launcherRootDri`、`memoryGb`。**接受側**（SPR #36）：記憶體 1、64、1.5、1.00048828125、`null`；路徑 `D:\我的 遊戲`、`d:\games`、`D:/Games`、`E:\Game2\GGL`。拒絕時：開機丟 `SettingsError(invalid)`、`issues` 全列、檔案位元組不變；開機框不含 stack、含鍵／原值／原因／修法／路徑 | 4b | 未寫 |
-| V6 | （6）讀取被拒 | `EISDIR`（資料夾）、`EBUSY`（子行程 `FileShare.None` 鎖）⇒ 不寫入、目標不變、`SettingsError(unreadable)`；不是 `SettingsError` 的例外（`getSettingsPath` 丟 TypeError）照原樣冒出 | 4b（`EISDIR` 單元；`EBUSY` Windows 實測） | 未寫 |
-| V7 | （7）執行中檔案被改壞或刪掉 | `compute()` ⇒ `settings-error`，details 分三種；不建預設、根目錄不換成預設；**負向**（SPR #28）：中樞的 `deps.readSettings` 丟一般 Error、丟帶 `code`＋`syscall` 但不是 `SettingsError` 的錯、丟訊息像設定錯誤的一般 Error ⇒ 三者都是 `internal-error` | 4b | 未寫 |
-| V8 | （8）畫面非法輸入不送 IPC；直接打 IPC 也被拒 | 畫面（等流程跑完再斷言）：`settings:set` 沒被呼叫、錯誤出現、焦點在對應欄位；IPC：reject、不寫。**合併後才非法**（SPR #35）：檔裡 `max=4`＋patch `{minMemoryGb:8}`；檔裡 `min=4`＋patch `{maxMemoryGb:2}`；null 改數字造成矛盾 ⇒ reject、不寫 | 4b | 未寫 |
-| V9 | （9）`min=8, max=null` | args 含 `-Xms8192M -Xmx8192M`；設定檔 `maxMemoryGb` 仍是 `null` | 4b | 未寫 |
-| V10 | （10）4／16 與 null／null | `-Xms4096M -Xmx16384M`；`-Xms1024M -Xmx4096M` | 4a 特徵 → 4b 沿用 | 4a：寫＋跑（`test/minecraft-launch.test.cjs` V10，另含「都沒設」那條） |
-| V11 | （11）自動建議不偷偷持久化 | 未設定記憶體時只改安裝路徑按儲存 ⇒ 送出的 `minMemoryGb`、`maxMemoryGb` 都是 `null` | 4b（現行為會送建議值，4a 不寫） | 未寫 |
-| V12 | （12）`settings:set` 成功、`instance:recheck` 失敗 | `settingsError` 沒有「儲存失敗」；`setStatusError` 收到「設定已儲存，但重新檢查失敗」 | 4b | 未寫 |
-| V13 | （13）中樞與啟動閘遇到設定故障都拒絕 | 逐入口（SPR #19）：`withLaunchLock` 的 `fn` 沒被呼叫且狀態是 `settings-error`；`updateInstance`、`repairInstance`、`listStrayJars` reject、`fn`／套用沒跑、鎖已放；`settings-error` 進狀態矩陣；`describeStatus` 的大標題不含「內部錯誤」（SPR #7）；既有矩陣全綠 | 4b | 未寫 |
-| V14 | （14）持鎖期間不可換根目錄 | 既有 W7–W9 改寫後全綠 | 4a（既有）→ 4b 改寫 | 4a：既有 W7–W9 在全套裡跑過 |
-| V15 | （15）Windows 替換被阻止 | 開機恢復：目標被行程內 `fsp.open` 開著 ⇒ `recovery-failed`（step `replace`）、目標不變、我們的暫存檔已刪、開機框不含 stack；暫存檔（來源）被開著 ⇒ `EBUSY`、暫存留下（§不涵蓋）| 4b（黑箱） | Q5 原型已實機（R3） |
-| V16 | Q5 其餘故障，用 repo 內的真函式 | 備份名被佔（`EEXIST`，黑箱）；ACL 拒絕建備份（黑箱＋對照組）；備份寫到一半失敗 ⇒ 自建的備份已刪（需補丁）；暫存名被佔（黑箱）；備份後才拒絕建暫存（需補丁＋對照組）；**暫存建出後目標被改** ⇒ `conflict`、目標＝新內容（需補丁）；解除故障後再開機 ⇒ 第二次恢復成功、兩份備份都等於原位元組（注入時鐘，SPR #40）。每一條都斷言錯誤是 `SettingsError` 且開機框不含 stack | 4b | Q5 原型已實機 |
-| V17 | `startup-failure` | 設定錯誤碼不含 stack；其他錯誤仍含（改寫 `test/startup-failure.test.cjs:24-32`） | 4b | 未寫 |
-| V18 | `heapMbFromSettings`（SPR #30） | 矩陣 min∈{null,1,2,4,4.0004,8,64} × max∈{null,1,4,16,64}（只取 min ≤ max）逐格斷言 Xms／Xmx；GB→MB 換算 1.5 ⇒ 1536、1.00048828125 ⇒ 1025 | 4b | 未寫 |
-| V19 | 沒有殘留的第二套記憶體預設（SPR #31） | §測試手法 的結構檢查；`test/minecraft-launch.test.cjs:279-281`（S2，100 GB ⇒ 65536）與 `test/settings-logic.test.cjs:59`（legacy `memoryGb`）刪或改寫 | 4b | 未寫 |
-| V20 | 真 `writeSettings` 遇壞檔（原 B4，SPR #34） | 真 fs：壞 JSON／不合法的檔 ⇒ reject、位元組不變、沒有備份、沒有暫存 | 4b | 未寫 |
-| V21 | `SETTINGS_GET` 遇壞檔（SPR #34） | reject；不回半套設定 | 4b | 未寫 |
-| V22 | 診斷匯出遇壞檔（SPR #34、D-SET-DIAG） | reject；`diagnostics/` 底下沒有新建的空資料夾；複製設定檔走 `copySettingsFileTo` | 4b | 未寫 |
-| V23 | 常駐日誌（SPR #22） | `SettingsError` 寫進檔時 `name`、`code` 保留；其他 `GGL_*` 碼不收 | 4b | 未寫 |
-| V24 | 備份檔名（SPR #37） | 注入固定 epoch ⇒ 檔名是台北時間 | 4b | 未寫 |
-| V25 | 不相交 patch 同時寫入不遺失（D-SET-SERIAL） | 真 fs：`Promise.all([writeSettings({playerId:"A"}), writeSettings({debugLogging:true})])`（直接打 `main/settings.js`，繞過畫面）⇒ 兩者都成功、檔裡兩個改動都在；再加一組在兩次寫之間插 `readSettings` | 4b | 未寫 |
-| V26 | 不會巢狀排隊（D-SET-SERIAL「不得 deadlock」） | `writeSettings`、`readSettings`、`copySettingsFileTo` 交錯並行呼叫，全部在測試的 `timeout` 內結束；結構檢查：`main/settings.js` 的私有函式不呼叫對外入口（`rg` 對照組：對外入口的定義行命中） | 4b | 未寫 |
+| V1 | （1）檔不存在 | 建出完整預設；之後讀得回同一份 | 4a 特徵（現行為：建預設）→ 4b 改寫（完整預設、每個鍵都在、資料夾不存在也建得出來） | 4a：寫＋跑；4b：改寫＋跑（`test/settings-file.test.cjs`：完整預設、不帶 BOM、資料夾不存在也建）＋實機（隔離 userData 首次開機） |
+| V2 | （2）合法且缺鍵 | 開機後位元組不變 | 4a 只寫「合法且不缺鍵 ⇒ 不變」（fixture 含 `memoryGb`，**4b 必改寫**，SPR #38）；缺鍵那條 4b 寫 | 4b：改寫＋跑（fixture 拿掉 `memoryGb`；五鍵齊不變、缺鍵三組不補寫） |
+| V3 | （3）帶 BOM 的合法 JSON | 不重置、讀得進 | 4b | 4b：寫＋跑（開機與執行中） |
+| V4 | （4）壞 JSON：空檔、只有空白、語法錯、陣列、`null`、數字、**非法 UTF-8（`FF FE 7B 00`、單獨的 `80`）、只有 BOM、BOM＋壞 JSON**（SPR #15） | 備份位元組＝原檔（`Buffer.equals`）；新檔＝完整預設；`recovered` 帶備份路徑；提示文字（純函式）含備份路徑與安裝位置重置；再開一次不再恢復；有一筆 `gglEvent` | 4b（單元）＋實機看提示框 | 4b：寫＋跑（11 種壞法、四種文字互異）＋實機（隔離 userData：備份＝原位元組、停在提示框、主視窗在後）；提示框 owner 實機看過（E1 第 3 步） |
+| V5 | （5）合法 JSON 含非法值或未知鍵 | 拒絕側：記憶體 `0`、負數、65、`1e999`、`"4"`、`true`、`min>max`；ID 空字串、前後空白、非字串；路徑空字串、前後空白、`C:`、`C:foo`、`\Games`、`Games`、`\\server\share`、`\\?\C:\x`；`debugLogging` `"true"`；未知鍵 `launcherRootDri`、`memoryGb`。**接受側**（SPR #36）：記憶體 1、64、1.5、1.00048828125、`null`；路徑 `D:\我的 遊戲`、`d:\games`、`D:/Games`、`E:\Game2\GGL`。拒絕時：開機丟 `SettingsError(invalid)`、`issues` 全列、檔案位元組不變；開機框不含 stack、含鍵／原值／原因／修法／路徑 | 4b | 4b：寫＋跑（`test/settings-format.test.cjs` 拒絕／接受兩側；開機拒絕、檔不變、開機框內容）＋實機（owner 形狀的檔開機被拒、檔不變）；錯誤框 owner 實機看過（E1 第 4 步） |
+| V6 | （6）讀取被拒 | `EISDIR`（資料夾）、`EBUSY`（子行程 `FileShare.None` 鎖）⇒ 不寫入、目標不變、`SettingsError(unreadable)`；不是 `SettingsError` 的例外（`getSettingsPath` 丟 TypeError）照原樣冒出 | 4b（`EISDIR` 單元；`EBUSY` Windows 實測） | 4b：寫＋跑（`EISDIR` 單元；`EBUSY` Windows 實測 `test/settings-boot-faults.test.cjs`；TypeError 照原樣冒出）＋實機（資料夾情境開機被拒） |
+| V7 | （7）執行中檔案被改壞或刪掉 | `compute()` ⇒ `settings-error`，details 分三種；不建預設、根目錄不換成預設；**負向**（SPR #28）：中樞的 `deps.readSettings` 丟一般 Error、丟帶 `code`＋`syscall` 但不是 `SettingsError` 的錯、丟訊息像設定錯誤的一般 Error ⇒ 三者都是 `internal-error` | 4b | 4b：寫＋跑（檔案層 `settings-file`；中樞 `test/sync-index.test.cjs` 三種＋四種負向） |
+| V8 | （8）畫面非法輸入不送 IPC；直接打 IPC 也被拒 | 畫面（等流程跑完再斷言）：`settings:set` 沒被呼叫、錯誤出現、焦點在對應欄位；IPC：reject、不寫。**合併後才非法**（SPR #35）：檔裡 `max=4`＋patch `{minMemoryGb:8}`；檔裡 `min=4`＋patch `{maxMemoryGb:2}`；null 改數字造成矛盾 ⇒ reject、不寫 | 4b | 4b：寫＋跑（畫面 `test/renderer-settings-modal.test.cjs` 8 種＋badInput；IPC `test/settings-ipc.test.cjs` 9 種＋合併後才非法；檔案層 3 組）；真瀏覽器 badInput owner 實機看過（E1 第 1 步） |
+| V9 | （9）`min=8, max=null` | args 含 `-Xms8192M -Xmx8192M`；設定檔 `maxMemoryGb` 仍是 `null` | 4b | 4b：寫＋跑（`test/minecraft-launch.test.cjs`；舊程式實測得 4096／4096＝紅） |
+| V10 | （10）4／16 與 null／null | `-Xms4096M -Xmx16384M`；`-Xms1024M -Xmx4096M` | 4a 特徵 → 4b 沿用 | 4a：寫＋跑；4b：改寫＋跑（拿掉 normalize 與 `memoryGb`） |
+| V11 | （11）自動建議不偷偷持久化 | 未設定記憶體時只改安裝路徑按儲存 ⇒ 送出的 `minMemoryGb`、`maxMemoryGb` 都是 `null` | 4b（現行為會送建議值，4a 不寫） | 4b：寫＋跑 |
+| V12 | （12）`settings:set` 成功、`instance:recheck` 失敗 | `settingsError` 沒有「儲存失敗」；`setStatusError` 收到「設定已儲存，但重新檢查失敗」 | 4b | 4b：寫＋跑（另：儲存失敗 ⇒ 視窗不關、不重新檢查） |
+| V13 | （13）中樞與啟動閘遇到設定故障都拒絕 | 逐入口（SPR #19）：`withLaunchLock` 的 `fn` 沒被呼叫且狀態是 `settings-error`；`updateInstance`、`repairInstance`、`listStrayJars` reject、`fn`／套用沒跑、鎖已放；`settings-error` 進狀態矩陣；`describeStatus` 的大標題不含「內部錯誤」（SPR #7）；既有矩陣全綠 | 4b | 4b：寫＋跑（閘、更新、修復、listStrayJars；KINDS／KIND_UI／大標題表） |
+| V14 | （14）持鎖期間不可換根目錄 | 既有 W7–W9 改寫後全綠 | 4a（既有）→ 4b 改寫 | 4a：既有；4b：改寫＋跑（W7–W9 接真 `settings.js`；前後帶空白改判不合法） |
+| V15 | （15）Windows 替換被阻止 | 開機恢復：目標被行程內 `fsp.open` 開著 ⇒ `recovery-failed`（step `replace`）、目標不變、我們的暫存檔已刪、開機框不含 stack；暫存檔（來源）被開著 ⇒ `EBUSY`、暫存留下（§不涵蓋）| 4b（黑箱） | 4b：寫＋跑＋Windows 實測（目標被行程內 open ⇒ `EPERM`；暫存被 PowerShell `FileShare.Read` 鎖 ⇒ `EBUSY`、暫存留下，連三次） |
+| V16 | Q5 其餘故障，用 repo 內的真函式 | 備份名被佔（`EEXIST`，黑箱）；ACL 拒絕建備份（黑箱＋對照組）；備份寫到一半失敗 ⇒ 自建的備份已刪（需補丁）；暫存名被佔（黑箱）；備份後才拒絕建暫存（需補丁＋對照組）；**暫存建出後目標被改** ⇒ `conflict`、目標＝新內容（需補丁）；解除故障後再開機 ⇒ 第二次恢復成功、兩份備份都等於原位元組（注入時鐘，SPR #40）。每一條都斷言錯誤是 `SettingsError` 且開機框不含 stack | 4b | 4b：寫＋跑＋Windows 實測（7 案；「暫存名被佔」改需補丁 → §4b 施工紀錄 D4） |
+| V17 | `startup-failure` | 設定錯誤碼不含 stack；其他錯誤仍含（改寫 `test/startup-failure.test.cjs:24-32`） | 4b | 4b：寫＋跑 |
+| V18 | `heapMbFromSettings`（SPR #30） | 矩陣 min∈{null,1,2,4,4.0004,8,64} × max∈{null,1,4,16,64}（只取 min ≤ max）逐格斷言 Xms／Xmx；GB→MB 換算 1.5 ⇒ 1536、1.00048828125 ⇒ 1025 | 4b | 4b：寫＋跑 |
+| V19 | 沒有殘留的第二套記憶體預設（SPR #31） | §測試手法 的結構檢查；`test/minecraft-launch.test.cjs:279-281`（S2，100 GB ⇒ 65536）與 `test/settings-logic.test.cjs:59`（legacy `memoryGb`）刪或改寫 | 4b | 4b：寫＋跑；結構檢查剩 3 行：`lib/launch-memory.js` 常數、`lib/settings-format.js` 退休註解、`lib/sync/game-running.js` 的 4096「字元」（與記憶體無關，4b 前就在）；對照組 4b 前 14 行 |
+| V20 | 真 `writeSettings` 遇壞檔（原 B4，SPR #34） | 真 fs：壞 JSON／不合法的檔 ⇒ reject、位元組不變、沒有備份、沒有暫存 | 4b | 4b：寫＋跑（舊程式實測照蓋＝紅，→ §Probe P6） |
+| V21 | `SETTINGS_GET` 遇壞檔（SPR #34） | reject；不回半套設定 | 4b | 4b：寫＋跑 |
+| V22 | 診斷匯出遇壞檔（SPR #34、D-SET-DIAG） | reject；`diagnostics/` 底下沒有新建的空資料夾；複製設定檔走 `copySettingsFileTo` | 4b | 4b：寫＋跑（`test/diagnostics-export.test.cjs`） |
+| V23 | 常駐日誌（SPR #22） | `SettingsError` 寫進檔時 `name`、`code` 保留；其他 `GGL_*` 碼不收 | 4b | 4b：寫＋跑 |
+| V24 | 備份檔名（SPR #37） | 注入固定 epoch ⇒ 檔名是台北時間 | 4b | 4b：寫＋跑＋實機（隔離 userData 的備份名是台北時間） |
+| V25 | 不相交 patch 同時寫入不遺失（D-SET-SERIAL） | 真 fs：`Promise.all([writeSettings({playerId:"A"}), writeSettings({debugLogging:true})])`（直接打 `main/settings.js`，繞過畫面）⇒ 兩者都成功、檔裡兩個改動都在；再加一組在兩次寫之間插 `readSettings` | 4b | 4b：寫＋跑（20 輪＋插讀；舊程式實測檔案被交錯寫壞＝紅，→ §Probe P6；拆掉序列化的變異測試 ⇒ 紅） |
+| V26 | 不會巢狀排隊（D-SET-SERIAL「不得 deadlock」） | `writeSettings`、`readSettings`、`copySettingsFileTo` 交錯並行呼叫，全部在測試的 `timeout` 內結束；結構檢查：`main/settings.js` 的私有函式不呼叫對外入口（`rg` 對照組：對外入口的定義行命中） | 4b | 4b：寫＋跑（30 組交錯、10 秒期限）；結構檢查：對外入口名只出現在定義與 exports，`exclusive(` 只在四個入口 |
 | V27 | 行程內讀寫不再自行擋住替換（D-SET-SERIAL） | 真 fs：多個 `readSettings`／`copySettingsFileTo` 迴圈與連續 `writeSettings` 並行 N 次 ⇒ 零個 `EPERM`；對照組：同樣的負載直接用 `fsp.readFile` 繞過序列化讀，必須出現 `EPERM`（證明測得到） | 4c | 未寫 |
 | V28 | 一般儲存遇外部鎖 | 行程內另開 `fsp.open(目標, "r")`（不經 `settings.js`）⇒ reject「儲存失敗」、目標不變、`.tmp` 已刪 | 4c | 未寫 |
 | V29 | 一般儲存遇外部修改 | 補丁：暫存檔建出後由測試直接改目標 ⇒ `SettingsError(conflict)`、目標＝外部的新內容；成功路徑目錄裡沒有 `.tmp` | 4c | 未寫 |
@@ -327,8 +347,9 @@
 | — | 暫存檔（來源）被別人開著 ⇒ 刪不掉、留下 `.tmp`（SPR #17） | — | — | **不涵蓋**（owner 2026-10-22 接受） |
 | — | `settings.json` 有唯讀屬性 ⇒ 每次開機多一份備份並啟動失敗（SPR #41） | — | — | **不涵蓋**（owner 2026-10-22 接受） |
 | — | 持鎖換根目錄的「檢查 → 寫入」窗口（SPR #43，現況同型） | — | — | **不涵蓋**（owner 2026-10-22 接受） |
+| — | 開機提示框、開機失敗框裡的長路徑被 Windows 截成「…」（E1 第 3、4 步，測試用的暫存路徑；正式 userData 較短，會不會被截沒驗）；另兩處文字不改：設定視窗錯誤訊息的「改成 null」、提示框括號兩層 | — | — | **不涵蓋**（owner 2026-10-22「沒差，記為已知就好。我覺得不用特別處理。」；「不用特別處理」指文字那兩處＝CC 解讀） |
 | — | 開機接線順序（提示在主視窗前） | — | — | 只靠實機 E1（`app-ready.js` 沒有測試，SPR #37） |
-| E1 | 實機 | owner 看設定視窗：讀、存、非法輸入的錯誤、建議值只在提示；開機壞檔的兩種框；`settings-error` 的畫面 | 4b、4c | 未做 |
+| E1 | 實機 | owner 看設定視窗：讀、存、非法輸入的錯誤、建議值只在提示；開機壞檔的兩種框；`settings-error` 的畫面 | 4b、4c | 4b：owner 2026-10-22 實機五步全過（「E1 全過」；隔離 userData：讀寫與非法輸入、記憶體未設只改路徑、壞檔恢復與提示、不合法檔的錯誤框、執行中改壞 ⇒ settings-error 與恢復）；發現：兩種框裡的長路徑被 Windows 截成「…」→ owner 裁記為已知（下方不涵蓋列） |
 
 ## owner 設定檔
 
@@ -337,6 +358,8 @@ owner 的 `settings.json` 有 `"memoryGb": 4`，4b 之後開機會被拒（D-SET
 1. 把 `%APPDATA%\GGL_launcher\settings.json` 原樣複製到 session 暫存區（`cmp` 確認一致）。
 2. 告訴 owner，由 owner 知情處理那一行；**不刪整份、不把安裝位置換回預設**。同時提醒**測試者**：他的設定檔沒查過，裡面若有 `memoryGb` 或 Cursor 時期的舊鍵，4b 之後開機會被拒，訊息會寫出鍵名（上層 §8 Phase 4 驗收末條、§9 第 3 點；SPR #23）。
 3. 若實機要測壞檔情境，在另一個 `userData` 位置（或測完用第 1 步的備份還原）做，不拿 owner 的正式檔當實驗品。
+
+〔2026-10-22 4b〕第 1 步做了（sha256 開頭 `ef047ba8`，備份在該 session 暫存區，不進 repo）；第 2 步已告知 owner，**`memoryGb` 那一行由 owner 自己刪、測試者待提醒**（出口：owner 刪掉並告知測試者）；第 3 步照做（隔離 userData），E1 前後正式檔 `cmp` 一致。
 
 ## 施工順序
 

@@ -83,7 +83,6 @@
       setStatusError,
       setStatusVisibility,
       computeMemoryUiModel,
-      parseFiniteNumberOrUnset,
       loadServerDefaults,
       ui,
       ANIM_MS,
@@ -104,7 +103,6 @@
       setStatusError,
       setStatusVisibility,
       computeMemoryUiModel,
-      parseFiniteNumberOrUnset,
       loadServerDefaults,
     };
 

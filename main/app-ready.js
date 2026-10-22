@@ -10,8 +10,8 @@ const { gglEvent } = require("./ggl-log");
 /** 與 `main.js` 的 `getMainAppReadyContext()` 鍵名一致；增刪注入時請兩邊一併改。 */
 const MAIN_APP_READY_KEYS = [
   "app",
-  "ensureSettingsFileInitialized",
-  "readSettings",
+  "initSettingsAtBoot",
+  "showSettingsRecoveredNotice",
   "computeDebugLoggingEnabled",
   "setDebugLoggingEnabled",
   "rotateLauncherLogIfTooLarge",
@@ -78,8 +78,8 @@ async function runMainAppReady(ctx) {
 
   const {
     app,
-    ensureSettingsFileInitialized,
-    readSettings,
+    initSettingsAtBoot,
+    showSettingsRecoveredNotice,
     computeDebugLoggingEnabled,
     setDebugLoggingEnabled,
     rotateLauncherLogIfTooLarge,
@@ -116,13 +116,18 @@ async function runMainAppReady(ctx) {
     app.setAppUserModelId("ggl3.launcher");
   } catch {}
 
-  await ensureSettingsFileInitialized();
+  // 設定檔讀不到或不合法 ⇒ 丟 SettingsError，start-main 交給 startup-failure 跳框（D-SET-UI）
+  const { settings: initialSettings, recovered } = await initSettingsAtBoot({
+    now: () => Date.now(),
+  });
 
-  // 初始化 debug log 開關（避免預設就寫檔）
-  const initialSettings = await readSettings();
+  // 初始化 debug log 開關（避免預設就寫檔）：直接用開機讀到的那份，不再另讀
   setDebugLoggingEnabled(computeDebugLoggingEnabled(initialSettings));
   await rotateLauncherLogIfTooLarge();
   await appendLauncherLog(`BOOT exe=${process.execPath}`);
+
+  // 壞檔已備份並換成預設：主視窗之前告知一次（→ _notes/plans/cross-review-2026-10-phase4.md §開機）
+  if (recovered) await showSettingsRecoveredNotice(recovered);
 
   createMainWindow();
   // 先注入子模組依賴再註冊 IPC，避免 renderer 極早 invoke 時踩到未配置的 deps stub

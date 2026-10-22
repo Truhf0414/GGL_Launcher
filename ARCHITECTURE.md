@@ -40,8 +40,9 @@ Security posture:
 - `main/*.js`: other extracted main-process helpers（見下表）
 - `preload.js`: safe renderer bridge；依 `lib/ipc-channels.js` 擋 IPC
 - `renderer.js`: UI logic (uses `window.ggl`)
-- `lib/settings-logic.js`: pure settings/memory UI helpers (loaded by `index.html` before `renderer.js`)
-- `assets/default-settings.json`: default settings (copied/merged into `userData/settings.json`)
+- `lib/settings-format.js`: `settings.json` 的唯一欄位契約（`checkSettings`、`formatIssue`）：開機、執行中讀、`settings:set`、設定視窗共用；不認得的鍵一律拒絕
+- `lib/launch-memory.js`: 設定值 → 實際 JVM 記憶體的唯一推導（`heapMbFromSettings`）
+- `lib/settings-logic.js`: pure settings/memory UI helpers（三個 lib 由 `index.html` 依序在 `renderer.js` 前載入）
 - `assets/rpc-helper.exe`: built helper binary for Discord RPC
 - `rpc-helper/index.js`: helper source
 
@@ -51,11 +52,11 @@ Use this table to find code after splits. **When you add or extract a new `main/
 
 | Module                  | Responsibility                                                                                                                                              |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `main/paths.js`         | `getPaths`, `getSettingsPath`, `INSTANCE_ID`, default install root, `resolveDefaultSettingsPath` (dev/packaged base for `assets/default-settings.json`)     |
+| `main/paths.js`         | `getPaths`, `getSettingsPath`, `INSTANCE_ID`, default install root                                                                                          |
 | `main/launcher-log.js`  | Debug logging flag, `appendLauncherLog` / RPC diag log, log rotation, sync progress throttling                                                              |
 | `lib/server-config.js` | 換伺服器時要換的值的唯一權威（凍結物件）：`manifestUrl`、`serverStatus`、`microsoftAuth`、`discord`、`launcherRootDir`、`instanceId`、`protectedPaths`；`main/start-main.js` 以單一 `serverConfig` 注入，由 `main/app-ready.js` 拆給各模組。開新伺服器要改的地方見 `docs/new-server-checklist.md` |
 | `main/account-store.js` | `account.json` read/write, safe payload for renderer (strips `mcAccessToken`)                                                                               |
-| `main/settings.js`      | `settings.json` init/merge, `readSettings` / `readSettingsRaw` / `writeSettings`, `normalizeSettingsObject`, memory-field meta helpers                      |
+| `main/settings.js`      | `settings.json` 的唯一預設（`DEFAULT_SETTINGS`）；開機 `initSettingsAtBoot`（檔不存在建預設、壞內容備份後換成預設、讀不到或不合法丟 `SettingsError`）、執行中 `readSettings`、`writeSettings`、`copySettingsFileTo`，四者排在同一條行程內序列（D-SET-SERIAL） |
 | `main/notifications.js` | 鈴鐺的已讀紀錄（dismissed 檔）；公告與通知的抓取、輪詢在 `main/sync/notice-feed.js` |
 | `main/sync/index.js` | 同步中樞：一把鎖包住更新、修復、啟動（`withLaunchLock`，把閘那次讀到的 settings／paths／記錄與就緒交出的啟動成品交給啟動）；算實例狀態（含 runtime 就緒）並經 `sendInstanceStatus` 送出；更新／修復流程（runtime 安裝走 `main/runtime/prepare.js`，成功後清舊 runtime）；遊戲判不出來時呼叫注入的 `confirmGameClosed` |
 | `main/sync/site-client.js` | v3 站台抓取：`manifest.json` 索引、`gate.json`、`release.json`、`notice.json`；每支回三態（ok／invalid／unreachable），每個請求 5 秒期限 |

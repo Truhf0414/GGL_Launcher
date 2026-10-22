@@ -163,6 +163,21 @@ test("L4: non-errno codes (incl. any GGL_ code) are never written", (t) => {
   assert.ok(!s.raw().includes("someone"));
 });
 
+// → _notes/plans/cross-review-2026-10-phase4.md §驗收格 V23：GGL 碼的允許清單只有 GGL_SETTINGS
+test("V23: SettingsError keeps name and GGL_SETTINGS; other GGL_ codes still dropped; message and path never written", (t) => {
+  const { SettingsError } = require("../main/settings.js");
+  const s = setup(t);
+  const err = new SettingsError("missing", "C:\\Users\\someone\\FAKE_V23\\settings.json");
+  s.log.gglError("main", "start_main_failed", err, {});
+  const lookalike = samples.withCode("GGL_SETTINGS_FAKE", "x");
+  s.log.gglError("main", "lookalike", lookalike, {});
+  const [r1, r2] = s.records();
+  assert.deepEqual(r1.err, { name: "SettingsError", code: "GGL_SETTINGS" });
+  assert.deepEqual(r2.err, { name: "Error" });
+  assert.ok(!s.raw().includes("FAKE"));
+  assert.ok(!s.raw().includes("someone"));
+});
+
 test("L5: fs errors keep code/syscall, never the path", async (t) => {
   const s = setup(t);
   const missing = path.join(s.dir, "nope-B-zz9");

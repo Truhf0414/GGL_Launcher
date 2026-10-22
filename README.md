@@ -71,11 +71,13 @@ If you need to reach the maintainer, use the contact method listed in the projec
 
 ### 2) 設定 client id / 圖片 key
 
-啟動器會讀 `settings.json` 內的：
+值在 `lib/server-config.js` 的 `discord`：
 
-- `discordClientId`
-- `discordLargeImageKey`（預設 `ggl`）
-- `discordLargeImageText`（預設 `GGL`）
+- `clientId`
+- `largeImageKey`（預設 `ggl`）
+- `largeImageText`（預設 `GGL`）
+
+不要寫進 `settings.json`：它不認得的鍵一律拒絕，啟動器會開不起來（錯誤框會寫出鍵名）。
 
 也可用環境變數覆蓋 client id：
 
@@ -90,11 +92,16 @@ npm run build:rpc-helper
 
 成功後會產生：`assets/rpc-helper.exe`
 
-### 4) 預設設定檔（第一次啟動自動生成 settings.json）
+### 4) 設定檔 settings.json（第一次啟動自動生成）
 
-專案內含：`assets/default-settings.json`。
-啟動器第一次執行若偵測不到 `userData/settings.json`，會自動複製這份預設檔到使用者的 AppData，
-之後使用者自行修改的設定不會被覆蓋。
+位置：`%APPDATA%\GGL_launcher\settings.json`。預設值只有一份，在 `main/settings.js` 的 `DEFAULT_SETTINGS`；
+欄位規則只有一份，在 `lib/settings-format.js`（可省略的鍵＝用預設；不認得的鍵、不合法的值一律拒絕，不會偷偷改掉）。
+
+- 檔不存在：建出完整的預設設定。
+- 內容壞掉（空檔、JSON 語法錯、不是物件、UTF-8 編碼無效）：先在同一個資料夾留一份 `settings.broken-<台北時間>.json` 備份，再換成預設值，開機時跳一次提示。
+- 讀不到（被鎖、權限、路徑是資料夾）或值不合法：不改檔，跳錯誤框寫出哪個鍵、原值、原因、怎麼修。
+
+之後使用者自行修改的設定不會被覆蓋；合法的檔開機時不會被重寫（缺鍵也不補）。
 
 ## Instance update（v3 站台）
 

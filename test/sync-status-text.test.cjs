@@ -75,6 +75,9 @@ const S1_EXPECTED = {
   "up-to-date|false": "已是最新版 1.0.0",
   "internal-error|true": "啟動器內部錯誤，請按「複製錯誤詳情」回報",
   "internal-error|false": "啟動器內部錯誤，請按「複製錯誤詳情」回報",
+  // 不得掉回「內部錯誤，請回報」（Phase 4 V13、SPR #7）
+  "settings-error|true": "設定檔有問題，修好後按「重新檢查」",
+  "settings-error|false": "設定檔有問題，修好後按「重新檢查」",
 };
 
 test("S1 headline for every kind × localReady matches the table", () => {

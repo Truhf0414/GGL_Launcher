@@ -9,8 +9,15 @@ function fail(lines) {
   process.exit(1);
 }
 
-const expected = [
+// lib/settings-logic.js 的瀏覽器分支讀 GglSettingsFormat 與 GglLaunchMemory：兩者要先載
+const RENDERER_LIBS = [
+  "./lib/settings-format.js",
+  "./lib/launch-memory.js",
   "./lib/settings-logic.js",
+];
+
+const expected = [
+  ...RENDERER_LIBS,
   "./renderer/lifetime.js",
   "./renderer/module-registry.js",
   "./renderer/self-check.js",
@@ -51,7 +58,7 @@ const rendererLike = srcs.filter(
 );
 const libs = srcs.filter((s) => s.startsWith("./lib/"));
 const actual = [
-  ...libs.filter((s) => s === "./lib/settings-logic.js"),
+  ...libs.filter((s) => RENDERER_LIBS.includes(s)),
   ...rendererLike,
 ];
 

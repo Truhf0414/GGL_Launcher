@@ -27,13 +27,11 @@ const requiredAsarEntries = [
 
 const requiredResources = [
   path.join("assets", "rpc-helper.exe"),
-  path.join("assets", "default-settings.json"),
   path.join("assets", "sakura_field_BG.mp4"),
 ];
 
 const forbiddenAsarEntries = [
   "/assets/rpc-helper.exe",
-  "/assets/default-settings.json",
   "/assets/sakura_field_BG.mp4",
 ];
 
