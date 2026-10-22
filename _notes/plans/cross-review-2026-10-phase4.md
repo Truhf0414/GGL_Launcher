@@ -298,6 +298,19 @@
 
 **實機（隔離 userData：`npx electron . --user-data-dir=<暫存>`；旗標先以最小探針驗過會換 userData 與單一實例鎖）**，Electron 內建 Node v24.20.0：首次開機建完整預設並開完；壞 JSON ⇒ 備份＝原位元組、正式檔＝預設、15 秒內沒有 `main_window_created`（停在提示框，主視窗在後）；owner 形狀的檔（含 `memoryGb`）與資料夾 ⇒ 常駐日誌 `start_main_failed` 帶 `{name: SettingsError, code: GGL_SETTINGS}`、檔不變。對話框的畫面沒看（按不到），歸 E1 owner 看。owner 正式檔前後 `cmp` 一致、未動。
 
+## 4c 施工紀錄（2026-10-22，未 commit）
+
+改的程式只有 `main/settings.js`：私有的 `readCurrent` 改回傳 `{ settings, bytes }`（`bytes`＝這次讀到的原始位元組）；`writeSettings` 在同一個 `exclusive` 區段裡改呼叫 `replaceFileWithBytes(…, { expectCurrent: bytes })`，替換成功才套用 debug 開關。`fs-utils.js`、IPC、畫面都沒改。
+
+**與 §設計 不同的兩處**（owner 2026-10-22 接受：「D6、D7 均已接受，不需返工。」）：
+
+| # | §設計 原寫 | 實作 | 理由 |
+|---|---|---|---|
+| D6 | conflict 的訊息「設定檔剛被其他程式改過，請重新開啟設定再存」，`step` 沒定 | 一般儲存的 conflict 帶 `step: "save"`；訊息「設定檔剛被其他程式改過，這次沒有儲存；請重新開啟設定再存：<路徑>」。開機的 conflict 文字不變 | 開機那句叫人「重新開啟啟動器」，存檔時不對；靠 `step` 分兩句，不加新的 reason |
+| D7 | 替換的 fs 失敗怎麼回報沒寫 | 一般 `Error`（不是 `SettingsError`），訊息「在「<步驟>」這一步失敗（<errno>），設定檔沒有改動：<路徑>」＋「請確認檔案沒被其他程式開著、權限正常」，`cause`＝原始 fs 錯；不是 fs 的例外照原樣丟 | 檔沒壞，不算設定檔故障；步驟文字沿用 `STEP_TEXT`，不建新分類 |
+
+**Electron 主程序實測**（Electron 44.3.0／Node 24.20.0，`app.setPath("userData", <暫存>)`，PowerShell 子行程持鎖）：`FileShare` 設 `Read`、`ReadWrite` ⇒ 替換那步 `EPERM`；設 `None` ⇒ 讀檔時就 `EBUSY`，走 4b 既有的 `unreadable`。三種放鎖後比對，位元組都沒變、沒有 `.tmp`，再存成功。owner 正式檔前後 sha256 一致。
+
 ## 測試手法（SPR 修訂）
 
 - **4a 測 `main/settings.js`**：它經 `main/paths.js` 呼叫 `require("electron")`，會被 `test/helpers/forbid-electron.cjs` 擋；在測試檔內包一層 `Module._load`，只對 `electron` 回假物件（`app.getPath` 指暫存資料夾），`forbid-electron` 本身保留（SPR #38）。4b 可以照用。
@@ -338,9 +351,9 @@
 | V24 | 備份檔名（SPR #37） | 注入固定 epoch ⇒ 檔名是台北時間 | 4b | 4b：寫＋跑＋實機（隔離 userData 的備份名是台北時間） |
 | V25 | 不相交 patch 同時寫入不遺失（D-SET-SERIAL） | 真 fs：`Promise.all([writeSettings({playerId:"A"}), writeSettings({debugLogging:true})])`（直接打 `main/settings.js`，繞過畫面）⇒ 兩者都成功、檔裡兩個改動都在；再加一組在兩次寫之間插 `readSettings` | 4b | 4b：寫＋跑（20 輪＋插讀；舊程式實測檔案被交錯寫壞＝紅，→ §Probe P6；拆掉序列化的變異測試 ⇒ 紅） |
 | V26 | 不會巢狀排隊（D-SET-SERIAL「不得 deadlock」） | `writeSettings`、`readSettings`、`copySettingsFileTo` 交錯並行呼叫，全部在測試的 `timeout` 內結束；結構檢查：`main/settings.js` 的私有函式不呼叫對外入口（`rg` 對照組：對外入口的定義行命中） | 4b | 4b：寫＋跑（30 組交錯、10 秒期限）；結構檢查：對外入口名只出現在定義與 exports，`exclusive(` 只在四個入口 |
-| V27 | 行程內讀寫不再自行擋住替換（D-SET-SERIAL） | 真 fs：多個 `readSettings`／`copySettingsFileTo` 迴圈與連續 `writeSettings` 並行 N 次 ⇒ 零個 `EPERM`；對照組：同樣的負載直接用 `fsp.readFile` 繞過序列化讀，必須出現 `EPERM`（證明測得到） | 4c | 未寫 |
-| V28 | 一般儲存遇外部鎖 | 行程內另開 `fsp.open(目標, "r")`（不經 `settings.js`）⇒ reject「儲存失敗」、目標不變、`.tmp` 已刪 | 4c | 未寫 |
-| V29 | 一般儲存遇外部修改 | 補丁：暫存檔建出後由測試直接改目標 ⇒ `SettingsError(conflict)`、目標＝外部的新內容；成功路徑目錄裡沒有 `.tmp` | 4c | 未寫 |
+| V27 | 行程內讀寫不再自行擋住替換（D-SET-SERIAL） | 真 fs：多個 `readSettings`／`copySettingsFileTo` 迴圈與連續 `writeSettings` 並行 N 次 ⇒ 零個 `EPERM`；對照組：同樣的負載直接用 `fsp.readFile` 繞過序列化讀，必須出現 `EPERM`（證明測得到） | 4c | 4c：寫＋跑＋Windows 實測（`test/settings-write-faults.test.cjs`；8 個讀者迴圈 × 60 次寫：0 失敗；對照組 60/60 `EPERM`，連跑五輪皆同；改壞成「`readSettings` 不排隊」⇒ 紅） |
+| V28 | 一般儲存遇外部鎖 | 行程內另開 `fsp.open(目標, "r")`（不經 `settings.js`）⇒ reject「儲存失敗」、目標不變、`.tmp` 已刪 | 4c | 4c：寫＋跑＋Windows 實測（`writeSettings` 與 `settings:set` 都 reject、`EPERM`、訊息含步驟與路徑、位元組不變、`.tmp` 已刪、debug 開關沒套用；放開後再存成功）；Electron 主程序另用 PowerShell 外部行程持鎖（→ §4c 施工紀錄）；畫面 → E1 |
+| V29 | 一般儲存遇外部修改 | 補丁：暫存檔建出後由測試直接改目標 ⇒ `SettingsError(conflict)`、目標＝外部的新內容；成功路徑目錄裡沒有 `.tmp` | 4c | 4c：寫＋跑（補丁插在比對讀；插入當下斷言暫存檔＝完整新內容、正式檔仍是原樣、只插一次；之後正常儲存成功、目錄只剩 `settings.json`） |
 | — | R6 窗口（比對後、改名前的修改會被蓋） | — | — | **不涵蓋**（owner 接受：事前比對不宣稱消除 TOCTOU） |
 | — | 替換成功後、提示前行程被殺 ⇒ 下次不再提示 | — | — | **不涵蓋**（owner 接受） |
 | — | 斷電後 `sync` 過的內容完整 | — | — | **推論**（據文件只是請求） |
@@ -349,7 +362,7 @@
 | — | 持鎖換根目錄的「檢查 → 寫入」窗口（SPR #43，現況同型） | — | — | **不涵蓋**（owner 2026-10-22 接受） |
 | — | 開機提示框、開機失敗框裡的長路徑被 Windows 截成「…」（E1 第 3、4 步，測試用的暫存路徑；正式 userData 較短，會不會被截沒驗）；另兩處文字不改：設定視窗錯誤訊息的「改成 null」、提示框括號兩層 | — | — | **不涵蓋**（owner 2026-10-22「沒差，記為已知就好。我覺得不用特別處理。」；「不用特別處理」指文字那兩處＝CC 解讀） |
 | — | 開機接線順序（提示在主視窗前） | — | — | 只靠實機 E1（`app-ready.js` 沒有測試，SPR #37） |
-| E1 | 實機 | owner 看設定視窗：讀、存、非法輸入的錯誤、建議值只在提示；開機壞檔的兩種框；`settings-error` 的畫面 | 4b、4c | 4b：owner 2026-10-22 實機五步全過（「E1 全過」；隔離 userData：讀寫與非法輸入、記憶體未設只改路徑、壞檔恢復與提示、不合法檔的錯誤框、執行中改壞 ⇒ settings-error 與恢復）；發現：兩種框裡的長路徑被 Windows 截成「…」→ owner 裁記為已知（下方不涵蓋列） |
+| E1 | 實機 | owner 看設定視窗：讀、存、非法輸入的錯誤、建議值只在提示；開機壞檔的兩種框；`settings-error` 的畫面 | 4b、4c | 4c：owner 2026-10-22 實機三步全過（「Phase 4c E1 已由 owner 親自驗收，全部符合預期。」；隔離 userData：正常儲存、PowerShell 持鎖時「儲存失敗：在「替換設定檔」這一步失敗（EPERM）…」且視窗不關、放鎖後再存成功；每步後 CC 核對檔案位元組與沒有 `.tmp`）；發現：錯誤框的兩行顯示成一行（4b 起就這樣，→ `future-work.md`）。4b：owner 2026-10-22 實機五步全過（「E1 全過」；隔離 userData：讀寫與非法輸入、記憶體未設只改路徑、壞檔恢復與提示、不合法檔的錯誤框、執行中改壞 ⇒ settings-error 與恢復）；發現：兩種框裡的長路徑被 Windows 截成「…」→ owner 裁記為已知（下方不涵蓋列） |
 
 ## owner 設定檔
 

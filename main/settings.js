@@ -71,7 +71,9 @@ function settingsErrorMessage(
       return lines.join("\n");
     }
     case "conflict":
-      return `設定檔在處理途中被其他程式改了，請重新開啟啟動器：${settingsPath}`;
+      return step === "save"
+        ? `設定檔剛被其他程式改過，這次沒有儲存；請重新開啟設定再存：${settingsPath}`
+        : `設定檔在處理途中被其他程式改了，請重新開啟啟動器：${settingsPath}`;
     default:
       throw new TypeError(`SettingsError: 未知的 reason ${reason}`);
   }
@@ -160,7 +162,7 @@ function parseBytes(bytes) {
 const bytesOf = (settings) =>
   Buffer.from(JSON.stringify(settings, null, 2), "utf8");
 
-/** 執行中讀：不建預設、不恢復（D-SET-KIND） */
+/** 執行中讀：不建預設、不恢復（D-SET-KIND）。bytes＝這次讀到的原始位元組，寫入時拿來比對 */
 async function readCurrent(settingsPath) {
   const read = await readBytes(settingsPath);
   if (!read.ok) {
@@ -184,7 +186,24 @@ async function readCurrent(settingsPath) {
   }
   if (parsed.issues)
     throw new SettingsError("invalid", settingsPath, { issues: parsed.issues });
-  return parsed.settings;
+  return { settings: parsed.settings, bytes: read.bytes };
+}
+
+/**
+ * 一般儲存的替換失敗：比對不符 ⇒ conflict；fs 錯 ⇒ 寫出哪一步、errno（檔沒壞，不是設定檔故障）；
+ * 其他例外是 bug，原樣丟。
+ */
+function saveFailed(settingsPath, err) {
+  if (!(err instanceof ReplaceFileError)) return err;
+  if (err.step === "conflict")
+    return new SettingsError("conflict", settingsPath, { step: "save" });
+  return new Error(
+    [
+      `在「${STEP_TEXT[err.step]}」這一步失敗（${err.cause.code}），設定檔沒有改動：${settingsPath}`,
+      "請確認檔案沒被其他程式開著、權限正常。",
+    ].join("\n"),
+    { cause: err.cause },
+  );
 }
 
 // ── 開機 ──
@@ -286,20 +305,27 @@ function initSettingsAtBoot({ now }) {
 
 /** 執行中讀：合法 ⇒ 補上預設的完整設定；否則丟 SettingsError（missing／unreadable／invalid） */
 function readSettings() {
-  return exclusive(() => readCurrent(getSettingsPath()));
+  return exclusive(async () => (await readCurrent(getSettingsPath())).settings);
 }
 
 /**
- * 讀現檔（壞就拒絕、不覆寫）→ 合併 patch → 驗合併結果 → 寫入，整段不讓別的讀寫插進來。
- * patch 的鍵與形狀由呼叫端（settings:set）先擋。寫入仍是非原子的 writeFile：4c 換成 replaceFileWithBytes。
+ * 讀現檔（壞就拒絕、不覆寫）→ 合併 patch → 驗合併結果 → 完整暫存檔、比對讀到的原始位元組、替換（D-SET-WRITE），
+ * 整段不讓別的讀寫插進來。替換成功才套用 debug 開關、回報新設定。patch 的鍵與形狀由呼叫端（settings:set）先擋。
  */
 function writeSettings(patch) {
   return exclusive(async () => {
     const settingsPath = getSettingsPath();
-    const next = { ...(await readCurrent(settingsPath)), ...patch };
+    const { settings: current, bytes } = await readCurrent(settingsPath);
+    const next = { ...current, ...patch };
     const issues = checkSettings(next);
     if (issues.length) throw new Error(issues.map(formatIssue).join("\n"));
-    await fsp.writeFile(settingsPath, bytesOf(next));
+    try {
+      await replaceFileWithBytes(settingsPath, bytesOf(next), {
+        expectCurrent: bytes,
+      });
+    } catch (err) {
+      throw saveFailed(settingsPath, err);
+    }
     setDebugLoggingEnabled(computeDebugLoggingEnabled(next));
     return next;
   });
