@@ -12,6 +12,7 @@
 
 ## main → 畫面的事件
 - 講「現在的狀態」的事件（目前是 `instance:status`、`notice:changed`、`server:status`、`window:power`）一律經 `main/ipc-bridge.js` 的 `sendState` 送：送出時記住最後一筆，畫面在 `renderer/bootstrap.js` 的 `start()` 最後喊 `renderer:ready`，main 把記住的各重送一筆給喊的那個 `webContents`。新增這類事件就加進 `STATE_CHANNELS`；畫面端要在 `renderer:ready` 之前同步掛好監聽。不這樣送，送出當下畫面還沒在聽（開啟、Ctrl+R）就漏掉。出處：owner 2026-10-07 G6「要要要哈哈，非常要。」→ plans/instance-sync-v3-commit3b2b.md B10。
+- handler 丟回畫面的錯誤一律是普通 Error：Electron 以 `<name>: <message>` 交給畫面，只有 message 帶得過去，自訂類別的名稱會黏在玩家看到的字上。`main/ipc-runtime.js` 拿到 `ipcMain` 時用 `lib/ipc-plain-errors.js` 統一包一次（名稱已是 `Error` 的原樣放行），各 `register*` 照寫 `ipcMain.handle`，不必各自轉；要加「哪個動作失敗」的前綴就自己丟 `new Error(前綴 + 訊息, { cause })`（範本：`main/ipc/instance-ipc.js` 的 `toPlainError`）。出處：owner 2026-10-07 → plans/instance-sync-v3-commit3b2b.md B14；統一包：owner 2026-10-22「走 B，先寫紅燈測試吧」→ history 2026-10-22。
 
 ## 防禦與相容
 前提：啟動器從未發行，沒有玩家裝過；舊東西只在 owner 的機器上，丟掉重來即可。第 5 條在首次對外發版前要重審（提醒掛在 future-work.md「打包邊界」）。
