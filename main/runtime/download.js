@@ -1,11 +1,12 @@
 "use strict";
 
 // runtime 安裝的下載底層：有整段期限的 json／文字抓取、候選清單逐台下載並逐台驗、
-// 來源健康度、第一個錯就全停的池（→ _notes/plans/instance-sync-v3-commit4b.md §設計「抓 json」「下載」）。
+// 來源健康度、Java 候選的小範圍測速、第一個錯就全停的池（→ _notes/plans/instance-sync-v3-commit4b.md §設計「抓 json」「下載」）。
 // 不 require("electron")。
 
 const fsp = require("fs/promises");
 const {
+  fetchWithNiceError,
   downloadToFileWithStallGuard,
   STALL_WINDOW_MS,
   STALL_MIN_BYTES,
@@ -204,12 +205,77 @@ async function downloadRuntimeFile({
   );
 }
 
+// 5b 從 main/mc-mirror.js 原樣搬來（Java 的 zip 候選排序用；→ _notes/plans/cross-review-2026-10-phase5b.md §設計 1）
+async function rankSourcesByQuickProbe(sources) {
+  // 小範圍測速：抓前 256KB，量測耗時；失敗的排最後
+  const MAX_BYTES = 256 * 1024;
+  const TIMEOUT_MS = 4000;
+
+  async function probeOne(src) {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), TIMEOUT_MS);
+    const started = Date.now();
+    try {
+      const res = await fetchWithNiceError(src.url, {
+        cache: "no-store",
+        timeoutMs: TIMEOUT_MS,
+        signal: ac.signal,
+        headers: { Range: `bytes=0-${MAX_BYTES - 1}` },
+      });
+      if (!res.ok) return { ok: false, ms: 1e9, src };
+      const body = res.body;
+      if (!body) return { ok: false, ms: 1e9, src };
+
+      let got = 0;
+      if (typeof body.getReader === "function") {
+        const reader = body.getReader();
+        while (got < MAX_BYTES) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (!value) continue;
+          got += value.byteLength || value.length || 0;
+          if (got >= MAX_BYTES) break;
+        }
+      } else {
+        await new Promise((resolve, reject) => {
+          body.on("data", (chunk) => {
+            got += chunk.length;
+            if (got >= MAX_BYTES) {
+              try {
+                body.destroy();
+              } catch {}
+              resolve();
+            }
+          });
+          body.on("error", reject);
+          body.on("end", resolve);
+        });
+      }
+      const ms = Math.max(1, Date.now() - started);
+      return { ok: true, ms, src };
+    } catch {
+      return { ok: false, ms: 1e9, src };
+    } finally {
+      clearTimeout(t);
+      try {
+        ac.abort();
+      } catch {}
+    }
+  }
+
+  const results = [];
+  for (const s of sources) results.push(await probeOne(s));
+  results.sort((a, b) => (a.ok === b.ok ? a.ms - b.ms : a.ok ? -1 : 1));
+  return results.map((r) => r.src);
+}
+
 module.exports = {
   DEFAULT_DEADLINE_MS,
   safeLog,
   fetchJsonWithDeadline,
   fetchTextWithDeadline,
   createSourceHealth,
+  rankSourcesByQuickProbe,
   runPoolUntilFirstError,
   downloadRuntimeFile,
 };

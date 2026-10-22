@@ -96,7 +96,7 @@ function sleepMs(ms) {
 
 function isRetryableError(err) {
   const msg = String(err?.message ?? err);
-  if (msg.includes("下載中止（切換鏡像）")) return false;
+  if (msg.includes("下載中止")) return false;
   if (/ENOSPC|EACCES|EPERM/i.test(msg)) return false;
   if (msg.includes("連線失敗：")) return true;
   const m = msg.match(/HTTP\s+(\d+)/i);
@@ -201,7 +201,7 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
 
         try {
           while (true) {
-            if (sig?.aborted) throw new Error("下載中止（切換鏡像）");
+            if (sig?.aborted) throw new Error("下載中止");
             const { value, done } = await reader.read();
             if (done) break;
             if (!value) continue;
@@ -238,15 +238,15 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
         });
         const abort = () => {
           try {
-            body.destroy(new Error("下載中止（切換鏡像）"));
+            body.destroy(new Error("下載中止"));
           } catch {}
           try {
-            file.destroy(new Error("下載中止（切換鏡像）"));
+            file.destroy(new Error("下載中止"));
           } catch {}
           try {
             if (!resume) fs.rmSync(partPath, { force: true });
           } catch {}
-          reject(new Error("下載中止（切換鏡像）"));
+          reject(new Error("下載中止"));
         };
         if (sig && typeof sig.addEventListener === "function") {
           if (sig.aborted) return abort();

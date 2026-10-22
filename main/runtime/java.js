@@ -12,11 +12,11 @@ const { spawn } = require("child_process");
 
 const { javaDirFor, javaExeFor } = require("../../lib/paths-layout.js");
 const { checkStrictRelPath } = require("../../lib/sync/rel-path.js");
-const { rankSourcesByQuickProbe } = require("../mc-mirror.js");
 const {
   safeLog,
   fetchJsonWithDeadline,
   fetchTextWithDeadline,
+  rankSourcesByQuickProbe,
   runPoolUntilFirstError,
   downloadRuntimeFile,
 } = require("./download.js");

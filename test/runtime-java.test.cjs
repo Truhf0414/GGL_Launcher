@@ -749,6 +749,18 @@ test("中止：installJava 把 signal 交給 runJava", { timeout: HANG_LIMIT_MS 
   assert.equal(env.runJavaCalls[0].runOpts?.signal, outer.signal);
 });
 
+// 5b 把 rankSourcesByQuickProbe 從 mc-mirror.js 搬到 runtime/download.js（→ _notes/plans/cross-review-2026-10-phase5b.md §設計 1）：
+// 匯出拿錯不會在載入時丟（解構出 undefined），其他案都注入 rankSources，只有這案走預設的測速
+test("P 不注入 rankSources ⇒ 預設的測速對每個 zip 候選各探測一次（前 256 KiB）、照常裝好", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const env = await javaEnv(t);
+  const r = await installJava(env.args({ deps: { rankSources: undefined } }));
+  assert.equal(await fsp.readFile(r.javaExe, "utf8"), ZIP_JAVA);
+  for (const u of ZIP_URLS) {
+    const probes = env.srv.requests.filter((q) => q.url === u && q.headers.range === "bytes=0-262143");
+    assert.equal(probes.length, 1, `${u} 的探測`);
+  }
+});
+
 test("中止：runJava 預設實作收到外部中止 ⇒ kill、等程序結束才回", { timeout: HANG_LIMIT_MS }, async () => {
   const outer = new AbortController();
   setTimeout(() => outer.abort(), 200);

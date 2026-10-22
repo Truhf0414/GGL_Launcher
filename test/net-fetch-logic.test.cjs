@@ -29,7 +29,7 @@ test("isRetryableError: connection-failure prefix", () => {
 });
 
 test("isRetryableError: mirror switch abort not retryable", () => {
-  assert.equal(isRetryableError(new Error("下載中止（切換鏡像）")), false);
+  assert.equal(isRetryableError(new Error("下載中止")), false);
 });
 
 test("isRetryableError: disk permission not retryable", () => {
