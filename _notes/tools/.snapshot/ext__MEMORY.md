@@ -3,3 +3,5 @@
 - [Cursor 對話紀錄怎麼撈](cursor-history-location.md) — state.vscdb 位置、composerHeaders／bubbleId 結構、只抽使用者訊息
 - [故意留的假 jar](deliberate-stray-jar.md) — mods/ABCDEF~1.jar 0 byte、讓遊戲秒退 code=1，owner 故意留，不是 bug
 - [審查文件要附脈絡](review-docs-with-context.md) — 要 owner 裁決的文件：附為什麼、列 CC 偏好與可能錯處、不壓縮問題
+- [Claude 桌面版關 Cowork](claude-desktop-cowork-off.md) — HKCU 政策關 Cowork 防 10GB vhdx；資料在 %LOCALAPPDATA%\Claude-Data
+- [驗證要省時](verification-time-budget.md) — 長驗證先講預估、平行跑、小改只跑該檔；但 Node 22 那輪不能省

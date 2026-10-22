@@ -26,7 +26,7 @@
 
 不在清單上的都是邊界內：自己的模組、注入的依賴、`index.html` 的元素與載入順序、main 送給畫面的資料（同一包出貨）。
 
-1. **邊界上驗一次**：在值進來的那一處驗證並轉成內部形狀（設定→`normalizeSettingsObject`、站台→`lib/sync/site-format.js`、實例紀錄→`lib/sync/record-format.js`）。不合格就明確拒絕或丟掉重來，並出聲。
+1. **邊界上驗一次**：在值進來的那一處驗證並轉成內部形狀（設定→`lib/settings-format.js`、站台→`lib/sync/site-format.js`、實例紀錄→`lib/sync/record-format.js`）。不合格就明確拒絕或丟掉重來，並出聲。
 2. **邊界內信任**：不寫 `?.`、`||`／`??` 預設、`typeof` 檢查、try/catch、空函式預設去防。依賴缺了在建立時丟錯（範本：`main/sync/index.js` 的 `assertRequiredDeps`）。邊界內的保證若沒有機制在守，補機制，不補防線。
 3. **出聲**：main 寫 `gglError`（常駐故障日誌 `userData/ggl-launcher.log`，debug 關著也寫）；`appendLauncherLog`（桌面 `launcher.log`）只放 debug 細節。使用者按了東西而失敗，要讓他在畫面上看到。〔2026-10-14 起〕畫面的 `gglError` 經 `log:rendererError` 只送事件 ID，main 只收 `lib/renderer-error-events.js` 的清單（→ `plans/cross-review-2026-10.md` D-LOG-IPC）。常駐日誌負責縮小故障範圍、不承諾還原根因，深入診斷靠 debug（→ 同檔 D-LOG-SCOPE）。
    - `gglError` 的 `detail` 放什麼由呼叫處決定（白名單）：不放 token、帳號物件、完整 JVM 參數、OAuth 原始回應、帶敏感參數的完整 URL；限長、截 stack 不算脫敏。不建泛用的敏感字串掃描器。出處 → `plans/cross-review-2026-10.md` D-LOG-PRIVACY。
