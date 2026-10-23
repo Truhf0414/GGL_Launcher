@@ -873,3 +873,21 @@ for (const [id, label, arrange, extra, expectLink] of [
     });
   }
 }
+
+// ── N6：jre21.zip.tmp 是 file symlink（上層 §5.16 Z1）⇒ 只刪連結本身、照常安裝（→ _notes/plans/cross-review-2026-10-n6.md §回歸測試 T-J1）──
+
+test("T-J1 N6: jre21.zip.tmp is a file symlink ⇒ install succeeds from the zip, outside untouched", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const env = await javaEnv(t);
+  const outside = path.join(env.base, "outside");
+  await fsp.mkdir(outside, { recursive: true });
+  await fsp.writeFile(path.join(outside, "victim.bin"), "VICTIM");
+  await fsp.mkdir(env.paths.tempDir, { recursive: true });
+  await fsp.symlink(path.join(outside, "victim.bin"), path.join(env.paths.tempDir, "jre21.zip.tmp"), "file");
+  const before = await snapshot(outside);
+
+  await installJava(env.args());
+
+  assert.deepEqual(await snapshot(outside), before);
+  assert.equal(await fsp.readFile(path.join(env.dir, "bin", "java.exe"), "utf8"), ZIP_JAVA);
+  await assertCleaned(env);
+});

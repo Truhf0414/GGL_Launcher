@@ -1,4 +1,4 @@
-// 檔案小工具：hash、建資料夾、不覆寫的寫檔與「完整暫存檔 → 替換」。不 require electron、不 require 其他 main/ 檔。
+// 檔案小工具：hash、建資料夾、不覆寫的寫檔、「完整暫存檔 → 替換」與內部檔名的連結移除。不 require electron、不 require 其他 main/ 檔。
 const crypto = require("crypto");
 const fs = require("fs");
 const fsp = require("fs/promises");
@@ -99,6 +99,26 @@ async function replaceFileWithBytes(target, bytes, { expectCurrent }) {
   }
 }
 
+/**
+ * GGL 自己的內部檔名（暫存檔、標記）寫之前呼叫：是連結（file／dir symlink、junction，含指向不存在的）
+ * ⇒ 只刪連結本身、回 true；不存在、一般檔、一般資料夾 ⇒ 不動、回 false。lstat／rm 的其他錯原樣丟
+ * （→ _notes/plans/cross-review-2026-10-n6.md §設計 helper）
+ * @returns {Promise<boolean>}
+ */
+async function removeLinkAt(fsp, p) {
+  let st;
+  try {
+    st = await fsp.lstat(p);
+  } catch (err) {
+    // 探測：不存在就沒有連結要刪，其他錯照丟
+    if (err.code === "ENOENT") return false;
+    throw err;
+  }
+  if (!st.isSymbolicLink()) return false;
+  await fsp.rm(p, { force: true });
+  return true;
+}
+
 module.exports = {
   hashFile,
   ensureDirForFile,
@@ -106,4 +126,5 @@ module.exports = {
   writeExclusive,
   replaceFileWithBytes,
   ReplaceFileError,
+  removeLinkAt,
 };

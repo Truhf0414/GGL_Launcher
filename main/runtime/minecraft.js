@@ -8,7 +8,7 @@
 const fsp = require("fs/promises");
 const path = require("path");
 
-const { hashFile } = require("../fs-utils.js");
+const { hashFile, removeLinkAt } = require("../fs-utils.js");
 const { libraryArtifact } = require("../../lib/library-filter.js");
 const {
   assertEnv,
@@ -212,10 +212,15 @@ async function readJsonOrNull(fs, abs) {
   }
 }
 
-/** 同目錄寫 .tmp 再 rename 蓋過去；rename 失敗 ⇒ 刪 .tmp、丟錯，舊檔不變 */
-async function writeJsonReplacing(fs, abs, json) {
+/**
+ * 同目錄寫 .tmp 再 rename 蓋過去；rename 失敗 ⇒ 刪 .tmp、丟錯，舊檔不變。
+ * .tmp 是連結 ⇒ 只刪連結本身再寫（→ _notes/plans/cross-review-2026-10-n6.md）
+ */
+async function writeJsonReplacing(fs, abs, json, log) {
   await fs.mkdir(path.dirname(abs), { recursive: true });
   const tmp = `${abs}.tmp`;
+  if (await removeLinkAt(fs, tmp))
+    safeLog(log, `RUNTIME_JSON_TMP_LINK_REMOVED ${tmp}`);
   await fs.writeFile(tmp, JSON.stringify(json, null, 2));
   try {
     await fs.rename(tmp, abs);
@@ -280,7 +285,7 @@ async function ensureVersionJsons({
         signal,
         deps,
       });
-      await writeJsonReplacing(fs, abs, json);
+      await writeJsonReplacing(fs, abs, json, deps.log);
       return json;
     },
     "loader-json",

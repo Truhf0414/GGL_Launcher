@@ -28,6 +28,8 @@ const {
   markInProgress,
   isInProgress,
 } = require("../main/sync/instance-record.js");
+// N6：寫記錄與標記的函式多收 { log }（→ _notes/plans/cross-review-2026-10-n6.md §日誌傳遞與簽名）
+const NO_LOG = { log: () => {} };
 const { createSiteClient } = require("../main/sync/site-client.js");
 const { applyPlan: realApplyPlan } = require("../main/sync/apply.js");
 const { createInstanceSync } = require("../main/sync/index.js");
@@ -116,7 +118,7 @@ async function install(paths, { release, java = true }) {
     appliedAt: "2026-10-01T00:00:00.000Z",
     files: recordFiles(release),
     ...RUNTIME,
-  });
+  }, NO_LOG);
   if (java) await installRuntime(paths);
 }
 
@@ -1130,7 +1132,7 @@ test("N6 遊戲偵測的 gameDir 接線：命令列含 gameDir ⇒ 擋；鄰居�
 test("N7 有同步中標記、記錄與 release 相同 ⇒ 被改掉的非玩家可改檔換回來", async (t) => {
   const h = await setup(t, { installed: { release: REL_1 } });
   await put(h.paths, "mods/a.jar", "tampered");
-  await markInProgress(h.paths);
+  await markInProgress(h.paths, NO_LOG);
   await h.sync.updateInstance();
   assert.deepEqual(await read(h.paths, "mods/a.jar"), MOD_A);
 });
@@ -1778,7 +1780,7 @@ const LAUNCH_MATRIX = [
       installed: { release: REL_1 },
       site: { respond: respond503("/manifest.json") },
     },
-    arrange: (h) => markInProgress(h.paths),
+    arrange: (h) => markInProgress(h.paths, NO_LOG),
     kind: "offline",
     localReady: false,
     reasons: ["interrupted"],
@@ -2062,7 +2064,7 @@ test("C4 verifyAll／reinstallJava 依 who 與同步中標記：四種組合", a
   ];
   for (const [who, marked, expected] of cases) {
     const h = await setup(t, { installed: { release: REL_1 }, site: { release: REL_2 } });
-    if (marked) await markInProgress(h.paths);
+    if (marked) await markInProgress(h.paths, NO_LOG);
     await (who === "update" ? h.sync.updateInstance() : h.sync.repairInstance());
     const arg = h.calls.prepareRuntime.at(-1);
     assert.deepEqual(
@@ -2118,7 +2120,7 @@ test("C12 就緒走預設 probe：③ 的記錄（沒三欄）⇒ update-availab
     version: REL_1.version,
     appliedAt: "2026-10-01T00:00:00.000Z",
     files: recordFiles(REL_1),
-  });
+  }, NO_LOG);
   const s = await h.sync.getInstanceStatus();
   assertKind(s, "update-available");
   assert.deepEqual(s.syncReasons, ["release-differs", "runtime-missing"]);

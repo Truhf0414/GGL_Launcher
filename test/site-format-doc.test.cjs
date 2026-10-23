@@ -234,7 +234,7 @@ async function hub(t, { installed }) {
   t.after(() => fsp.rm(root, { recursive: true, force: true }));
   const settings = { launcherRootDir: root };
   if (installed) {
-    await writeRecord(getPaths(settings), RECORD);
+    await writeRecord(getPaths(settings), RECORD, { log: () => {} });
     await installRuntime(getPaths(settings));
   }
   const site = {

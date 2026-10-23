@@ -27,7 +27,7 @@ const {
   isInProgress,
   writeRecord,
 } = require("../main/sync/instance-record.js");
-const { downloadToFileWithStallGuard } = require("../main/net-fetch.js");
+const { configureNetFetch, downloadToFileWithStallGuard } = require("../main/net-fetch.js");
 const { applyPlan, SyncApplyError } = require("../main/sync/apply.js");
 const { prepareRuntime } = require("../main/runtime/prepare.js");
 const { registerInstanceIpc } = require("../main/ipc/instance-ipc.js");
@@ -727,7 +727,7 @@ test("record written by writeRecord is the injected one (deps default wiring)", 
   await run(ctx, {
     next: [entry("mods/a.jar", A)],
     depsOverride: {
-      writeRecord: async (p, r) => ((got = r), writeRecord(p, r)),
+      writeRecord: async (p, r, o) => ((got = r), writeRecord(p, r, o)),
     },
   });
   assert.equal(got.format, 3);
@@ -1152,4 +1152,47 @@ test("D7 runtime 深層 junction 經 applyPlan 被拒 ⇒ IPC 之後仍是 game 
   assert.deepEqual(await readOrNull(ctx.paths.syncRecordPath), recordBefore);
   assert.deepEqual(await snapshot(outside), before);
   assert.equal((await fsp.lstat(abs(ctx.paths, "libraries/com"))).isSymbolicLink(), true);
+});
+
+// ── N6：GGL 內部檔名是連結 ⇒ 只刪連結本身、照常更新、記 debug log（→ _notes/plans/cross-review-2026-10-n6.md §回歸測試 T-A*）──
+
+test("T-A1 N6: staging <sha>.part is a junction ⇒ the first update succeeds, outside untouched, the removal is logged", { skip: !onWindows, timeout: HANG_LIMIT_MS }, async (t) => {
+  const ctx = await setup(t);
+  const netLogs = [];
+  configureNetFetch({ appendLauncherLog: async (l) => netLogs.push(l) });
+  t.after(() => configureNetFetch({}));
+  const staged = path.join(stagingDir(ctx.paths), sha(A));
+  const outside = await linkAt(ctx, `${staged}.part`);
+  const before = await snapshot(outside);
+
+  await run(ctx, { next: [entry("mods/a.jar", A)] });
+
+  assert.deepEqual(await read(ctx.paths, "mods/a.jar"), A);
+  assert.deepEqual(await snapshot(outside), before);
+  assert.deepEqual(netLogs, [`DOWNLOAD_TEMP_LINK_REMOVED ${staged}.part`]);
+});
+
+test("T-A2 N6: sync-in-progress and sync-record.json.tmp are file symlinks ⇒ update succeeds, outside untouched, both removals reach deps.log", { timeout: HANG_LIMIT_MS }, async (t) => {
+  const ctx = await setup(t);
+  const outside = path.join(ctx.root, "outside");
+  await fsp.mkdir(outside, { recursive: true });
+  await fsp.writeFile(path.join(outside, "marker.txt"), "VICTIM marker");
+  await fsp.writeFile(path.join(outside, "record.txt"), "VICTIM record");
+  await fsp.mkdir(ctx.paths.instanceDir, { recursive: true });
+  await fsp.symlink(path.join(outside, "marker.txt"), ctx.paths.syncInProgressPath, "file");
+  await fsp.symlink(path.join(outside, "record.txt"), `${ctx.paths.syncRecordPath}.tmp`, "file");
+  const before = await snapshot(outside);
+  const logs = [];
+
+  await run(ctx, { next: [entry("mods/a.jar", A)], depsOverride: { log: (l) => logs.push(l) } });
+
+  assert.deepEqual(await snapshot(outside), before);
+  const st = await fsp.lstat(ctx.paths.syncRecordPath);
+  assert.ok(st.isFile() && !st.isSymbolicLink(), "sync-record.json 應該是一般檔");
+  assert.equal((await readRecord(ctx.paths)).version, "v2");
+  assert.equal(await exists(ctx.paths.syncInProgressPath), false);
+  assert.deepEqual(logs, [
+    `SYNC_MARKER_LINK_REMOVED ${ctx.paths.syncInProgressPath}`,
+    `SYNC_RECORD_TMP_LINK_REMOVED ${ctx.paths.syncRecordPath}.tmp`,
+  ]);
 });

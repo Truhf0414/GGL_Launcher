@@ -5,6 +5,8 @@
 
 const defaultFsp = require("fs/promises");
 const { validateRecord } = require("../../lib/sync/record-format.js");
+const { removeLinkAt } = require("../fs-utils.js");
+const { safeLog } = require("../runtime/download.js");
 
 async function readRecord(paths, { fsp = defaultFsp } = {}) {
   let text;
@@ -24,17 +26,23 @@ async function readRecord(paths, { fsp = defaultFsp } = {}) {
   return r.ok ? r.value : null;
 }
 
-async function writeRecord(paths, record) {
+// 寫之前：.tmp／標記是連結 ⇒ 只刪連結本身再寫，log 是選填的 debug log（→ _notes/plans/cross-review-2026-10-n6.md）
+async function writeRecord(paths, record, { log }) {
   const r = validateRecord(record);
   if (!r.ok) throw new Error(`本機同步記錄格式錯誤：${r.error}`);
   const tmp = `${paths.syncRecordPath}.tmp`;
   await defaultFsp.mkdir(paths.instanceDir, { recursive: true });
+  if (await removeLinkAt(defaultFsp, tmp))
+    safeLog(log, `SYNC_RECORD_TMP_LINK_REMOVED ${tmp}`);
   await defaultFsp.writeFile(tmp, JSON.stringify(record, null, 2), "utf8");
   await defaultFsp.rename(tmp, paths.syncRecordPath);
 }
 
-async function markInProgress(paths) {
+async function markInProgress(paths, { log }) {
   await defaultFsp.mkdir(paths.instanceDir, { recursive: true });
+  // 一般檔照舊直接蓋，不先刪：刪了到重建之間當掉，上次中斷留下的標記就不見了；連結才刪
+  if (await removeLinkAt(defaultFsp, paths.syncInProgressPath))
+    safeLog(log, `SYNC_MARKER_LINK_REMOVED ${paths.syncInProgressPath}`);
   // 內容只給人看；判斷只看檔在不在
   await defaultFsp.writeFile(
     paths.syncInProgressPath,
