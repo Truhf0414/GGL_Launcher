@@ -4,5 +4,6 @@
 - [故意留的假 jar](deliberate-stray-jar.md) — mods/ABCDEF~1.jar 0 byte、讓遊戲秒退 code=1，owner 故意留，不是 bug
 - [審查文件要附脈絡](review-docs-with-context.md) — 要 owner 裁決的文件：附為什麼、列 CC 偏好與可能錯處、不壓縮問題
 - [Claude 桌面版關 Cowork](claude-desktop-cowork-off.md) — HKCU 政策關 Cowork 防 10GB vhdx；資料在 %LOCALAPPDATA%\Claude-Data
-- [驗證要省時](verification-time-budget.md) — 長驗證先講預估、平行跑、小改只跑該檔；但 Node 22 那輪不能省
+- [驗證要省時](verification-time-budget.md) — 長驗證先講預估、平行跑（freeze 一開始就並行）、小改只跑該檔；但 Node 22 那輪不能省
+- [Git Bash 無聲陷阱](git-bash-silent-traps.md) — TZ=Asia/Taipei 印的是 UTC、sd -F 不吃跨行字面；都不報錯
 - [Node 22 在哪](node22-binary-location.md) — CI 版本用 H:\OpenChatX\runtime\bin\node.exe；es 搜不到、TAP 輸出看 `# tests`
