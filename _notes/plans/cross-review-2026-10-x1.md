@@ -1,10 +1,10 @@
-# X1 — 下載寫檔錯誤的傳遞：細部 plan（狀態：**2026-10-23 初稿，待 owner 審核；未授權施工、未授權 commit**）
+# X1 — 下載寫檔錯誤的傳遞：細部 plan（狀態：**2026-10-23 初稿；同日 owner 審核通過、授權施工（不含 commit）；同日施工完成、驗收單交 owner（→ §施工紀錄）；同日 owner 驗收放行，commit `7429a54`**）
 
 上層＝`plans/cross-review-2026-10.md` §8 X1（目的、範圍、不變量、驗收下限）；裁決本體與出處＝同檔 §3.10 D-X1；原始反例＝同檔 §5.16 Z3／Z4；與 N6 的先後＝同檔 §8 N6「前置」。本檔只寫上層沒定死的細節，不重述裁決本體。
 
 標記照上層 §0.1。行號以基準 `cee58ca` 為準。
 
-**範圍界線**：只改 `main/net-fetch.js` `downloadToFile` 的 getReader 分支（`:196-232`）與它的測試。不做 N6（`.tmp`／`.part` 的連結所有權）、Phase 6 防禦清理（含 pipe 死分支，→ `plans/defense-cleanup.md` M-STREAM）、重試分類（`isRetryableError`）、下載器重構、新的 Manager／Adapter／狀態機、fsync 或跨步驟原子交易、沒有重現過的檔案系統邊角案。
+**範圍界線**：只改 `main/net-fetch.js` `downloadToFile` 的 getReader 分支（`:196-232`）與它的測試。不做 N6（`.tmp`／`.part` 的連結所有權）、Phase 6 防禦清理（含 pipe 死分支，→ `plans/defense-cleanup.md` M-STREAM）、重試分類（`isRetryableError`）、下載器重構、新的 Manager／Adapter／狀態機、fsync 或跨步驟原子交易、沒有重現過的檔案系統邊角案。〔對齊 2026-10-23：`main/net-fetch.js:196-232` → `7429a54`（plans/cross-review-2026-10-x1.md） 後 `:197-239`〕
 
 ## 收斂經過（2026-10-23）
 
@@ -13,6 +13,8 @@
 | 10-23 | ChatGPT（經 OpenChatX；owner 終端轉貼） | 對真的 `downloadToFile` 跑出 `reject:EISDIR` 加 `uncaught:["EISDIR"]`；提出四問：read 停住時寫檔失敗、原始錯誤歸誰、等不等 close、要不要 `stream.finished` |
 | 10-23 | CC | 隔離實驗（§證據）；回覆：Q1 成立（C 案掛住）、Q2／Q3 過度、Q4 的 `finished` 否決、`pipeline` 不採用；提出三處改動與 C 案 |
 | 10-23 | owner（終端貼入的施工準備文件） | 採方案 A 三處改動；C 為正式驗收案、C2 視成本；ChatGPT 撤回 first-failure 狀態機、全部等 close、`finished`、`pipeline`；授權寫本檔，未授權施工與 commit |
+| 10-23 | owner（終端貼入） | 本檔審查通過，授權施工與測試，不含 commit |
+| 10-23 | owner（終端貼入） | 驗收通過，授權 commit 與文件結案 |
 
 裁決出處（owner 2026-10-23 終端貼入）：「採用方案 A」；C 案「這是本輪正式採納的新驗收案例。」；撤回各項「是根據現有證據與施工成本作出的判斷，不宣稱已證明所有理論競態不存在。」
 
@@ -48,7 +50,7 @@
 ### 讀碼
 
 - 正式呼叫者兩處，都經看門狗：`main/sync/apply.js:79`（Sync，`resume: true`，寫 `.part`，`:242`）、`main/runtime/download.js:161`（runtime 檔，`resume: false`，寫 `.tmp`，`:176`）。
-- pipe 分支（`main/net-fetch.js:235-272`）在 Node fetch 下走不到（W0），已列 `plans/defense-cleanup.md` M-STREAM。上層 §8 X1「pipe 分支 `:262` 有接」不代表任何路徑有被保護。
+- pipe 分支（`main/net-fetch.js:235-272`）在 Node fetch 下走不到（W0），已列 `plans/defense-cleanup.md` M-STREAM。上層 §8 X1「pipe 分支 `:262` 有接」不代表任何路徑有被保護。〔對齊 2026-10-23：`main/net-fetch.js:235-272` → `7429a54`（plans/cross-review-2026-10-x1.md） 後 `:242-279`〕
 - `isRetryableError`（`:97-109`）對 `ENOSPC`、`EISDIR` 都回 false；讀 body、寫檔階段丟出的錯都不是「連線失敗：」開頭，`withRetries` 不會重試。重試只來自看門狗中止（C2）。
 
 ## 舊碼已經保證的（不動）
@@ -131,3 +133,16 @@ conventions §防禦與相容 第 4 條：改動 1 的空 handler 與改動 3 �
 - `ENOSPC` 是注入的，不是真的把磁碟寫滿。
 - 非 NTFS（FAT32、exFAT、網路磁碟）上「檔案還開著能不能刪」沒測〔猜的：可能刪不掉、留下 `.tmp`〕。後果在既有契約內：`rm` 失敗被吞，下次 `"w"` 開檔會截斷。
 - 200 回退在 `net-fetch` 層沒有直接測試（§會碰到的既有契約）；本刀不動那段程式，要不要補由 owner 另外決定。
+
+## 施工紀錄（2026-10-23，基準 `cee58ca`，commit `7429a54`）〔實測〕
+
+- **改動**：`main/net-fetch.js` +7／-0（`require("events")` 的 `once`，加上 §設計 的三處改動，每處一行註解）；`test/net-fetch-download.test.cjs` +178／-0（A、B、C、C2、E 五案，加上 `countUncaught`、`outcome`、`headersOnly` 三個小工具）。既有斷言一行都沒動（diff 沒有刪除行）。
+- **紅燈**：五案在舊碼上 Node v24.14.1、v22.18.0 都是 5 紅，同檔既有 17 案照綠；紅的理由都是 uncaught（`EISDIR`／`ENOSPC`），與 §回歸測試 的預期相符。
+- **綠燈**：`net-fetch-download`、`net-fetch-logic`、`sync-apply`、`runtime-download`、`runtime-java`、`runtime-minecraft` 合計 229／229，Node 24、22 都過。
+- **反向驗證**（每次只拔一行、跑完 `cmp` 逐位元組還原）：拔 listener ⇒ E 紅；拔 `once(ready)` ⇒ C、C2 紅（「等不到：開檔失敗就結束」）；拔 `cancel` ⇒ E 紅（「等不到：server 看到連線被關」）。與 §設計 那張表相符。
+- **freeze**：`net-fetch-download` × `FREEZE_OFFSET` 0–7 × Node 22、24，16 次都是 22／22。
+- **回歸**：`npm test` 1193 → 1198。並行驗收（同時 20 個測試行程）那次是 pass 1197、fail 0、cancelled 1：`runtime-minecraft` 的 D4（`versions/<mc>` 是 junction）超過 10 秒上限；同一輪並行的逐檔目標測試裡 D4 有過。沒有其他負載時重跑 `npm test` 1198／1198；D4 單案 5 次，舊碼 258–310 ms、新碼 254–330 ms。原因沒有嚴格證實〔推論：並行負載〕，缺口是沒在同樣負載下拿舊碼重現；owner 判定不擋 X1。owner 驗收文字寫「D4／T14」，CC 的 log 裡 `timed out` 只有 D4 一筆，T14 各案在同一份 log 裡都通過。
+- `lint`、`check:ui-css`、`git diff --check` exit 0；commit 時 husky 再跑一次 `check:ui-css`、`lint`，都過。
+- `format:file`：HEAD 的測試檔本來就不符 prettier，格式化順手重排既有兩行 `until(...)`，已改回原樣；新增段照 prettier。
+- commit 前防禦寫法掃描（conventions §防禦與相容）命中 2 行：改動 3 的 `.catch`（清理，註解寫了為什麼可以吞）；測試的 `e?.code ?? String(e)`（被丟出來的不一定是 `Error`，屬邊界）。
+- **沒跑**：真的 Electron 主程序、打包或安裝檔、真的把磁碟寫滿。其餘限制見 §已知未驗。
