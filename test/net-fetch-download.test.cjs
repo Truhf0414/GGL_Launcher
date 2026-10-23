@@ -3,6 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
+const fs = require("fs");
 const fsp = require("fs/promises");
 const os = require("os");
 const path = require("path");
@@ -411,3 +412,180 @@ test("T3 withRetries: without shouldRetry the default still retries a retryable 
   );
   assert.equal(calls, 2);
 });
+
+// ── X1：寫檔失敗要 reject 原始錯誤、不 uncaught、不掛死、放掉連線 → _notes/plans/cross-review-2026-10-x1.md ──
+
+/** 本案期間的 uncaughtException；node --test 自己也會算到當下的案上，這裡讓失敗訊息指得出是哪個錯 */
+function countUncaught(t) {
+  const seen = [];
+  const on = (e) => seen.push(e?.code ?? String(e));
+  process.on("uncaughtException", on);
+  t.after(() => process.off("uncaughtException", on));
+  return seen;
+}
+
+/** 真時間 limitMs 內等 p 結束；結束後讓出幾輪，同一個錯的 'error' 事件（舊碼在這附近 uncaught）有機會浮出來 */
+async function outcome(p, what, limitMs = 2000) {
+  let r = null;
+  p.then(
+    (value) => (r = { ok: true, value }),
+    (error) => (r = { ok: false, error }),
+  );
+  await until(() => r !== null, what, limitMs);
+  for (let i = 0; i < 5; i++) await new Promise((res) => setImmediate(res));
+  return r;
+}
+
+/** 寫完 headers 就停住，body 一個位元組都不送 */
+function headersOnly(req, res) {
+  res.writeHead(200, { "content-length": "5000000" });
+  res.flushHeaders();
+}
+
+for (const [label, handler] of [
+  [
+    "A body 1000 B",
+    (req, res) => {
+      res.writeHead(200, { "content-length": "1000" });
+      res.end(Buffer.alloc(1000, 1));
+    },
+  ],
+  [
+    "B body 0 B",
+    (req, res) => {
+      res.writeHead(200, { "content-length": "0" });
+      res.end();
+    },
+  ],
+]) {
+  test(
+    `X1 ${label}: .tmp is a directory ⇒ rejects EISDIR, nothing uncaught`,
+    { timeout: HANG_LIMIT_MS },
+    async (t) => {
+      const seen = countUncaught(t);
+      const srv = await startServer(handler);
+      t.after(() => srv.close());
+      const target = await tempTarget(t);
+      await fsp.mkdir(`${target}.tmp`);
+
+      const r = await outcome(
+        downloadToFile(srv.url, target, null),
+        "下載結束",
+      );
+      assert.equal(r.ok, false);
+      assert.equal(r.error.code, "EISDIR");
+      assert.deepEqual(seen, []);
+    },
+  );
+}
+
+test(
+  "X1 C: headers then the body stalls, .tmp is a directory ⇒ EISDIR without any timer",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    useMockClock(t); // 時間不推進：結束只可能來自開檔失敗本身，不是哪個計時器
+    const seen = countUncaught(t);
+    const srv = await startServer(headersOnly);
+    t.after(() => srv.close());
+    const target = await tempTarget(t);
+    await fsp.mkdir(`${target}.tmp`);
+
+    const r = await outcome(
+      downloadToFile(srv.url, target, null),
+      "開檔失敗就結束",
+    );
+    assert.equal(r.ok, false);
+    assert.equal(r.error.code, "EISDIR");
+    assert.deepEqual(seen, []);
+  },
+);
+
+test(
+  "X1 C2: same under the stall guard ⇒ EISDIR, not reported as stalled, one request",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    useMockClock(t);
+    const seen = countUncaught(t);
+    const srv = await startServer(headersOnly);
+    t.after(() => srv.close());
+    const target = await tempTarget(t);
+    await fsp.mkdir(`${target}.tmp`);
+
+    const r = await outcome(
+      downloadToFileWithStallGuard(srv.url, target, null, {
+        ...GUARD,
+        stallRetries: 1,
+      }),
+      "開檔失敗就結束",
+    );
+    assert.equal(r.ok, false);
+    assert.equal(r.error.code, "EISDIR");
+    assert.equal(srv.requests.length, 1);
+    assert.deepEqual(seen, []);
+  },
+);
+
+test(
+  "X1 E: second write to the .tmp fails ENOSPC ⇒ rejects that error, no retry, connection closed",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const seen = countUncaught(t);
+    const target = await tempTarget(t);
+    const tmp = `${target}.tmp`;
+
+    // 只動這個 .tmp：open 記下它的 fd，write 只對那個 fd 計數；其他 fd 原樣轉給真的函式
+    const realOpen = fs.open;
+    const realWrite = fs.write;
+    t.after(() => {
+      fs.open = realOpen;
+      fs.write = realWrite;
+    });
+    const enospc = Object.assign(
+      new Error("ENOSPC: no space left on device, write"),
+      { code: "ENOSPC", errno: -28, syscall: "write" },
+    );
+    let fd = null;
+    let writes = 0;
+    let sendSecond = null;
+    fs.open = function (p, ...rest) {
+      if (p !== tmp) return realOpen.call(this, p, ...rest);
+      const cb = rest.pop();
+      return realOpen.call(this, p, ...rest, (err, got) => {
+        if (!err) fd = got;
+        cb(err, got);
+      });
+    };
+    fs.write = function (f, ...rest) {
+      if (f !== fd) return realWrite.call(this, f, ...rest);
+      const cb = rest.pop();
+      writes += 1;
+      if (writes === 2) return process.nextTick(cb, enospc);
+      return realWrite.call(this, f, ...rest, (...args) => {
+        cb(...args);
+        sendSecond();
+      });
+    };
+
+    let closed = false;
+    const srv = await startServer((req, res) => {
+      res.on("close", () => (closed = true));
+      res.writeHead(200, { "content-length": "5000000" });
+      res.write(Buffer.alloc(1000, 1));
+      // 第一塊寫進檔之後才送第二塊，保證有第 2 次寫入；之後停住、不 end：連線被關只可能來自 client
+      sendSecond = () => res.write(Buffer.alloc(1000, 2));
+    });
+    t.after(() => srv.close());
+
+    const r = await outcome(
+      downloadToFile(srv.url, target, null),
+      "寫入失敗就結束",
+    );
+    assert.equal(r.ok, false);
+    assert.equal(r.error, enospc);
+    assert.equal(writes, 2);
+    assert.equal(srv.requests.length, 1);
+    // cancel 不 await：觀察 server 在期限內看到連線被關，不宣稱 reject 當下已經關了
+    await until(() => closed, "server 看到連線被關", 2000);
+    assert.deepEqual(seen, []);
+  },
+);

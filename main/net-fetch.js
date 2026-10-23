@@ -1,6 +1,7 @@
 // HTTP / 下載：fetch 包裝、重試、斷點續傳、停滯看門狗
 const fs = require("fs");
 const fsp = require("fs/promises");
+const { once } = require("events");
 const { ensureDirForFile } = require("./fs-utils");
 
 const defaultNetDeps = {
@@ -197,9 +198,13 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
         const file = fs.createWriteStream(partPath, {
           flags: resume && existing > 0 ? "a" : "w",
         });
+        // 吞得掉：錯由下面等著的開檔／write／end 帶回，這裡只讓同一個錯的 'error' 事件不變成 uncaught
+        file.on("error", () => {});
         const reader = body.getReader();
 
         try {
+          // 先等開檔：開不了就在讀 body 之前失敗，不會卡在等不到資料的 read()
+          await once(file, "ready");
           while (true) {
             if (sig?.aborted) throw new Error("下載中止");
             const { value, done } = await reader.read();
@@ -222,6 +227,8 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
           await fsp.rename(partPath, absPath);
           return;
         } catch (e) {
+          // 放掉連線；吞得掉：下載已經失敗，cancel 自己失敗或停住都不該蓋過、延後原始錯誤
+          reader.cancel().catch(() => {});
           try {
             file.destroy();
           } catch {}
