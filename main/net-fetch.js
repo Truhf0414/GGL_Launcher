@@ -2,7 +2,7 @@
 const fs = require("fs");
 const fsp = require("fs/promises");
 const { once } = require("events");
-const { ensureDirForFile } = require("./fs-utils");
+const { ensureDirForFile, removeLinkAt } = require("./fs-utils");
 
 const defaultNetDeps = {
   /** 下載 / fetch 重試時給 UI 的提示（例如 sendSyncStatus + sendMcStatus） */
@@ -22,6 +22,15 @@ function notifyRetryToUi(text) {
   try {
     netDeps.onRetryNotify(String(text || ""));
   } catch {}
+}
+
+/** debug log 是 best-effort：注入的 logger 同步丟錯或 reject 都不影響下載（→ _notes/plans/cross-review-2026-10-n6.md N6-D3） */
+function logToLauncher(line) {
+  Promise.resolve()
+    .then(() => netDeps.appendLauncherLog(line))
+    .catch(() => {
+      // 吞得掉：寫 log 失敗不改變下載結果（N6-D2 best-effort）
+    });
 }
 
 function makeRetryNotice(label, tryNo, maxTry) {
@@ -140,12 +149,16 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
   const resume = Boolean(options?.resume);
   const sig = options?.signal;
   const label = typeof options?.label === "string" ? options.label.trim() : "";
+  const partPath = resume ? absPath + ".part" : absPath + ".tmp";
+
+  // 暫存名是連結 ⇒ 只刪連結本身再照常下載（N6）。要在下面的預檢之前：否則預檢會把連結本身改名成完成檔
+  if (await removeLinkAt(fsp, partPath))
+    logToLauncher(`DOWNLOAD_TEMP_LINK_REMOVED ${partPath}`);
 
   // .part 已滿（寫完、改名前當掉）時續傳的 Range 越界，站台回 416，每次重跑都一樣。
   // 知道預期大小就先處理：等於 ⇒ 當成下載完成（內容對不對由呼叫端驗 hash）；大於 ⇒ 丟掉重下。
   const expectedSize = options?.expectedSize;
   if (resume && Number.isFinite(expectedSize)) {
-    const partPath = absPath + ".part";
     const st = await fsp.stat(partPath).catch(() => null);
     if (st?.isFile() && st.size === expectedSize) {
       await fsp.rename(partPath, absPath);
@@ -158,7 +171,6 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
 
   return await withRetries(
     async () => {
-      const partPath = resume ? absPath + ".part" : absPath + ".tmp";
       let existing = 0;
       if (resume) {
         try {

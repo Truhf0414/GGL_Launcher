@@ -891,3 +891,69 @@ test("D8 目標本身：某支 library 的 jar 位置是 junction ⇒ 拒絕、j
     wantPath: rel,
   });
 });
+
+// ── N6：runtime 寫的 GGL 內部暫存檔是 file symlink ⇒ 只刪連結本身、照常寫（→ _notes/plans/cross-review-2026-10-n6.md §回歸測試 T-M*）──
+
+/** <base>/outside/victim.bin 當連結的目標；gameDir＝<base>/game（空的） */
+async function victimGame(t) {
+  const base = await tempDir(t);
+  const outside = path.join(base, "outside");
+  await fsp.mkdir(outside, { recursive: true });
+  await fsp.writeFile(path.join(outside, "victim.bin"), "VICTIM");
+  return { gameDir: path.join(base, "game"), outside, victim: path.join(outside, "victim.bin") };
+}
+
+async function fileLinkAt(p, target) {
+  await fsp.mkdir(path.dirname(p), { recursive: true });
+  await fsp.symlink(target, p, "file");
+}
+
+async function assertRegularFile(p) {
+  const st = await fsp.lstat(p);
+  assert.ok(st.isFile() && !st.isSymbolicLink(), `${p} 應該是一般檔`);
+}
+
+test("T-M1 N6: Fabric profile <json>.tmp is a file symlink ⇒ profile written as a regular file, outside untouched, one log line", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
+  const fake = await startFakeRuntime(t);
+  const { gameDir, outside, victim } = await victimGame(t);
+  const json = abs(gameDir, TARGET_REL);
+  await fileLinkAt(`${json}.tmp`, victim);
+  const before = await snapshot(outside);
+  const logs = [];
+
+  await ensureVersionJsons(ensureArgs(fake, gameDir, setup(fake, { log: (l) => logs.push(l) })));
+
+  assert.deepEqual(await snapshot(outside), before);
+  await assertRegularFile(json);
+  assert.deepEqual(JSON.parse(await fsp.readFile(json, "utf8")), fake.fabric);
+  assert.deepEqual(logs, [`RUNTIME_JSON_TMP_LINK_REMOVED ${json}.tmp`]);
+});
+
+test("T-M2 N6: vanilla <json>.tmp.tmp (the downloader's temp) is a file symlink ⇒ outside untouched, <json> is a regular file", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
+  const fake = await startFakeRuntime(t);
+  const { gameDir, outside, victim } = await victimGame(t);
+  const json = abs(gameDir, VANILLA_REL);
+  await fileLinkAt(`${json}.tmp.tmp`, victim);
+  const before = await snapshot(outside);
+
+  await ensureVersionJsons(ensureArgs(fake, gameDir));
+
+  assert.deepEqual(await snapshot(outside), before);
+  await assertRegularFile(json);
+});
+
+test("T-M3 N6: a library's .tmp is a file symlink ⇒ outside untouched, the library is a regular file", { timeout: HANG_LIMIT_MS }, async (t) => {
+  useMockClock(t);
+  const fake = await startFakeRuntime(t);
+  const { gameDir, outside, victim } = await victimGame(t);
+  const dest = abs(gameDir, comJar(fake));
+  await fileLinkAt(`${dest}.tmp`, victim);
+  const before = await snapshot(outside);
+
+  await installRuntimeFiles(installArgs(fake, gameDir));
+
+  assert.deepEqual(await snapshot(outside), before);
+  await assertRegularFile(dest);
+});

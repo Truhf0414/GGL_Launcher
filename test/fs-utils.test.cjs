@@ -22,3 +22,86 @@ test("hashFile: known content gives known sha256", async (t) => {
 test("net-fetch loads after the import move", () => {
   assert.equal(typeof require("../main/net-fetch.js").downloadToFile, "function");
 });
+
+// ── N6：removeLinkAt（→ _notes/plans/cross-review-2026-10-n6.md §設計 helper、§回歸測試 T-H）──
+
+const { snapshot } = require("./helpers/fs-snapshot.cjs");
+
+/** <root>/outside 放一個檔與一個資料夾當連結的目標；p＝<root>/x.tmp */
+async function linkCase(t) {
+  const root = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-fsutils-link-"));
+  t.after(() => fsp.rm(root, { recursive: true, force: true }));
+  const outside = path.join(root, "outside");
+  await fsp.mkdir(path.join(outside, "dir"), { recursive: true });
+  await fsp.writeFile(path.join(outside, "victim.bin"), "VICTIM");
+  await fsp.writeFile(path.join(outside, "dir", "keep.txt"), "keep");
+  return { outside, p: path.join(root, "x.tmp") };
+}
+
+for (const [label, make] of [
+  ["file symlink", (o, p) => fsp.symlink(path.join(o, "victim.bin"), p, "file")],
+  ["junction", (o, p) => fsp.symlink(path.join(o, "dir"), p, "junction")],
+  ["dir symlink", (o, p) => fsp.symlink(path.join(o, "dir"), p, "dir")],
+  ["dangling file symlink", (o, p) => fsp.symlink(path.join(o, "missing.bin"), p, "file")],
+]) {
+  test(`T-H removeLinkAt: ${label} ⇒ true, only the link itself is gone, the target is untouched`, async (t) => {
+    const { outside, p } = await linkCase(t);
+    try {
+      await make(outside, p);
+    } catch (e) {
+      if (label !== "dir symlink" || e.code !== "EPERM") throw e;
+      t.skip("建 directory symlink 需要系統管理員權限或開發人員模式");
+      return;
+    }
+    const before = await snapshot(outside);
+    assert.equal(await fsUtils.removeLinkAt(fsp, p), true);
+    await assert.rejects(fsp.lstat(p), { code: "ENOENT" });
+    assert.deepEqual(await snapshot(outside), before);
+  });
+}
+
+test("T-H removeLinkAt: nothing there ⇒ false", async (t) => {
+  const { p } = await linkCase(t);
+  assert.equal(await fsUtils.removeLinkAt(fsp, p), false);
+  await assert.rejects(fsp.lstat(p), { code: "ENOENT" });
+});
+
+test("T-H removeLinkAt: a regular file ⇒ false, the same file (identity and bytes) is still there", async (t) => {
+  const { p } = await linkCase(t);
+  await fsp.writeFile(p, "own leftover");
+  const { ino } = await fsp.stat(p, { bigint: true });
+  assert.equal(await fsUtils.removeLinkAt(fsp, p), false);
+  assert.equal((await fsp.stat(p, { bigint: true })).ino, ino);
+  assert.equal(await fsp.readFile(p, "utf8"), "own leftover");
+});
+
+test("T-H removeLinkAt: a regular folder ⇒ false, folder and contents untouched", async (t) => {
+  const { p } = await linkCase(t);
+  await fsp.mkdir(p);
+  await fsp.writeFile(path.join(p, "inside.txt"), "inside");
+  assert.equal(await fsUtils.removeLinkAt(fsp, p), false);
+  assert.deepEqual(await snapshot(p), { "inside.txt": Buffer.from("inside").toString("base64") });
+});
+
+test("T-H removeLinkAt: lstat or rm failing with anything but ENOENT ⇒ rejects with that same error", async () => {
+  const eperm = (syscall) => Object.assign(new Error(`EPERM: ${syscall}`), { code: "EPERM", syscall });
+  const lstatErr = eperm("lstat");
+  const rmCalls = [];
+  const lstatFails = {
+    lstat: async () => {
+      throw lstatErr;
+    },
+    rm: async (...args) => rmCalls.push(args),
+  };
+  await assert.rejects(fsUtils.removeLinkAt(lstatFails, "x.tmp"), (e) => e === lstatErr);
+  assert.deepEqual(rmCalls, []);
+
+  const rmErr = eperm("rm");
+  const rmFails = {
+    lstat: async () => ({ isSymbolicLink: () => true }),
+    rm: async () => {
+      throw rmErr;
+    },
+  };
+  await assert.rejects(fsUtils.removeLinkAt(rmFails, "x.tmp"), (e) => e === rmErr);
+});

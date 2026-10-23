@@ -589,3 +589,214 @@ test(
     assert.deepEqual(seen, []);
   },
 );
+
+// ── N6：.tmp／.part 是連結 ⇒ 只刪連結本身、照常下載、記一行 debug log（→ _notes/plans/cross-review-2026-10-n6.md §回歸測試 T-N*）──
+
+const { snapshot } = require("./helpers/fs-snapshot.cjs");
+
+/** target 旁邊放 outside/ 當連結的目標 */
+async function linkTarget(t) {
+  const target = await tempTarget(t);
+  const outside = path.join(path.dirname(target), "outside");
+  await fsp.mkdir(path.join(outside, "dir"), { recursive: true });
+  await fsp.writeFile(path.join(outside, "dir", "keep.txt"), "keep");
+  return { target, outside };
+}
+
+/** 換掉 net-fetch 的 debug log，收下每一行；fail 決定 logger 自己怎麼壞 */
+function captureNetLog(t, fail = null) {
+  const lines = [];
+  configureNetFetch({
+    appendLauncherLog:
+      fail === "throw"
+        ? (line) => {
+            lines.push(line);
+            throw new Error("log down");
+          }
+        : async (line) => {
+            lines.push(line);
+            if (fail === "reject") throw new Error("log down");
+          },
+  });
+  t.after(() => configureNetFetch({}));
+  return lines;
+}
+
+/** log 晚一個 microtask 才送出；讓出幾輪再斷言 */
+async function settle() {
+  for (let i = 0; i < 5; i++) await new Promise((res) => setImmediate(res));
+}
+
+async function assertRegularFile(p, bytes) {
+  const st = await fsp.lstat(p);
+  assert.ok(st.isFile() && !st.isSymbolicLink(), `${p} 應該是一般檔`);
+  assert.deepEqual(await fsp.readFile(p), bytes);
+}
+
+function serveBody(t) {
+  return startServer((req, res) => serveWithRange(req, res, BODY)).then((srv) => {
+    t.after(() => srv.close());
+    return srv;
+  });
+}
+
+test("T-N1 N6: .tmp is a file symlink ⇒ succeeds, outside untouched, target is a regular file, one log line", async (t) => {
+  const lines = captureNetLog(t);
+  const srv = await serveBody(t);
+  const { target, outside } = await linkTarget(t);
+  await fsp.writeFile(path.join(outside, "victim.bin"), "VICTIM");
+  await fsp.symlink(path.join(outside, "victim.bin"), `${target}.tmp`, "file");
+  const before = await snapshot(outside);
+
+  await downloadToFile(srv.url, target, null);
+  await settle();
+
+  assert.deepEqual(await snapshot(outside), before);
+  await assertRegularFile(target, BODY);
+  assert.deepEqual(lines, [`DOWNLOAD_TEMP_LINK_REMOVED ${target}.tmp`]);
+});
+
+for (const [label, victim] of [
+  ["a 0-byte file", ""],
+  ["a shorter file (the site answers Range with 206)", "VICTIM"],
+  ["a file that does not exist", null],
+]) {
+  test(`T-N2 N6: .part is a file symlink to ${label} ⇒ succeeds from 0 without Range, outside untouched`, async (t) => {
+    const lines = captureNetLog(t);
+    const srv = await serveBody(t);
+    const { target, outside } = await linkTarget(t);
+    const victimPath = path.join(outside, "victim.bin");
+    if (victim !== null) await fsp.writeFile(victimPath, victim);
+    await fsp.symlink(victimPath, `${target}.part`, "file");
+    const before = await snapshot(outside);
+
+    await downloadToFile(srv.url, target, null, {
+      resume: true,
+      expectedSize: BODY.length,
+    });
+    await settle();
+
+    assert.deepEqual(await snapshot(outside), before);
+    assert.equal(srv.requests.length, 1);
+    assert.equal(srv.requests[0].headers.range, undefined);
+    await assertRegularFile(target, BODY);
+    assert.deepEqual(lines, [`DOWNLOAD_TEMP_LINK_REMOVED ${target}.part`]);
+  });
+}
+
+test("T-N3 N6: .part is a file symlink exactly expectedSize long ⇒ the link is not renamed into the target; one request", async (t) => {
+  const lines = captureNetLog(t);
+  const srv = await serveBody(t);
+  const { target, outside } = await linkTarget(t);
+  await fsp.writeFile(path.join(outside, "victim.bin"), Buffer.alloc(BODY.length, 0x58));
+  await fsp.symlink(path.join(outside, "victim.bin"), `${target}.part`, "file");
+  const before = await snapshot(outside);
+
+  await downloadToFile(srv.url, target, null, {
+    resume: true,
+    expectedSize: BODY.length,
+  });
+  await settle();
+
+  assert.equal(srv.requests.length, 1);
+  await assertRegularFile(target, BODY);
+  assert.deepEqual(await snapshot(outside), before);
+  assert.deepEqual(lines, [`DOWNLOAD_TEMP_LINK_REMOVED ${target}.part`]);
+});
+
+test("T-N4 N6: .part is a junction ⇒ succeeds instead of EISDIR, the junction is gone, outside untouched", async (t) => {
+  const lines = captureNetLog(t);
+  const srv = await serveBody(t);
+  const { target, outside } = await linkTarget(t);
+  await fsp.symlink(path.join(outside, "dir"), `${target}.part`, "junction");
+  const before = await snapshot(outside);
+
+  await downloadToFile(srv.url, target, null, {
+    resume: true,
+    expectedSize: BODY.length,
+  });
+  await settle();
+
+  await assert.rejects(fsp.lstat(`${target}.part`), { code: "ENOENT" });
+  assert.deepEqual(await snapshot(outside), before);
+  await assertRegularFile(target, BODY);
+  assert.deepEqual(lines, [`DOWNLOAD_TEMP_LINK_REMOVED ${target}.part`]);
+});
+
+test("T-N5 N6: a regular short .part still resumes with Range and logs nothing", async (t) => {
+  const lines = captureNetLog(t);
+  const srv = await serveBody(t);
+  const target = await tempTarget(t);
+  await fsp.writeFile(`${target}.part`, BODY.subarray(0, 400));
+
+  await downloadToFile(srv.url, target, null, {
+    resume: true,
+    expectedSize: BODY.length,
+  });
+  await settle();
+
+  assert.equal(srv.requests[0].headers.range, "bytes=400-");
+  await assertRegularFile(target, BODY);
+  assert.deepEqual(lines, []);
+});
+
+test("T-N6 N6: .tmp is a regular folder ⇒ still rejects EISDIR, the folder stays, nothing logged", async (t) => {
+  const lines = captureNetLog(t);
+  const srv = await serveBody(t);
+  const target = await tempTarget(t);
+  await fsp.mkdir(`${target}.tmp`);
+  await fsp.writeFile(path.join(`${target}.tmp`, "inside.txt"), "inside");
+
+  await assert.rejects(downloadToFile(srv.url, target, null), { code: "EISDIR" });
+  await settle();
+
+  assert.deepEqual(await snapshot(`${target}.tmp`), {
+    "inside.txt": Buffer.from("inside").toString("base64"),
+  });
+  assert.deepEqual(lines, []);
+});
+
+test("T-N7 N6: a regular short .part and a site that ignores Range (200) ⇒ the .part is replaced, target is right", async (t) => {
+  const srv = await startServer((req, res) => {
+    res.writeHead(200, { "content-length": String(BODY.length) });
+    res.end(BODY);
+  });
+  t.after(() => srv.close());
+  const target = await tempTarget(t);
+  await fsp.writeFile(`${target}.part`, Buffer.alloc(400, 0x58));
+
+  await downloadToFile(srv.url, target, null, {
+    resume: true,
+    expectedSize: BODY.length,
+  });
+
+  assert.equal(srv.requests.length, 1);
+  assert.equal(srv.requests[0].headers.range, "bytes=400-");
+  await assertRegularFile(target, BODY);
+  await assert.rejects(fsp.lstat(`${target}.part`), { code: "ENOENT" });
+});
+
+for (const fail of ["throw", "reject"]) {
+  test(`T-N8 N6: the debug logger fails (${fail}) ⇒ the download still succeeds, outside untouched, nothing unhandled`, async (t) => {
+    const uncaught = countUncaught(t);
+    const unhandled = [];
+    const onUnhandled = (e) => unhandled.push(String(e?.message ?? e));
+    process.on("unhandledRejection", onUnhandled);
+    t.after(() => process.off("unhandledRejection", onUnhandled));
+    const lines = captureNetLog(t, fail);
+    const srv = await serveBody(t);
+    const { target, outside } = await linkTarget(t);
+    await fsp.writeFile(path.join(outside, "victim.bin"), "VICTIM");
+    await fsp.symlink(path.join(outside, "victim.bin"), `${target}.tmp`, "file");
+    const before = await snapshot(outside);
+
+    await downloadToFile(srv.url, target, null);
+    await settle();
+
+    assert.deepEqual(await snapshot(outside), before);
+    await assertRegularFile(target, BODY);
+    assert.equal(lines.length, 1);
+    assert.deepEqual(unhandled, []);
+    assert.deepEqual(uncaught, []);
+  });
+}

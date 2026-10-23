@@ -68,7 +68,7 @@ function sameFiles(a, b) {
  *   deps: object,
  * }} input
  * deps.prepareRuntime() 回 { minecraft, loader, javaMajor }（④c，→ _notes/plans/instance-sync-v3-commit4c.md §設計「同步端」）
- * deps.log(line)：選填；目前只用來記 .ggl-tmp 是連結（D-LINK-C-TMP）
+ * deps.log(line)：選填；記 .ggl-tmp 是連結（D-LINK-C-TMP），並交給 markInProgress／writeRecord 記內部檔名是連結（N6）
  * @returns {Promise<{ movedAside: { from: string, to: string }[], record: object }>}  record＝實際寫入的那份
  */
 async function applyPlan({ plan, record, paths, filesBaseUrl, deps: given }) {
@@ -109,7 +109,7 @@ async function applyPlan({ plan, record, paths, filesBaseUrl, deps: given }) {
   // 第一個檢查點：清殘檔、建中斷標記之前，擋下＝什麼都沒發生
   await refuseLinks();
   await clearLeftovers({ fsp, abs, record, plan, stagingDir, log: deps.log });
-  await deps.markInProgress(paths);
+  await deps.markInProgress(paths, { log: deps.log });
   // 一回來就驗、只取三欄：不合法時一個同步檔都還沒動；回傳物件多帶的 files／version 不准蓋掉記錄（R#19）
   const runtime = pickRuntimeFields(await deps.prepareRuntime());
 
@@ -157,7 +157,7 @@ async function applyPlan({ plan, record, paths, filesBaseUrl, deps: given }) {
     ...runtime,
     appliedAt: deps.now().toISOString(),
   };
-  await deps.writeRecord(paths, written);
+  await deps.writeRecord(paths, written, { log: deps.log });
   // 記錄寫成功＝這次更新成功；之後的清理失敗留給下一次開頭處理
   try {
     await deps.clearInProgress(paths);

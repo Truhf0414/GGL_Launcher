@@ -503,7 +503,7 @@ async function setupRealHub(t, ipcDepsOverrides = {}) {
     appliedAt: "2026-10-01T00:00:00.000Z",
     files: HUB_RELEASE.files.map((f) => ({ path: f.path, sha256: f.sha256 })),
     ...RUNTIME,
-  });
+  }, { log: () => {} });
   await installRuntime(paths);
   const site = { online: true };
   const sync = createInstanceSync({
