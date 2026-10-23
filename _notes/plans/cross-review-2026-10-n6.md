@@ -1,4 +1,4 @@
-# N6 — GGL 內部寫入出口的連結保護：細部 plan（狀態：**2026-10-23 初稿，待 owner 與 ChatGPT 審查；未授權施工與 commit**）
+# N6 — GGL 內部寫入出口的連結保護：細部 plan（狀態：**2026-10-23 初稿；同日 owner 與 ChatGPT 審查通過、授權施工（不含 commit）；同日施工完成、驗收單交 owner（→ §施工紀錄）；同日 ChatGPT 獨立審查通過、owner 同意收尾，commit `38769d2`**）
 
 上層＝`plans/cross-review-2026-10.md` §8 N6（目的、停損、範圍、不做、不變量、驗收下限）；裁決本體與出處＝同檔 §3.10 D-N6；連結責任的既有分工＝同檔 §3.4 D-LINK-C 群；原始反例＝同檔 §5.16 Z1。本檔只寫上層沒定死的細節，不重述裁決本體。
 
@@ -15,6 +15,9 @@
 | 10-23 | owner（終端貼入） | 裁 D1-A、D2-B 與日誌契約；授權準備細部 plan |
 | 10-23 | CC | 回報三項補充：net-fetch 不能沿用 `safeLog`、log 參數必填會動到測試呼叫處、R1 在 Electron 下驗不了 |
 | 10-23 | owner（終端貼入） | 裁三項補充；授權寫本檔，未授權施工與 commit |
+| 10-23 | owner（終端貼入） | 本檔經 owner 與 ChatGPT 設計審查，授權施工與測試，不含 commit；施工前先改 T-I3 的證據描述與完成定義 |
+| 10-23 | CC | 施工、驗收單交 owner（§施工紀錄） |
+| 10-23 | owner（終端貼入） | ChatGPT 獨立審查通過，owner 同意收尾：授權 commit 與文件結案 |
 
 裁決出處（owner 2026-10-23 終端貼入）：
 
@@ -40,7 +43,7 @@
 | S3 | net-fetch `.part`（Sync staging） | `<sha>.part` → 0 byte 檔 | **外部被覆寫成完整內容**，更新成功 | 同 |
 | S4 | 同上 | → 較短的檔，站台回 206 | **外部被附加**；更新失敗 `GGL_SYNC_HASH_MISMATCH` | 同 |
 | S6 | 同上 | → 不存在的檔 | **外部被建出新檔**，更新成功 | 同 |
-| S7b | 同上 | 是 junction，連按兩次更新 | 兩次都 `EISDIR`、連結還在：`clearLeftovers` 保留要下載的 `.part`（`main/sync/apply.js:195`） | 同 |
+| S7b | 同上 | 是 junction，連按兩次更新 | 兩次都 `EISDIR`、連結還在：`clearLeftovers` 保留要下載的 `.part`（`main/sync/apply.js:195`） | 同〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`main/sync/apply.js:195` 未移動〕 |
 | S2 | `sync-record.json.tmp` | file symlink | **外部被覆寫**；`sync-record.json` 變成連結；更新成功 | 同 |
 | S1 | `sync-in-progress` | file symlink | **外部被覆寫成時間字串**；更新成功 | 同 |
 | R1 | Fabric profile `<json>.tmp` | file symlink | **外部被覆寫**；`<json>` 變成連結 | 無效（§已知未驗） |
@@ -63,10 +66,10 @@
 
 ### 讀碼
 
-- 寫入模式：net-fetch `"w"`／`"a"`（`main/net-fetch.js:198-200`、`:243-245`）；`writeRecord`、`markInProgress` 的 `writeFile`（`main/sync/instance-record.js:32`、`:39`）；`writeJsonReplacing` 的 `writeFile`（`main/runtime/minecraft.js:216-226`）。都會跟進連結。
+- 寫入模式：net-fetch `"w"`／`"a"`（`main/net-fetch.js:198-200`、`:243-245`）；`writeRecord`、`markInProgress` 的 `writeFile`（`main/sync/instance-record.js:32`、`:39`）；`writeJsonReplacing` 的 `writeFile`（`main/runtime/minecraft.js:216-226`）。都會跟進連結。〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`main/net-fetch.js:198-200` 後 `:210-212`、`:243-245` 後 `:255-257`；`main/sync/instance-record.js:32` 後 `:37`、`:39` 後 `:47`；`main/runtime/minecraft.js:216-226` 後 `:219-231`〕
 - 既有防線管不到這些名字：1a `baseLinkPaths` 只查基底資料夾（`lib/sync/blocking.js:133-145`）；1b `linkGuard` 只查目標檔與各層上層（`main/runtime/minecraft.js` `ensureOne` 的 `guardLinks(rel)`、`installRuntimeFiles` 的查連結）。
 - 日誌鏈：net-fetch 用模組層的 `netDeps.appendLauncherLog`，由 `main/app-ready.js:134-141` `configureNetFetch` 接上；Sync 的 `deps.log` 由 `main/start-main.js:101` 接 `appendLauncherLog`，經 `main/sync/index.js:395` 給 `applyPlan`，經 `:379` 給 `prepareRuntime`，`main/runtime/prepare.js:38-45` 原樣交給 `ensureVersionJsons`。`appendLauncherLog` 在 debug 關著時直接 return，自己吞掉寫檔錯誤（`main/launcher-log.js:24-35`）。
-- `safeLog`（`main/runtime/download.js:19-24`）同步丟錯與 rejection 都吞；`download.js` 自己 require `net-fetch.js`（`:8-13`），所以 net-fetch 不能反過來 require 它〔推論：互相 require 時先載入的一方拿到不完整的 exports〕。
+- `safeLog`（`main/runtime/download.js:19-24`）同步丟錯與 rejection 都吞；`download.js` 自己 require `net-fetch.js`（`:8-13`），所以 net-fetch 不能反過來 require 它〔推論：互相 require 時先載入的一方拿到不完整的 exports〕。〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`main/runtime/download.js` 不在本 commit〕
 
 ## 舊碼已經保證的（不動）
 
@@ -74,7 +77,7 @@
 - `.ggl-tmp`：`clearLeftovers` 在 copy 前先 `rm`（D-LINK-C-TMP，測試 L18）。
 - Java staging 每次整個重建（`main/runtime/java.js:501-502`），staging 本身是連結＝B4。
 - 原版 json 的 `<json>.tmp` 是改名目標，rename 換掉的是連結本身（R2b）。
-- X1：開檔、寫入、`end` 的錯誤 reject 原始錯誤，`.tmp` 是一般資料夾 ⇒ `EISDIR`（`test/net-fetch-download.test.cjs:445-591`）。
+- X1：開檔、寫入、`end` 的錯誤 reject 原始錯誤，`.tmp` 是一般資料夾 ⇒ `EISDIR`（`test/net-fetch-download.test.cjs:445-591`）。〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`test/net-fetch-download.test.cjs:445-591` 未移動（N6 的新案接在 `:592` 之後）〕
 
 ## 缺陷（根因）
 
@@ -112,14 +115,14 @@ async function removeLinkAt(fsp, p)
 
 | # | 位置（`b6dc291`） | 時機 | 原有寫入責任（不變） | 日誌（成功刪掉連結後才寫） |
 |---|---|---|---|---|
-| 1 | `main/net-fetch.js` `downloadToFile`，`ensureDirForFile`（`:139`）之後、`expectedSize` 預檢（`:147`）之前，只查一次 | 預檢之前：否則 S5 那條路徑會把連結本身改名成完成檔、不打請求就回傳 | 續傳 Range、200 回退、416 預檢、retry、X1 的錯誤傳遞與清理 | `logToLauncher(\`DOWNLOAD_TEMP_LINK_REMOVED ${partPath}\`)` |
-| 2 | `main/sync/instance-record.js` `writeRecord`，`mkdir`（`:31`）之後、`writeFile`（`:32`）之前 | 每次寫記錄 | 驗形狀、寫 `.tmp`、rename | `safeLog(log, \`SYNC_RECORD_TMP_LINK_REMOVED ${tmp}\`)` |
-| 3 | 同檔 `markInProgress`，`mkdir`（`:37`）之後、`writeFile`（`:39`）之前 | 每次建標記 | 標記存在＝同步中；一般檔照舊直接蓋（不先刪，中斷語意不變） | `safeLog(log, \`SYNC_MARKER_LINK_REMOVED ${paths.syncInProgressPath}\`)` |
+| 1 | `main/net-fetch.js` `downloadToFile`，`ensureDirForFile`（`:139`）之後、`expectedSize` 預檢（`:147`）之前，只查一次 | 預檢之前：否則 S5 那條路徑會把連結本身改名成完成檔、不打請求就回傳 | 續傳 Range、200 回退、416 預檢、retry、X1 的錯誤傳遞與清理 | `logToLauncher(\`DOWNLOAD_TEMP_LINK_REMOVED ${partPath}\`)`〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`main/net-fetch.js:139` 後 `:148`、`:147` 後 `:161`；呼叫點 1 在 `:152-156`〕 |
+| 2 | `main/sync/instance-record.js` `writeRecord`，`mkdir`（`:31`）之後、`writeFile`（`:32`）之前 | 每次寫記錄 | 驗形狀、寫 `.tmp`、rename | `safeLog(log, \`SYNC_RECORD_TMP_LINK_REMOVED ${tmp}\`)`〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`main/sync/instance-record.js:31` 後 `:34`、`:32` 後 `:37`；呼叫點 2 在 `:35-36`〕 |
+| 3 | 同檔 `markInProgress`，`mkdir`（`:37`）之後、`writeFile`（`:39`）之前 | 每次建標記 | 標記存在＝同步中；一般檔照舊直接蓋（不先刪，中斷語意不變） | `safeLog(log, \`SYNC_MARKER_LINK_REMOVED ${paths.syncInProgressPath}\`)`〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`main/sync/instance-record.js:37` 後 `:42`、`:39` 後 `:47`；呼叫點 3 在 `:44-45`〕 |
 | 4 | `main/runtime/minecraft.js` `writeJsonReplacing`，`mkdir` 之後、`writeFile` 之前 | 寫 Fabric profile 前 | 寫 `.tmp`、rename、失敗刪 `.tmp` | `safeLog(log, \`RUNTIME_JSON_TMP_LINK_REMOVED ${tmp}\`)` |
 
 呼叫點 1 同時涵蓋 `.tmp`（`resume: false`：Java zip、runtime 檔、原版 json 的 `.tmp.tmp`）與 `.part`（`resume: true`：Sync staging）。
 
-**呼叫點 1 的路徑名**：`partPath` 的命名規則現在寫了兩次（`:148`、`:161`），呼叫點 1 會是第三次。改成在函式開頭算一次 `const partPath = absPath + (resume ? ".part" : ".tmp");`，刪掉 `:148`、`:161` 兩處定義。`:148` 只在 `resume` 為真時執行，值不變；`:161` 在 `withRetries` 的每次嘗試裡，值也不變。〔CC 自定，owner 可打槍：不收的話就寫第三份〕
+**呼叫點 1 的路徑名**：`partPath` 的命名規則現在寫了兩次（`:148`、`:161`），呼叫點 1 會是第三次。改成在函式開頭算一次 `const partPath = absPath + (resume ? ".part" : ".tmp");`，刪掉 `:148`、`:161` 兩處定義。`:148` 只在 `resume` 為真時執行，值不變；`:161` 在 `withRetries` 的每次嘗試裡，值也不變。〔CC 自定，owner 可打槍：不收的話就寫第三份〕〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`main/net-fetch.js:148`、`:161` 兩處定義刪除，改在 `:152` 算一次〕
 
 **日誌內容**：事件代號＋內部檔的完整路徑（就是連結本身所在的位置），不呼叫 `readlink`，不記指向。完整路徑與 `RUNTIME_SOURCE ${dest}` 同一個做法；net-fetch 只拿得到絕對路徑。四個事件代號各自獨立，看 log 就知道是哪個出口。〔CC 自定，owner 可打槍〕
 
@@ -129,11 +132,11 @@ async function removeLinkAt(fsp, p)
 |---|---|
 | `main/fs-utils.js` | 新增並匯出 `removeLinkAt(fsp, p)` |
 | `main/net-fetch.js` | `require` 多取 `removeLinkAt`；新增本地 `logToLauncher(line)`（N6-D3）；呼叫點 1；`partPath` 只算一次 |
-| `main/sync/instance-record.js` | `writeRecord(paths, record, { log })`、`markInProgress(paths, { log })`；`require("../fs-utils.js")` 取 `removeLinkAt`、`require("../runtime/download.js")` 取 `safeLog`（`apply.js:12` 已有同樣的引用方向）；呼叫點 2、3 |
-| `main/sync/apply.js` | `:112` `deps.markInProgress(paths, { log: deps.log })`；`:160` `deps.writeRecord(paths, written, { log: deps.log })`；`:71` 註解改成列出現在用到 `deps.log` 的地方。`deps.log` 仍然選填，沒傳就是 `undefined`，`safeLog` 本來就接受（N6-D4） |
-| `main/runtime/minecraft.js` | `writeJsonReplacing(fs, abs, json, log)`；唯一的呼叫者 `:283` 傳 `deps.log`；`:11` 多取 `removeLinkAt`；呼叫點 4 |
+| `main/sync/instance-record.js` | `writeRecord(paths, record, { log })`、`markInProgress(paths, { log })`；`require("../fs-utils.js")` 取 `removeLinkAt`、`require("../runtime/download.js")` 取 `safeLog`（`apply.js:12` 已有同樣的引用方向）；呼叫點 2、3〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`main/sync/apply.js:12` 未移動〕 |
+| `main/sync/apply.js` | `:112` `deps.markInProgress(paths, { log: deps.log })`；`:160` `deps.writeRecord(paths, written, { log: deps.log })`；`:71` 註解改成列出現在用到 `deps.log` 的地方。`deps.log` 仍然選填，沒傳就是 `undefined`，`safeLog` 本來就接受（N6-D4）〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`main/sync/apply.js` 未移動（`:71`、`:112`、`:160` 是本 commit 改的行）〕 |
+| `main/runtime/minecraft.js` | `writeJsonReplacing(fs, abs, json, log)`；唯一的呼叫者 `:283` 傳 `deps.log`；`:11` 多取 `removeLinkAt`；呼叫點 4〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`main/runtime/minecraft.js:283` 後 `:288`、`:11` 未移動；呼叫點 4 在 `:222-223`〕 |
 
-`{ log }` 沒有預設值（conventions §防禦與相容 第 2 條）：每個呼叫者都要傳物件，值可以是 `undefined`。`applyPlan` 的 `deps.markInProgress`／`deps.writeRecord` 是可注入的；測試注入的假函式（`test/sync-apply.test.cjs:226` 起）多收一個參數不受影響。
+`{ log }` 沒有預設值（conventions §防禦與相容 第 2 條）：每個呼叫者都要傳物件，值可以是 `undefined`。`applyPlan` 的 `deps.markInProgress`／`deps.writeRecord` 是可注入的；測試注入的假函式（`test/sync-apply.test.cjs:226` 起）多收一個參數不受影響。〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`test/sync-apply.test.cjs:226` 未移動〕
 
 `logToLauncher`（net-fetch 本地，N6-D3）：
 
@@ -148,7 +151,7 @@ function logToLauncher(line) {
 }
 ```
 
-`.then` 包住呼叫，同步 throw 會變成 rejection，兩種都由 `.catch` 接走，不需要 `typeof` 檢查。log 會晚一個 microtask 才送出，測試要等一輪再斷言。既有的 RETRY log（`:289-291`）是 `void netDeps.appendLauncherLog(...)`，不在本刀範圍、不順手改；正式環境的 `appendLauncherLog` 不會 reject（`main/launcher-log.js:26-34`）。
+`.then` 包住呼叫，同步 throw 會變成 rejection，兩種都由 `.catch` 接走，不需要 `typeof` 檢查。log 會晚一個 microtask 才送出，測試要等一輪再斷言。既有的 RETRY log（`:289-291`）是 `void netDeps.appendLauncherLog(...)`，不在本刀範圍、不順手改；正式環境的 `appendLauncherLog` 不會 reject（`main/launcher-log.js:26-34`）。〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`main/net-fetch.js:289-291` 後 `:301-303`〕
 
 conventions §防禦與相容 第 4 條：`logToLauncher` 的 `.catch` 是吞錯，寫一行為什麼。commit 前 `rg '^\+.*(\?\.|\?\?|catch|typeof)'` 會命中它，答案同上。`safeLog` 是既有函式，不新增它的 `?.`。
 
@@ -159,7 +162,7 @@ conventions §防禦與相容 第 4 條：`logToLauncher` 的 `.catch` 是吞錯
 | 生產檔 | 4 | 5 | `apply.js`（2 行傳參數＋1 行註解） |
 | helper 呼叫點 | 4 | 4 | — |
 | 日誌傳遞 | net-fetch 1 行 `void` | net-fetch 本地防護約 8 行；`instance-record` 兩個簽名＋兩個 `require`；`writeJsonReplacing` 一個參數＋呼叫者一處；`apply.js` 兩處傳參數 | N6-D2、N6-D3 |
-| 既有測試呼叫參數 | 0 | 13 處：`test/sync-index.test.cjs` 5（`:113`、`:1133`、`:1781`、`:2065`、`:2116`）、`test/sync-instance-record.test.cjs` 5、`test/sync-apply.test.cjs:730` 1（把注入的 `writeRecord` 收到的參數原樣轉給真的 `writeRecord`）、`test/minecraft-ipc-launch.test.cjs:500` 1、`test/site-format-doc.test.cjs:237` 1；只加參數，不改斷言（N6-D4）。〔施工時更正：初稿寫 10 處——當時只搜了三個測試檔；`:730` 不是忽略參數的假函式，是轉給真函式的包裝。施工時全 repo 重搜（排除 `_notes/`、`node_modules/`、`docs/`；`docs/` 另搜 0 命中）〕 | 簽名必填 |
+| 既有測試呼叫參數 | 0 | 13 處：`test/sync-index.test.cjs` 5（`:113`、`:1133`、`:1781`、`:2065`、`:2116`）、`test/sync-instance-record.test.cjs` 5、`test/sync-apply.test.cjs:730` 1（把注入的 `writeRecord` 收到的參數原樣轉給真的 `writeRecord`）、`test/minecraft-ipc-launch.test.cjs:500` 1、`test/site-format-doc.test.cjs:237` 1；只加參數，不改斷言（N6-D4）。〔施工時更正：初稿寫 10 處——當時只搜了三個測試檔；`:730` 不是忽略參數的假函式，是轉給真函式的包裝。施工時全 repo 重搜（排除 `_notes/`、`node_modules/`、`docs/`；`docs/` 另搜 0 命中）〕 | 簽名必填〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`test/sync-index.test.cjs` `:113` 後 `:115`、`:1133` 後 `:1135`、`:1781` 後 `:1783`、`:2065` 後 `:2067`、`:2116` 後 `:2118`；`test/sync-apply.test.cjs:730`、`test/minecraft-ipc-launch.test.cjs:500`、`test/site-format-doc.test.cjs:237` 未移動〕 |
 
 日誌傳遞不是第五個連結處置出口：它只把 logger 送到四個既有呼叫點。
 
@@ -167,13 +170,13 @@ conventions §防禦與相容 第 4 條：`logToLauncher` 的 `.catch` 是吞錯
 
 | 契約 | 改動後 | 守著它的既有測試 |
 |---|---|---|
-| 416 預檢（`.part` 等於／大於預期大小） | 連結先刪；一般檔照舊 | `net-fetch-download` `:90`、`:103`、`:119` |
-| 206 續傳 | 一般的短 `.part` 不動，照舊帶 Range、`"a"` 開檔 | `:138`；`sync-apply` `:413` |
-| 200 回退（續傳卻收到 200） | 程式碼不動（`:181-186`） | **沒有直接測試**（X1 plan §會碰到的既有契約）⇒ 本刀補 T-N7 |
-| X1（開檔／寫入／`end` 的錯、清理、連線釋放） | 一般資料夾不會被 helper 碰到 | `net-fetch-download` `:445-591` 的 A、B、C、C2、E |
+| 416 預檢（`.part` 等於／大於預期大小） | 連結先刪；一般檔照舊 | `net-fetch-download` `:90`、`:103`、`:119`〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`test/net-fetch-download.test.cjs` `:90`、`:103`、`:119` 未移動〕 |
+| 206 續傳 | 一般的短 `.part` 不動，照舊帶 Range、`"a"` 開檔 | `:138`；`sync-apply` `:413`〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`test/net-fetch-download.test.cjs:138`、`test/sync-apply.test.cjs:413` 未移動〕 |
+| 200 回退（續傳卻收到 200） | 程式碼不動（`:181-186`） | **沒有直接測試**（X1 plan §會碰到的既有契約）⇒ 本刀補 T-N7〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`main/net-fetch.js:181-186` 後 `:193-198`〕 |
+| X1（開檔／寫入／`end` 的錯、清理、連線釋放） | 一般資料夾不會被 helper 碰到 | `net-fetch-download` `:445-591` 的 A、B、C、C2、E〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`test/net-fetch-download.test.cjs:445-591` 未移動〕 |
 | 中止、看門狗、retry、進度 | helper 在 `withRetries` 之前執行一次，不在每次嘗試裡 | 既有看門狗、T2a、T2b、T3 各案 |
-| 記錄的原子寫入 | 寫 `.tmp` → rename 不變 | `sync-instance-record` `:46`、`:52`、`:74` |
-| 同步中標記 | 一般檔照舊直接蓋；連結才刪 | `sync-instance-record` `:81`；`sync-apply` 的中斷案 |
+| 記錄的原子寫入 | 寫 `.tmp` → rename 不變 | `sync-instance-record` `:46`、`:52`、`:74`〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`test/sync-instance-record.test.cjs` `:46` 後 `:49`、`:52` 後 `:55`、`:74` 後 `:77`〕 |
+| 同步中標記 | 一般檔照舊直接蓋；連結才刪 | `sync-instance-record` `:81`；`sync-apply` 的中斷案〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`test/sync-instance-record.test.cjs:81` 後 `:84`〕 |
 | 原版 json 驗 sha1 再改名 | 不動 | `runtime-minecraft` T12 各案 |
 
 ## 回歸測試
@@ -207,7 +210,7 @@ conventions §防禦與相容 第 4 條：`logToLauncher` 的 `.catch` 是吞錯
 | T-J1 | `runtime-java` | 真 `installJava`：`jre21.zip.tmp` 是 file symlink ⇒ 安裝成功、外部不變 | 紅 | Z1 轉成 GGL 層回歸（上層 §8 N6 驗收下限） |
 
 - 會發請求、會等計時器的案照 conventions §測試：`useMockClock`、`startServer`，不拿真時鐘賭。
-- net-fetch 的 logger 是模組層的：用 `configureNetFetch({ appendLauncherLog: … })` 換、`t.after(() => configureNetFetch({}))` 換回（同 `test/net-fetch-download.test.cjs:294-295`）。T-A1、T-M2、T-M3、T-J1 會經過 net-fetch，沒換 logger 的案收到的是預設的空函式。
+- net-fetch 的 logger 是模組層的：用 `configureNetFetch({ appendLauncherLog: … })` 換、`t.after(() => configureNetFetch({}))` 換回（同 `test/net-fetch-download.test.cjs:294-295`）。T-A1、T-M2、T-M3、T-J1 會經過 net-fetch，沒換 logger 的案收到的是預設的空函式。〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`test/net-fetch-download.test.cjs:294-295` 未移動〕
 - unhandled 計數：每案 `process.on` 兩個事件、`t.after` 移除，結束後讓出幾輪 `setImmediate` 再斷言 `[]`（同 X1 plan §回歸測試）。
 - 不收的：S4b（站台回 200 時舊碼已經先刪連結）、Z2、Z5、R2b（實測不越界）、hardlink（不做）。
 
@@ -246,3 +249,27 @@ conventions §防禦與相容 第 4 條：`logToLauncher` 的 `.catch` 是吞錯
 - 已經變成連結的正式檔（舊碼留下的）：本刀只防新的，不掃（owner 2026-10-23 終端貼入的不做清單：「不追溯掃描既存正式檔案。」）。R3 的實測顯示這種檔在內容 hash 對的時候，修復也不會發現。
 - 可達性〔猜的，沒查〕：所有越界案都要有人刻意在 GGL 的內部檔名上放檔案層級的連結，不知道有哪個正常操作會產生。
 - CI（`windows-latest`）上建 file symlink 有沒有權限：沒查；建不出來會讓新案紅，不會假綠。
+- 〔施工時加〕既有測試 D7（1b，`test/sync-apply.test.cjs`）在 Electron run-as-node 下也撞同一個 undici assertion：乾淨的 `b6dc291` 副本同樣紅、Node 下過，是 N6 之前就有的缺口。Electron 下沒跑 freeze。
+
+## 施工紀錄（2026-10-23，基準 `b6dc291`，commit `38769d2`）〔實測〕
+
+- **改動**：生產 5 檔（+59／-13）、測試 9 檔（30 個新案；13 處既有呼叫只加參數，斷言未改，§成本）。diff 與 §設計 逐條相符。
+- **紅燈**：新案先在 `b6dc291` 的生產碼上跑，26 紅、4 綠（T-N5、T-N6、T-N7、T-I3）。紅的理由逐案核對：外部被覆寫（N1、N2 的 0 byte 列、N8、I1、I2、I4、A2、M1、M2、M3、J1）、被附加（N2 的較短檔列）、外部被建出新檔（N2 的不存在列）、0 次請求且連結被改名成目標（N3）、`EISDIR`（N4、A1）、函式不存在（H）。改到的 7 個測試檔在舊碼上共 393 案，紅的只有這 26 案。
+- **綠燈**：30 案全過。完整 `npm test` 1198 → 1228，Node 24.14.1 與 22.18.0 都 1228／1228。
+- **反向驗證**（每次只拔一處，跑新案所在的 6 個測試檔，跑完逐位元組還原，前後工作樹 diff 相同；不改動的對照組 0 紅）：
+
+| 拔掉 | 紅的案 |
+|---|---|
+| 呼叫點 1（net-fetch） | N1、N2×3、N3、N4、N8×2、A1、M2、M3、J1 |
+| 呼叫點 2（`writeRecord`） | I1、I4×2、A2 |
+| 呼叫點 3（`markInProgress`） | I2、I4×2、A2 |
+| 呼叫點 4（`writeJsonReplacing`） | M1 |
+| `logToLauncher` 的 `.catch` | N8×2 |
+| `apply.js` 傳 `deps.log` | A2 |
+| 呼叫點 1 挪到 `expectedSize` 預檢之後 | 只有 N3 |
+
+- **Freeze**：改到的 9 個測試檔，`FREEZE_OFFSET` 0–7 × Node 24、22，共 16 輪全綠（每輪 474 案）；`FREEZE_MARK` 確認每輪約 420 次卡頓、約 3363 個請求。
+- **Electron 44.3.0 run-as-node**：`fs-utils`、`net-fetch-download`、`sync-instance-record`、`sync-apply`、`runtime-java` 五檔 186／187，新案 27／27；`runtime-minecraft` 的 T-M3 與對照組 T13 3／3。紅的那一案是既有的 D7（§已知未驗）。T-M1、T-M2 照 N6-D5 不跑。
+- **工具**：`lint`、`check:ui-css`、`git diff --check` exit 0；pre-commit hook 通過；5 個生產檔 `prettier --check` 通過；9 個測試檔在 `b6dc291` 上就不符 prettier，沒跑 `format:file`（會重排無關的行）。staged diff 的防禦樣式命中 2 處（`removeLinkAt` 的探測 catch、`logToLauncher` 的 `.catch`），各有一行註解說為什麼可以吞。
+- **撞到**：初稿的測試呼叫處寫 10 處，實際 13 處——當時只搜了三個測試檔（§成本 已更正）；`sd -F` 不吃跨行字面，三處多行呼叫改用 Edit；反向驗證的錨點 `return await withRetries(` 在 `fetchJson` 也有一份，第一次沒套上，換更長的錨點重跑。
+- **放行**：ChatGPT 獨立審查通過，owner 同意收尾（2026-10-23 終端貼入）。
