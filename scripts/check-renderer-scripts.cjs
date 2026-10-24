@@ -62,14 +62,6 @@ const actual = [
   ...rendererLike,
 ];
 
-// Only validate if renderer.js is present (avoid false positives on unrelated pages).
-if (!srcs.includes("./renderer.js")) {
-  console.log(
-    "[renderer-scripts-check] skipped (no ./renderer.js in index.html)",
-  );
-  process.exit(0);
-}
-
 if (actual.join("\n") !== expected.join("\n")) {
   const lines = [];
   lines.push("[renderer-scripts-check] FAILED");
