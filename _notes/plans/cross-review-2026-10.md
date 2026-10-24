@@ -339,8 +339,8 @@ RESULT: second handle threw: Attempted to register a second handler for 'dup:tes
 
 ### 5.6 G1、G3 的跳過分支（CC 第三輪）〔讀碼〕
 
-- G1：`scripts/check-renderer-scripts.cjs:58-63`，`index.html` 少了 `./renderer.js` 時印 `skipped` 後 `process.exit(0)`。〔對齊 2026-10-22：`scripts/check-renderer-scripts.cjs:58-63` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 後 `:65-70`〕〔對齊 2026-10-22：→ `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 未移動（行內行號指的檔不在本 commit）〕〔對齊 2026-10-24：`scripts/check-renderer-scripts.cjs:58-63` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 刪除（`a4d4eb9` 後的 `:65-70`；缺 `./renderer.js` 改由順序比對失敗）〕
-- G3：`scripts/check-ui-css.cjs:240`，`if (ok === null) continue;`。補充：這個檢查只看 `settingsModal`、`notifOverlay` 兩個 id 有沒有 `no-drag` class，範圍比 `defense-cleanup.md` 原本的描述窄。〔對齊 2026-10-24：`scripts/check-ui-css.cjs:240` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 改寫，後 `:235-238`（找不到 id ⇒ 錯誤）〕
+- G1：`scripts/check-renderer-scripts.cjs:58-63`，`index.html` 少了 `./renderer.js` 時印 `skipped` 後 `process.exit(0)`。〔對齊 2026-10-22：`scripts/check-renderer-scripts.cjs:58-63` → `a4d4eb9`（plans/cross-review-2026-10-phase4.md 4b） 後 `:65-70`〕〔對齊 2026-10-22：→ `99383f8`（plans/cross-review-2026-10-phase4.md 4c） 未移動（行內行號指的檔不在本 commit）〕〔對齊 2026-10-24：`scripts/check-renderer-scripts.cjs:58-63` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 刪除（`a4d4eb9` 後的 `:65-70`；缺 `./renderer.js` 改由順序比對失敗）〕〔對齊 2026-10-24：→ `a707155`（plans/cross-review-2026-10-phase6a.md 6a-2） 未移動（行內行號指的檔不在本 commit）〕
+- G3：`scripts/check-ui-css.cjs:240`，`if (ok === null) continue;`。補充：這個檢查只看 `settingsModal`、`notifOverlay` 兩個 id 有沒有 `no-drag` class，範圍比 `defense-cleanup.md` 原本的描述窄。〔對齊 2026-10-24：`scripts/check-ui-css.cjs:240` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 改寫，後 `:235-238`（找不到 id ⇒ 錯誤）〕〔對齊 2026-10-24：→ `a707155`（plans/cross-review-2026-10-phase6a.md 6a-2） 未移動（行內行號指的檔不在本 commit）〕
 - **沒有跑突變測試**。Phase 6 修 G1、G3 時，先寫會失敗的測試證明修之前 exit 0、修之後非 0。
 
 ### 5.7 日誌管道現況（CC 第一、三輪；SPR 補一處）〔讀碼〕
@@ -929,11 +929,11 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
 
 | 子 | 範圍 | 卡的裁決 | owner 看畫面 |
 |---|---|---|---|
-| 6a | G1–G3，加 S-CHECK 的 `scripts/check-ui-css.cjs:224-229`（原屬 6e，6a Q3）→ `plans/cross-review-2026-10-phase6a.md` | — | 只確認啟動〔對齊 2026-10-24：`scripts/check-ui-css.cjs:224-229` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 刪除（讀 `index.html` 改在檔頭 `:61`，讀不到就丟錯）〕 |
+| 6a | G1–G3，加 S-CHECK 的 `scripts/check-ui-css.cjs:224-229`（原屬 6e，6a Q3）→ `plans/cross-review-2026-10-phase6a.md` | — | 只確認啟動〔對齊 2026-10-24：`scripts/check-ui-css.cjs:224-229` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 刪除（讀 `index.html` 改在檔頭 `:61`，讀不到就丟錯）〕〔對齊 2026-10-24：→ `a707155`（plans/cross-review-2026-10-phase6a.md 6a-2） 未移動（行內行號指的檔不在本 commit）〕 |
 | 6b | IPC 與 DI 組＋其他 main 組；M-LAUNCH 的內層 `catch` 與 M-SEND 同批（→ 判準檔 §判例 3） | U15 | 少 |
 | 6c | lib 組；B6＝L-SILENT 的 `lib/account-secret.js:79-81`，在此批 | U3、U4、U5 | 否 |
 | 6d | renderer 組；B1、U2 在此批；拆 G2 守住的空值檢查與 R-B 是同一筆測試帳（→ 判準檔 §判例 4） | U2 | 多 |
-| 6e | scripts／CSS 組（B2 與 S-CSS 的 `.hidden` 同批；S-CHECK 不含已移 6a 的 `check-ui-css.cjs:224-229`）＋開 ESLint `no-empty`＋收尾 | U13 | CSS 部分〔對齊 2026-10-24：`scripts/check-ui-css.cjs:224-229` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 刪除（讀 `index.html` 改在檔頭 `:61`，讀不到就丟錯）〕 |
+| 6e | scripts／CSS 組（B2 與 S-CSS 的 `.hidden` 同批；S-CHECK 不含已移 6a 的 `check-ui-css.cjs:224-229`）＋開 ESLint `no-empty`＋收尾 | U13 | CSS 部分〔對齊 2026-10-24：`scripts/check-ui-css.cjs:224-229` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 刪除（讀 `index.html` 改在檔頭 `:61`，讀不到就丟錯）〕〔對齊 2026-10-24：→ `a707155`（plans/cross-review-2026-10-phase6a.md 6a-2） 未移動（行內行號指的檔不在本 commit）〕 |
 
 順序依據〔推論，據盤點、未逐項現讀〕：G1–G3 先於拆 renderer 防線（本節「前置」）；main 送畫面的那一端（M-SEND 等）先整理，renderer 的 R-PAYLOAD 才有可信任的對象；renderer 用到 lib（如 `lib/settings-logic.js`），lib 排在 renderer 前。
 **範圍**：
