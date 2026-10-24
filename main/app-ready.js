@@ -5,7 +5,7 @@
  * @param {object} ctx
  */
 
-const { gglEvent } = require("./ggl-log");
+const { gglEvent, gglError } = require("./ggl-log");
 
 /** 與 `main.js` 的 `getMainAppReadyContext()` 鍵名一致；增刪注入時請兩邊一併改。 */
 const MAIN_APP_READY_KEYS = [
@@ -105,12 +105,6 @@ async function runMainAppReady(ctx) {
     tryStartDiscordRpcHelper,
   } = ctx;
 
-  const safeSendSyncStatus = (text) => {
-    try {
-      sendSyncStatus(text);
-    } catch {}
-  };
-
   try {
     // 與 electron-builder 的 build.appId 對齊，避免工作列/通知識別不一致
     app.setAppUserModelId("ggl3.launcher");
@@ -132,11 +126,10 @@ async function runMainAppReady(ctx) {
   createMainWindow();
   // 先注入子模組依賴再註冊 IPC，避免 renderer 極早 invoke 時踩到未配置的 deps stub
   configureNetFetch({
+    // 送畫面不丟錯（ipc-bridge 的 deliver，Q3）：重試的通知不會打斷下載
     onRetryNotify: (text) => {
-      safeSendSyncStatus(text);
-      try {
-        sendMcStatus(text);
-      } catch {}
+      sendSyncStatus(text);
+      sendMcStatus(text);
     },
     appendLauncherLog,
   });
@@ -156,6 +149,7 @@ async function runMainAppReady(ctx) {
   });
   configureServerStatus({
     sendServerStatus,
+    gglError,
     serverStatusHost: serverConfig.serverStatus.host,
     serverStatusPort: serverConfig.serverStatus.port,
     serverStatusUrl: serverConfig.serverStatus.url,

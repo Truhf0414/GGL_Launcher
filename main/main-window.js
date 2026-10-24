@@ -107,8 +107,10 @@ function createMainWindow() {
     mainWindow = null;
   });
 
+  // 只在 mainWindow 的事件裡呼叫：探針（Electron 44.3.0）裡這些事件沒有一次在 destroyed／closed 之後觸發
+  // （→ _notes/plans/cross-review-2026-10-phase6b.md U-1）
   function sendWindowPowerState() {
-    sendWindowPower(Boolean(mainWindow?.isMinimized?.()));
+    sendWindowPower(mainWindow.isMinimized());
   }
 
   // Renderer can pause background video more accurately with window state.

@@ -70,6 +70,7 @@ const REQUIRED_FUNCTIONS = [
   "readSettings",
   "isMinecraftRunning",
   "log", // ④c：runtime 安裝與 D2 清理的紀錄（appendLauncherLog），A2
+  // 不丟錯：送畫面失敗由 ipc-bridge 的 deliver 接住並記常駐日誌（Q3）；withSyncLock「重算不蓋掉結果」靠它
   "sendInstanceStatus",
   "confirmGameClosed",
 ];
@@ -261,13 +262,11 @@ function createInstanceSync(deps) {
     }
   }
 
-  // 較舊的計算晚到就丟掉；送出本身丟錯（視窗沒了）不影響流程
+  // 較舊的計算晚到就丟掉
   function send(seq, status) {
     if (seq < sentSeq) return;
     sentSeq = seq;
-    try {
-      deps.sendInstanceStatus(status);
-    } catch {}
+    deps.sendInstanceStatus(status);
   }
 
   /** 序號與「同步中」都在開始時拿，與呼叫端前一行（例如放鎖）在同一個同步段 */

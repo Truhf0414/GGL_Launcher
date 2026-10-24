@@ -1,9 +1,9 @@
 const { dialog } = require("electron");
 
 async function showInfoDialog({ getMainWindow, title, message }) {
-  const win = getMainWindow?.();
+  const win = getMainWindow();
   try {
-    if (win && typeof win.isDestroyed === "function" && !win.isDestroyed()) {
+    if (win && !win.isDestroyed()) {
       await dialog.showMessageBox(win, { type: "info", title, message });
     } else {
       await dialog.showMessageBox({ type: "info", title, message });

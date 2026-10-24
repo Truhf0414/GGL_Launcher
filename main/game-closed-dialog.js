@@ -28,8 +28,7 @@ function createConfirmGameClosed(deps) {
     const options = { ...OPTIONS, buttons: [...OPTIONS.buttons] };
     // 每次呼叫才問：建立時視窗可能還沒開
     const win = getMainWindow();
-    const alive =
-      win && typeof win.isDestroyed === "function" && !win.isDestroyed();
+    const alive = win && !win.isDestroyed();
     const result = alive
       ? await dialog.showMessageBox(win, options)
       : await dialog.showMessageBox(options);

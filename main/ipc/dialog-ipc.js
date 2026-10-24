@@ -7,7 +7,7 @@ function registerDialogIpc(ctx) {
     IPC.invoke.DIALOG_SELECT_DIRECTORY,
     async (_e, defaultPath) => {
       const result = await dialog.showOpenDialog(
-        deps.getMainWindow?.() ?? undefined,
+        deps.getMainWindow() ?? undefined,
         {
           title: "選擇安裝位置",
           defaultPath:

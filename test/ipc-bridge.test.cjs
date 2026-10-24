@@ -25,12 +25,16 @@ function status(kind, localReady, over = {}) {
   };
 }
 
+/** destroyed：測試設成 true ＝ webContents 已銷毀（Electron 的 isDestroyed()） */
 function makeWebContents() {
   const sent = [];
-  return {
+  const wc = {
     sent,
+    destroyed: false,
     send: (channel, payload) => sent.push({ channel, payload }),
+    isDestroyed: () => wc.destroyed,
   };
+  return wc;
 }
 
 function setup() {
@@ -38,18 +42,22 @@ function setup() {
   let windowPresent = true;
   const logs = [];
   const throttled = [];
+  const errors = [];
   const senders = createIpcBridgeSenders({
-    getMainWindow: () => (windowPresent ? { webContents: mainWc } : null),
+    getMainWindow: () =>
+      windowPresent ? { isDestroyed: () => false, webContents: mainWc } : null,
     appendLauncherLog: async (line) => {
       logs.push(String(line));
     },
     logSyncProgressThrottled: (text, p) => throttled.push([text, p]),
+    gglError: (...args) => errors.push(args),
   });
   return {
     senders,
     mainWc,
     logs,
     throttled,
+    errors,
     setWindowPresent: (v) => {
       windowPresent = v;
     },
@@ -119,8 +127,8 @@ test("W13 sendNotice sends exactly one notice:changed with the same snapshot", (
   assert.equal(mainWc.sent[0].payload, snap);
 });
 
-test("W19 replayLatest resends the last of each state event to the caller only", async () => {
-  const { senders, mainWc, logs, setWindowPresent } = setup();
+test("W19／B4r replayLatest resends the last of each state event to the caller only", async () => {
+  const { senders, mainWc, logs, errors, setWindowPresent } = setup();
   const wc = makeWebContents();
 
   assert.deepEqual(senders.replayLatest(wc), []);
@@ -168,11 +176,13 @@ test("W19 replayLatest resends the last of each state event to the caller only",
     payload: { state: "offline" },
   });
 
-  // 某個 channel 送失敗：不丟、其他照送，回傳只列送成功的
+  // 某個 channel 送失敗：不丟、其他照送，回傳只列送成功的；失敗的那筆記一筆常駐日誌（B4r）
+  assert.equal(errors.length, 0);
   const flaky = makeWebContents();
   const realSend = flaky.send;
+  const boom = new Error("boom");
   flaky.send = (channel, payload) => {
-    if (channel === "notice:changed") throw new Error("boom");
+    if (channel === "notice:changed") throw boom;
     realSend(channel, payload);
   };
   assert.deepEqual(senders.replayLatest(flaky), [
@@ -184,6 +194,9 @@ test("W19 replayLatest resends the last of each state event to the caller only",
     flaky.sent.map((m) => m.channel),
     ["instance:status", "server:status", "window:power"],
   );
+  assert.deepEqual(errors, [
+    ["main", "renderer_send_failed", boom, { channel: "notice:changed" }],
+  ]);
 
   // renderer:ready handler：以 event.sender 呼叫 ctx.replayLatest、寫一行 REPLAY
   const handlers = new Map();
@@ -223,4 +236,129 @@ test("internal-error ⇒ 另寫一行 INSTANCE_ERROR 帶 errorDetail；其他 ki
     logs.filter((l) => l.startsWith("INSTANCE_ERROR")),
     ["INSTANCE_ERROR Error: boom\n    at gather (index.js:1:1)"],
   );
+});
+
+// ── 送畫面是通知：失敗不往呼叫者丟、記常駐日誌；視窗已關是時序、不記（6b-1 B1–B4）──
+// → _notes/plans/cross-review-2026-10-phase6b.md §6b-1 施工方案、§送畫面的實際行為（S2、S3 的形狀）
+
+const ONE_SHOT = [
+  ["sendSyncStatus", ["t"], "sync:status"],
+  ["sendSyncProgress", ["t", 0.5], "sync:progress"],
+  ["sendSyncDone", ["t"], "sync:done"],
+  ["sendMcStatus", ["t"], "minecraft:status"],
+  ["sendMcRunning", [true], "minecraft:running"],
+];
+const STATE = [
+  ["sendInstanceStatus", [status("up-to-date", true)], "instance:status"],
+  ["sendNotice", [{ notice: null, notifications: [] }], "notice:changed"],
+  ["sendServerStatus", ["online"], "server:status"],
+  ["sendWindowPower", [false], "window:power"],
+];
+const STATE_CHANNELS = STATE.map(([, , channel]) => channel);
+
+function bridgeWith(getMainWindow) {
+  const errors = [];
+  const senders = createIpcBridgeSenders({
+    getMainWindow,
+    appendLauncherLog: async () => {},
+    logSyncProgressThrottled: () => {},
+    gglError: (...args) => errors.push(args),
+  });
+  return { senders, errors };
+}
+
+/** S2：視窗還沒 destroyed，webContents 已 destroyed，send 丟 TypeError */
+function windowWithDestroyedWebContents() {
+  const wc = makeWebContents();
+  wc.destroyed = true;
+  wc.attempts = 0;
+  wc.send = () => {
+    wc.attempts++;
+    throw new TypeError("Object has been destroyed");
+  };
+  return { win: { isDestroyed: () => false, webContents: wc }, wc };
+}
+
+/** S3：視窗已 destroyed，讀 .webContents 就丟 TypeError */
+function destroyedWindow() {
+  const win = { reads: 0, isDestroyed: () => true };
+  Object.defineProperty(win, "webContents", {
+    get() {
+      win.reads++;
+      throw new TypeError("Object has been destroyed");
+    },
+  });
+  return win;
+}
+
+test("B1 webContents 已 destroyed（S2）⇒ 五個一次性 sender 都不丟、不送、不記", () => {
+  for (const [name, args] of ONE_SHOT) {
+    const { win, wc } = windowWithDestroyedWebContents();
+    const { senders, errors } = bridgeWith(() => win);
+    assert.doesNotThrow(() => senders[name](...args), name);
+    assert.equal(wc.attempts, 0, name);
+    assert.equal(errors.length, 0, name);
+  }
+});
+
+test("B1w 視窗已 destroyed（S3）⇒ 九個 sender 都不丟、沒讀 .webContents、不記", () => {
+  for (const [name, args] of [...ONE_SHOT, ...STATE]) {
+    const win = destroyedWindow();
+    const { senders, errors } = bridgeWith(() => win);
+    assert.doesNotThrow(() => senders[name](...args), name);
+    assert.equal(win.reads, 0, name);
+    assert.equal(errors.length, 0, name);
+  }
+});
+
+test("B2 webContents 已 destroyed 時送的狀態照樣記住；renderer:ready 重播四筆", () => {
+  const { win, wc } = windowWithDestroyedWebContents();
+  const { senders, errors } = bridgeWith(() => win);
+  for (const [name, args] of STATE) {
+    assert.doesNotThrow(() => senders[name](...args), name);
+  }
+  assert.equal(wc.attempts, 0);
+  const fresh = makeWebContents();
+  assert.deepEqual(senders.replayLatest(fresh), STATE_CHANNELS);
+  assert.deepEqual(
+    fresh.sent.map((m) => m.channel),
+    STATE_CHANNELS,
+  );
+  assert.equal(errors.length, 0);
+});
+
+test("B3 沒有主視窗（null）⇒ 九個 sender 都不丟、不記", () => {
+  for (const [name, args] of [...ONE_SHOT, ...STATE]) {
+    const { senders, errors } = bridgeWith(() => null);
+    assert.doesNotThrow(() => senders[name](...args), name);
+    assert.equal(errors.length, 0, name);
+  }
+});
+
+test("B4 活的 webContents 但 send 丟錯 ⇒ 九個 sender 都不丟；各記一筆 renderer_send_failed 帶自己的 channel；狀態照樣記住", () => {
+  const boom = new Error("boom");
+  const wc = makeWebContents();
+  wc.send = () => {
+    throw boom;
+  };
+  const { senders, errors } = bridgeWith(() => ({
+    isDestroyed: () => false,
+    webContents: wc,
+  }));
+  const all = [...ONE_SHOT, ...STATE];
+  for (const [name, args] of all) {
+    assert.doesNotThrow(() => senders[name](...args), name);
+  }
+  assert.deepEqual(
+    errors,
+    all.map(([, , channel]) => [
+      "main",
+      "renderer_send_failed",
+      boom,
+      { channel },
+    ]),
+  );
+  const fresh = makeWebContents();
+  assert.deepEqual(senders.replayLatest(fresh), STATE_CHANNELS);
+  assert.equal(errors.length, all.length, "重播成功不再記");
 });

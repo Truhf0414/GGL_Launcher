@@ -9,6 +9,7 @@ const os = require("os");
 const path = require("path");
 
 const { startServer, serveWithRange } = require("./helpers/local-http.cjs");
+const { bridgeWithLiveWindow, throwOnSend } = require("./helpers/real-bridge.cjs");
 const {
   useMockClock,
   until,
@@ -305,6 +306,50 @@ test(
     assert.ok(await stillPending(w), "第二次逾時之前不該結束");
     clock.advance(200);
     await assert.rejects(p, /連線失敗/);
+  },
+);
+
+// N5：下載重試的通知照 main/app-ready.js 的 onRetryNotify 形狀組、接真的 bridge、send 丟錯。
+// 驗的是「bridge＋net-fetch 的通知失敗契約」，不是 app-ready 本身（runMainAppReady 沒有測試）
+// → _notes/plans/cross-review-2026-10-phase6b.md §N5、B11
+test(
+  "B11 下載重試的通知送不出去（真 bridge）⇒ 下載照樣成功；兩個通知各一筆常駐日誌",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const clock = useMockClock(t);
+    const srv = await startServer((req, res, n) => {
+      if (n === 1) return; // 第一次永不回 headers ⇒ 逾時、重試
+      serveWithRange(req, res, BODY);
+    });
+    t.after(() => srv.close());
+    const target = await tempTarget(t);
+    const { bridge, errors } = bridgeWithLiveWindow(throwOnSend);
+    const { sendSyncStatus, sendMcStatus } = bridge;
+    let retries = 0;
+    configureNetFetch({
+      onRetryNotify: (text) => {
+        retries++;
+        sendSyncStatus(text);
+        sendMcStatus(text);
+      },
+    });
+    t.after(() => configureNetFetch({}));
+
+    const p = downloadToFile(srv.url, target, null, { timeoutMs: 200 });
+    await until(() => srv.requests.length === 1, "第一次請求送達");
+    clock.advance(200);
+    await until(() => retries === 1, "排上重試等待");
+    clock.advance(650);
+    await p;
+    assert.deepEqual(await fsp.readFile(target), BODY);
+    assert.equal(srv.requests.length, 2);
+    assert.deepEqual(
+      errors.map((e) => [e[1], e[3].channel]),
+      [
+        ["renderer_send_failed", "sync:status"],
+        ["renderer_send_failed", "minecraft:status"],
+      ],
+    );
   },
 );
 

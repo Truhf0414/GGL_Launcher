@@ -61,40 +61,30 @@ function isPidAlive(pid) {
     process.kill(n, 0);
     return true;
   } catch {
+    // 探測 OS：signal 0 丟錯（ESRCH 等）＝行程不在或碰不到，就當不在
     return false;
   }
 }
 
 function isMinecraftRunning() {
-  try {
-    cleanupStaleMcProcessIfNeeded();
-    if (!runningMcProcess) return false;
-    return runningMcProcess.exitCode === null;
-  } catch {
-    return false;
-  }
+  cleanupStaleMcProcessIfNeeded();
+  if (!runningMcProcess) return false;
+  return runningMcProcess.exitCode === null;
 }
 
+// sendMcRunning 不丟錯：送畫面失敗由 ipc-bridge 的 deliver 接住並記常駐日誌（Q3），清理一定完成
 function cleanupStaleMcProcessIfNeeded() {
   if (!runningMcProcess) return false;
-  try {
-    if (runningMcProcess.exitCode !== null) {
-      runningMcProcess = null;
-      sendMcRunning(false);
-      return true;
-    }
-
-    const pid = runningMcProcess.pid;
-    if (!pid || !isPidAlive(pid)) {
-      runningMcProcess = null;
-      sendMcRunning(false);
-      return true;
-    }
-  } catch {
+  if (runningMcProcess.exitCode !== null) {
     runningMcProcess = null;
-    try {
-      sendMcRunning(false);
-    } catch {}
+    sendMcRunning(false);
+    return true;
+  }
+
+  const pid = runningMcProcess.pid;
+  if (!pid || !isPidAlive(pid)) {
+    runningMcProcess = null;
+    sendMcRunning(false);
     return true;
   }
   return false;
