@@ -1,4 +1,4 @@
-# X1b — 下載撞 undici `assert(!this.paused)`（nodejs/undici#5360；undici 7.29.0、6.29.1）：細部 plan（狀態：**2026-10-24 初稿；同日 owner 要求補實驗 A（背壓與記憶體）、B（中止與收尾），補完後 F1c 撤回、改為 F1d（§證據 第二輪、§設計）；同日第三輪驗證 F2（undici 8），結果改為建議 F2（§第三輪、§F1d 與 F2 對照）；同日 owner 最終裁決採 F2、接受全域 HTTP 相容性責任（§裁決），本檔依裁決對齊；同日 session 收尾，N6／X1／主 plan 的勘誤已回寫（§文件更正）；待 owner 與 ChatGPT 確認 plan，未授權施工、commit、push**）
+# X1b — 下載撞 undici `assert(!this.paused)`（nodejs/undici#5360；undici 7.29.0、6.29.1）：細部 plan（狀態：**2026-10-24 初稿；同日 owner 要求補實驗 A（背壓與記憶體）、B（中止與收尾），補完後 F1c 撤回、改為 F1d（§證據 第二輪、§設計）；同日第三輪驗證 F2（undici 8），結果改為建議 F2（§第三輪、§F1d 與 F2 對照）；同日 owner 最終裁決採 F2、接受全域 HTTP 相容性責任（§裁決），本檔依裁決對齊；同日 session 收尾，N6／X1／主 plan 的勘誤已回寫（§文件更正）；同日 owner 授權施工與本機驗證（不含 commit、push、遠端 CI、改 STATUS、結案），施工與本機驗證完成、驗收單交 owner（→ §施工紀錄）；同日 owner 驗收放行、授權 commit，程式 commit `4cd2667`；未 push、CI 未跑、未結案；L3-4 GUI、L3-5、L3-6 的狀態以 §施工紀錄 為準**）
 
 上層＝`plans/cross-review-2026-10-x1.md`（X1 的設計、證據 N1–N7、W0–W1、回歸測試 A／B／C／C2／E）；觸發事件＝CI run `39982729930`（commit `31d3ce6`，2026-10-23，已取消）；上游＝[nodejs/undici#5360](https://github.com/nodejs/undici/issues/5360)、[nodejs/undici#5500](https://github.com/nodejs/undici/issues/5500)。本檔寫這次回歸的證據、候選比較、owner 裁決與 F2 的施工設計和驗收。
 
@@ -20,6 +20,10 @@
 | 10-24 | CC | 第三輪（§證據 第三輪）：F2 消掉 #5360，但全域 dispatcher 的載入順序是實際障礙，須明確傳 Agent；F1d 的上限在無 content-length 與壓縮回應時失效 |
 | 10-24 | owner（終端貼入「X1b 最終 Owner 裁決」） | 採 F2、不採 A1／F1c／F1d、接受全域 HTTP 相容性責任、停止探索全域隔離、Q5 不在本項；授權依裁決更新本檔，未授權施工、commit、push（§裁決） |
 | 10-24 | CC | 依裁決對齊本檔：補 §第四輪 證據（三個入口實測、#5500 轉述、main 程序內建 `fetch` 盤點）、§裁決、§設計（F2）、F2 的契約／測試／驗收／停止條件；F1d 改列「不採，保留紀錄」 |
+| 10-24 | owner（終端貼入「GGL_Launcher — X1b F2 正式施工授權」） | 「本訊息正式授權施工與本機驗證，但不授權 commit、push 或宣告結案。」不授權：觸發遠端 CI、改 STATUS、進 Phase 6、放寬既有斷言 |
+| 10-24 | CC | 施工與本機驗證、打包到 scratchpad、真 Electron 主程序 smoke（§施工紀錄）；驗收單交 owner |
+| 10-24 | owner（終端） | 「Commit 吧！我剛剛驗完 ok 了。」；沒提 push、CI、結案 |
+| 10-24 | CC | 程式 commit `4cd2667`（`package.json`、lockfile、net-fetch、4 個測試檔）；本檔與 doc-check 快照另一個 commit |
 
 ## 證據
 
@@ -251,7 +255,7 @@ GGL 層（真 `downloadToFile`，先用內建 `fetch` 打一次再下載 1 MB、
 | 案 | 檔 | 內容 | `31d3ce6` 上 | 守的故障 |
 |---|---|---|---|---|
 | U1 | `net-fetch-download` | 64 KB body、`connection: close`、`fs.open` 延遲 100 ms ⇒ 成功、內容對、本案 `uncaughtException`／`unhandledRejection` 0 | 紅（22.23.4、24.19；slow-open 表） | 小檔＋先等開檔暴露 #5360 |
-| U2 | 同上 | 1 MB body、`connection: close`、慢寫（包 `fs.write` 延後 callback） ⇒ 同上 | 〔設計待定〕slow-open 表裡 HEAD 大檔不撞、`cee58ca` 撞；慢寫是否讓 HEAD 穩定紅要施工時先實測，不穩就改用 `cee58ca` 的節奏重現或照實記「只守回退」 | 大檔慢消費暴露 #5360 |
+| U2 | 同上 | 1 MB body、`connection: close`、慢寫（包 `fs.write` 延後 callback） ⇒ 同上 | 〔設計待定〕slow-open 表裡 HEAD 大檔不撞、`cee58ca` 撞；慢寫是否讓 HEAD 穩定紅要施工時先實測，不穩就改用 `cee58ca` 的節奏重現或照實記「只守回退」〔2026-10-24 施工：HEAD 上 4 個 runtime 各 5／5 綠，只守回退 → §施工紀錄〕 | 大檔慢消費暴露 #5360 |
 | U5 | **新檔** `test/net-fetch-dispatcher.test.cjs`（獨立行程：全域狀態不外洩到別的測試檔） | 在本檔行程把全域 dispatcher（`.2` 與 `.1`）設成「一收到請求就失敗」的 dispatcher，再 `downloadToFile` 本機 1 KB ⇒ 成功；另一案：同樣的全域設定下，內建 `fetch` 失敗（對照組，證明全域真的被換掉） | 〔設計〕F2 拿掉明確 `dispatcher` 時紅；`31d3ce6`（內建 fetch）也紅 | 下載用的不是 GGL 建的 Agent（X1b-D9） |
 
 U5 不靠 assert 碰運氣（X1b-D9）；不為了測它把 `downloadAgent` 匯出成公開 API（§8.1）。
@@ -280,7 +284,7 @@ U5 不靠 assert 碰運氣（X1b-D9）；不為了測它把 `downloadAgent` 匯�
 
 1. U1、U2、U5 先在 `31d3ce6` 上跑（Node 22.23.4、24.19），紅綠與上表相符；U2 若做不出穩定紅，照實記錄，不湊。
 2. 施工後完整 `npm test`：Node 22.23.4（主）、24.19.0、Electron 44.3.0 run-as-node（24.20.0；既有 spawn 案除外，對照組先跑）、24.14.1（舊行為對照）。Node 22.18.0 只記錄能不能跑，不當受支援證據（X1b-D10）。
-3. 反向驗證：(a) 拿掉 `dispatcher: downloadAgent` ⇒ U5 紅；(b) `downloadToFile` 改回內建 `fetch` ⇒ U1 紅（22.23.4、24.19）。每次逐位元組還原。
+3. 反向驗證：(a) 拿掉 `dispatcher: downloadAgent` ⇒ U5 紅；(b) `downloadToFile` 改回內建 `fetch` ⇒ U1 紅（22.23.4、24.19）。每次逐位元組還原。〔2026-10-24 施工：(b) 的預期不成立——U1 沒紅、U5 紅；→ §施工紀錄 反向 b1、b2〕
 4. 下載相關測試檔（`net-fetch-download`、`net-fetch-dispatcher`、`runtime-download`、`runtime-java`、`runtime-minecraft`、`runtime-prepare`、`sync-apply`、`sync-index`）`FREEZE_OFFSET` 0–7 × Node 22.23.4、24.19。
 5. 慢磁碟記憶體（`x1r/expA.cjs`，伺服器在子行程）在 repo 版本重跑 64 MB、256 MB：`writableLength` 與 `arrayBuffers` 增量不隨 body 變大。
 6. `lint`、`check:ui-css`、`docs:ipc` 後 `git diff --exit-code ARCHITECTURE.md`（CI 的步驟）、`git diff --check`。
@@ -319,6 +323,82 @@ U5 不靠 assert 碰運氣（X1b-D9）；不為了測它把 `downloadAgent` 匯�
 - 打包帶不進 undici 8、帶錯版本，或打包後的真 App 下載／HTTP smoke 失敗。
 - CI 上 assertion 消失但仍掛住：停、另行定位。
 - 出現新的、可重現的 undici 版本差異行為。
+
+## 施工紀錄（F2，2026-10-24）〔實測〕
+
+基準 HEAD `0b18e7f`（授權書寫 `31d3ce6`＝`origin/main`；兩者之間只有 `_notes/` 變動〔實測：`git diff --stat 31d3ce6 HEAD`〕，程式與測試等同 `31d3ce6`）。腳本與原始輸出在本 session scratchpad，不進 repo。runtime：Node 22.23.4（上一輪的官方 ZIP，本輪重驗 ZIP 與 `node.exe` 的 SHA256）、24.19.0、24.14.1、22.18.0、Electron 44.3.0（24.20.0，`ELECTRON_RUN_AS_NODE=1` 明確帶；本 session 的 shell 沒有這個變數，與專案 CLAUDE.md 的描述不同）。
+
+| 項 | 狀態 |
+|---|---|
+| 設計 | 已裁（§裁決） |
+| 依賴、程式、測試 | 已改、已新增（工作樹，未 commit） |
+| 本機測試（三層的第一、二層） | 已跑，下列各表 |
+| Windows 打包（L3-1～L3-3） | 已驗，輸出在 scratchpad，`dist/` 未動 |
+| 真 Electron 主程序 | 已驗（無 GUI 的替代 smoke，見 L3-4） |
+| GUI App smoke（L3-4）、真實登入（L3-5）、安裝檔（L3-6） | 待 owner |
+| commit、push、遠端 CI、STATUS | 未授權、未動 |
+
+**改動**
+
+- `package.json`：`dependencies` 加 `"undici": "8.12.3"`。
+- `package-lock.json`：根目錄 `node_modules/undici` 8.12.3（正式；integrity `sha512-+fdndUTw…LOQHw==`）。原本住根目錄的 7.29.1（dev、optional，`@electron/get` 用）移到 `node_modules/@electron/get/node_modules/undici`；npm 搬家時把它重新解析成 7.30.1，手動釘回 7.29.1（版本、resolved、integrity 照舊 lockfile）後 `npm install --ignore-scripts` 同步。`npm ls undici --all`：根 8.12.3、`@electron/get` 底下 7.29.1。
+- `main/net-fetch.js` +16／-2（本條行號為施工後的工作樹）：`require("undici")`（`:5`）；模組層 `downloadAgent` 與註解（`:8-13`）；`fetchWithNiceError` 本體抽成私有 `fetchVia(fetchImpl, url, options)`（`:94`），匯出的 `fetchWithNiceError(url, options = {})` 簽名不變、照舊傳內建 `fetch`（`:90`）；`downloadToFile` 那次請求改 `fetchVia(undiciFetch, …, dispatcher: downloadAgent)`（`:198-204`）。下載迴圈、pipe 分支、`withRetries`、`isRetryableError`、416 預檢、206／200、看門狗、`removeLinkAt` 不在 diff 裡。
+- `test/net-fetch-download.test.cjs` +98／-0：U1、U2，小工具 `countUnhandled`、`delayOpen`、`slowWrites`、`serveWhole`。
+- 新檔：`test/net-fetch-dispatcher.test.cjs`（U5 對照組、U5）、`test/main-http-compat.test.cjs`＋`test/helpers/main-http-compat-client.cjs`（H1–H5）。
+
+**第一層：U1、U2、U5**（`--test-name-pattern X1b`）
+
+| 驗證 | 結果 |
+|---|---|
+| 修復前（依賴已裝、net-fetch 未改）× 4 runtime × 5 輪 | U1：22.23.4、24.19、Electron 5／5 紅（`assert(!this.paused)`，node --test 算成本案的 uncaught），24.14.1 5／5 綠；U2：4 個 runtime 都 5／5 綠；U5：4 個 runtime 5／5 紅（`連線失敗 … GLOBAL_DISPATCHER_USED`），對照組 5／5 綠 |
+| U2 為什麼不紅 | 注入有生效（9 次寫入、每塊最大 128 KB）；HEAD 在 1 MB＋每次寫入慢 5 ms 下不撞。**U2 定位：大檔慢消費的回歸保護，不是修復前紅燈**；沒有調參數湊紅 |
+| 修復後 × 4 runtime × 5 輪 | 20／20 全綠 |
+| 反向 a：拔 `dispatcher: downloadAgent` | U5 紅（`GLOBAL_DISPATCHER_USED`），U1、U2 綠；22.23.4、24.19、Electron 各 3／3 |
+| 反向 b2：改回 `fetchWithNiceError`（內建 `fetch`＋全域） | U5 紅；**U1 沒紅**（驗收格 3(b) 預期紅）。HEAD（不載入 undici 8）U1 紅、b2（載入但走內建 `fetch`）U1 綠 ⇒ 載入 undici 8 改變了本行程內建 `fetch` 的行為〔推論：兩者只差 `require("undici")`〕。釘住「下載走自己的 Agent」的是 U5 |
+| 反向 b1：內建 `fetch`＋`dispatcher: downloadAgent` | 三支全紅：`UND_ERR_INVALID_ARG invalid onRequestStart method`——內建 `fetch` 不能直接配 v8 Agent，fetch 與 dispatcher 要同一版 |
+| 還原 | 每次 `cmp` 與修好的版本逐位元組相同 |
+
+**完整測試**（`node --require ./test/helpers/forbid-electron.cjs --test "test/*.test.cjs"`，一次只跑一個 runtime）：22.23.4、24.19.0、24.14.1 各 1233／1233；22.18.0 1233／1233（低於 `engines`，不算受支援證據，X1b-D10）；Electron 1232／1233，紅的是 `sync-game-running`「end-to-end: a node child with >4 KB argv…」（HEAD 副本單檔 3／3 同樣紅，該檔不碰 net-fetch ⇒ 既有）。對照：HEAD 在 Electron 下 18 紅＝CI run `39982729930` 那 18 案。
+
+**並行負載下的偶發**（都不是 assert）：
+- T15（`runtime-minecraft`）：5 套完整測試並行時 24.19 一次「等不到：停住那支的連線關閉」。之後同檔 8 條並行（HEAD、F2 各 4 條）各 24 輪：F2 0 紅、HEAD 只紅 #5360 那 16 案；單獨跑 T15 兩邊各 60 次 0 紅。**未定性**；與 §第二輪 F1c 在 Electron 重負載下那次是同一案。
+- `sync-index`「U2 兩次 update 同時」：5 套並行時 22.23.4、22.18.0 各一次 10 秒逾時。無負載 HEAD、F2 都約 200 ms；同負載（各 4 條、24.14.1）HEAD 414–577 ms、F2 425–526 ms，各 12 輪 0 紅 ⇒ 負載造成，F2 沒變慢。
+
+**freeze**：8 檔（`net-fetch-download`、`net-fetch-dispatcher`、`runtime-download`、`runtime-java`、`runtime-minecraft`、`runtime-prepare`、`sync-apply`、`sync-index`）× `FREEZE_OFFSET` 0–7 × 22.23.4、24.19：16／16 輪全綠，每輪 404 案、9 個行程、3569 個請求、卡 442–450 次（`FREEZE_MARK`），0 次 assert。
+
+**慢磁碟記憶體**（`x1r/expA.cjs` 接 repo，伺服器在子行程）：
+
+| runtime | body／磁碟 | 最大 `writableLength` | `arrayBuffers` 增量 | RSS 增量 | assert |
+|---|---|---|---|---|---|
+| 22.23.4 | 64 MB／32 MB/s | 0.1 MB | +5.4 MB | +8.8 MB | 0 |
+| 22.23.4 | 256 MB／64 MB/s | 0.1 MB | +5.2 MB | +9.6 MB | 0 |
+| 24.19.0 | 64 MB／32 MB/s | 0.1 MB | +4.7 MB | +8.5 MB | 0 |
+| 24.19.0 | 256 MB／64 MB/s | 0.1 MB | +4.7 MB | +9.6 MB | 0 |
+| Electron | 64 MB／32 MB/s | 0.1 MB | （不可用） | +9.6 MB | 0 |
+| Electron | 256 MB／64 MB/s | 0.1 MB | （不可用） | +9.4 MB | 0 |
+
+Electron run-as-node 的 `process.memoryUsage().arrayBuffers` 恆為 0（配 32 MB Buffer 仍回 0）。耗時比 body÷磁碟速度長（64 MB 約 7.8 秒），與 §第二輪 HEAD 同一數字〔推論：Windows 計時器精度拉長每次延後〕。
+
+**靜態**：`lint`、`check:ui-css` exit 0；`docs:ipc` 後 `git diff --exit-code ARCHITECTURE.md docs` 0；`git diff --check` 0；新檔無行尾空白；prettier：net-fetch、新增三檔、下載測試新增段符合（該檔舊段本來就不符，未動）。防禦寫法掃描：net-fetch 0 命中；測試 1 命中（`countUnhandled` 的 `e?.code ?? String(e)`：被丟出來的不一定是 `Error`，屬邊界）。〔commit 前更正：上一句只掃了下載測試檔；`git diff --cached` 全掃，測試共 14 行——子行程 `errorShape` 4 行與 `e.cause?.message`、`countUnhandled`（被丟出來的不一定是 `Error`、不一定有 `cause`）；`run` 與 H4 500 的 `catch (e)`（錯誤本身就是要比對的結果）；`safeJson` 的兩個 `catch {}`（照抄正式程式的形狀，H1 要重現它）；全域 dispatcher 的 `?.`／`??`（可能不存在，Node 22 的 `.2` 實測為 null）；`r[name]?.ok` 等 3 行（子行程輸出是行程邊界，缺案時給斷言訊息而非 TypeError）〕
+
+**第二層：H1–H5**（`test/main-http-compat.test.cjs`）
+
+- 做法：一個伺服器、三種條件各一個子行程依序送（a 把 `require("undici")` 換成一呼叫就丟錯的空殼；b 先 require net-fetch；c 先內建 `fetch` 打一次再 require）；H3 另各起一個子行程拿 503。比對伺服器收到的 method、url、headers（全部）、body 與客戶端的狀態、內容、解析結果、錯誤（name、message、code、cause）。**沒有標準化或排除任何 header**：同一個伺服器，連 Host 都相同。只排除 `/warmup`（只有 c 有）與子行程查連線關閉的 `/_closed`。
+- 比對前先對條件 a 驗預期值（三邊一起失敗也會「相同」）。負對照：只在 b 把 form body 改一個字元 ⇒ 紅、指出那個欄位。
+- 結果：22.23.4、24.19.0、24.14.1、22.18.0、Electron 都過；子行程都在拿到 H3 第一筆後自己結束（`startServerStatusPolling` 的 `setInterval` 未改）。
+- 診斷（建構子名稱，分不出 v7／v8 的 `Agent`，只供參考）：條件 c 下，Node 22.x 與 24.14.1 的 `.1` 被換成 `Dispatcher1Wrapper`；24.19 與 Electron 的 `.1`、`.2` 仍是 `Agent`。
+- H1 只重現形狀，沒有走 `microsoft-auth.js` 本身（§CC 可能錯的地方 第 2 條仍成立）；不得據此宣稱真實微軟登入已驗。
+
+**第三層**
+
+| # | 狀態 | 內容 |
+|---|---|---|
+| L3-1 | 依賴已確認 | `package.json`＋lockfile 複製到 scratchpad 跑 `npm ci --ignore-scripts`（主工作樹不跑：`~/.npmrc` 的 allow-scripts 可能讓重建的 `node_modules` 缺 Electron 的 postinstall 產物〔猜的〕）：根 8.12.3、`@electron/get` 底下 7.29.1；`--omit=dev` 列得到 undici；lockfile 未被改寫 |
+| L3-2 | Windows 打包已過 | `generate-electron-builder-config.cjs`（正式模組 16 個，含 `node_modules/undici/**/*`）→ 設定檔複本改 `directories.output` 到 scratchpad → `electron-builder --win dir --x64` exit 0 → `check-packaged-artifacts.cjs <該目錄>` 通過。沒跑 `build:css`、`build:rpc-helper`（conventions §本機打包）。exe `NotSigned` |
+| L3-3 | 產物內容已確認 | `app.asar` 只有一份 `node_modules/undici/package.json` ⇒ 8.12.3（197 檔）；`node_modules/@electron/` 0 條；內含的 `main/net-fetch.js` 是新版 |
+| L3-4 | 部分 | 替代：Electron 44.3.0 **主程序**（`process.type` = `browser`，不是 run-as-node）載入打包的 `app.asar` 裡的 `main/net-fetch.js`，undici 從 `app.asar\node_modules\undici` 載入；U1、U2 情境各 3 次成功、0 uncaught；內建 `fetch` 正常。同架子跑 HEAD：U1 3／3 各 1 個 uncaught，stack＝`assert(!this.paused)` ← `Parser.finish` ← `Socket.onHttpSocketEnd`。**GUI App 沒開**：預設 `userData`（帳號）與安裝根是 owner 的真資料，隔離（`--user-data-dir` 是否生效、指向 scratchpad 的 settings）沒驗；畫面要 owner 看 |
+| L3-5 | 待 owner | — |
+| L3-6 | 待 owner | — |
 
 ## 文件更正（保留原始事實，只加更正註記）
 
@@ -402,14 +482,14 @@ U5 不靠 assert 碰運氣（X1b-D9）；不為了測它把 `downloadAgent` 匯�
 ## 已知未驗
 
 - CI 的掛住在本機 24.19、22.23.4 都沒重現，原因未定位；F2 施工後若仍掛住，照停止條件處理。
-- 真 Electron 主程序遇到 #5360 的 `uncaughtException` 的行為（對話框？結束？）。
+- 真 Electron 主程序遇到 #5360 的 `uncaughtException` 的行為（對話框？結束？）。〔2026-10-24 施工：HEAD 在真主程序會撞已實測；沒有 handler 時的行為仍未驗 → §施工紀錄 L3-4〕
 - 正式來源的 `Connection` 只查了 HEAD；Java zip 的實際 GET 沒查。
-- 第三輪 F2 證據全部來自 scratchpad 原型（用絕對路徑 require、預設參數接線），不是 repo 版本；L3 各項（打包、真 App、登入）都還沒做。
+- 第三輪 F2 證據全部來自 scratchpad 原型（用絕對路徑 require、預設參數接線），不是 repo 版本；L3 各項（打包、真 App、登入）都還沒做。〔2026-10-24 施工：repo 版本、L3-1～L3-3 已驗；L3-4 GUI、L3-5、L3-6 未做 → §施工紀錄〕
 - 真實的微軟登入、站台、伺服器狀態請求在 undici 8 下沒跑過（L3-5）。
 - #5500 的反例 CC 沒有自己重跑（§第四輪，轉述）。
-- U2 能否在 HEAD 上做出穩定紅燈（§回歸測試）。
+- U2 能否在 HEAD 上做出穩定紅燈（§回歸測試）。〔2026-10-24 施工：不能，只守回退 → §施工紀錄〕
 - 實驗 A 的慢磁碟是延後 callback 模擬的，不是真的慢磁碟或防毒卡住。
-- F1c 在 Electron 重負載下 T15 的一次「等不到連線關閉」未定性；實驗 B 解釋不了（§第二輪）。
+- F1c 在 Electron 重負載下 T15 的一次「等不到連線關閉」未定性；實驗 B 解釋不了（§第二輪）。〔2026-10-24 施工：F2 在 24.19 重負載下同一案也出現一次，重現不出來 → §施工紀錄〕
 - undici 內部「暫停時收到 FIN」的精確時序是〔推論〕，靠上游 issue 與讀碼支撐。
 
 ## CC 可能錯的地方
