@@ -1,4 +1,4 @@
-# Phase 6b — IPC／DI 組＋其他 main 組：細部 plan（狀態：**2026-10-25 初稿；同日 owner 裁 Q3 產品語意（→ §裁決），依此修訂為二稿；同日 ChatGPT 審二稿（→ §審查），修訂為三稿；同日 owner 裁 6b-1 實作方案並授權 6b-1 施工與一個 commit（→ §裁決）；同日 6b-1 施工、待驗收（→ §6b-1 施工紀錄）；Q1、Q4、Q6、Q7 未裁；6b-2～6b-4 未授權**）
+# Phase 6b — IPC／DI 組＋其他 main 組：細部 plan（狀態：**2026-10-25 初稿；同日 owner 裁 Q3 產品語意（→ §裁決），依此修訂為二稿；同日 ChatGPT 審二稿（→ §審查），修訂為三稿；同日 owner 裁 6b-1 實作方案並授權 6b-1 施工與一個 commit（→ §裁決）；同日 6b-1 施工，commit `48452a9`，經 owner 驗收放行（→ §6b-1 施工紀錄）；Q1、Q4、Q6、Q7 未裁；6b-2～6b-4 未授權**）
 
 上層＝`plans/cross-review-2026-10.md` §8 Phase 6（範圍、不做、不變量、驗收下限、回滾；6b 的切法在同節子 Phase 表）；候選的定義＝`plans/defense-cleanup.md` §清理清單 main/ 表；改／留判準＝`plans/cross-review-2026-10-phase6-criteria.md`（本檔不重述；§判例 3 是 M-LAUNCH／M-SEND 的起點）；U15 的裁決本體＝上層 §4.2 U15。
 
@@ -66,54 +66,54 @@ main 沒有任何 `process.on(...)`〔CC：rg `process\.on\(` main.js、main/、
 ## M-SEND／M-LAUNCH 的責任（現讀）〔CC 讀碼〕
 
 **事件分兩種**（`main/ipc-bridge.js`）：
-- **狀態**：`STATE_CHANNELS`（`:7-12`）＝`instance:status`、`notice:changed`、`server:status`、`window:power`。`sendState`（`:17-22`）記最後一筆（視窗不在也記）、`replayLatest`（`:25-35`）在畫面喊 `renderer:ready` 時重送給喊的那個 webContents。B10 的裁決（`plans/instance-sync-v3-commit3b2b.md`），本批不動這個語意。
-- **一次性事件**：`sync:status`、`sync:progress`、`sync:done`、`minecraft:status`、`minecraft:running`（`:37-71`）——不記、不重播，裸呼叫 `getMainWindow?.()?.webContents?.send`，沒有 `try`。
+- **狀態**：`STATE_CHANNELS`（`:7-12`）＝`instance:status`、`notice:changed`、`server:status`、`window:power`。`sendState`（`:17-22`）記最後一筆（視窗不在也記）、`replayLatest`（`:25-35`）在畫面喊 `renderer:ready` 時重送給喊的那個 webContents。B10 的裁決（`plans/instance-sync-v3-commit3b2b.md`），本批不動這個語意。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`ipc-bridge.js` 的 `:7-12` 未移動；`sendState` `:17-22` 改寫，後 `:39-42`；`replayLatest` `:25-35` 改寫，後 `:44-54`〕
+- **一次性事件**：`sync:status`、`sync:progress`、`sync:done`、`minecraft:status`、`minecraft:running`（`:37-71`）——不記、不重播，裸呼叫 `getMainWindow?.()?.webContents?.send`，沒有 `try`。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`ipc-bridge.js` 的 `:37-71` 改寫（五個 sender 改呼叫 `send`），後 `:56-83`〕
 
 **現在誰在接「送不出去」**：
 | 位置 | 接什麼 | 現讀 |
 |---|---|---|
-| `ipc-bridge.js:19-21` `sendState` 的 `catch {}` | 所有丟錯 | 無聲。依 S1–S4 實際接到的是 S2／S3；探針沒涵蓋的其他丟錯也一起吞 |
-| `ipc-bridge.js:29-32` `replayLatest` 的 `catch {}` | 重送給 `event.sender` 時丟錯 | 無聲，但保住「其他 channel 照送」（→ §W19） |
-| `ipc-bridge.js:87-99` `sendInstanceStatus` 的 `try` | 摘要與 log | 包的是原始型別欄位的 `JSON.stringify` 與 `appendLauncherLog`；後者是 async 且自己吞錯（`main/launcher-log.js:24-35`）⇒ 打不到 |
-| `sync/index.js:264-271` `send` 的 `catch {}`，註解「視窗沒了」 | `deps.sendInstanceStatus` 丟錯 | `sendInstanceStatus` → `sendState` 已吞 ⇒ 現在打不到。但它是 `withSyncLock`（`:408-417`）註解「重算不蓋掉本身的結果或錯誤」的前提。N24 三案注入 `throwingSend`（`test/sync-index.test.cjs:641` 定義；`:645` `getInstanceStatus`、`:1345` `updateInstance` 記錄已寫且鎖已放、`:1930` `withLaunchLock` 照樣呼叫 `fn`） |
-| `minecraft-launch.js:78-101` `cleanupStaleMcProcessIfNeeded` 內層 `catch` | `try` 內唯一能丟的是 `sendMcRunning(false)`（`:83`、`:90`）——裸送 | 實質是「送畫面失敗」的接手：清狀態後**再送一次**並吞掉（`:94-97`）。判例 3 成立 |
-| `minecraft-launch.js:68-76` `isMinecraftRunning` 外層 `catch` | — | `cleanupStale…` 自己全接，`:71-72` 不會丟 ⇒ 死碼（判例 3） |
-| `server-status.js:94` `tick().catch(() => {})` | 輪詢一次的所有錯 | `fetch` 錯在 `:79` 已接、`tcpProbe` 不 reject；剩下只有 `sendServerStatus`（經 `sendState` 已吞）⇒ 只會吞 bug |
+| `ipc-bridge.js:19-21` `sendState` 的 `catch {}` | 所有丟錯 | 無聲。依 S1–S4 實際接到的是 S2／S3；探針沒涵蓋的其他丟錯也一起吞〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`ipc-bridge.js:19-21` 刪除（`sendState` 後 `:39-42`，改呼叫 `send`）〕 |
+| `ipc-bridge.js:29-32` `replayLatest` 的 `catch {}` | 重送給 `event.sender` 時丟錯 | 無聲，但保住「其他 channel 照送」（→ §W19）〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`ipc-bridge.js:29-32` 刪除（改看 `deliver` 的回傳值；`replayLatest` 後 `:45-54`）〕 |
+| `ipc-bridge.js:87-99` `sendInstanceStatus` 的 `try` | 摘要與 log | 包的是原始型別欄位的 `JSON.stringify` 與 `appendLauncherLog`；後者是 async 且自己吞錯（`main/launcher-log.js:24-35`）⇒ 打不到〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`ipc-bridge.js:87-99` 的 `try` 刪除（`sendInstanceStatus` 後 `:98-111`）；`main/launcher-log.js` 不在本 commit〕 |
+| `sync/index.js:264-271` `send` 的 `catch {}`，註解「視窗沒了」 | `deps.sendInstanceStatus` 丟錯 | `sendInstanceStatus` → `sendState` 已吞 ⇒ 現在打不到。但它是 `withSyncLock`（`:408-417`）註解「重算不蓋掉本身的結果或錯誤」的前提。N24 三案注入 `throwingSend`（`test/sync-index.test.cjs:641` 定義；`:645` `getInstanceStatus`、`:1345` `updateInstance` 記錄已寫且鎖已放、`:1930` `withLaunchLock` 照樣呼叫 `fn`）〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`sync/index.js:264-271` 改寫（`try`／`catch {}` 與「視窗沒了」拿掉，`send` 後 `:265-270`）；`:408-417` 後 `:407-416`；`test/sync-index.test.cjs:641` 的 `throwingSend` 刪除，N24 三案 `:645`、`:1345`、`:1930` 改寫成 B5a `:647`、B5b `:1349`、B5c `:1971`〕 |
+| `minecraft-launch.js:78-101` `cleanupStaleMcProcessIfNeeded` 內層 `catch` | `try` 內唯一能丟的是 `sendMcRunning(false)`（`:83`、`:90`）——裸送 | 實質是「送畫面失敗」的接手：清狀態後**再送一次**並吞掉（`:94-97`）。判例 3 成立〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`minecraft-launch.js:78-101` 改寫（兩層 `try`／`catch` 拿掉，`cleanupStaleMcProcessIfNeeded` 後 `:76-91`）；`:83`、`:90` 後 `:80`、`:87`；`:94-97` 刪除〕 |
+| `minecraft-launch.js:68-76` `isMinecraftRunning` 外層 `catch` | — | `cleanupStale…` 自己全接，`:71-72` 不會丟 ⇒ 死碼（判例 3）〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`minecraft-launch.js:68-76` 改寫（外層 `try`／`catch` 拿掉，後 `:69-73`）；`:71-72` 後 `:71-72`（縮排改）〕 |
+| `server-status.js:94` `tick().catch(() => {})` | 輪詢一次的所有錯 | `fetch` 錯在 `:79` 已接、`tcpProbe` 不 reject；剩下只有 `sendServerStatus`（經 `sendState` 已吞）⇒ 只會吞 bug〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`server-status.js:94` 改寫（`catch` 改記 `gglError`，後 `:97-99`）；`:79` 後 `:82`〕 |
 
-**用 Q3 檢驗現況**：有三條正式路徑**沒有**任何隔離，送畫面一丟錯就改變操作結果：同步套用的進度回呼（`sync/apply.js:146,215,232,268` → `start-main.js:111-114` → `bridge.sendSyncProgress`，裸送）會打斷套用；登入流程的 `deps.sendSyncStatus`／`sendSyncDone`（`microsoft-auth.js:568-700`，裸送）會讓登入失敗；啟動前的 `d.sendMcStatus`（`minecraft-launch.js:177,220`，裸送）會擋下啟動。依 S1–S4，現在會觸發的只有 S2 的空窗（視窗關閉中）〔推論；U-2：空窗裡會不會插進非同步的送出沒驗〕。現有的隔離則放在打不到的地方（`sync/index`、`sendState`），而且無聲。
+**用 Q3 檢驗現況**：有三條正式路徑**沒有**任何隔離，送畫面一丟錯就改變操作結果：同步套用的進度回呼（`sync/apply.js:146,215,232,268` → `start-main.js:111-114` → `bridge.sendSyncProgress`，裸送）會打斷套用；登入流程的 `deps.sendSyncStatus`／`sendSyncDone`（`microsoft-auth.js:568-700`，裸送）會讓登入失敗；啟動前的 `d.sendMcStatus`（`minecraft-launch.js:177,220`，裸送）會擋下啟動。依 S1–S4，現在會觸發的只有 S2 的空窗（視窗關閉中）〔推論；U-2：空窗裡會不會插進非同步的送出沒驗〕。現有的隔離則放在打不到的地方（`sync/index`、`sendState`），而且無聲。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`microsoft-auth.js:568-700` 後 `:564-696`；`minecraft-launch.js:177,220` 後 `:167,210`；`sync/apply.js`、`start-main.js` 不在本 commit〕
 
 ## 6b-1 直接呼叫端的例外責任（現讀）〔CC 讀碼：rg 每個 sender 名稱加 `(`，排除 `ipc-bridge.js`〕
 
 | 呼叫端 | 在做的操作 | 送出丟錯時：現在 | 6b-1 之後（D2） |
 |---|---|---|---|
-| `sync/index.js:269` → `sendInstanceStatus` | 狀態查詢、更新、修復、啟動閘 | 被 `catch {}` 吞（且 `sendState` 先吞）；無紀錄 | 送出不丟（D2）；`catch` 拿掉（D3），依賴 bridge 的契約 |
+| `sync/index.js:269` → `sendInstanceStatus` | 狀態查詢、更新、修復、啟動閘 | 被 `catch {}` 吞（且 `sendState` 先吞）；無紀錄 | 送出不丟（D2）；`catch` 拿掉（D3），依賴 bridge 的契約〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`sync/index.js:269` 改寫（不再包 `try`，後 `:269`）〕 |
 | `sync/apply.js:146,215,232,268` → `start-main.js:113` → `sendSyncProgress` | 套用更新／修復 | **往上丟、打斷套用**（Q3 (1) 的違反路徑） | 不丟；`gglError` 一筆 |
 | `start-main.js:119` → `sendNotice` | 公告更新 | `sendState` 吞，無紀錄 | 不丟；`gglError` |
-| `minecraft-launch.js:83,90,96` → `sendMcRunning(false)` | 清過期行程（`isMinecraftRunning` 的副作用） | 內層 `catch` 吞、重送一次 | 不丟；`catch` 拿掉（D4）；→ §B7 |
-| `minecraft-launch.js:177,220` → `sendMcStatus` | 啟動前的狀態文字 | **往上丟、啟動失敗**（Q3 (2) 的違反路徑） | 不丟；`gglError` |
-| `minecraft-launch.js:241,247` → `sendMcStatus` | 回報啟動失敗 | 往上丟，蓋掉原本的啟動錯誤 | 不丟；原本的錯照丟 |
-| `minecraft-launch.js:252` → `sendMcRunning(true)` | 行程已 spawn | 往上丟：遊戲已在跑，`launchMinecraft` 卻 reject | 不丟 |
-| `minecraft-launch.js:261-267` → `sendMcRunning`／`sendMcStatus` | 子行程 `exit` 事件 | 事件 handler 裡丟錯＝main 的 uncaught exception〔後果未測，U-4〕 | 不丟 |
-| `main-window.js:111` → `sendWindowPower` | 視窗事件 | `sendState` 吞 | 不丟；`gglError` |
-| `server-status.js:57,78,80,88` → `sendServerStatus` | 輪詢 | `sendState` 吞。若 `:78` 丟了會落進 `:79` 的 `catch`，改送 `"offline"`（錯的狀態） | 不丟 |
-| `microsoft-auth.js:568,584,596,602,660,677,700` → `sendSyncStatus`／`sendSyncDone` | 微軟登入 | **往上丟、登入失敗** | 不丟；`gglError` |
-| `app-ready.js:108-112` `safeSendSyncStatus`、`:137-139` `try { sendMcStatus }` | 下載重試提示（`net-fetch.js:60,314` → `notifyRetryToUi` `:29-33` → `onRetryNotify`） | 呼叫端自己吞；外面還有 `notifyRetryToUi` 的 `catch {}` 一層（N6） | 兩個 `try` 拿掉（§N5，B11） |
-| `ipc/window-ipc.js:13` → `replayLatest` | `renderer:ready` 重播 | 逐項 `catch {}`，無聲 | 逐項經 `deliver`，失敗的那筆記 `gglError`（→ §W19） |
+| `minecraft-launch.js:83,90,96` → `sendMcRunning(false)` | 清過期行程（`isMinecraftRunning` 的副作用） | 內層 `catch` 吞、重送一次 | 不丟；`catch` 拿掉（D4）；→ §B7〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`minecraft-launch.js:83,90` 後 `:80,87`；`:96` 刪除〕 |
+| `minecraft-launch.js:177,220` → `sendMcStatus` | 啟動前的狀態文字 | **往上丟、啟動失敗**（Q3 (2) 的違反路徑） | 不丟；`gglError`〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`minecraft-launch.js:177,220` 後 `:167,210`〕 |
+| `minecraft-launch.js:241,247` → `sendMcStatus` | 回報啟動失敗 | 往上丟，蓋掉原本的啟動錯誤 | 不丟；原本的錯照丟〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`minecraft-launch.js:241,247` 後 `:231,237`〕 |
+| `minecraft-launch.js:252` → `sendMcRunning(true)` | 行程已 spawn | 往上丟：遊戲已在跑，`launchMinecraft` 卻 reject | 不丟〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`minecraft-launch.js:252` 後 `:242`〕 |
+| `minecraft-launch.js:261-267` → `sendMcRunning`／`sendMcStatus` | 子行程 `exit` 事件 | 事件 handler 裡丟錯＝main 的 uncaught exception〔後果未測，U-4〕 | 不丟〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`minecraft-launch.js:261-267` 後 `:251-257`〕 |
+| `main-window.js:111` → `sendWindowPower` | 視窗事件 | `sendState` 吞 | 不丟；`gglError`〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`main-window.js:111` 改寫（`mainWindow.isMinimized()`，後 `:113`）〕 |
+| `server-status.js:57,78,80,88` → `sendServerStatus` | 輪詢 | `sendState` 吞。若 `:78` 丟了會落進 `:79` 的 `catch`，改送 `"offline"`（錯的狀態） | 不丟〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`server-status.js:57,78,80,88` 後 `:60,81,83,91`；`:79` 後 `:82`〕 |
+| `microsoft-auth.js:568,584,596,602,660,677,700` → `sendSyncStatus`／`sendSyncDone` | 微軟登入 | **往上丟、登入失敗** | 不丟；`gglError`〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`microsoft-auth.js:568,584,596,602,660,677,700` 後 `:564,580,592,598,656,673,696`〕 |
+| `app-ready.js:108-112` `safeSendSyncStatus`、`:137-139` `try { sendMcStatus }` | 下載重試提示（`net-fetch.js:60,314` → `notifyRetryToUi` `:29-33` → `onRetryNotify`） | 呼叫端自己吞；外面還有 `notifyRetryToUi` 的 `catch {}` 一層（N6） | 兩個 `try` 拿掉（§N5，B11）〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`app-ready.js:108-112`、`:137-139` 刪除（`onRetryNotify` 後 `:130-133`）；`net-fetch.js` 不在本 commit〕 |
+| `ipc/window-ipc.js:13` → `replayLatest` | `renderer:ready` 重播 | 逐項 `catch {}`，無聲 | 逐項經 `deliver`，失敗的那筆記 `gglError`（→ §W19）〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`ipc/window-ipc.js:13` 後 `:11`〕 |
 
 ## W19：重播的逐項部分成功（未裁，CC 提案）
 
-**正式呼叫路徑**：畫面 `renderer/bootstrap.js:615` `safeInvokeSilent("renderer:ready")`（start 的最後一行）→ main `ipc/window-ipc.js:12-15` handler → `replayLatest(event.sender)`（`ipc-bridge.js:25-35`）→ 依 `STATE_CHANNELS` 的順序逐一 `webContents.send`，回傳送成功的 channel → handler 寫 debug log `REPLAY …`。畫面端 `safeInvokeSilent` 不看結果、吞 rejection。
-**現有契約**：W19（`test/ipc-bridge.test.cjs:171-186`）——某個 channel 送失敗 ⇒ 不丟、其他照送、回傳只列成功的。
-**反例（拿掉逐項隔離時）**：順序是 `instance:status`、`notice:changed`、`server:status`、`window:power`。若 `instance:status` 那筆丟錯而整個迴圈中斷，後三筆都沒送：伺服器狀態最多等 7 秒輪詢（`server-status.js:61`）；`window:power` 要等下一次視窗事件，期間背景影片的暫停判斷沒有依據；公告要等下一次 feed 更新；`instance:status` 本身要等下一次重算——在那之前啟動鈕的狀態不明〔推論，未實機〕。每個 channel 是獨立的狀態，一筆壞掉不該拖累其他筆。
+**正式呼叫路徑**：畫面 `renderer/bootstrap.js:615` `safeInvokeSilent("renderer:ready")`（start 的最後一行）→ main `ipc/window-ipc.js:12-15` handler → `replayLatest(event.sender)`（`ipc-bridge.js:25-35`）→ 依 `STATE_CHANNELS` 的順序逐一 `webContents.send`，回傳送成功的 channel → handler 寫 debug log `REPLAY …`。畫面端 `safeInvokeSilent` 不看結果、吞 rejection。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`ipc/window-ipc.js:12-15` 後 `:10-13`；`ipc-bridge.js:25-35` 改寫（逐項改走 `deliver`，後 `:44-54`）；`renderer/bootstrap.js` 不在本 commit〕
+**現有契約**：W19（`test/ipc-bridge.test.cjs:171-186`）——某個 channel 送失敗 ⇒ 不丟、其他照送、回傳只列成功的。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`test/ipc-bridge.test.cjs:171-186` 改寫為 W19／B4r（加 `gglError` 斷言，後 `:179-199`）〕
+**反例（拿掉逐項隔離時）**：順序是 `instance:status`、`notice:changed`、`server:status`、`window:power`。若 `instance:status` 那筆丟錯而整個迴圈中斷，後三筆都沒送：伺服器狀態最多等 7 秒輪詢（`server-status.js:61`）；`window:power` 要等下一次視窗事件，期間背景影片的暫停判斷沒有依據；公告要等下一次 feed 更新；`instance:status` 本身要等下一次重算——在那之前啟動鈕的狀態不明〔推論，未實機〕。每個 channel 是獨立的狀態，一筆壞掉不該拖累其他筆。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`server-status.js:61` 後 `:64`〕
 **以 Q3 檢驗**：重播本身是通知，不是操作；但 Q3 (4) 要求非預期故障有常駐出口——現在的逐項 `catch {}` 無聲，不合格。
 **最小方案**：保留逐項部分成功，但改走 D2 的同一個 `deliver`（不另寫 `catch`）：失敗的那筆記一筆 `gglError`，回傳值語意不變（「實際重送成功的 channel」），debug 的 `REPLAY` 行不變。W19 改寫：照舊斷言其他照送與回傳值，**加**斷言 `gglError` 1 筆、帶失敗的 channel。
 
 ## B7：清過期行程後送通知失敗，能不能改變查詢結果（未裁，CC 提案）
 
-**正式呼叫路徑**：`isMinecraftRunning()`（`minecraft-launch.js:68-76`）有三個呼叫者——
+**正式呼叫路徑**：`isMinecraftRunning()`（`minecraft-launch.js:68-76`）有三個呼叫者——〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`minecraft-launch.js:68-76` 改寫（後 `:69-73`）〕
 1. 畫面輪詢 `minecraft:isRunning`（`ipc/minecraft-ipc.js:131-133`；畫面 `renderer/minecraft-ui.js:36-50` 在它認為遊戲在跑時定期問）。
 2. 啟動前的第一道（`ipc/minecraft-ipc.js:41`，在 `withLaunchLock` 裡）。
-3. 同步更新／修復的 `prepare`（`sync/index.js:294-305` → `game-running.js:39`）：回 true 就丟 `GGL_SYNC_GAME_RUNNING`。
+3. 同步更新／修復的 `prepare`（`sync/index.js:294-305` → `game-running.js:39`）：回 true 就丟 `GGL_SYNC_GAME_RUNNING`。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`sync/index.js:294-305` 後 `:293-304`；`game-running.js` 不在本 commit〕
 
 **現有契約**：回 boolean，「我們 spawn 的那個行程還在不在」。清過期行程（`exitCode` 非 null 或 pid 不在）是副作用：先把 `runningMcProcess` 設 null，再 `sendMcRunning(false)`。送出若丟錯，內層 `catch` 再送一次並吞掉，最後回 false——**查詢結果現在不受送出失敗影響，只是無聲**。沒有測試打到真函式（判例 3）。
 **反例（初稿 B7「往外丟」）**：呼叫者 2 會把一次合法的啟動擋下（違反 Q3 (2)）；呼叫者 3 的 `prepare` 會 reject，更新／修復因為通知失敗而失敗（違反 Q3 (1)）；呼叫者 1 會 reject，畫面輪詢 `catch` 後下一輪再問，這時 `runningMcProcess` 已是 null、不再送，所以會自己恢復——但 1、2、3 都沒有常駐紀錄。初稿的 B7 修後預期**撤回**。
@@ -122,9 +122,9 @@ main 沒有任何 `process.on(...)`〔CC：rg `process\.on\(` main.js、main/、
 
 ## N5：`app-ready` 呼叫端自己包的兩個 `try`（三稿補，ChatGPT 審查第 5 項）
 
-**現讀**〔CC 讀碼〕：`app-ready.js:108-112` `safeSendSyncStatus` 的 `try` 只包 `sendSyncStatus(text)` 一行；rg `safeSendSyncStatus` 只有定義（`:108`）與唯一使用（`:136`）。`:137-139` 的 `try` 只包 `sendMcStatus(text)` 一行。兩者都在 `configureNetFetch` 的 `onRetryNotify`（`:135-140`）裡；`sendSyncStatus`、`sendMcStatus` 來自 `ctx`（`:97-98`），`ctx` 由 `start-main.js` 的 `createMainAppReadyContext` 回傳，兩個值就是 bridge 的 sender（`start-main.js:158-166` 解構自 `bridge`；`runMainAppReady` 唯一的呼叫在 `start-main.js:210-211`，`ctx` 就是 `createMainAppReadyContext` 的回傳）。
+**現讀**〔CC 讀碼〕：`app-ready.js:108-112` `safeSendSyncStatus` 的 `try` 只包 `sendSyncStatus(text)` 一行；rg `safeSendSyncStatus` 只有定義（`:108`）與唯一使用（`:136`）。`:137-139` 的 `try` 只包 `sendMcStatus(text)` 一行。兩者都在 `configureNetFetch` 的 `onRetryNotify`（`:135-140`）裡；`sendSyncStatus`、`sendMcStatus` 來自 `ctx`（`:97-98`），`ctx` 由 `start-main.js` 的 `createMainAppReadyContext` 回傳，兩個值就是 bridge 的 sender（`start-main.js:158-166` 解構自 `bridge`；`runMainAppReady` 唯一的呼叫在 `start-main.js:210-211`，`ctx` 就是 `createMainAppReadyContext` 的回傳）。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`app-ready.js:108-112`（`safeSendSyncStatus`）、`:136`、`:137-139` 刪除；`:135-140` 改寫（後 `:130-133`）；`:97-98` 未移動；`start-main.js` 不在本 commit〕
 **責任**：這兩個 `try` 唯一守的是「下載重試的通知失敗不打斷下載」——正是 Q3 的語意，D2 之後由 `deliver` 負責。`try` 內沒有其他程式、沒有其他使用者，所以沒有另外的責任要搬家。
-**反例搜尋**：(a) `onRetryNotify` 是否有別的注入來源——rg `onRetryNotify` 在 main/ 只有 `app-ready.js:135` 與 `net-fetch.js:17,31`，測試只有 `net-fetch-download.test.cjs:294`（注入計數器、不丟）；(b) `sendSyncStatus`／`sendMcStatus` 是否可能不是 bridge 的——`MAIN_APP_READY_KEYS` 的值只來自 `start-main`，找不到第二個來源。沒有找到拿掉之後會改變行為的路徑。
+**反例搜尋**：(a) `onRetryNotify` 是否有別的注入來源——rg `onRetryNotify` 在 main/ 只有 `app-ready.js:135` 與 `net-fetch.js:17,31`，測試只有 `net-fetch-download.test.cjs:294`（注入計數器、不丟）；(b) `sendSyncStatus`／`sendMcStatus` 是否可能不是 bridge 的——`MAIN_APP_READY_KEYS` 的值只來自 `start-main`，找不到第二個來源。沒有找到拿掉之後會改變行為的路徑。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`app-ready.js:135` 後 `:130`；`net-fetch-download.test.cjs:294` 後 `:295`（B11 在它後面）；`net-fetch.js` 不在本 commit〕
 **最小驗收**：B11。不碰 `app-ready` 的其他部分（鍵名三遍、過期地址屬 6b-3）。
 
 ## 候選總表（現讀，基準 `be4b9fb`）
@@ -135,28 +135,28 @@ main 沒有任何 `process.on(...)`〔CC：rg `process\.on\(` main.js、main/、
 |---|---|---|---|---|---|---|
 | M-IPC | `main/ipc-setup.js:1-5` | 5 行別名；唯一使用者 `start-main.js:41` | 成立（判例 1） | 無 | 6b-2 | CC 讀碼 |
 | M-IPC | `main/ipc-handlers.js:1-52` | 組裝：`createIpcBridgeSenders`、`createShowInfoDialog`、`createIpcRuntime`，再逐個列名轉出 `send*` | 成立；組裝去處待裁（Q1） | 無直接測試 | 6b-2 | CC 讀碼 |
-| M-IPC | `ipc-runtime.js:17-21` 旗標＋`microsoft-auth.js:627-636` `removeHandler` | `setupMainIpc` 只在 `app-ready.js:164` 呼叫一次 | 成立（U15 已裁拿掉 `removeHandler`） | `test/ipc-plain-errors.test.cjs:15,113,127`、`scripts/lib/ipc-registry.js:28-36` 走 `createIpcRuntime().setupOnce()` | 6b-2 | CC 讀碼 |
-| M-IPCARG | `ipc/*.js` 9 檔的 `ctx \|\| {}`、`external-ipc.js:5`／`dialog-ipc.js:5`／`diagnostics-ipc.js:5` 的 `ctx?.` | 唯一呼叫端 `registerAllMainIpc` 一定傳 | 成立 | 各 IPC 測試自己組 ctx〔未逐檔查〕 | 6b-2 | CC 讀碼（rg） |
+| M-IPC | `ipc-runtime.js:17-21` 旗標＋`microsoft-auth.js:627-636` `removeHandler` | `setupMainIpc` 只在 `app-ready.js:164` 呼叫一次 | 成立（U15 已裁拿掉 `removeHandler`） | `test/ipc-plain-errors.test.cjs:15,113,127`、`scripts/lib/ipc-registry.js:28-36` 走 `createIpcRuntime().setupOnce()` | 6b-2 | CC 讀碼〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`microsoft-auth.js:627-636` 後 `:623-632`；`app-ready.js:164` 後 `:158`；其他行號指的檔不在本 commit〕 |
+| M-IPCARG | `ipc/*.js` 9 檔的 `ctx \|\| {}`、`external-ipc.js:5`／`dialog-ipc.js:5`／`diagnostics-ipc.js:5` 的 `ctx?.` | 唯一呼叫端 `registerAllMainIpc` 一定傳 | 成立 | 各 IPC 測試自己組 ctx〔未逐檔查〕 | 6b-2 | CC 讀碼（rg）〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`dialog-ipc.js:5` 未移動；其他行號指的檔不在本 commit〕 |
 | M-SEND | 見 §M-SEND／M-LAUNCH 的責任 七處 | — | 成立；依 Q3 收斂成一個有常駐出口的隔離點 | W19、N24 三案 | **6b-1** | CC 讀碼＋實測 |
-| M-LAUNCH | `minecraft-launch.js:68-101` | 同上 | 外層死碼、內層同 M-SEND | 無 | **6b-1** | CC 讀碼 |
-| M-WIN | `ipc-bridge.js:20,39,49,57,62-64,68`；`ipc/window-ipc.js:6,9`；`ipc/dialog-ipc.js:10`；`ui-dialogs.js:4,6`；`game-closed-dialog.js:30-32`；`microsoft-auth.js:536-550`；`main-window.js:111` | 五種寫法並存：`getMainWindow?.()`、方法上的 `?.()`、`typeof isDestroyed === "function"`、只看 `win.isDestroyed()`、什麼都不看 | 成立的部分：getter 上的 `?.()`、`typeof isDestroyed === "function"`、方法上的 `?.()`（防內部函式）。**不成立的部分**：「視窗存在且沒銷毀才掛上去」是既有契約 A11（`plans/instance-sync-v3-commit3b2a.md:46`，明文引用 `ui-dialogs.js:6-10` 為同一條規則），D3（`test/game-closed-dialog.test.cjs:55-`）以 destroyed 假視窗釘住——留（留-1：時序） | `test/ipc-bridge.test.cjs:42`、D3 | **6b-1** | CC 讀碼 |
-| M-DI | `microsoft-auth.js:20-34`、`net-fetch.js:15-27`、`minecraft-launch.js:36-49`（＋`:166` 第二條注入路）、`discord-rpc.js:16-27,50-53`、`main-window.js:8,16,23-31`、`server-status.js:4,12-19`、`sync/apply.js:81-82`、`sync/index.js:158-168`、`sync/notice-feed.js:38-39`；`game-closed-dialog.js:26` | configure＋空函式／預設依賴 | 成立；`sync/index.js:161-164` 是「正式也走的真實作預設＋測試縫」，算不算違規待裁（Q6）；`server-status` 的空字串 URL 是合法的「沒設定」 | **依賴預設值的測試**：net-fetch 系 6 檔不呼叫 configure、`server-status-config.test.cjs` 4 案、`sync-index.test.cjs:607-614` minimalDeps、`sync-notice-feed.test.cjs:135`、`microsoft-auth-refresh.test.cjs:14`、`game-closed-dialog.test.cjs:44,51` | 6b-3 | 子 agent（抽查 `:161-164`、`:166`） |
-| M-OTHER | `app-ready.js:11-38`、`:79-106`、`start-main.js:170-197` 鍵名三遍；`app-ready.js:3,10` 與 `ARCHITECTURE.md:88` 指向不存在的 `getMainAppReadyContext` | — | 成立 | 無（`runMainAppReady` 沒有測試） | 6b-3 | 子 agent |
+| M-LAUNCH | `minecraft-launch.js:68-101` | 同上 | 外層死碼、內層同 M-SEND | 無 | **6b-1** | CC 讀碼〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`minecraft-launch.js:68-101` 改寫（後 `:69-91`）〕 |
+| M-WIN | `ipc-bridge.js:20,39,49,57,62-64,68`；`ipc/window-ipc.js:6,9`；`ipc/dialog-ipc.js:10`；`ui-dialogs.js:4,6`；`game-closed-dialog.js:30-32`；`microsoft-auth.js:536-550`；`main-window.js:111` | 五種寫法並存：`getMainWindow?.()`、方法上的 `?.()`、`typeof isDestroyed === "function"`、只看 `win.isDestroyed()`、什麼都不看 | 成立的部分：getter 上的 `?.()`、`typeof isDestroyed === "function"`、方法上的 `?.()`（防內部函式）。**不成立的部分**：「視窗存在且沒銷毀才掛上去」是既有契約 A11（`plans/instance-sync-v3-commit3b2a.md:46`，明文引用 `ui-dialogs.js:6-10` 為同一條規則），D3（`test/game-closed-dialog.test.cjs:55-`）以 destroyed 假視窗釘住——留（留-1：時序） | `test/ipc-bridge.test.cjs:42`、D3 | **6b-1** | CC 讀碼〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`ipc-bridge.js:20,39,49,57,62-64,68` 改寫（全部改呼叫 `send`，在 `:41,58,68,73,78,82`）；`ipc/window-ipc.js:6,9` 改寫，後 `:6,8`；`ipc/dialog-ipc.js:10`、`ui-dialogs.js:4,6` 原地改寫；`game-closed-dialog.js:30-32` 後 `:30-31`；`microsoft-auth.js:536-550` 後 `:536-546`；`main-window.js:111` 改寫，後 `:113`；`ui-dialogs.js:6-10` 未移動（`:6` 原地改寫）；`test/ipc-bridge.test.cjs:42` 改寫，後 `:47-48`；`test/game-closed-dialog.test.cjs`、`instance-sync-v3-commit3b2a.md` 不在本 commit〕 |
+| M-DI | `microsoft-auth.js:20-34`、`net-fetch.js:15-27`、`minecraft-launch.js:36-49`（＋`:166` 第二條注入路）、`discord-rpc.js:16-27,50-53`、`main-window.js:8,16,23-31`、`server-status.js:4,12-19`、`sync/apply.js:81-82`、`sync/index.js:158-168`、`sync/notice-feed.js:38-39`；`game-closed-dialog.js:26` | configure＋空函式／預設依賴 | 成立；`sync/index.js:161-164` 是「正式也走的真實作預設＋測試縫」，算不算違規待裁（Q6）；`server-status` 的空字串 URL 是合法的「沒設定」 | **依賴預設值的測試**：net-fetch 系 6 檔不呼叫 configure、`server-status-config.test.cjs` 4 案、`sync-index.test.cjs:607-614` minimalDeps、`sync-notice-feed.test.cjs:135`、`microsoft-auth-refresh.test.cjs:14`、`game-closed-dialog.test.cjs:44,51` | 6b-3 | 子 agent（抽查 `:161-164`、`:166`）〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`minecraft-launch.js:36-49` 未移動、`:166` 後 `:156`；`main-window.js:8,16,23-31`、`microsoft-auth.js:20-34`、`game-closed-dialog.js:26` 未移動；`server-status.js:4` 未移動、`:12-19` 後 `:14-22`（多一行 `gglError`）；`sync/index.js:158-168` 後 `:159-169`、`:161-164` 後 `:162-165`；`sync-index.test.cjs:607-614` 後 `:609-616`；來源欄的「抽查 `:161-164`、`:166`」同上；其他行號指的檔不在本 commit〕 |
+| M-OTHER | `app-ready.js:11-38`、`:79-106`、`start-main.js:170-197` 鍵名三遍；`app-ready.js:3,10` 與 `ARCHITECTURE.md:88` 指向不存在的 `getMainAppReadyContext` | — | 成立 | 無（`runMainAppReady` 沒有測試） | 6b-3 | 子 agent〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`app-ready.js:3,10`、`:11-38`、`:79-106` 未移動；`start-main.js`、`ARCHITECTURE.md` 不在本 commit〕 |
 | M-OTHER | `discord-rpc.js:31` 寫死 `"rpc:notice"`、繞過 bridge | `IPC.on.RPC_NOTICE` 已存在（`lib/ipc-channels.js:57`） | 成立 | 無 | 6b-3 | 子 agent（CC 抽查 rg） |
 | M-OTHER | piston-meta 網址、「切換鏡像」字面 | — | 已處理（`4f1f777`；只剩 `runtime/minecraft.js:37-38` 一份；「下載中止」5 處） | — | 結案 | 子 agent |
 | M-STREAM | `net-fetch.js:223`（`typeof body.getReader`）＋`:268-305`；`runtime/download.js:230,239-253` | 兩處 body 都來自 fetch（undici 8／全域）＝Web stream〔推論〕 | 成立（§6） | 無測試餵 Node stream（rg `Readable\|PassThrough` test/ 0；對照組 `getReader` 命中） | 6b-4 | 子 agent |
 | M-RE | `paths.js:10-14,32-35`、`launcher-log.js:5-7,100` | 原樣轉出 lib；`INSTANCE_ID` 經 main/paths 的使用者 0 | 成立 | 測試直接載 lib | 6b-4 | 子 agent |
-| M-LAUNCH | `minecraft-launch.js:222-225` 重複啟動第二道 | 第一道 `ipc/minecraft-ipc.js:41-43` 在同一把 `withLaunchLock` 裡，鎖要等啟動回來才放 ⇒ 打不到〔推論〕 | 成立 | 無測試打到第二道 | 6b-4 | 子 agent（CC 抽查兩處） |
-| 待查 | `minecraft-launch.js:167-173` 記錄／成品「第二道」（defense-cleanup §待查 的 `:179`） | `canLaunch` 成立 ⇒ `recordComplete` 通過且有 `launch`，且鎖交出的是同一份〔推論〕；`:174` `assertLaunchBundle` 是第三層 | 多餘；**C8（`minecraft-launch.test.cjs:84`）、S4（`:330`）直接釘住**，拿掉要改這兩案 | C8、S4 | 6b-4 | 子 agent |
+| M-LAUNCH | `minecraft-launch.js:222-225` 重複啟動第二道 | 第一道 `ipc/minecraft-ipc.js:41-43` 在同一把 `withLaunchLock` 裡，鎖要等啟動回來才放 ⇒ 打不到〔推論〕 | 成立 | 無測試打到第二道 | 6b-4 | 子 agent（CC 抽查兩處）〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`minecraft-launch.js:222-225` 後 `:212-215`；`ipc/minecraft-ipc.js` 不在本 commit〕 |
+| 待查 | `minecraft-launch.js:167-173` 記錄／成品「第二道」（defense-cleanup §待查 的 `:179`） | `canLaunch` 成立 ⇒ `recordComplete` 通過且有 `launch`，且鎖交出的是同一份〔推論〕；`:174` `assertLaunchBundle` 是第三層 | 多餘；**C8（`minecraft-launch.test.cjs:84`）、S4（`:330`）直接釘住**，拿掉要改這兩案 | C8、S4 | 6b-4 | 子 agent〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`minecraft-launch.js:167-173` 後 `:157-163`、`:174` 後 `:164`、`:179` 後 `:169`；`minecraft-launch.test.cjs:84`、`:330` 後 `:90`、`:336`〕 |
 | M-MISC | `system-memory.js:4-12` | `os.totalmem?.()`、`?? 0`、`try` | `?.`／`try` 成立；`<= 0` 算不算 OS 邊界待裁（Q7） | null 流到 `lib/settings-logic.js:41`、`settings-logic.test.cjs:50` | 6b-4 | 子 agent |
-| M-MISC | `start-main.js:107` `String(pkg.version \|\| "")` | `sync/index.js:82-88` 本來就驗 | 成立 | 無 | 6b-4 | 子 agent |
+| M-MISC | `start-main.js:107` `String(pkg.version \|\| "")` | `sync/index.js:82-88` 本來就驗 | 成立 | 無 | 6b-4 | 子 agent〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`sync/index.js:82-88` 後 `:83-89`；`start-main.js` 不在本 commit〕 |
 | M-MISC | `diagnostics-export.js:74,81-84,103` | 已驗過的設定、邊界內的 `getPaths` | 成立 | 測試給齊，不靠預設 | 6b-4 | 子 agent |
-| M-MISC | `main-window.js:82-94,99-104` | `details?.` 是 Electron 事件 payload（邊界）；`ready-to-show` 的 `isDestroyed` 是時序 | **改分類**（留-1：時序／外部 API）；缺一行理由 | 無 | 6b-4（只補理由） | 子 agent |
+| M-MISC | `main-window.js:82-94,99-104` | `details?.` 是 Electron 事件 payload（邊界）；`ready-to-show` 的 `isDestroyed` 是時序 | **改分類**（留-1：時序／外部 API）；缺一行理由 | 無 | 6b-4（只補理由） | 子 agent〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`main-window.js:82-94,99-104` 未移動〕 |
 | M-MISC | `ipc/minecraft-ipc.js:21-30` `explainLaunchBlocked` | `describeStatus` 只在未知 kind／原因時丟＝bug；退回通用字、不寫 `gglError` | 成立（吞 bug） | W15 只走正常路 | 6b-4（與 Q4 同根） | 子 agent（CC 抽查） |
 | M-SILENT | `runtime/java.js`、`settings.js` 兩段 | — | 已處理（`7141f9f`、`a4d4eb9`） | — | 結案 | 子 agent |
 | M-SILENT | `sync/apply.js:273-277` `throwIfSiteChanged` 的 `catch {}` | 原本的 404 照丟（`:247`），吞的是「重查站台」失敗的原因 | **改分類**為 §4 探測；缺一行理由 | `:322`、`:341` 沒讓它 reject | 6b-4（補理由） | 子 agent |
 | M-SILENT | `sync/site-client.js:127-136` | 非 2xx 或丟錯時回快取的公告，完全不出聲 | 成立：沿用舊資料是 R6 的決定（`:121-122`），無聲不是 | F16（`sync-notice-feed.test.cjs:374`）、`sync-site-client.test.cjs:371` 依賴退路本身 | 6b-4 | 子 agent |
-| M-SILENT | `microsoft-auth.js:621` `refresh_token \|\| ""` | 網路回應；缺 refresh_token 就存空字串，到期時玩家只看到「登入已失效」 | 成立；碰 token 路徑，要假 token 測試 | 無測試走登入 | 6b-4 | 子 agent（CC 抽查） |
+| M-SILENT | `microsoft-auth.js:621` `refresh_token \|\| ""` | 網路回應；缺 refresh_token 就存空字串，到期時玩家只看到「登入已失效」 | 成立；碰 token 路徑，要假 token 測試 | 無測試走登入 | 6b-4 | 子 agent（CC 抽查）〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`microsoft-auth.js:621` 後 `:617`〕 |
 | U15 | 三層全刪 | 已裁（上層 §4.2）；子題「組裝搬去哪」未定 | — | 同 M-IPC | 6b-2 | 上層 |
 
 ## 分批（CC 提案）
@@ -174,27 +174,27 @@ main 沒有任何 `process.on(...)`〔CC：rg `process\.on\(` main.js、main/、
 
 ### 設計
 
-- **D1（撤回，三稿）**：二稿提議讓 `getMainWindow()` 在視窗 destroyed 後回 `null`，再把各呼叫點收成 `win ? … : …`。ChatGPT 審查指出這會破壞 A11／D3：`createConfirmGameClosed` 吃的是**注入的** getter，契約是「getter 可能回已銷毀的視窗，呼叫端自己判斷」，D3 以 `{ isDestroyed: () => true }` 釘住。改 `main-window` 只保證正式 getter，保不住注入契約，而 D3 也不能只為了改綠而改寫。三稿改成**沿用 A11 的規則**：拿到視窗的地方一律 `win && !win.isDestroyed()`（`main-window.js:102`、`single-instance.js:25`、`game-closed-dialog`、`ui-dialogs`、`microsoft-auth` 本來就這樣寫）；`main-window.js` 不改。附帶好處：B9 與替 `fake-electron` 補 `BrowserWindow` 的成本（原 U-3）一起消失。
+- **D1（撤回，三稿）**：二稿提議讓 `getMainWindow()` 在視窗 destroyed 後回 `null`，再把各呼叫點收成 `win ? … : …`。ChatGPT 審查指出這會破壞 A11／D3：`createConfirmGameClosed` 吃的是**注入的** getter，契約是「getter 可能回已銷毀的視窗，呼叫端自己判斷」，D3 以 `{ isDestroyed: () => true }` 釘住。改 `main-window` 只保證正式 getter，保不住注入契約，而 D3 也不能只為了改綠而改寫。三稿改成**沿用 A11 的規則**：拿到視窗的地方一律 `win && !win.isDestroyed()`（`main-window.js:102`、`single-instance.js:25`、`game-closed-dialog`、`ui-dialogs`、`microsoft-auth` 本來就這樣寫）；`main-window.js` 不改。附帶好處：B9 與替 `fake-electron` 補 `BrowserWindow` 的成本（原 U-3）一起消失。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`main-window.js:102` 未移動；`single-instance.js` 不在本 commit〕
 - **D2 `main/ipc-bridge.js`：唯一的送出點與唯一的隔離**。
   - `deliver(wc, channel, payload)`：`wc.isDestroyed()` ⇒ 回 false（時序邊界：視窗已關，不算故障、不記錄）；否則 `try { wc.send(channel, payload); return true } catch (err) { deps.gglError("main", "renderer_send_failed", err, { channel }); return false }`。`try` 只包 `wc.send` 這一行；payload 在呼叫 `deliver` 之前組好、不在 `try` 裡。
   - 註解寫明它維護的不變量（Q3 (3)）：「送畫面是通知：失敗只記常駐日誌，不往呼叫者丟——同步更新／修復、啟動、登入、狀態查詢的結果不受通知影響（owner Q3 2026-10-25）。視窗已關是時序，不記。」
   - `send(channel, payload)`：`const win = deps.getMainWindow(); if (!win || win.isDestroyed()) return; deliver(win.webContents, channel, payload);`——先照 A11 判視窗（S3：destroyed 的視窗連 `.webContents` 都不能讀），`deliver` 再判 webContents（S2：webContents 先 destroyed）。兩道都是時序，不記錄。`sendState`＝`latest.set`＋`send`；五個一次性 sender 改呼叫 `send`；`replayLatest` 逐項呼叫 `deliver`、成功的才列入回傳（§W19）。
-  - 拿掉 `sendState`（`:19-21`）、`replayLatest`（`:29-32`）、`sendInstanceStatus`（`:87-99`）原有的 `try`／`catch`，以及 `status?.`（status 是 `sync/index` 自己產的物件）。`textOf`（`:74-84`）保留（W11 刻意設計：`describeStatus` 丟錯仍送出內部錯誤字樣），它只寫 debug log 的問題見 Q4。
+  - 拿掉 `sendState`（`:19-21`）、`replayLatest`（`:29-32`）、`sendInstanceStatus`（`:87-99`）原有的 `try`／`catch`，以及 `status?.`（status 是 `sync/index` 自己產的物件）。`textOf`（`:74-84`）保留（W11 刻意設計：`describeStatus` 丟錯仍送出內部錯誤字樣），它只寫 debug log 的問題見 Q4。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`ipc-bridge.js` 的 `:19-21`、`:29-32`、`:87-99` 的 `try`／`catch` 刪除；`textOf` `:74-84` 後 `:86-96`〕
   - 為什麼放這裡、不放各操作點：§6b-1 直接呼叫端 那張表有 7 類呼叫者、其中 3 類現在就會因送出丟錯而失敗；在 bridge 的 `wc.send` 隔離一次，全部呼叫者同時滿足 Q3 (1)(2)，`catch` 只有一個、`try` 只有一行（Q3 (5)：不是通用機制，不包任何非送出的程式；不新增發送或快取權威）。各 sender 組 payload 的程式不會丟錯〔CC 讀碼：`textOf` 自己接、`logSyncProgressThrottled`（`launcher-log.js:87-97`）與 `appendLauncherLog` 不丟、其餘只是組物件〕。
   - `gglError` 已在 bridge 的 `deps` 裡（`start-main.js:156` 傳給 `createMainIpcBridge`），不新增接線。`detail` 只放 `channel`（程式內的常數，不含使用者資料；D-LOG-PRIVACY）；`err` 照 D-LOG-FIELDS。事件 ID 待裁（Q2）。
-- **D3 `main/sync/index.js:264-271`**：拿掉 `try`／`catch {}` 與「視窗沒了」註解；`createInstanceSync` 的依賴說明寫上「`sendInstanceStatus` 不丟錯（ipc-bridge 的 `deliver` 保證，Q3）」。`withSyncLock` 的「重算不蓋掉本身的結果」照舊成立，依據改為 bridge 的契約。序號邏輯不動。
-- **D4 `main/minecraft-launch.js:68-101`**：拿掉外層 `try`／`catch`（`:69`、`:73-75`）與 `cleanupStaleMcProcessIfNeeded` 的 `try`／`catch`（`:80`、`:93-99`）；正常分支（`exitCode !== null`、pid 不在）行為不變、`sendMcRunning(false)` 各送一次（§B7）。`isPidAlive` 的 `catch`（`:63-65`）是探測 OS（`process.kill(pid, 0)`），留；補一行理由（§4）。
-- **D5 `main/server-status.js:94`**：`tick().catch(() => {})` 改成 `tick().catch((err) => gglError("main", "server_status_tick_failed", err))`。D2 之後 `tick` 裡沒有已知會 reject 的路徑；這是輪詢根部唯一的落點（main 沒有全域處理，S5），不帶 detail。事件 ID 待裁（Q2）。
-  - **接線**（三稿補）：`start-main.js:156` 傳給 bridge 的 `gglError` **不會**到 server-status。實際的接法：`main/app-ready.js:8` 把 `const { gglEvent } = require("./ggl-log")` 改成同時取 `gglError`，`:157-162` 的 `configureServerStatus({ … })` 多傳 `gglError`；`server-status.js` 的 `configureServerStatus`（`:12-19`）把它存進模組變數，`tick` 的 `catch` 用它。不改 `MAIN_APP_READY_KEYS`、不經 `start-main`、不新增組裝層。`configureServerStatus` 沒收到 `gglError` 時怎麼辦屬 M-DI（6b-3 一起改成建立時檢查），6b-1 不加預設值。
+- **D3 `main/sync/index.js:264-271`**：拿掉 `try`／`catch {}` 與「視窗沒了」註解；`createInstanceSync` 的依賴說明寫上「`sendInstanceStatus` 不丟錯（ipc-bridge 的 `deliver` 保證，Q3）」。`withSyncLock` 的「重算不蓋掉本身的結果」照舊成立，依據改為 bridge 的契約。序號邏輯不動。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`main/sync/index.js:264-271` 改寫（後 `:265-270`）〕
+- **D4 `main/minecraft-launch.js:68-101`**：拿掉外層 `try`／`catch`（`:69`、`:73-75`）與 `cleanupStaleMcProcessIfNeeded` 的 `try`／`catch`（`:80`、`:93-99`）；正常分支（`exitCode !== null`、pid 不在）行為不變、`sendMcRunning(false)` 各送一次（§B7）。`isPidAlive` 的 `catch`（`:63-65`）是探測 OS（`process.kill(pid, 0)`），留；補一行理由（§4）。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`main/minecraft-launch.js:68-101` 改寫（後 `:69-91`）；`:69`、`:73-75`、`:80`、`:93-99` 刪除；`:63-65` 後 `:63-66`（多一行理由）〕
+- **D5 `main/server-status.js:94`**：`tick().catch(() => {})` 改成 `tick().catch((err) => gglError("main", "server_status_tick_failed", err))`。D2 之後 `tick` 裡沒有已知會 reject 的路徑；這是輪詢根部唯一的落點（main 沒有全域處理，S5），不帶 detail。事件 ID 待裁（Q2）。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`main/server-status.js:94` 改寫（後 `:97-99`）〕
+  - **接線**（三稿補）：`start-main.js:156` 傳給 bridge 的 `gglError` **不會**到 server-status。實際的接法：`main/app-ready.js:8` 把 `const { gglEvent } = require("./ggl-log")` 改成同時取 `gglError`，`:157-162` 的 `configureServerStatus({ … })` 多傳 `gglError`；`server-status.js` 的 `configureServerStatus`（`:12-19`）把它存進模組變數，`tick` 的 `catch` 用它。不改 `MAIN_APP_READY_KEYS`、不經 `start-main`、不新增組裝層。`configureServerStatus` 沒收到 `gglError` 時怎麼辦屬 M-DI（6b-3 一起改成建立時檢查），6b-1 不加預設值。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`main/app-ready.js:8` 原地改寫；`:157-162` 後 `:150-156`（多一行 `gglError`）；`server-status.js` 的 `:12-19` 後 `:14-22`；`start-main.js` 不在本 commit〕
   - **驗**：B8 經 `configureServerStatus` 注入紀錄器；接線本身 `runMainAppReady` 沒有測試，施工後以 rg 確認 `app-ready.js` 的 `configureServerStatus` 呼叫帶 `gglError`，並在 R1 實跑時確認開機沒有 `TypeError`（輪詢在開機就跑第一次）。
 - **D6 M-WIN 其餘**（三稿改寫）：只拿掉防內部函式的部分，A11 的「活著」判斷留下。
-  - `game-closed-dialog.js:31-32`：`win && typeof win.isDestroyed === "function" && !win.isDestroyed()` → `win && !win.isDestroyed()`。D3 一行不改、照樣綠（它的 destroyed 假視窗有 `isDestroyed`）；D3 的 `{}` 案靠 `getMainWindow = () => null` 預設，屬 M-DI，6b-3 再處理。
-  - `ui-dialogs.js:4,6`：`getMainWindow?.()` → `getMainWindow()`（`createShowInfoDialog` 唯一的呼叫者 `ipc-handlers.js:22` 一定傳）；判斷改成 `win && !win.isDestroyed()`。A11 明文以它為範本，同類契約成立〔CC 讀碼；`ui-dialogs` 沒有直接測試，各 IPC 測試注入的是假的 `showInfoDialog`〕。`:11` 的 `catch {}` 不動（N1）。
-  - `microsoft-auth.js:542-546`：`parent && typeof parent.isDestroyed === "function" && !parent.isDestroyed()` → `parent && !parent.isDestroyed()`。同類契約成立（同一種寫法、時序相同：登入頁載入失敗時主視窗可能已關）；沒有測試。`:416` `parent: deps.getMainWindow() || undefined` 不在盤點、不動。
-  - `ipc/window-ipc.js:6,9` → `deps.getMainWindow()?.minimize()`／`?.close()`；`ipc/dialog-ipc.js:10` → `deps.getMainWindow() ?? undefined`。這兩處沒有 A11 的「活著」判斷，也沒有同類契約或測試（`test/ipc-registry.test.cjs:23` 只看註冊）：它們由畫面 invoke 觸發，發出 invoke 的就是這個視窗的 renderer〔推論〕。三稿只拿掉 getter 與方法上的 `?.()`，不新增判斷（不在盤點描述的範圍）。
-  - `main-window.js:111` → 見 §已知未驗 U-1，驗完才定寫法。
+  - `game-closed-dialog.js:31-32`：`win && typeof win.isDestroyed === "function" && !win.isDestroyed()` → `win && !win.isDestroyed()`。D3 一行不改、照樣綠（它的 destroyed 假視窗有 `isDestroyed`）；D3 的 `{}` 案靠 `getMainWindow = () => null` 預設，屬 M-DI，6b-3 再處理。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`game-closed-dialog.js:31-32` 改寫，後 `:31`〕
+  - `ui-dialogs.js:4,6`：`getMainWindow?.()` → `getMainWindow()`（`createShowInfoDialog` 唯一的呼叫者 `ipc-handlers.js:22` 一定傳）；判斷改成 `win && !win.isDestroyed()`。A11 明文以它為範本，同類契約成立〔CC 讀碼；`ui-dialogs` 沒有直接測試，各 IPC 測試注入的是假的 `showInfoDialog`〕。`:11` 的 `catch {}` 不動（N1）。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`ui-dialogs.js:4,6` 原地改寫；`:11` 未移動；`ipc-handlers.js` 不在本 commit〕
+  - `microsoft-auth.js:542-546`：`parent && typeof parent.isDestroyed === "function" && !parent.isDestroyed()` → `parent && !parent.isDestroyed()`。同類契約成立（同一種寫法、時序相同：登入頁載入失敗時主視窗可能已關）；沒有測試。`:416` `parent: deps.getMainWindow() || undefined` 不在盤點、不動。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`microsoft-auth.js:542-546` 改寫，後 `:542`；`:416` 未移動〕
+  - `ipc/window-ipc.js:6,9` → `deps.getMainWindow()?.minimize()`／`?.close()`；`ipc/dialog-ipc.js:10` → `deps.getMainWindow() ?? undefined`。這兩處沒有 A11 的「活著」判斷，也沒有同類契約或測試（`test/ipc-registry.test.cjs:23` 只看註冊）：它們由畫面 invoke 觸發，發出 invoke 的就是這個視窗的 renderer〔推論〕。三稿只拿掉 getter 與方法上的 `?.()`，不新增判斷（不在盤點描述的範圍）。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`ipc/window-ipc.js:6,9` 改寫，後 `:6,8`；`ipc/dialog-ipc.js:10` 原地改寫；`test/ipc-registry.test.cjs` 不在本 commit〕
+  - `main-window.js:111` → 見 §已知未驗 U-1，驗完才定寫法。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`main-window.js:111` 改寫，後 `:113`〕
 
-**不做**：不改 `STATE_CHANNELS`、`replayLatest` 的重播語意、`textOf` 的退路；不碰 `discord-rpc.js`（6b-3）、`getMainWindow` 的注入預設值（6b-3）、`ui-dialogs.js:11` 的 `catch {}`（N1）、`net-fetch.js:29-33` `notifyRetryToUi` 的 `catch {}`（N6，Q5）、`main-window.js` 的 `getMainWindow`（D1 撤回）、`single-instance.js:25`（已是正確寫法，不在盤點）；不新增執行期 payload 檢查、不加全域 `process.on`、不在操作點另加 `catch`。
+**不做**：不改 `STATE_CHANNELS`、`replayLatest` 的重播語意、`textOf` 的退路；不碰 `discord-rpc.js`（6b-3）、`getMainWindow` 的注入預設值（6b-3）、`ui-dialogs.js:11` 的 `catch {}`（N1）、`net-fetch.js:29-33` `notifyRetryToUi` 的 `catch {}`（N6，Q5）、`main-window.js` 的 `getMainWindow`（D1 撤回）、`single-instance.js:25`（已是正確寫法，不在盤點）；不新增執行期 payload 檢查、不加全域 `process.on`、不在操作點另加 `catch`。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`ui-dialogs.js:11` 未移動；`net-fetch.js`、`single-instance.js` 不在本 commit〕
 
 ### 驗收案例
 
@@ -217,10 +217,10 @@ main 沒有任何 `process.on(...)`〔CC：rg `process\.on\(` main.js、main/、
 | B7 | 同 B6，但 `wc.send` 丟 `Error` | 回 false、`send` 嘗試 2 次、`gglError` 0（紅） | 回 false、`send` 嘗試 1 次、`gglError` 1 筆（§B7） |
 | B8 | `server-status`：注入會丟的 `sendServerStatus`、跑一次 tick | 無聲 | 注入的 `gglError` 1 次：`("main", "server_status_tick_failed", err)`、不帶 detail |
 | B10 | `game-closed-dialog` D3 原封不動（活視窗 ⇒ 帶 parent；destroyed 假視窗、`null`、沒給 getter ⇒ 不帶） | 綠 | 綠（A11 的回歸；D3 不改寫） |
-| B10u | `ui-dialogs` `showInfoDialog`：活視窗 ⇒ 帶 parent；destroyed 假視窗、`null` ⇒ 不帶（新測試，照 D3 的形狀；注入假 `dialog` 需先確認 `ui-dialogs.js:1` 檔頂 `require("electron")` 在測試行程的處理，→ U-6） | 綠 | 綠（把 A11 的同類契約釘到 `ui-dialogs`） |
-| B11 | N5：照 `app-ready.js:135-140` 的形狀組 `onRetryNotify`（呼叫真 bridge 的 `sendSyncStatus`、`sendMcStatus`，`wc.send` 丟 `Error`），接進 `configureNetFetch`，跑一個會重試一次的下載（既有 `test/net-fetch-download.test.cjs:294` 的重試案為底） | 下載成功；`gglError` 0（`sendSyncStatus`、`sendMcStatus` 裸送丟錯，被 `app-ready` 的兩個 `try` 吞）——紅在 `gglError` 的斷言 | 拿掉 `app-ready` 兩個 `try` 後：下載成功；`gglError` 2 筆（一次重試兩個通知）。D2 的 `catch` 拔掉時，這案改由 `notifyRetryToUi` 的 `catch` 吞（N6），所以反向驗證要同時看 `gglError` 筆數 |
+| B10u | `ui-dialogs` `showInfoDialog`：活視窗 ⇒ 帶 parent；destroyed 假視窗、`null` ⇒ 不帶（新測試，照 D3 的形狀；注入假 `dialog` 需先確認 `ui-dialogs.js:1` 檔頂 `require("electron")` 在測試行程的處理，→ U-6） | 綠 | 綠（把 A11 的同類契約釘到 `ui-dialogs`）〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`ui-dialogs.js:1` 未移動〕 |
+| B11 | N5：照 `app-ready.js:135-140` 的形狀組 `onRetryNotify`（呼叫真 bridge 的 `sendSyncStatus`、`sendMcStatus`，`wc.send` 丟 `Error`），接進 `configureNetFetch`，跑一個會重試一次的下載（既有 `test/net-fetch-download.test.cjs:294` 的重試案為底） | 下載成功；`gglError` 0（`sendSyncStatus`、`sendMcStatus` 裸送丟錯，被 `app-ready` 的兩個 `try` 吞）——紅在 `gglError` 的斷言 | 拿掉 `app-ready` 兩個 `try` 後：下載成功；`gglError` 2 筆（一次重試兩個通知）。D2 的 `catch` 拔掉時，這案改由 `notifyRetryToUi` 的 `catch` 吞（N6），所以反向驗證要同時看 `gglError` 筆數〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`app-ready.js:135-140` 改寫，後 `:130-133`；`test/net-fetch-download.test.cjs:294` 後 `:295`〕 |
 
-**Fixture 更新**（三稿補，ChatGPT 審查第 3 項）：`test/ipc-bridge.test.cjs:28-34` 的 `makeWebContents()` 現在只有 `sent` 與 `send`；D2 的 `deliver` 會呼叫 `wc.isDestroyed()`。改成多一個 `isDestroyed`（預設回 false，可由測試設為 true），`setup()`（`:36-`）的假視窗加 `isDestroyed: () => false`、`deps` 加 `gglError` 紀錄器。W19 既有的斷言（其他照送、回傳只列成功的、`renderer:ready` handler 寫 `REPLAY`）一條都不刪，只在 B4r 加 `gglError` 的斷言。
+**Fixture 更新**（三稿補，ChatGPT 審查第 3 項）：`test/ipc-bridge.test.cjs:28-34` 的 `makeWebContents()` 現在只有 `sent` 與 `send`；D2 的 `deliver` 會呼叫 `wc.isDestroyed()`。改成多一個 `isDestroyed`（預設回 false，可由測試設為 true），`setup()`（`:36-`）的假視窗加 `isDestroyed: () => false`、`deps` 加 `gglError` 紀錄器。W19 既有的斷言（其他照送、回傳只列成功的、`renderer:ready` handler 寫 `REPLAY`）一條都不刪，只在 B4r 加 `gglError` 的斷言。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`test/ipc-bridge.test.cjs:28-34` 改寫，後 `:28-38`；`setup()`（`:36-`）後 `:40-`〕
 N24 三案（注入會丟的假 `sendInstanceStatus`）改寫成 B5a–c：它們測的是「呼叫者自己接住」，6b-1 之後這個責任在 bridge，假的會丟的 sender 不再代表任何正式組合。
 **反向驗證**：施工後逐一拔掉 D2 的 `catch`（B4、B5b–e、B7、B11 應紅）、`deliver` 的 `wc.isDestroyed()`（B1 應紅）、`send` 的 `win.isDestroyed()`（B1w 應紅）、`game-closed-dialog`／`ui-dialogs` 的 `!win.isDestroyed()`（D3、B10u 應紅）、D5 的 `gglError`（B8 應紅），跑完 `cmp` 還原。
 **共同驗證**（上層 §8.0）：`npm test`（Node 24 與 CI 版本 22.x 各一輪）、`npm run lint`、`npm run check:ui-css`、`npm run check:ui-css:strict`、`git diff --check`、prettier、conventions 自審 rg（逐條答；D2 的 `catch` 答 Q3 不變量）。
@@ -230,9 +230,11 @@ N24 三案（注入會丟的假 `sendInstanceStatus`）改寫成 B5a–c：它�
 **owner 畫面**：開機、最小化再還原（`window:power` 的影片暫停）、關閉視窗；若方便，同步進行中關視窗一次。
 **回滾**：一個 commit，獨立 revert；revert 後回到現在的多層無聲吞錯與三條未隔離路徑，與現在相同。
 
-## 6b-1 施工紀錄（2026-10-25，基準 `be4b9fb`；程式、測試、本紀錄與 STATUS 同一個施工 commit）〔實測〕
+## 6b-1 施工紀錄（2026-10-25，基準 `be4b9fb`，commit `48452a9`；程式、測試、本紀錄與 STATUS 同一個施工 commit）〔實測〕
 
-**授權出處**：→ §裁決「6b-1 實作方案與施工授權」。**驗收**：待 ChatGPT 與 owner。
+**驗收出處**：〔轉述〕owner 2026-10-25（與 CC 對話）「啟動正常，6b-1 驗收過，收 docs commit」。
+
+**授權出處**：→ §裁決「6b-1 實作方案與施工授權」。
 
 - **現讀**（基準 `be4b9fb`）：§M-SEND／M-LAUNCH 的責任、§6b-1 直接呼叫端、§N5、D2–D6 引用的行號逐一對過，全部仍在原位；前提沒有被推翻。
 - **U-1 探針**（Electron 44.3.0，scratchpad，不進 repo）：無邊框透明視窗掛 `minimize`／`restore`／`show`／`hide`／`focus`／`blur`，五種情境——`close()`、`destroy()`、最小化後 `close()`、`hide()` 後 `close()`、視窗開著時 `app.quit()`——六個事件沒有一次在 `destroyed` 或 `closed` 之後觸發（順序一律 `close` → webContents `destroyed` → `closed`；`destroy()` 是 `closed` → webContents `destroyed`）。⇒ `main-window.js` 的 `sendWindowPowerState` 寫成 `mainWindow.isMinimized()`，註解寫明探針範圍。沒涵蓋：其他 Electron 版本、OS 層強制結束、多視窗。
@@ -273,7 +275,7 @@ N24 三案（注入會丟的假 `sendInstanceStatus`）改寫成 B5a–c：它�
 
 - **6b-2**：照 U15 裁決刪三層；帳號 handler 的註冊與 `plainErrorIpcMain` 包裝收進 `registerAllMainIpc`，`scripts/lib/ipc-registry.js` 與 `test/ipc-plain-errors.test.cjs` 改呼叫它；拿掉 `setupOnce` 旗標與 `removeHandler`；`register*` 的 `ctx || {}`／`ctx?.` 拿掉。要一起改：`ARCHITECTURE.md:38,73-75,154`、`package.json` `format:ui` 清單裡的 `main/ipc-handlers.js`。**IPC 索引**：channel 不增刪、註冊檔理應不變，但 `ipc-registry` 換了入口，`docs:ipc` 要跑且比對 diff；重複註冊由 Electron 丟錯（上層 §5.5 實測）加 `ipc-registry` 的 `duplicated` 守。待裁：Q1。
 - **6b-3**：每個 `configure*` 模組改成建立時檢查必要依賴（範本：`sync/index.js` 的 `assertRequiredDeps`），依賴預設值的測試改成給齊；`launchMinecraft` 只留一條注入路；`discord-rpc` 的送出收進 bridge（用 `IPC.on.RPC_NOTICE`，走 D2 的 `send`）；`app-ready`／`start-main` 的鍵名只留一份，修過期地址。測試改動面最大。待裁：Q6。
-- **6b-4**：M-STREAM 刪 Node stream 分支（兩檔）；M-RE 呼叫者改直接載 lib；兩個「第二道」刪除（C8、S4 改寫）；M-MISC、M-SILENT 照總表；`site-client` 退路加 `gglError`、`microsoft-auth.js:621` 缺 refresh_token 要出聲（這兩處碰網路回應與 token，各加假 token 案例，照 D-LOG-PRIVACY）。待裁：Q4、Q7。
+- **6b-4**：M-STREAM 刪 Node stream 分支（兩檔）；M-RE 呼叫者改直接載 lib；兩個「第二道」刪除（C8、S4 改寫）；M-MISC、M-SILENT 照總表；`site-client` 退路加 `gglError`、`microsoft-auth.js:621` 缺 refresh_token 要出聲（這兩處碰網路回應與 token，各加假 token 案例，照 D-LOG-PRIVACY）。待裁：Q4、Q7。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`microsoft-auth.js:621` 後 `:617`〕
 
 ## 待 owner 裁決
 
@@ -287,23 +289,23 @@ N24 三案（注入會丟的假 `sendInstanceStatus`）改寫成 B5a–c：它�
 | W19 | 重播的逐項部分成功要不要保留 | 保留（經 `deliver`、加常駐紀錄）／不保留（一筆失敗就整批停） | 保留（§W19 的反例） |
 | B7 | 清過期行程後 `sendMcRunning(false)` 失敗，查詢結果要不要變 | 不變（回 false＋常駐紀錄）／往外丟 | 不變（§B7 的反例；往外丟違反 Q3 (1)(2)） |
 | Q4 | `describeStatus` 丟錯（＝bug）時的兩條退路：`ipc-bridge.js` `textOf` 只寫 debug log；`ipc/minecraft-ipc.js:21-30` 什麼都不寫 | 兩處都改 `gglError`（各一個事件 ID）／只改後者／不改 | 兩處都改、放 6b-4 同一筆（同根）；`textOf` 的退路本身保留 |
-| Q5 | 盤點外的 N1（`ui-dialogs.js:11` 吞 dialog 失敗）、N5（`app-ready.js` 兩個呼叫端 `try`）、N6（`net-fetch.js:29-33` `notifyRetryToUi` 的 `catch {}`）是否併入 6b-1 | 各自併入／進 future-work | N1 進 future-work（ChatGPT 同意）；N5 併入（ChatGPT 支持，前提已由 §N5 現讀證明）；N6〔CC 傾向，非裁決〕併入：它是同一條通知的第三層吞錯，D2 之後同樣只守 Q3 的語意；但 ChatGPT 本輪要求只改分歧、不擴大，故列給 owner 裁，不寫進 6b-1 的設計 |
-| Q6 | `sync/index.js:161-164`：`applyPlan`、`prepareRuntime`、`makeRuntimeProbe` 用「真實作當預設、測試注入替身」 | 算違規／不算／退回雙向舉證 | 判不出值不值得改 ⇒ 依 D-P6-TWO-STAGE 退回，6b-3 開工時並列收益與成本 |
+| Q5 | 盤點外的 N1（`ui-dialogs.js:11` 吞 dialog 失敗）、N5（`app-ready.js` 兩個呼叫端 `try`）、N6（`net-fetch.js:29-33` `notifyRetryToUi` 的 `catch {}`）是否併入 6b-1 | 各自併入／進 future-work | N1 進 future-work（ChatGPT 同意）；N5 併入（ChatGPT 支持，前提已由 §N5 現讀證明）；N6〔CC 傾向，非裁決〕併入：它是同一條通知的第三層吞錯，D2 之後同樣只守 Q3 的語意；但 ChatGPT 本輪要求只改分歧、不擴大，故列給 owner 裁，不寫進 6b-1 的設計〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`ui-dialogs.js:11` 未移動；`net-fetch.js` 不在本 commit〕 |
+| Q6 | `sync/index.js:161-164`：`applyPlan`、`prepareRuntime`、`makeRuntimeProbe` 用「真實作當預設、測試注入替身」 | 算違規／不算／退回雙向舉證 | 判不出值不值得改 ⇒ 依 D-P6-TWO-STAGE 退回，6b-3 開工時並列收益與成本〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`sync/index.js:161-164` 後 `:162-165`〕 |
 | Q7 | `system-memory.js` 的 `totalmem() <= 0` 算不算 OS 邊界 | 算（留）／不算（刪，連同下游 null 分支） | 判不出：Node 文件沒說會回 0〔未查文件〕；6b-4 開工時查 |
 
 ## 新發現（盤點外，預設進 future-work，owner 可改）
 
-- **N1** `main/ui-dialogs.js:11`：`dialog.showMessageBox` 失敗被 `catch {}` 吞掉，玩家按了東西卻沒反應、沒有紀錄（§3）。〔CC 讀碼〕
-- **N2** `main/sync/index.js:392` 把非 ok 的 release 默默轉成 `null`。〔子 agent，未抽查〕
+- **N1** `main/ui-dialogs.js:11`：`dialog.showMessageBox` 失敗被 `catch {}` 吞掉，玩家按了東西卻沒反應、沒有紀錄（§3）。〔CC 讀碼〕〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`main/ui-dialogs.js:11` 未移動〕
+- **N2** `main/sync/index.js:392` 把非 ok 的 release 默默轉成 `null`。〔子 agent，未抽查〕〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`main/sync/index.js:392` 後 `:391`〕
 - **N3** `minecraft:running` 不重播：畫面重新整理時若遊戲正在跑，畫面以為沒在跑，直到再按啟動被重複啟動的檢查擋下。〔CC 讀碼＋推論，未實機〕
 - **N4** `net-fetch.js:315` 的 `void netDeps.appendLauncherLog` 繞過 `logToLauncher` 的 `catch`；正式環境無害（真的 `appendLauncherLog` 自己吞錯）。〔子 agent〕
-- **N5** `main/app-ready.js:108-112`（`safeSendSyncStatus`）、`:137-139`（`try { sendMcStatus }`）：呼叫端自己包住送出；D2 之後打不到。〔CC 讀碼〕→ §N5，傾向併入 6b-1（Q5）
+- **N5** `main/app-ready.js:108-112`（`safeSendSyncStatus`）、`:137-139`（`try { sendMcStatus }`）：呼叫端自己包住送出；D2 之後打不到。〔CC 讀碼〕→ §N5，傾向併入 6b-1（Q5）〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`main/app-ready.js:108-112`、`:137-139` 刪除〕
 - **N6** `main/net-fetch.js:29-33` `notifyRetryToUi`：`try { netDeps.onRetryNotify(…) } catch {}`，無理由、無紀錄；沒有測試依賴它吞錯（rg `onRetryNotify` test/ 只有 `:294` 的計數器）。〔CC 讀碼，三稿新增〕（Q5）
 
 ## 已知未驗與停止條件
 
 **已知未驗**：
-- **U-1** 視窗事件（`blur`、`hide`）會不會在 destroyed 之後才觸發——決定 `main-window.js:111` 的 `mainWindow?.isMinimized?.()` 能不能直接寫 `mainWindow.isMinimized()`。6b-1 施工前補探針；驗不出來就保留一個 `?.` 並寫時序理由。〔2026-10-25 已探：五種情境都沒有 → §6b-1 施工紀錄〕
+- **U-1** 視窗事件（`blur`、`hide`）會不會在 destroyed 之後才觸發——決定 `main-window.js:111` 的 `mainWindow?.isMinimized?.()` 能不能直接寫 `mainWindow.isMinimized()`。6b-1 施工前補探針；驗不出來就保留一個 `?.` 並寫時序理由。〔2026-10-25 已探：五種情境都沒有 → §6b-1 施工紀錄〕〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`main-window.js:111` 改寫，後 `:113`〕
 - **U-2** S2 的空窗裡會不會有非同步的送出插進來——決定 §M-SEND 那段「三條現存違反路徑現在會不會真的觸發」的說法；D2 的兩道時序判斷（`send` 的 `win.isDestroyed()`、`deliver` 的 `wc.isDestroyed()`）兩種情況都處理，不影響設計。
 - **U-3**（三稿刪除）：原為替 `fake-electron` 補 `BrowserWindow` 的成本，D1 撤回後不需要。
 - **U-6** B10u 要在測試行程載入 `main/ui-dialogs.js`，它檔頂 `const { dialog } = require("electron")`；`test/helpers/fake-electron.cjs` 目前只提供 `app`。最小做法是讓 helper 的假物件可以放 `dialog`（共用 helper，其他使用者只用 `app`）。若這個改動牽動既有測試，B10u 退回為讀碼證據並回報，不擴大 helper。〔2026-10-25 加了 `dialog`，既有測試沒受影響 → §6b-1 施工紀錄〕
@@ -322,4 +324,4 @@ N24 三案（注入會丟的假 `sendInstanceStatus`）改寫成 B5a–c：它�
 
 - `STATUS.md` 接續步驟：「6b 細部 plan 二稿待審（ChatGPT 審、owner 裁 Q1、Q2、Q3-impl、W19、B7、Q4–Q7）」→ `plans/cross-review-2026-10-phase6b.md`。
 - `plans/cross-review-2026-10-phase6-criteria.md` §留給各批開工時 的 M-SEND 條：加更正註記「`catch {}` 吞序列化錯誤」在函式、Symbol 兩種 payload 上不成立（S1），並指向本檔。
-- `plans/defense-cleanup.md` §待查 的 `minecraft-launch.js:179` 條：指向本檔總表「待查」列。
+- `plans/defense-cleanup.md` §待查 的 `minecraft-launch.js:179` 條：指向本檔總表「待查」列。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`minecraft-launch.js:179` 後 `:169`〕
