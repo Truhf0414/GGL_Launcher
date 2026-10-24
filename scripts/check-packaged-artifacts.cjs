@@ -23,6 +23,7 @@ const requiredAsarEntries = [
   "/renderer/bootstrap.js",
   "/assets/tailwind.css",
   "/assets/notice-thumb.svg",
+  "/assets/fonts/fusion-pixel-12px-proportional-zh_hant.ttf",
 ];
 
 const requiredResources = [
