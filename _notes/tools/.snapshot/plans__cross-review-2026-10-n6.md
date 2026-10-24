@@ -39,14 +39,14 @@
 |---|---|---|---|---|
 | Z1 | net-fetch `.tmp`（Java zip） | `jre21.zip.tmp` 是 file symlink | **外部被覆寫**，安裝成功 | 同 |
 | R3 | net-fetch `.tmp`（library） | `<lib>.jar.tmp` 是 file symlink | **外部被覆寫**；`<lib>.jar` 變成連結；接著修復（`verifyAll`）仍成功、仍是連結 | 同 |
-| R2 | net-fetch `.tmp`（原版 json） | `<json>.tmp.tmp` 是 file symlink | **外部被覆寫**；`<json>` 變成連結 | 無效（§已知未驗） |
+| R2 | net-fetch `.tmp`（原版 json） | `<json>.tmp.tmp` 是 file symlink | **外部被覆寫**；`<json>` 變成連結 | 無效（§已知未驗）〔2026-10-24 更正：「無效」的原因是 X1＋undici 缺陷，不是 Electron 環境 → plans/cross-review-2026-10-x1b.md §證據、§根因〕 |
 | S3 | net-fetch `.part`（Sync staging） | `<sha>.part` → 0 byte 檔 | **外部被覆寫成完整內容**，更新成功 | 同 |
 | S4 | 同上 | → 較短的檔，站台回 206 | **外部被附加**；更新失敗 `GGL_SYNC_HASH_MISMATCH` | 同 |
 | S6 | 同上 | → 不存在的檔 | **外部被建出新檔**，更新成功 | 同 |
 | S7b | 同上 | 是 junction，連按兩次更新 | 兩次都 `EISDIR`、連結還在：`clearLeftovers` 保留要下載的 `.part`（`main/sync/apply.js:195`） | 同〔對齊 2026-10-23：→ `38769d2`（plans/cross-review-2026-10-n6.md）：`main/sync/apply.js:195` 未移動〕 |
 | S2 | `sync-record.json.tmp` | file symlink | **外部被覆寫**；`sync-record.json` 變成連結；更新成功 | 同 |
 | S1 | `sync-in-progress` | file symlink | **外部被覆寫成時間字串**；更新成功 | 同 |
-| R1 | Fabric profile `<json>.tmp` | file symlink | **外部被覆寫**；`<json>` 變成連結 | 無效（§已知未驗） |
+| R1 | Fabric profile `<json>.tmp` | file symlink | **外部被覆寫**；`<json>` 變成連結 | 無效（§已知未驗）〔2026-10-24 更正：「無效」的原因是 X1＋undici 缺陷，不是 Electron 環境 → plans/cross-review-2026-10-x1b.md §證據、§根因〕 |
 
 外部不變的對照：S4b（同 S4 但站台回 200）、S5（`.part` 大小剛好等於預期）、S7（junction，單次）、R2b（原版 `<json>.tmp` 是改名目標）、Z2、Z5（`jre21.zip` 本身是連結）。
 
@@ -241,7 +241,7 @@ conventions §防禦與相容 第 4 條：`logToLauncher` 的 `.catch` 是吞錯
 
 ## 已知未驗（不擋本刀）
 
-- **R1、R2 在 Electron 下**：`ensureVersionJsons` 在 Electron run-as-node 下，連沒有連結的對照組都因 undici `assert(!this.paused)` 失敗，Node 下對照組過；兩案只有 Node 結果（N6-D5）。〔推論〕R1 的 `writeFile` 與 S1、S2 是同一條底層路徑，S1、S2 在 Electron 下有實測。undici 那個 assertion 的根因沒追。
+- **R1、R2 在 Electron 下**：`ensureVersionJsons` 在 Electron run-as-node 下，連沒有連結的對照組都因 undici `assert(!this.paused)` 失敗，Node 下對照組過；兩案只有 Node 結果（N6-D5）。〔推論〕R1 的 `writeFile` 與 S1、S2 是同一條底層路徑，S1、S2 在 Electron 下有實測。undici 那個 assertion 的根因沒追。〔2026-10-24 更正：失敗原因是特定 undici 版本的 nodejs/undici#5360（7.29.0、6.29.1），被 GGL 的下載時序與 X1 的「先等開檔」暴露，不是 Electron／run-as-node 環境——Node 22.23.4、24.19 一樣會撞；當時的對照組 R0 跑在已含 X1 的 HEAD 上，拆不開 X1。N6-D5 依據的歸因因此撤回（裁決本體不動）；R1／R2 的 Electron 驗證待 X1b 之後補跑；「與 N6 無關」仍成立 → plans/cross-review-2026-10-x1b.md §證據、§根因〕
 - 真的 Electron 主程序（實際 app）沒跑。
 - 檢查到開檔之間被換成連結：照 D-LINK-NOTOCTOU 不承諾；呼叫點 1 只在第一次嘗試前查一次，兩次嘗試之間被換也算在內。
 - 雛形只跑了 Node 24，而且不含本檔的日誌傳遞；施工要在 repo 裡重寫，不是搬雛形。
@@ -249,7 +249,7 @@ conventions §防禦與相容 第 4 條：`logToLauncher` 的 `.catch` 是吞錯
 - 已經變成連結的正式檔（舊碼留下的）：本刀只防新的，不掃（owner 2026-10-23 終端貼入的不做清單：「不追溯掃描既存正式檔案。」）。R3 的實測顯示這種檔在內容 hash 對的時候，修復也不會發現。
 - 可達性〔猜的，沒查〕：所有越界案都要有人刻意在 GGL 的內部檔名上放檔案層級的連結，不知道有哪個正常操作會產生。
 - CI（`windows-latest`）上建 file symlink 有沒有權限：沒查；建不出來會讓新案紅，不會假綠。
-- 〔施工時加〕既有測試 D7（1b，`test/sync-apply.test.cjs`）在 Electron run-as-node 下也撞同一個 undici assertion：乾淨的 `b6dc291` 副本同樣紅、Node 下過，是 N6 之前就有的缺口。Electron 下沒跑 freeze。
+- 〔施工時加〕既有測試 D7（1b，`test/sync-apply.test.cjs`）在 Electron run-as-node 下也撞同一個 undici assertion：乾淨的 `b6dc291` 副本同樣紅、Node 下過，是 N6 之前就有的缺口。Electron 下沒跑 freeze。〔2026-10-24 更正：「N6 之前就有」成立，但不是「缺口」那麼單純：暴露它的是 X1（`7429a54`）的時序加 undici 缺陷 → plans/cross-review-2026-10-x1b.md §證據、§根因〕
 
 ## 施工紀錄（2026-10-23，基準 `b6dc291`，commit `38769d2`）〔實測〕
 
@@ -269,7 +269,7 @@ conventions §防禦與相容 第 4 條：`logToLauncher` 的 `.catch` 是吞錯
 | 呼叫點 1 挪到 `expectedSize` 預檢之後 | 只有 N3 |
 
 - **Freeze**：改到的 9 個測試檔，`FREEZE_OFFSET` 0–7 × Node 24、22，共 16 輪全綠（每輪 474 案）；`FREEZE_MARK` 確認每輪約 420 次卡頓、約 3363 個請求。
-- **Electron 44.3.0 run-as-node**：`fs-utils`、`net-fetch-download`、`sync-instance-record`、`sync-apply`、`runtime-java` 五檔 186／187，新案 27／27；`runtime-minecraft` 的 T-M3 與對照組 T13 3／3。紅的那一案是既有的 D7（§已知未驗）。T-M1、T-M2 照 N6-D5 不跑。
+- **Electron 44.3.0 run-as-node**：`fs-utils`、`net-fetch-download`、`sync-instance-record`、`sync-apply`、`runtime-java` 五檔 186／187，新案 27／27；`runtime-minecraft` 的 T-M3 與對照組 T13 3／3。紅的那一案是既有的 D7（§已知未驗）。T-M1、T-M2 照 N6-D5 不跑。〔2026-10-24 更正：D7 紅的原因同上，見 §已知未驗 那兩條的更正 → plans/cross-review-2026-10-x1b.md §證據、§根因〕
 - **工具**：`lint`、`check:ui-css`、`git diff --check` exit 0；pre-commit hook 通過；5 個生產檔 `prettier --check` 通過；9 個測試檔在 `b6dc291` 上就不符 prettier，沒跑 `format:file`（會重排無關的行）。staged diff 的防禦樣式命中 2 處（`removeLinkAt` 的探測 catch、`logToLauncher` 的 `.catch`），各有一行註解說為什麼可以吞。
 - **撞到**：初稿的測試呼叫處寫 10 處，實際 13 處——當時只搜了三個測試檔（§成本 已更正）；`sd -F` 不吃跨行字面，三處多行呼叫改用 Edit；反向驗證的錨點 `return await withRetries(` 在 `fetchJson` 也有一份，第一次沒套上，換更長的錨點重跑。
 - **放行**：ChatGPT 獨立審查通過，owner 同意收尾（2026-10-23 終端貼入）。
