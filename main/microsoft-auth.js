@@ -620,16 +620,6 @@ async function loginMicrosoftAndMinecraft() {
 }
 
 function registerAccountIpcHandlers(ipcMain) {
-  // 避免熱重載或重複呼叫 setupIpc 時堆疊 handler（雖多數情況下後註冊會覆蓋，仍明確清掉）
-  for (const ch of [
-    IPC.invoke.ACCOUNT_GET,
-    IPC.invoke.ACCOUNT_LOGOUT,
-    IPC.invoke.ACCOUNT_LOGIN,
-  ]) {
-    try {
-      ipcMain.removeHandler(ch);
-    } catch {}
-  }
   ipcMain.handle(IPC.invoke.ACCOUNT_GET, async () =>
     getAccountPayloadForRenderer(),
   );

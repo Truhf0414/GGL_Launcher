@@ -18,7 +18,7 @@ let sendWindowPower = () => {};
 /**
  * 必須在 `createMainWindow` 之前呼叫一次，讓 `getAppIconPath()` 與
  * `preload` / `index.html` 路徑以啟動入口目錄為準（`main.js` 傳 `__dirname`）。
- * `sendWindowPower` 來自 `createMainIpcBridge`，所以要在它之後呼叫。
+ * `sendWindowPower` 來自 `createIpcBridgeSenders`（`main/ipc-bridge.js`），所以要在它之後呼叫。
  */
 function configureMainWindow(deps = {}) {
   if (typeof deps.sendWindowPower === "function") {

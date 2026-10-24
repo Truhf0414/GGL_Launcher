@@ -1,8 +1,7 @@
 const { IPC } = require("../../lib/ipc-channels");
 
 function registerDiagnosticsIpc(ctx) {
-  const { ipcMain, deps } = ctx || {};
-  const shell = ctx?.shell;
+  const { ipcMain, deps, shell } = ctx;
   ipcMain.handle(IPC.invoke.DIAGNOSTICS_EXPORT, async () => {
     const dir = await deps.exportDiagnostics?.();
     const p = String(dir || "").trim();
