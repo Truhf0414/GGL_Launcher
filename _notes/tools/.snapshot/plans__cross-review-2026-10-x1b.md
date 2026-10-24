@@ -1,4 +1,4 @@
-# X1b — 下載撞 undici `assert(!this.paused)`（nodejs/undici#5360；undici 7.29.0、6.29.1）：細部 plan（狀態：**2026-10-24 初稿；同日 owner 要求補實驗 A（背壓與記憶體）、B（中止與收尾），補完後 F1c 撤回、改為 F1d（§證據 第二輪、§設計）；同日第三輪驗證 F2（undici 8），結果改為建議 F2（§第三輪、§F1d 與 F2 對照）；同日 owner 最終裁決採 F2、接受全域 HTTP 相容性責任（§裁決），本檔依裁決對齊；同日 session 收尾，N6／X1／主 plan 的勘誤已回寫（§文件更正）；同日 owner 授權施工與本機驗證（不含 commit、push、遠端 CI、改 STATUS、結案），施工與本機驗證完成、驗收單交 owner（→ §施工紀錄）；同日 owner 驗收放行、授權 commit，程式 commit `4cd2667`；未 push、CI 未跑、未結案；L3-4 GUI、L3-5、L3-6 的狀態以 §施工紀錄 為準**）
+# X1b — 下載撞 undici `assert(!this.paused)`（nodejs/undici#5360；undici 7.29.0、6.29.1）：細部 plan（狀態：**2026-10-24 初稿；同日 owner 要求補實驗 A（背壓與記憶體）、B（中止與收尾），補完後 F1c 撤回、改為 F1d（§證據 第二輪、§設計）；同日第三輪驗證 F2（undici 8），結果改為建議 F2（§第三輪、§F1d 與 F2 對照）；同日 owner 最終裁決採 F2、接受全域 HTTP 相容性責任（§裁決），本檔依裁決對齊；同日 session 收尾，N6／X1／主 plan 的勘誤已回寫（§文件更正）；同日 owner 授權施工與本機驗證（不含 commit、push、遠端 CI、改 STATUS、結案），施工與本機驗證完成、驗收單交 owner（→ §施工紀錄）；同日 owner 驗收放行、授權 commit，程式 commit `4cd2667`；同日 owner 授權 push，CI run `40075160310` success；同日 L3-4～L3-6 隔離驗收（→ §L3 驗收紀錄）；同日 owner 裁決技術結案（→ §結案判定）**）
 
 上層＝`plans/cross-review-2026-10-x1.md`（X1 的設計、證據 N1–N7、W0–W1、回歸測試 A／B／C／C2／E）；觸發事件＝CI run `39982729930`（commit `31d3ce6`，2026-10-23，已取消）；上游＝[nodejs/undici#5360](https://github.com/nodejs/undici/issues/5360)、[nodejs/undici#5500](https://github.com/nodejs/undici/issues/5500)。本檔寫這次回歸的證據、候選比較、owner 裁決與 F2 的施工設計和驗收。
 
@@ -24,6 +24,14 @@
 | 10-24 | CC | 施工與本機驗證、打包到 scratchpad、真 Electron 主程序 smoke（§施工紀錄）；驗收單交 owner |
 | 10-24 | owner（終端） | 「Commit 吧！我剛剛驗完 ok 了。」；沒提 push、CI、結案 |
 | 10-24 | CC | 程式 commit `4cd2667`（`package.json`、lockfile、net-fetch、4 個測試檔）；本檔與 doc-check 快照另一個 commit |
+| 10-24 | owner（終端貼入「GGL_Launcher — X1b F2 Push、CI 與產品驗收」） | 授權一次正常 `git push origin main`（只含已審的三個 commit）與觀察 CI；L3-4～L3-6 先交隔離方案、確認後才碰帳號或安裝目錄；不授權發版、`publish.js --apply`、改 Caddy 發包目錄；新文件 commit 先交 diff |
+| 10-24 | CC | push `31d3ce6..14d43e7`；CI run `40075160310` success（§施工紀錄 遠端 CI） |
+| 10-24 | owner（終端貼入「X1b L3 隔離驗收 — Owner 審查意見」） | 「隔離驗收方向原則同意」；scratchpad 測試建置、先做身分隔離 probe、核對寫死的 `setAppUserModelId`；CI 紀錄留工作樹待 L3 後一起回寫 |
+| 10-24 | owner（終端貼入「X1b L3-4 — GUI Smoke 放行」） | 「正式放行 L3-4 GUI Smoke。」；inspector 執行前攔截失敗的事實保留在施工紀錄 |
+| 10-24 | owner（終端貼入「X1b L3-4 驗收通過，進入 L3-5」） | 「正式判定：L3-4 通過，L3-5 尚未開始，X1b 尚未結案。」；L3-5 由 owner 親自操作、CC 不碰 token |
+| 10-24 | owner（終端貼入「X1b L3-5 審查結果與 L3-6 施工授權」） | 「Owner 接受 L3-5 的主要產品驗收結果，授權進入 L3-6 隔離 NSIS 安裝檔驗收。」；refresh 與 Java 路徑維持未驗 |
+| 10-24 | owner（終端貼入「X1b L3-6：MSIX AppData 虛擬化發現後的正式 Windows 補驗」） | 「Owner 同意進行非 MSIX 啟動情境的 L3-6 補驗」；主要操作由 owner 從 Windows 捷徑啟動 |
+| 10-24 | owner（終端貼入「X1b F2 最終技術結案裁決與文件授權」） | 技術結案（§結案判定）；只授權文件回寫與審查，不授權 commit、push、發版、Phase 6 |
 
 ## 證據
 
@@ -175,7 +183,7 @@ GGL 層（真 `downloadToFile`，先用內建 `fetch` 打一次再下載 1 MB、
 | `main/server-status.js` tick（`:74-77`） | GET、`cache: "no-store"`、`AbortController`；只看 `res.ok` | 是（`configureServerStatus({ serverStatusUrl })`，`:18`）；既有 `test/server-status-config.test.cjs` 沒有 HTTP |
 | `main/runtime/download.js` `fetchTextWithDeadline`（`:33-60`） | GET、`cache: "no-store"`、選填 `headers`、`AbortSignal.any`；非 2xx `body.cancel()` | 是（`fetchImpl` 預設內建、網址是參數） |
 | `main/runtime/download.js:219` 測速探針（經 `fetchWithNiceError`） | GET、`Range: bytes=0-262143`、讀到 256 KB 就 cancel | 是 |
-| `main/net-fetch.js` `fetchJson`（`:41`，`main/diagnostics-export.js:65` 用） | GET、`cache: "no-store"`、`res.json()` | 是 |
+| `main/net-fetch.js` `fetchJson`（`:41`〔對齊 2026-10-24：`main/net-fetch.js:41` → `4cd2667` 後 `:49`〕，`main/diagnostics-export.js:65` 用） | GET、`cache: "no-store"`、`res.json()` | 是 |
 
 ## 根因
 
@@ -246,7 +254,7 @@ GGL 層（真 `downloadToFile`，先用內建 `fetch` 打一次再下載 1 MB、
 | main 程序其他內建 `fetch` | 底層 dispatcher 可能改變 | 第二層 H1–H5（新） |
 | 寫入卡住時的中止 | 不及時，與 HEAD 相同（X1b-D5） | 不在本項 |
 
-## 回歸測試（F2；〔設計〕，在 repo 上還沒跑過）
+## 回歸測試（F2；〔設計〕，在 repo 上還沒跑過）〔2026-10-24：已在 repo 上跑過 → §施工紀錄〕
 
 會撞的 undici：7.29.0（Node 24.18.1、24.19.0、Electron 24.20.0）、6.29.1（Node 22.23.4）〔讀碼〕；舊版 Node（22.18.0、24.14.1）上 U1、U2 永遠綠，**紅燈只能在 22.23.4／24.19／Electron／CI 驗**。
 
@@ -305,9 +313,11 @@ U5 不靠 assert 碰運氣（X1b-D9）；不為了測它把 `downloadAgent` 匯�
 | L3-5 | 真實微軟登入（新登入與 refresh）、站台、伺服器狀態的主要流程 | **owner 操作**；不在自動測試中索取、保存或輸出 token | 發版前產品驗收 |
 | L3-6 | 安裝檔（`dist:win`）安裝後的同一組流程 | **owner** | 安裝檔已驗收 |
 
+〔2026-10-24 L3-4～L3-6 的實際做法與結果 → §L3 驗收紀錄：改用隔離的測試身分建置、不跑 `dist:win`；L3-4、L3-5 受 Claude MSIX 轉存影響，一般 Windows 情境由 L3-6 補驗〕
+
 **CI**（裁決 §9.3；push 依 owner 另外授權）
 
-9. GitHub Windows Runner 實跑：assertion 消失、先前 18 案通過、完整測試結束且全過、SKIP 0。**若 assertion 消失但仍長時間不結束** ⇒ 不得宣稱 CI 全綠，停止本項結案，隔離掛住的測試檔並判斷是否與 F2 有因果。
+9. GitHub Windows Runner 實跑：assertion 消失、先前 18 案通過、完整測試結束且全過、SKIP 0。**若 assertion 消失但仍長時間不結束** ⇒ 不得宣稱 CI 全綠，停止本項結案，隔離掛住的測試檔並判斷是否與 F2 有因果。〔2026-10-24：run `40075160310` 達成本條 → §施工紀錄 遠端 CI〕
 
 10. 驗收單交 owner；放行前不 commit（裁決 §十二 第四階段）。
 
@@ -335,14 +345,14 @@ U5 不靠 assert 碰運氣（X1b-D9）；不為了測它把 `downloadAgent` 匯�
 | 本機測試（三層的第一、二層） | 已跑，下列各表 |
 | Windows 打包（L3-1～L3-3） | 已驗，輸出在 scratchpad，`dist/` 未動 |
 | 真 Electron 主程序 | 已驗（無 GUI 的替代 smoke，見 L3-4） |
-| GUI App smoke（L3-4）、真實登入（L3-5）、安裝檔（L3-6） | 待 owner |
-| commit、push、遠端 CI、STATUS | 未授權、未動 |
+| GUI App smoke（L3-4）、真實登入（L3-5）、安裝檔（L3-6） | 待 owner〔同日做完 → §L3 驗收紀錄〕 |
+| commit、push、遠端 CI、STATUS | 未授權、未動〔之後經 owner 授權：commit `4cd2667`、`14d43e7`，push 與 CI → §收斂經過；STATUS 在結案回寫時改〕 |
 
 **改動**
 
 - `package.json`：`dependencies` 加 `"undici": "8.12.3"`。
 - `package-lock.json`：根目錄 `node_modules/undici` 8.12.3（正式；integrity `sha512-+fdndUTw…LOQHw==`）。原本住根目錄的 7.29.1（dev、optional，`@electron/get` 用）移到 `node_modules/@electron/get/node_modules/undici`；npm 搬家時把它重新解析成 7.30.1，手動釘回 7.29.1（版本、resolved、integrity 照舊 lockfile）後 `npm install --ignore-scripts` 同步。`npm ls undici --all`：根 8.12.3、`@electron/get` 底下 7.29.1。
-- `main/net-fetch.js` +16／-2（本條行號為施工後的工作樹）：`require("undici")`（`:5`）；模組層 `downloadAgent` 與註解（`:8-13`）；`fetchWithNiceError` 本體抽成私有 `fetchVia(fetchImpl, url, options)`（`:94`），匯出的 `fetchWithNiceError(url, options = {})` 簽名不變、照舊傳內建 `fetch`（`:90`）；`downloadToFile` 那次請求改 `fetchVia(undiciFetch, …, dispatcher: downloadAgent)`（`:198-204`）。下載迴圈、pipe 分支、`withRetries`、`isRetryableError`、416 預檢、206／200、看門狗、`removeLinkAt` 不在 diff 裡。
+- `main/net-fetch.js` +16／-2（本條行號為施工後的工作樹〔對齊 2026-10-24：即 `4cd2667` 的行號，不必再換算〕）：`require("undici")`（`:5`）；模組層 `downloadAgent` 與註解（`:8-13`）；`fetchWithNiceError` 本體抽成私有 `fetchVia(fetchImpl, url, options)`（`:94`），匯出的 `fetchWithNiceError(url, options = {})` 簽名不變、照舊傳內建 `fetch`（`:90`）；`downloadToFile` 那次請求改 `fetchVia(undiciFetch, …, dispatcher: downloadAgent)`（`:198-204`）。下載迴圈、pipe 分支、`withRetries`、`isRetryableError`、416 預檢、206／200、看門狗、`removeLinkAt` 不在 diff 裡。
 - `test/net-fetch-download.test.cjs` +98／-0：U1、U2，小工具 `countUnhandled`、`delayOpen`、`slowWrites`、`serveWhole`。
 - 新檔：`test/net-fetch-dispatcher.test.cjs`（U5 對照組、U5）、`test/main-http-compat.test.cjs`＋`test/helpers/main-http-compat-client.cjs`（H1–H5）。
 
@@ -400,9 +410,87 @@ Electron run-as-node 的 `process.memoryUsage().arrayBuffers` 恆為 0（配 32 
 | L3-5 | 待 owner | — |
 | L3-6 | 待 owner | — |
 
+〔上表 L3-4 的「替代」只驗了主程序層；L3-4～L3-6 的實際驗收 → §L3 驗收紀錄〕
+
+**遠端 CI**（2026-10-24）〔實測：`git ls-remote`、`gh run view --log`〕
+
+- push：`git fetch` 後 `origin/main`＝`31d3ce6`、本機領先 3、落後 0、工作樹乾淨；一般 `git push origin main` ⇒ `31d3ce6..14d43e7`（台北 15:41:50）；`git ls-remote origin refs/heads/main`＝`14d43e7`。
+- run [`40075160310`](https://github.com/Truhf0414/GGL_Launcher/actions/runs/40075160310)：event push、headSha `14d43e7`、conclusion success；job 07:41:58Z→07:43:46Z。
+- 環境：Image `windows-2025-vs2026` 20261021.278.1、Microsoft Windows Server 2025；setup-node `node-version: 22` 解析到 cache 裡的 22.23.4（`node: v22.23.4`、npm 10.9.9）。
+- 步驟：Install（`npm ci`，added 538 packages）、UI/CSS rules（`[ui-css-check] ok`、`[renderer-scripts-check] ok`）、IPC docs（`docs:ipc` 後 `git diff --exit-code ARCHITECTURE.md`）、Lint、Unit tests（07:42:36Z→07:43:39Z）全部 success。
+- 測試：tests 1233、pass 1233、fail 0、cancelled 0、skipped 0、todo 0；`not ok`、`paused`、`uncaughtException`／`unhandledRejection`、`# SKIP`／`# TODO` 都 0 行（同一管線數 `ok ` 得 1233）。案名集合與本機 22.23.4 那輪相同。
+- run `39982729930` 的 18 個 `not ok` 逐案在本 run 都是 `ok`；X1b 的 U1、U2、U5（含對照組）、H1–H5 都 `ok`。掛住沒有再現（Unit tests 63 秒，前一次成功的 run `39904118113` 50 秒）；`39982729930` 那次的掛住原因仍未定位（§已知未驗 第一條）。
+
+## L3 驗收紀錄（2026-10-24）
+
+標記同本檔開頭。腳本、快照與原始輸出在 `H:\GGL-X1b-test\probe`，不進 repo。
+
+**隔離設計**：測試建置＝HEAD `14d43e7` 的 `git archive` 副本，只改 `package.json` 的 `name`（`GGL_launcher_x1btest`）、`build.appId`（`ggl3.launcher.x1btest`）、`build.productName`（`GGL Launcher X1b Test`）〔實測：`jq -S` 比對其餘相同〕；正式 repo 不動。建置放在 `H:\GGL-X1b-test\src`：放在路徑含 UUID 的 scratchpad 時，`npm ls` 輸出把 UUID 遮成 `***`，`generate-electron-builder-config.cjs` 比對不到前綴、找不到任何正式模組。產物 `H:\GGL-X1b-test\pack`：exe sha256 `678c2e97…`、asar `5054a85d…`〔probe 之後才補記，不宣稱 probe 開始前已有雜湊〕。隔離根 `H:\GGL-X1b-test\root`；測試 settings 只放 `launcherRootDir`，先用 `checkSettings` 驗過才寫。
+
+**身分 probe**〔實測〕
+- 原定用 `--inspect-brk` 停在 asar `main.js` 第一行、App 程式碼執行前驗身分——**這道防線失效**：第一次在早期暫停點查原生 binding 把 App 卡住（砍掉重來）；第二次 `main.js` 的中斷點沒綁上（原因未查），放行後 App 直接跑起來。身分改在 App 跑起來之後查；事後的輔助快照顯示 owner 正式資料未變。
+- App 內部查：`userData`／`sessionData`＝`%APPDATA%\GGL_launcher_x1btest`（邏輯路徑，實體位置見下方 MSIX）；App 自己載入的 `settings.js` 的 `readSettings()` 回隔離根；`getPaths` 算出的根、實例、`.temp`、`sync-record.json` 都在隔離根；開機後 settings sha256 不變（合法檔不寫回）。
+- 單一實例：再開一個測試實例 ⇒ 310 ms 結束（exit 0）、原實例保有鎖。dev Electron probe：同名、不同 exe ⇒ 拿不到鎖；異名 ⇒ 拿得到 ⇒ 鎖跟著名稱／userData 走。〔推論〕正式身分與測試身分的鎖互相獨立；沒有和正式 App 同時開來實測。
+- fuse（`@electron/fuses` 讀測試 exe）：`EnableNodeCliInspectArguments`、`RunAsNode` 都開著（electron-builder 預設）。
+- `main/app-ready.js` 寫死 `app.setAppUserModelId("ggl3.launcher")`；App 沒有用 OS 通知〔讀碼〕。
+
+**L3-4 GUI smoke**〔實測；從 Claude 終端啟動，見下方更正〕
+- owner 確認主畫面、站台；伺服器顯示 Offline（伺服器沒開；本機 TCP 25565 `ECONNREFUSED`，對照組站台 443 連得上）。
+- 安裝 2.1 GiB 進隔離根（實例 2.0 GiB、Java 21 144 MiB）；`sync-record.json` `alpha1`、format 3、564 檔；`.tmp`／`.part` 殘留 0。
+- 故障注入：第一次把 `.part` 資料夾放在 jar 旁邊——**位置錯、沒有觸發**（同步暫存在 `<root>\.temp\sync-staging\<sha256>.part`，`main/sync/apply.js:89, 203-229`），修復直接把 jar 下載回來；第二次放在真正的 staging 路徑 ⇒ 畫面「修復失敗：EISDIR: illeg…」，App 沒崩，`sync-in-progress` 與 staging 依既有失敗契約保留；拿掉故障再修復 ⇒ 成功，jar hash 與原本相同，標記清掉。
+- 文案在畫面上被截斷；`renderer/ui-status.js` 有設 `statusText.title`，截斷不等於訊息遺失，tooltip 實際顯示未在 GUI 確認。
+- 常駐故障日誌沒有記錄這次修復失敗：`gglError(` 只用在 renderer 事件、preload、render 行程掛掉、開機失敗〔讀碼〕，是既有設計。
+- **更正**：當時報「settings sha256 全程不變」超出驗證範圍——只在開 App 前驗過。owner 在 L3-4 期間按了設定的「儲存」（16:27:09），`writeSettings` 合法重寫成完整格式、安裝根不變；owner 2026-10-24「對，我有按儲存」。
+
+**L3-5 真實服務**〔實測；從 Claude 終端啟動，見下方更正〕
+- 先帶 inspector 查身分、查完即關；owner 登入那一次不帶 inspector（除錯 port 確認關閉）。CC 沒讀帳號檔內容。
+- owner 新登入成功、Minecraft 身分取得、站台正常、伺服器 Offline（未開機）。
+- Minecraft 1.21.11／Fabric Loader 0.19.3 啟動並正常結束，log 在隔離根，沒有 crash report。
+- refresh 沒觸發（帳號檔 17:17:11 早於遊戲 17:17:25，之後沒改寫）。Java 實際路徑那次沒捕捉到。
+
+**L3-6 安裝檔**〔實測〕
+- 建置：同一份 `src`，`electron-builder --win nsis --x64` 輸出到 `H:\GGL-X1b-test\nsis`；`GGL-Launcher-Setup-1.0.0.exe` 142,923,387 bytes、sha256 `bb15a726843ae720f97cd5ec9e4fc89ea7f77d3cecbb008b67ff7fb91095e836`；per-user（`perMachine=false`）。檔名與正式版相同（`artifactName` 寫死）。7z 拆開：payload 的 asar、exe 與先前驗證的逐位元組相同；asar 名稱 `GGL_launcher_x1btest`、undici 只有一份 8.12.3、沒有 `@electron/`；mp4 不在 `app-64.7z`，由 NSIS `File` 直接嵌入（`builder-debug.yml`）。
+- 安裝：第一次落在預設的 `%LOCALAPPDATA%\Programs\GGL Launcher X1b Test`（安裝位置那頁沒改到）；解除安裝後重裝 ⇒ `H:\GGL-X1b-test\install\GGL Launcher X1b Test`（安裝程式在選的資料夾底下加一層產品名）。第一次解除安裝的中間狀態沒觀測到。開始選單與桌面捷徑目標正確，捷徑 AUMID＝`ggl3.launcher.x1btest`。
+- **MSIX 發現**：owner 從捷徑啟動安裝版 ⇒ 畫面「要登入、要安裝」。全機搜到兩份 `ggl-launcher.log`：真實的 `%APPDATA%\GGL_launcher_x1btest`（捷徑啟動）與 `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\GGL_launcher_x1btest`（Claude 終端啟動）。Claude Desktop 是 MSIX 套件，從它的終端開出的程式寫 `%APPDATA%` 會被轉存到套件私有位置，容器內讀到的是合併視圖〔推論：與兩份實體檔的位置、時間、內容差異一致；機制沒另做實驗釘死〕。`app.getPath("userData")` 兩邊都回 `%APPDATA%\...`。真實那份只有 17:27:13 寫入的預設 settings（安裝根 `C:\Games\GGL`，owner 在畫面上確認）、沒有帳號。套件快取裡沒有 `GGL_launcher`（正式名稱）⇒ 先前對 owner 正式 userData 的快照讀到的是真實檔。
+- **一般 Windows 補驗**（owner 從開始選單啟動；CC 只用 Everything 看實體檔的大小與時間、不讀內容；行程監看器只記 PID、parent、執行檔路徑，不讀命令列）：
+  - Launcher 主行程 parent＝`explorer.exe`，執行檔在安裝目錄。
+  - owner 在設定把安裝根改成隔離根並儲存 ⇒ 真實 settings 139→147 bytes（18:20:40）；完全關閉（行程 0）後重開，設定仍是隔離根、主畫面就緒、檔案沒被重寫。
+  - owner 新登入 ⇒ 真實 `account.json` 2,450 bytes（18:23:35）。
+  - Minecraft 啟動：Java＝`H:\GGL-X1b-test\root\runtime\java-21\bin\java.exe`（parent＝安裝版 Launcher），1.21.11／Fabric 0.19.3，log 在隔離根，正常退出，沒有 crash report。
+  - refresh 沒觸發（帳號 18:23:35、Java 18:23:37，之後沒改寫）。
+  - 整段期間 Claude 套件快取裡的測試資料沒有變動。
+- **AUMID**：沒釘選 ⇒ 工作列一個圖示；把捷徑釘選後從釘選圖示開 ⇒ 兩個圖示（owner 實測）。原因是測試身分改了 `appId`、App 寫死 `ggl3.launcher`——**測試建置的身分差異**。正式身分的 `appId` 與寫死值一致，正式版沒有重現、也沒驗。
+- 解除安裝（owner 操作；前後以 Everything＋登錄檔比對）：安裝目錄的檔案 80→0（留下空的 `install`）、捷徑 2→0、HKCU 解除安裝項 1→0；真實與套件快取的測試 userData、隔離根（7,528 項）保留；**`%LOCALAPPDATA%\ggl_launcher_x1btest-updater`（17:27:10 建立）殘留**；owner 桌面三個 `GGL*` 項目與正式資料（已檢查範圍內）不變。
+
+**更正（L3-4、L3-5）**：兩輪的 App 都從 Claude 終端啟動，受 MSIX AppData 轉存影響，userData 的實體位置是 Claude 套件快取，不是一般 Windows AppData；邏輯 `userData` 路徑相同 ≠ 實體落盤位置相同。功能結論（安裝、修復、登入、啟動）保留；不得寫成「一般 Windows 捷徑情境已驗」——那由上方的一般 Windows 補驗另外證明。
+
+正式資料的快照（owner 正式 userData 遞迴、`E:\Game2\GGL` 深度 3）每一段前後都一致：只代表已檢查的範圍內沒觀察到變動，不代表全磁碟零寫入。
+
+**證據分類**
+
+| 類 | 項目 |
+|---|---|
+| 實測 | 上方各〔實測〕段；Java 實際路徑（一般 Windows 補驗那次） |
+| 推論 | MSIX 轉存的機制；正式與測試身分的單一實例鎖互相獨立；正式身分釘選後只有一個圖示 |
+| owner 接受的剩餘風險 | Token refresh 真實流程未驗（§結案判定 X1b-D13） |
+| 留待首次正式發版前 | 正式 `appId` 的 NSIS 安裝、捷徑、釘選、解除安裝（X1b-D14） |
+
+## 結案判定（2026-10-24 owner）
+
+出處：owner 2026-10-24 終端貼入「GGL_Launcher — X1b F2 最終技術結案裁決與文件授權」，以下引原話。
+
+| ID | 裁決 | 原話 |
+|---|---|---|
+| X1b-D12 | X1b 技術結案 | 「X1b 技術結案獲准；本輪只授權整理結案文件並提交審查，不授權 Commit、Push、發版或進入 Phase 6。」 |
+| X1b-D13 | Token refresh 真實流程未驗，接受為剩餘風險、不擋結案；真實 refresh 驗收列為後續候選 | 「Owner 接受 X1b F2 的技術驗收結果，決定不因真實 Token refresh 尚未自然觸發而繼續延長本項修復。」 |
+| X1b-D14 | 正式 `appId` 的安裝檔驗收留到首次正式發版前 | 「正式 `appId` 的 NSIS 安裝、捷徑、釘選及解除安裝保留給首次正式發版前驗收。」 |
+| X1b-D15 | 修復失敗不進常駐故障日誌、錯誤提示的可理解性不在 X1b | 「常駐故障日誌未記錄修復失敗，以及錯誤提示可理解性問題，依既有 Phase 6／獨立 UI 改善責任記錄，不擴張 X1b。」 |
+
+結案範圍：F2 實作 `4cd2667`（`undici@8.12.3` 精確正式依賴、下載專用 Agent）、文件 `14d43e7`、CI run `40075160310`（Node 22.23.4，1233／1233，先前 18 案恢復；掛住沒再現，原本掛住的原因仍未定位）、L3-1～L3-6（含上方更正）。**不是首次正式發版。** 後續候選 → `future-work.md`（Token refresh 真實驗收、正式身分安裝檔驗收、修復失敗進常駐日誌、錯誤文案）。
+
 ## 文件更正（保留原始事實，只加更正註記）
 
-〔2026-10-24 session 收尾時已做：owner 指示「Plan 有勘誤的地方就回寫」，下表 N6 plan 五處已加〔2026-10-24 更正〕註記、history 已新增一筆；另補 `plans/cross-review-2026-10-x1.md` §已知未驗 一條更正、`plans/cross-review-2026-10.md` 狀態行與 §8 X1「後續」。施工完成後 history 再補施工結果〕
+〔2026-10-24 session 收尾時已做：owner 指示「Plan 有勘誤的地方就回寫」，下表 N6 plan 五處已加〔2026-10-24 更正〕註記、history 已新增一筆；另補 `plans/cross-review-2026-10-x1.md` §已知未驗 一條更正、`plans/cross-review-2026-10.md` 狀態行與 §8 X1「後續」。施工完成後 history 再補施工結果〕〔2026-10-24 結案回寫：history 已新增 X1b 施工、驗收與結案一筆〕
 
 撤回的判斷：「Electron run-as-node 下 `ensureVersionJsons` 的 undici assertion 是測試環境的問題、與 N6／連結無關」。前半錯：不是 Electron 或 run-as-node 特有，Node 24.19／22.23.4 一樣會撞；原因是特定 undici 版本的缺陷，GGL 的下載時序與 X1 的「先等開檔」都可能暴露它（§根因；X1 不是唯一根因）。後半「與 N6 無關」仍成立。當時的對照組 R0 跑在已含 X1 的 HEAD 上，拆不開 X1。
 
@@ -481,11 +569,12 @@ Electron run-as-node 的 `process.memoryUsage().arrayBuffers` 恆為 0（配 32 
 
 ## 已知未驗
 
-- CI 的掛住在本機 24.19、22.23.4 都沒重現，原因未定位；F2 施工後若仍掛住，照停止條件處理。
+- CI 的掛住在本機 24.19、22.23.4 都沒重現，原因未定位；F2 施工後若仍掛住，照停止條件處理。〔2026-10-24：run `40075160310` 沒再現；原因仍未定位〕
 - 真 Electron 主程序遇到 #5360 的 `uncaughtException` 的行為（對話框？結束？）。〔2026-10-24 施工：HEAD 在真主程序會撞已實測；沒有 handler 時的行為仍未驗 → §施工紀錄 L3-4〕
 - 正式來源的 `Connection` 只查了 HEAD；Java zip 的實際 GET 沒查。
-- 第三輪 F2 證據全部來自 scratchpad 原型（用絕對路徑 require、預設參數接線），不是 repo 版本；L3 各項（打包、真 App、登入）都還沒做。〔2026-10-24 施工：repo 版本、L3-1～L3-3 已驗；L3-4 GUI、L3-5、L3-6 未做 → §施工紀錄〕
-- 真實的微軟登入、站台、伺服器狀態請求在 undici 8 下沒跑過（L3-5）。
+- 第三輪 F2 證據全部來自 scratchpad 原型（用絕對路徑 require、預設參數接線），不是 repo 版本；L3 各項（打包、真 App、登入）都還沒做。〔2026-10-24 施工：repo 版本、L3-1～L3-3 已驗；L3-4 GUI、L3-5、L3-6 未做 → §施工紀錄〕〔同日 L3-4～L3-6 做完 → §L3 驗收紀錄〕
+- 真實的微軟登入、站台、伺服器狀態請求在 undici 8 下沒跑過（L3-5）。〔2026-10-24：新登入、站台、伺服器狀態在 Claude 容器內與一般 Windows 環境各跑過一次 → §L3 驗收紀錄；Token refresh 真實流程仍未觸發，owner 接受為剩餘風險（X1b-D13）〕
+- Claude Desktop 的 MSIX AppData 轉存機制是〔推論〕（兩份實體檔的位置、時間、內容差異與之一致，沒有另做實驗釘死）（2026-10-24，§L3 驗收紀錄）。
 - #5500 的反例 CC 沒有自己重跑（§第四輪，轉述）。
 - U2 能否在 HEAD 上做出穩定紅燈（§回歸測試）。〔2026-10-24 施工：不能，只守回退 → §施工紀錄〕
 - 實驗 A 的慢磁碟是延後 callback 模擬的，不是真的慢磁碟或防毒卡住。
