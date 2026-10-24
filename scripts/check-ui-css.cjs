@@ -58,6 +58,7 @@ function findLineNumber(text, index) {
 }
 
 const css = fs.readFileSync(cssPath, "utf8");
+const html = fs.readFileSync(htmlPath, "utf8");
 const cssNoComments = maskCssComments(css);
 const errors = [];
 const warnings = [];
@@ -219,29 +220,25 @@ const rerunCmd = isStrict
   }
 }
 
-// (8) Electron drag-region sanity (HTML-level, low false positive) — warning/strict-error
+// (8) Electron drag-region sanity (HTML-level, low false positive)
+// Missing id: error (the check would silently stop guarding). Missing "no-drag": warning/strict-error.
 {
-  let html = "";
-  try {
-    html = fs.readFileSync(htmlPath, "utf8");
-  } catch {
-    // ignore if missing
+  function tagHasNoDragById(id) {
+    const re = new RegExp(`<[^>]+\\bid\\s*=\\s*["']${id}["'][^>]*>`, "i");
+    const m = re.exec(html);
+    if (!m) return null;
+    return /\bclass\s*=\s*["'][^"']*\bno-drag\b[^"']*["']/i.test(m[0]);
   }
-  if (html) {
-    function tagHasNoDragById(id) {
-      const re = new RegExp(`<[^>]+\\bid\\s*=\\s*["']${id}["'][^>]*>`, "i");
-      const m = re.exec(html);
-      if (!m) return null;
-      return /\bclass\s*=\s*["'][^"']*\bno-drag\b[^"']*["']/i.test(m[0]);
-    }
 
-    for (const id of ["settingsModal", "notifOverlay"]) {
-      const ok = tagHasNoDragById(id);
-      if (ok === null) continue;
-      if (!ok) {
-        const msg = `index.html: expected element with id="${id}" to include class "no-drag" (Electron drag region can block clicks)`;
-        (isStrict ? errors : warnings).push(msg);
-      }
+  for (const id of ["settingsModal", "notifOverlay"]) {
+    const ok = tagHasNoDragById(id);
+    if (ok === null) {
+      errors.push(
+        `index.html: cannot find element with id="${id}" (renamed? update the id list in scripts/check-ui-css.cjs)`,
+      );
+    } else if (!ok) {
+      const msg = `index.html: expected element with id="${id}" to include class "no-drag" (Electron drag region can block clicks)`;
+      (isStrict ? errors : warnings).push(msg);
     }
   }
 }

@@ -1,4 +1,4 @@
-# Phase 6a — 先補保證（G1–G3）：細部 plan（狀態：**2026-10-24 初稿；同日 owner 裁 Q1–Q4 並追加兩項驗收要求（→ §裁決）；未授權施工**）
+# Phase 6a — 先補保證（G1–G3）：細部 plan（狀態：**2026-10-24 初稿；同日 owner 裁 Q1–Q4 並追加兩項驗收要求（→ §裁決）；同日 owner 授權 6a-1 施工與 commit（不含 6a-2、push），施工完成、待 owner 驗收（→ §6a-1 施工紀錄）；6a-2 未授權**）
 
 上層＝`plans/cross-review-2026-10.md` §8 Phase 6（範圍、不做、不變量、驗收下限、回滾；子 Phase 切法也在那裡）；G1–G3 的定義＝`plans/defense-cleanup.md` §先補保證；證據＝上層 §5.6；改／留判準＝`plans/cross-review-2026-10-phase6-criteria.md`（本檔不重述）。
 
@@ -98,3 +98,27 @@
 ## 回滾
 
 每個 commit 獨立 revert。6a-2 revert 後，`buildUiRefs` 回到「缺了回 `null`」，各模組的空值檢查仍在（6d 還沒拆），行為與現在相同。
+
+## 6a-1 施工紀錄（2026-10-24，基準 `856c714`）〔實測〕
+
+**授權出處**：〔轉述〕owner 2026-10-24 在與 CC 的對話中貼入「GGL_Launcher — Phase 6a-1 施工放行」（採納 ChatGPT 對 6a-1 的施工前審查建議；只授權 G1＋G3＋Q3、不含 6a-2、不授權 push），並回覆「對，就是要做 6a-1。」「開工啦～」。該文件另加兩項要求：A4 分別測 `settingsModal`、`notifOverlay`；fixture 以真 `index.html`／`styles.css` 為底只施加單一突變。
+
+- **改動**：`scripts/check-renderer-scripts.cjs` -8（刪掉 skip 分支與「其他頁面」註解）；`scripts/check-ui-css.cjs` +17／-20（`index.html` 改在檔頭與 `styles.css` 同樣直接讀，讀不到就丟 ENOENT、exit 1；第 (8) 節找不到 id ⇒ `errors`，不分 strict；`no-drag` 分支原樣）；新檔 `test/ui-check-scripts.test.cjs`（A1–A7，A4 拆成 2 個 id × 一般／strict 共 4 案，合計 10 案）。
+- **G1 的寫法**：沒有另寫「缺 `./renderer.js`」的專用訊息，而是刪掉 skip，讓它掉進既有的順序比對（Expected 有、Actual 沒有 ⇒ `order mismatch`、exit 1）。〔假設：owner 接受訊息標題是 `order mismatch`；不接受就改成專用訊息〕
+- **測試手法**：暫存目錄放真檔副本，`mutate()` 要求突變字串剛好命中一次，否則測試本身就失敗；子行程拿掉 `UI_CSS_STRICT`，讓一般模式真的是一般模式。`index.html`／`styles.css` 是純 LF（`.gitattributes` `eol=lf`；rg `'\r'` 0 命中，對照組 CRLF 檔 2 命中）。
+- **紅燈**（修之前，Node v24.14.1）：
+
+| 案 | 預期 | 實際 exit | 輸出 |
+|---|---|---|---|
+| A1 | 1 | 0 | `[renderer-scripts-check] skipped (no ./renderer.js in index.html)` |
+| A4 `settingsModal` 一般／strict | 1 | 0／0 | `[ui-css-check] ok` |
+| A4 `notifOverlay` 一般／strict | 1 | 0／0 | `[ui-css-check] ok` |
+| A5 | 1 | 0 | `[ui-css-check] ok` |
+| A2、A3、A6、A7 | 照表 | 照表 | 綠 |
+
+- **綠燈**：修之後 10／10。A1 輸出 `order mismatch`、Actual 清單沒有 `./renderer.js`；A4 輸出 `cannot find element with id="…"`；A5 輸出 ENOENT 與 `index.html` 路徑。
+- **回歸**：`npm test` 1233 → 1243（Node v24.14.1、v22.23.4 都 1243／1243；22.23.4＝CI run `40100341939` 的版本，zip 雜湊對過 `SHASUMS256.txt`）；`lint`、`check:ui-css`、`check:ui-css:strict` exit 0；`git diff --check` exit 0；prettier `--check` 三檔通過。
+- **啟動**：`electron.exe .`（拿掉 `ELECTRON_RUN_AS_NODE`）、隔離 `--user-data-dir`（scratchpad），15 秒後行程仍在，日誌 `start_main_begin` → `main_window_created` → `start_main_done`，沒有錯誤。只看到主程序；畫面這批沒動，owner 開一次確認啟動仍待做。
+- commit 前防禦寫法掃描（conventions §防禦與相容）：`scripts/`、`test/` 新增 144 行 0 命中（對照組 `7429a54` 用同一個 rg 命中 7 筆）。
+- **撞到**：A6 第一版的突變字串 `class="modal hidden no-drag"` 在 `index.html` 出現 2 次，被 `mutate()` 的護欄擋下（不是腳本行為），改成連同 `id="settingsModal"` 那行一起比對；新測試檔還沒被追蹤時 `git diff` 看不到它，自審 rg 的 0 命中不成立，`git add -N` 後重跑。
+- **沒跑**：打包（`pack:win`／`dist:win`，它們會先跑 `check:ui-css:strict`）、畫面的開機路徑。
