@@ -925,6 +925,17 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
 
 **目的**：先補保證，再拆防線（原 `defense-cleanup.md` 的順序）。
 **判準**：改／留、退回、停止 → `plans/cross-review-2026-10-phase6-criteria.md`（2026-10-24，D-P6-*）。
+**子 Phase**（切成五份：owner 2026-10-24「好，切 5 份，開始寫 6a」；下表各欄內容為 CC 提案；每份開工前另寫細部 plan、另行授權）：
+
+| 子 | 範圍 | 卡的裁決 | owner 看畫面 |
+|---|---|---|---|
+| 6a | G1–G3，加 S-CHECK 的 `scripts/check-ui-css.cjs:224-229`（原屬 6e，6a Q3）→ `plans/cross-review-2026-10-phase6a.md` | — | 只確認啟動 |
+| 6b | IPC 與 DI 組＋其他 main 組；M-LAUNCH 的內層 `catch` 與 M-SEND 同批（→ 判準檔 §判例 3） | U15 | 少 |
+| 6c | lib 組；B6＝L-SILENT 的 `lib/account-secret.js:79-81`，在此批 | U3、U4、U5 | 否 |
+| 6d | renderer 組；B1、U2 在此批；拆 G2 守住的空值檢查與 R-B 是同一筆測試帳（→ 判準檔 §判例 4） | U2 | 多 |
+| 6e | scripts／CSS 組（B2 與 S-CSS 的 `.hidden` 同批；S-CHECK 不含已移 6a 的 `check-ui-css.cjs:224-229`）＋開 ESLint `no-empty`＋收尾 | U13 | CSS 部分 |
+
+順序依據〔推論，據盤點、未逐項現讀〕：G1–G3 先於拆 renderer 防線（本節「前置」）；main 送畫面的那一端（M-SEND 等）先整理，renderer 的 R-PAYLOAD 才有可信任的對象；renderer 用到 lib（如 `lib/settings-logic.js`），lib 排在 renderer 前。
 **範圍**：
 - G1、G2、G3（定義在 `defense-cleanup.md` §先補保證）：各自先寫突變測試證明修之前會漏（§5.6）。G2 要先分「必要元素」與「可選元素」，只對必要的強制（ChatGPT 第一輪的補充）。
 - 依 `defense-cleanup.md` §清理清單 分批清：renderer 組（R-A 模組缺席、R-B 雙輸入形狀、R-C bind 備援、R-D 常數四份、R-LOG、R-OLD、R-CONTRACT、R-DUP、R-SWALLOW、R-SILENT、R-PAYLOAD、R-THUMB、R-PLATFORM；B1 在 R-A／R-B 那批修）、IPC 與 DI 組（M-IPC、M-DI、M-SEND、M-WIN、M-IPCARG；U15，同一個 commit 重產 IPC 索引）、其他 main 組（M-STREAM、M-RE、M-LAUNCH、M-MISC、M-SILENT、M-OTHER）、lib 組（L-REC＝U5、L-NOTICE、L-SET、L-CONTRACT、L-REVAL＝U3、L-SERVERCFG＝U4、L-SILENT、L-DUP）、scripts／CSS 組（S-V2、S-CSS、S-CHECK、S-FMT）。U2 在 renderer 組。
