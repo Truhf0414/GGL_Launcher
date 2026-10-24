@@ -1,4 +1,4 @@
-# Phase 6a — 先補保證（G1–G3）：細部 plan（狀態：**2026-10-24 初稿；同日 owner 裁 Q1–Q4 並追加兩項驗收要求（→ §裁決）；同日 owner 授權 6a-1 施工與 commit（不含 6a-2、push），施工完成，commit `a421da2`，同日 owner 驗收放行（→ §6a-1 施工紀錄）；同日 owner 授權 6a-2 施工與 commit（不含 push、6b、6d），施工完成、待 owner 驗收（→ §6a-2 施工紀錄）**）
+# Phase 6a — 先補保證（G1–G3）：細部 plan（狀態：**2026-10-24 初稿；同日 owner 裁 Q1–Q4 並追加兩項驗收要求（→ §裁決）；同日 owner 授權 6a-1 施工與 commit（不含 6a-2、push），施工完成，commit `a421da2`，同日 owner 驗收放行（→ §6a-1 施工紀錄）；同日 owner 授權 6a-2 施工與 commit（不含 push、6b、6d），施工完成，commit `a707155`，2026-10-25 owner 驗收放行（→ §6a-2 施工紀錄）；6a 結案**）
 
 上層＝`plans/cross-review-2026-10.md` §8 Phase 6（範圍、不做、不變量、驗收下限、回滾；子 Phase 切法也在那裡）；G1–G3 的定義＝`plans/defense-cleanup.md` §先補保證；證據＝上層 §5.6；改／留判準＝`plans/cross-review-2026-10-phase6-criteria.md`（本檔不重述）。
 
@@ -125,7 +125,9 @@
 - **撞到**：A6 第一版的突變字串 `class="modal hidden no-drag"` 在 `index.html` 出現 2 次，被 `mutate()` 的護欄擋下（不是腳本行為），改成連同 `id="settingsModal"` 那行一起比對；新測試檔還沒被追蹤時 `git diff` 看不到它，自審 rg 的 0 命中不成立，`git add -N` 後重跑。
 - **沒跑**：打包（`pack:win`／`dist:win`，它們會先跑 `check:ui-css:strict`）、畫面的開機路徑。
 
-## 6a-2 施工紀錄（2026-10-24，基準 `5e2bfba`）〔實測〕
+## 6a-2 施工紀錄（2026-10-24，基準 `5e2bfba`，commit `a707155`）〔實測〕
+
+**驗收出處**：owner 2026-10-25（與 CC 對話）「啟動正常，6a-2 驗收過，收 docs commit」。
 
 **授權出處**：〔轉述〕owner 2026-10-24 在與 CC 的對話中貼入「GGL_Launcher — Phase 6a-2（G2）施工授權」（只授權 6a-2；不授權 push、6b、6d；A10 需要大型 harness ⇒ 停止回報），並回覆「辛苦啦，我們直接來推 6a-2 吧！」。
 
