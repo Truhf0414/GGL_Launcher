@@ -10,7 +10,12 @@ const os = require("os");
 const path = require("path");
 const { execFileSync } = require("child_process");
 
-const { launchMinecraft, LaunchError } = require("../main/minecraft-launch.js");
+const {
+  launchMinecraft,
+  LaunchError,
+  configureMinecraftLaunch,
+  isMinecraftRunning,
+} = require("../main/minecraft-launch.js");
 const { DEFAULT_SETTINGS } = require("../main/settings.js");
 const { getPaths, javaExeFor } = require("../lib/paths-layout.js");
 const { windowsEnv } = require("../lib/launch-args.js");
@@ -18,6 +23,7 @@ const { checkRuntimeReady } = require("../lib/runtime-readiness.js");
 const { makeRuntimeProbe } = require("../main/sync/runtime-probe.js");
 const pkg = require("../package.json");
 const { RUNTIME, LAUNCH_ID, installRuntime } = require("./helpers/installed-runtime.cjs");
+const { bridgeWithLiveWindow, throwOnSend } = require("./helpers/real-bridge.cjs");
 
 const ENV = windowsEnv("10.0.26200");
 const FABRIC_REL = `versions/${LAUNCH_ID}/${LAUNCH_ID}.json`;
@@ -344,4 +350,68 @@ test("S4 沒有成品 ⇒ GGL_LAUNCH_NOT_READY；成品形狀不對 ⇒ assertLa
     );
   }
   assert.equal(h.calls.spawn.length, 0);
+});
+
+// ── 送畫面是通知：失敗不改變啟動與查詢的結果（6b-1 B5e、B6、B7）──
+// 接真的 bridge（main/ipc-bridge.js），失敗由它記常駐日誌 → _notes/plans/cross-review-2026-10-phase6b.md §B7、D4
+
+test("B5e 送畫面丟錯（真 bridge）⇒ 照樣 spawn、回成功；每筆通知一筆常駐日誌（Q3 (2)）", async (t) => {
+  const h = await setup(t);
+  const { bridge, errors } = bridgeWithLiveWindow(throwOnSend);
+  const r = await h
+    .launch(online, { sendMcStatus: bridge.sendMcStatus, sendMcRunning: bridge.sendMcRunning })
+    .then(
+      () => ({ ok: true }),
+      (error) => ({ ok: false, error }),
+    );
+  assert.equal(h.calls.spawn.length, 1, `spawn 次數；launch ${r.ok ? "成功" : `reject：${r.error?.message}`}`);
+  assert.ok(r.ok, `launch reject：${r.error?.stack}`);
+  assert.deepEqual(
+    errors.map((e) => [e[1], e[3].channel]),
+    [
+      ["renderer_send_failed", "minecraft:status"],
+      ["renderer_send_failed", "minecraft:status"],
+      ["renderer_send_failed", "minecraft:running"],
+    ],
+  );
+});
+
+/** 啟動時送畫面正常；failing 設成 true 之後 send 丟錯。清過期行程走模組層 configure 的 sendMcRunning */
+async function launchWithRealBridge(t, h) {
+  const io = { failing: false, sent: [], attempts: 0 };
+  const { bridge, errors } = bridgeWithLiveWindow((channel, payload) => {
+    io.attempts++;
+    if (io.failing) throw new Error("boom");
+    io.sent.push({ channel, payload });
+  });
+  const senders = { sendMcStatus: bridge.sendMcStatus, sendMcRunning: bridge.sendMcRunning };
+  configureMinecraftLaunch(senders);
+  t.after(() => configureMinecraftLaunch({}));
+  await h.launch(online, senders);
+  assert.equal(h.calls.children.length, 1);
+  return { io, errors, child: h.calls.children[0] };
+}
+
+test("B6 真 bridge：行程已結束（exitCode 非 null）⇒ isMinecraftRunning 回 false、送一次 running false", async (t) => {
+  const h = await setup(t);
+  const { io, errors, child } = await launchWithRealBridge(t, h);
+  const before = io.sent.length;
+  child.exitCode = 0;
+  assert.equal(isMinecraftRunning(), false);
+  assert.deepEqual(io.sent.slice(before), [{ channel: "minecraft:running", payload: { isRunning: false } }]);
+  assert.equal(errors.length, 0);
+});
+
+test("B7 同 B6，但 send 丟錯 ⇒ 仍回 false、只送 1 次、記一筆常駐日誌", async (t) => {
+  const h = await setup(t);
+  const { io, errors, child } = await launchWithRealBridge(t, h);
+  const before = io.attempts;
+  io.failing = true;
+  child.exitCode = 0;
+  assert.equal(isMinecraftRunning(), false);
+  assert.equal(io.attempts - before, 1, "send 嘗試次數");
+  assert.deepEqual(
+    errors.map((e) => [e[1], e[3].channel]),
+    [["renderer_send_failed", "minecraft:running"]],
+  );
 });

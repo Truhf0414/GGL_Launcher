@@ -539,11 +539,7 @@ async function loginMicrosoftAndMinecraft() {
           title: "登入頁載入失敗",
           message: `無法載入登入頁。\n\n錯誤：${errorDesc} (${errorCode})\nURL：${validatedURL}`,
         };
-        if (
-          parent &&
-          typeof parent.isDestroyed === "function" &&
-          !parent.isDestroyed()
-        ) {
+        if (parent && !parent.isDestroyed()) {
           void dialog.showMessageBox(parent, opts);
         } else {
           void dialog.showMessageBox(opts);

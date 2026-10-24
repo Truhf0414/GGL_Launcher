@@ -35,6 +35,8 @@ const { applyPlan: realApplyPlan } = require("../main/sync/apply.js");
 const { createInstanceSync } = require("../main/sync/index.js");
 const { makeRuntimeProbe } = require("../main/sync/runtime-probe.js");
 const { RUNTIME, LAUNCH_ID, installRuntime, runtimeFileRels } = require("./helpers/installed-runtime.cjs");
+const { bridgeWithLiveWindow, throwOnSend } = require("./helpers/real-bridge.cjs");
+const { describeProgress } = require("../lib/sync/status-text.js");
 
 const HANG_LIMIT_MS = 10_000;
 const LAUNCHER_VERSION = "1.0.0";
@@ -638,16 +640,18 @@ test("N21 launcherVersion 不是 x.y.z ⇒ TypeError", () => {
   );
 });
 
-const throwingSend = () => {
-  throw new Error("視窗已關閉");
-};
+// B5（原 N24）：送畫面失敗由 bridge 接住並記常駐日誌，中樞不自己接；接真的 bridge、send 丟錯
+// → _notes/plans/cross-review-2026-10-phase6b.md §6b-1 施工方案 D2、D3
+const failedChannels = (errors) => errors.map((e) => e[3].channel);
 
-test("N24 送狀態的函式丟錯 ⇒ getInstanceStatus 照樣回傳狀態", async (t) => {
+test("B5a 送畫面丟錯（真 bridge）⇒ getInstanceStatus 照樣回傳狀態、記一筆常駐日誌", async (t) => {
+  const { bridge, errors } = bridgeWithLiveWindow(throwOnSend);
   const h = await setup(t, {
     installed: { release: REL_1 },
-    deps: { sendInstanceStatus: throwingSend },
+    deps: { sendInstanceStatus: bridge.sendInstanceStatus },
   });
   assertKind(await h.sync.getInstanceStatus(), "up-to-date");
+  assert.deepEqual(failedChannels(errors), ["instance:status"]);
 });
 
 // ── 更新／修復 ──
@@ -1342,15 +1346,52 @@ test("N23 被擋的出口也重算：站台換成維護 ⇒ NOT_ALLOWED（kind �
   assertKind(h.last(), "maintenance");
 });
 
-test("N24 送狀態的函式丟錯 ⇒ updateInstance 照樣回 { movedAside }、記錄已寫、鎖已放", async (t) => {
+test("B5b 送畫面丟錯（真 bridge）⇒ updateInstance 照樣回 { movedAside }、記錄已寫、鎖已放；有常駐日誌", async (t) => {
+  const { bridge, errors } = bridgeWithLiveWindow(throwOnSend);
   const h = await setup(t, {
     installed: { release: REL_1 },
     site: { release: REL_2 },
-    deps: { sendInstanceStatus: throwingSend },
+    deps: { sendInstanceStatus: bridge.sendInstanceStatus },
   });
   assert.deepEqual(await h.sync.updateInstance(), { movedAside: [] });
   assert.equal((await readRecord(h.paths)).version, "2.0");
   assert.equal(h.sync.getLockHolder(), null);
+  assert.ok(errors.length >= 1, `常駐日誌 ${errors.length} 筆`);
+  assert.ok(failedChannels(errors).every((c) => c === "instance:status"));
+});
+
+test("B5d 套用的進度也走真 bridge（onProgress 與 start-main 同形狀）、send 丟錯 ⇒ 更新照樣成功、記錄已寫；每次進度一筆常駐日誌", async (t) => {
+  const { bridge, errors } = bridgeWithLiveWindow(throwOnSend);
+  let progressCalls = 0;
+  const h = await setup(t, {
+    installed: { release: REL_1 },
+    site: { release: REL_2 },
+    deps: {
+      sendInstanceStatus: bridge.sendInstanceStatus,
+      onProgress: (p) => {
+        progressCalls++;
+        const { text, progress01 } = describeProgress(p);
+        bridge.sendSyncProgress(text, progress01);
+      },
+    },
+  });
+  const r = await h.sync.updateInstance().then(
+    (value) => ({ ok: true, value }),
+    (error) => ({ ok: false, error }),
+  );
+  assert.equal(
+    (await readRecord(h.paths)).version,
+    "2.0",
+    `記錄版本；updateInstance ${r.ok ? "成功" : `reject：${r.error?.message}`}`,
+  );
+  assert.ok(r.ok, `updateInstance reject：${r.error?.stack}`);
+  assert.deepEqual(r.value, { movedAside: [] });
+  assert.equal(h.sync.getLockHolder(), null);
+  assert.ok(progressCalls > 0, "套用有送進度");
+  assert.equal(
+    failedChannels(errors).filter((c) => c === "sync:progress").length,
+    progressCalls,
+  );
 });
 
 test(
@@ -1927,10 +1968,11 @@ for (const c of LAUNCH_MATRIX) {
   });
 }
 
-test("N24 送狀態的函式丟錯 ⇒ withLaunchLock 照樣呼叫 fn、結束後鎖已放", async (t) => {
+test("B5c 送畫面丟錯（真 bridge）⇒ withLaunchLock 照樣呼叫 fn、結束後鎖已放；記一筆常駐日誌", async (t) => {
+  const { bridge, errors } = bridgeWithLiveWindow(throwOnSend);
   const h = await setup(t, {
     installed: { release: REL_1 },
-    deps: { sendInstanceStatus: throwingSend },
+    deps: { sendInstanceStatus: bridge.sendInstanceStatus },
   });
   let calls = 0;
   await h.sync.withLaunchLock(async () => {
@@ -1938,6 +1980,7 @@ test("N24 送狀態的函式丟錯 ⇒ withLaunchLock 照樣呼叫 fn、結束�
   });
   assert.equal(calls, 1);
   assert.equal(h.sync.getLockHolder(), null);
+  assert.deepEqual(failedChannels(errors), ["instance:status"]);
 });
 
 // ── 補強（N26–N31，2026-10-06 外部審查的缺口）──

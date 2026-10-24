@@ -2,6 +2,8 @@ const net = require("net");
 
 /** @type {(state: string) => void} */
 let sendServerStatus = () => {};
+/** @type {(scope: string, event: string, err: unknown) => void} 常駐故障日誌（main/ggl-log.js） */
+let gglError;
 let serverStatusHost = "";
 let serverStatusPort = 0;
 let serverStatusUrl = "";
@@ -11,6 +13,7 @@ let pollIntervalId = null;
 
 function configureServerStatus(deps) {
   sendServerStatus = deps.sendServerStatus;
+  gglError = deps.gglError;
   serverStatusHost = String(deps.serverStatusHost ?? "").trim();
   const rawPort = Number(deps.serverStatusPort);
   serverStatusPort =
@@ -91,7 +94,9 @@ function startServerStatusPolling() {
     }
   };
 
-  const runTick = () => tick().catch(() => {});
+  // 輪詢根部唯一的落點（main 沒有全域的 rejection 處理）：已知的失敗 tick 裡都接了，到這裡的是 bug
+  const runTick = () =>
+    tick().catch((err) => gglError("main", "server_status_tick_failed", err));
   runTick();
   pollIntervalId = setInterval(runTick, intervalMs);
 }
