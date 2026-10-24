@@ -64,6 +64,7 @@
       "assets/tailwind.css",
       "assets/notice-thumb.svg",
       "assets/icon.ico",
+      "assets/fonts/fusion-pixel-12px-proportional-zh_hant.ttf",
       "node_modules/**/*",
       "!assets/rpc-helper.exe",
       "!assets/*.mp4",
