@@ -2,10 +2,11 @@
 // Must load before ./renderer/bootstrap.js
 (function () {
   /**
+   * Every ref is required: index.html has all of them, so a null means the page and this list disagree.
    * @param {(id: string) => HTMLElement | null} el
    */
   function buildUiRefs(el) {
-    return {
+    const refs = {
       btnMinimize: el("btnMinimize"),
       btnClose: el("btnClose"),
       btnSettings: el("btnSettings"),
@@ -61,6 +62,11 @@
       notifEmpty: el("notifEmpty"),
       notifList: el("notifList"),
     };
+    const missing = Object.keys(refs).filter((k) => refs[k] === null);
+    if (missing.length) {
+      throw new Error(`UI refs missing from index.html: ${missing.join(", ")}`);
+    }
+    return refs;
   }
 
   /**

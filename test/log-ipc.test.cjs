@@ -47,6 +47,14 @@ test("P1: 清單裡的 ID ⇒ 一筆 renderer 事件，不帶 err、不帶 d", (
   ]);
 });
 
+test("A11: ui_refs_missing（6a G2）⇒ 照記，不變成 renderer_log_rejected", (t) => {
+  const s = setup(t);
+  s.invoke("ui_refs_missing");
+  assert.deepEqual(s.records(), [
+    { v: 1, s: "renderer", e: "ui_refs_missing" },
+  ]);
+});
+
 test("P2: 不在清單的字串、偽裝成 main 的 ID ⇒ renderer_log_rejected，送來的字串不進檔", (t) => {
   const s = setup(t);
   s.invoke("token=FAKE_P2");
