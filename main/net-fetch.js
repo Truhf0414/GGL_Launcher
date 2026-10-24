@@ -2,7 +2,15 @@
 const fs = require("fs");
 const fsp = require("fs/promises");
 const { once } = require("events");
+const { fetch: undiciFetch, Agent } = require("undici");
 const { ensureDirForFile, removeLinkAt } = require("./fs-utils");
+
+// downloadToFile 專用：npm 的 undici 8 加上自己建的 Agent（→ _notes/plans/cross-review-2026-10-x1b.md）。
+// 內建 fetch 帶的 undici（Node 22.23.4 的 6.29.1、24.18 起的 7.29.0）在 body 因背壓暫停時遇到對端關連線，
+// 會丟出接不住的 assert(!this.paused)（nodejs/undici#5360），8.x 已修。明確傳 Agent、不用全域 dispatcher：
+// 全域那個由誰先載入決定，內建 fetch 先跑過就會拿到內建的舊版。
+// require("undici") 本身就會初始化全域 dispatcher，main 程序其他內建 fetch 的底層可能因此改變（X1b-D3）。
+const downloadAgent = new Agent();
 
 const defaultNetDeps = {
   /** 下載 / fetch 重試時給 UI 的提示（例如 sendSyncStatus + sendMcStatus） */
@@ -79,6 +87,11 @@ function formatFetchCause(err) {
 // headers 到手只清逾時計時器。以前是轉接外部 signal、在 headers 到手時拆掉，
 // 之後的 abort 傳不到正在讀的 body，看門狗形同虛設（→ _notes/plans/instance-sync-v3-commit3a2.md §上層沒列 4）。
 async function fetchWithNiceError(url, options = {}) {
+  return await fetchVia(fetch, url, options);
+}
+
+/** fetchWithNiceError 的本體；fetchImpl＝這次用哪個 fetch（只有 downloadToFile 傳 undici 8 的） */
+async function fetchVia(fetchImpl, url, options) {
   const timeoutAc = new AbortController();
   const timeoutMs = Number.isFinite(options.timeoutMs)
     ? options.timeoutMs
@@ -91,7 +104,7 @@ async function fetchWithNiceError(url, options = {}) {
 
   const t = setTimeout(() => timeoutAc.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...rest, signal });
+    return await fetchImpl(url, { ...rest, signal });
   } catch (e) {
     const detail = formatFetchCause(e) || "fetch failed";
     throw new Error(`連線失敗：${url}\n${detail}`);
@@ -182,11 +195,12 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
       const headers = {};
       if (resume && existing > 0) headers["Range"] = `bytes=${existing}-`;
 
-      const res = await fetchWithNiceError(url, {
+      const res = await fetchVia(undiciFetch, url, {
         cache: "no-store",
         signal: sig,
         headers,
         timeoutMs: options?.timeoutMs,
+        dispatcher: downloadAgent,
       });
       if (!res.ok) throw new Error(`下載失敗：HTTP ${res.status}`);
 
