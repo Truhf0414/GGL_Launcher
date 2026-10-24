@@ -1,8 +1,7 @@
 const { IPC } = require("../../lib/ipc-channels");
 
 function registerExternalIpc(ctx) {
-  const { ipcMain } = ctx || {};
-  const shell = ctx?.shell;
+  const { ipcMain, shell } = ctx;
   ipcMain.handle(IPC.invoke.OPEN_EXTERNAL, (_e, url) => {
     const u = String(url || "").trim();
     if (!/^https?:\/\//i.test(u)) return;

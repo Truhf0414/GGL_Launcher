@@ -1,7 +1,7 @@
 const { IPC } = require("../../lib/ipc-channels");
 
 function registerNotificationsIpc(ctx) {
-  const { ipcMain, deps } = ctx || {};
+  const { ipcMain, deps } = ctx;
   ipcMain.handle(IPC.invoke.NOTIFICATIONS_GET, async (_e, opts) => {
     const lastSeenKey =
       opts && typeof opts === "object" ? String(opts.lastSeenKey || "") : "";

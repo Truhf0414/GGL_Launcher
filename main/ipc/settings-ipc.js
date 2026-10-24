@@ -3,7 +3,7 @@ const { checkSettings, formatIssue } = require("../../lib/settings-format.js");
 
 // IPC 是安全邊界：畫面已經用同一份規則擋過，這裡照樣再驗（D-SET-KIND；→ _notes/plans/cross-review-2026-10-phase4.md §SETTINGS_SET）
 function registerSettingsIpc(ctx) {
-  const { ipcMain, deps } = ctx || {};
+  const { ipcMain, deps } = ctx;
   ipcMain.handle(IPC.invoke.SETTINGS_GET, async () => ({
     ...(await deps.readSettings()),
     systemMemoryGb: deps.getSystemMemoryGb(),

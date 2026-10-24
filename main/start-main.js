@@ -38,7 +38,9 @@ const {
   refreshMicrosoftAndMinecraftTokens,
 } = require("./microsoft-auth");
 
-const { createMainIpcBridge } = require("./ipc-setup");
+const { createIpcBridgeSenders } = require("./ipc-bridge");
+const { registerAllMainIpc } = require("./ipc");
+const { createShowInfoDialog } = require("./ui-dialogs");
 const {
   configureServerStatus,
   startServerStatusPolling,
@@ -92,7 +94,7 @@ const isManifestUrlConfigured = () =>
 
 function createMainAppReadyContext({ app, appRoot }) {
   // 中樞與公告模組共用一個 site-client 與同一個 serverConfig。
-  // 送畫面的函式來自之後才建的 bridge：晚綁定（bridge 的 handler 又要用中樞）。
+  // 送畫面的函式來自之後才建的 bridge：晚綁定（bridge 與 handler 共用的 ipcDeps 又要用中樞）。
   let bridge = null;
   const siteClient = createSiteClient();
   const instanceSync = createInstanceSync({
@@ -120,7 +122,8 @@ function createMainAppReadyContext({ app, appRoot }) {
     log: (err) => appendLauncherLog("NOTICE_ERROR " + (err?.stack ?? err)),
   });
 
-  bridge = createMainIpcBridge({
+  // 送畫面（ipc-bridge）與 handler（main/ipc）共用的依賴
+  const ipcDeps = {
     getMainWindow,
     appendLauncherLog,
     logSyncProgressThrottled,
@@ -154,7 +157,8 @@ function createMainAppReadyContext({ app, appRoot }) {
     writeDismissedNotificationIds,
     serverConfig,
     gglError,
-  });
+  };
+  bridge = createIpcBridgeSenders(ipcDeps);
   const {
     sendSyncStatus,
     sendSyncDone,
@@ -162,9 +166,23 @@ function createMainAppReadyContext({ app, appRoot }) {
     sendMcRunning,
     sendServerStatus,
     sendWindowPower,
-    setupMainIpc,
+    replayLatest,
   } = bridge;
   configureMainWindow({ appRoot, sendWindowPower });
+
+  const showInfoDialog = createShowInfoDialog(getMainWindow);
+  // 註冊延到 app-ready 呼叫時（設定、log、各 configure* 之後）；只呼叫一次（→ main/ipc/index.js）
+  const setupMainIpc = () => {
+    const { ipcMain, shell, dialog } = require("electron");
+    registerAllMainIpc({
+      ipcMain,
+      shell,
+      dialog,
+      deps: ipcDeps,
+      showInfoDialog,
+      replayLatest,
+    });
+  };
 
   /** 回傳鍵須與 `main/app-ready.js` 的 `MAIN_APP_READY_KEYS` 一致（啟動時會先 assert）。 */
   return {

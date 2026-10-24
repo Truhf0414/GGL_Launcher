@@ -8,7 +8,7 @@ const {
 const { describeStatus } = require("../../lib/sync/status-text.js");
 
 function registerMinecraftIpc(ctx) {
-  const { ipcMain, deps, showInfoDialog } = ctx || {};
+  const { ipcMain, deps, showInfoDialog } = ctx;
 
   // 啟動本體不跳框（④c：minecraft-launch.js 不 require electron），依 code 在這裡跳；文字照搬 ④c 前
   const LAUNCH_ERROR_DIALOGS = {
@@ -111,7 +111,7 @@ function registerMinecraftIpc(ctx) {
     throw new Error(msg);
   }
 
-  // 錯誤換成普通 Error 由 main/ipc-runtime.js 統一做（→ lib/ipc-plain-errors.js）
+  // 錯誤換成普通 Error 由 main/ipc/index.js 的 registerAllMainIpc 統一做（→ lib/ipc-plain-errors.js）
   ipcMain.handle(IPC.invoke.MINECRAFT_LAUNCH, async () => {
     let acct = await readAccountOrThrow();
     await requireLoggedInOrThrow(acct);

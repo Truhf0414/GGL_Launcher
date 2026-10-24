@@ -27,7 +27,7 @@ function isStringArray(v) {
 }
 
 function registerInstanceIpc(ctx) {
-  const { ipcMain, deps, showInfoDialog } = ctx || {};
+  const { ipcMain, deps, showInfoDialog } = ctx;
 
   // 錯誤丟回畫面之後就只剩畫面那行字：失敗原因同時寫進 launcher.log，診斷報告才看得到
   function fail(channel, err, prefix) {

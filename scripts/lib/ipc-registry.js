@@ -1,13 +1,13 @@
 "use strict";
 
-// 用假的 ipcMain 實際跑一次 main 的 IPC 註冊（跟正式環境同一條路：createIpcRuntime().setupOnce()），
+// 用假的 ipcMain 實際跑一次 main 的 IPC 註冊（跟正式環境同一個入口：main/ipc/index.js 的 registerAllMainIpc），
 // 記下註冊了哪些 channel、由哪支檔註冊。不讀原始碼文字，所以不怕排版。
-// 假 ipcMain 只有 handle／removeHandler：註冊端改用別的方法（on、handleOnce…）會直接丟錯，不會漏算。
+// 假 ipcMain 只有 handle：註冊端改用別的方法（on、handleOnce、removeHandler…）會直接丟錯，不會漏算。
 
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..", "..");
-// createIpcRuntime 交給各 register* 的是這一層包過的 ipcMain（錯誤換成普通 Error），它不是註冊端
+// registerAllMainIpc 交給各 register* 的是這一層包過的 ipcMain（錯誤換成普通 Error），它不是註冊端
 const PLAIN_ERROR_WRAPPER = path.join(ROOT, "lib", "ipc-plain-errors.js");
 
 /** 呼叫 ipcMain.handle 的那支檔（相對 repo 根目錄、正斜線）。 */
@@ -25,15 +25,14 @@ function handleCallerFile() {
 
 /** @returns {{ channel: string, file: string }[]} 依註冊順序 */
 function collectRegisteredHandlers() {
-  const { createIpcRuntime } = require("../../main/ipc-runtime");
+  const { registerAllMainIpc } = require("../../main/ipc");
   const handlers = [];
   const ipcMain = {
     handle(channel) {
       handlers.push({ channel, file: handleCallerFile() });
     },
-    removeHandler() {},
   };
-  createIpcRuntime({ ipcMain, deps: {} }).setupOnce();
+  registerAllMainIpc({ ipcMain, deps: {} });
   return handlers;
 }
 

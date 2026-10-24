@@ -1,8 +1,7 @@
 const { IPC } = require("../../lib/ipc-channels");
 
 function registerDialogIpc(ctx) {
-  const { ipcMain, deps } = ctx || {};
-  const dialog = ctx?.dialog;
+  const { ipcMain, deps, dialog } = ctx;
   ipcMain.handle(
     IPC.invoke.DIALOG_SELECT_DIRECTORY,
     async (_e, defaultPath) => {

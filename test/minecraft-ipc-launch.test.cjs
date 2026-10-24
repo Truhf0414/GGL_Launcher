@@ -77,7 +77,7 @@ function setupIpc(depsOverrides = {}) {
   const showInfoDialog = async (title, message) => {
     calls.dialogs.push({ title, message });
   };
-  // 跟正式接線一樣：錯誤換成普通 Error 由 createIpcRuntime 包的這一層做
+  // 跟正式接線一樣：錯誤換成普通 Error 由 registerAllMainIpc 包的這一層做
   registerMinecraftIpc({ ipcMain: plainErrorIpcMain(ipcMain), deps, showInfoDialog });
   return { ipcMain, calls };
 }
