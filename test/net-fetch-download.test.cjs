@@ -800,3 +800,101 @@ for (const fail of ["throw", "reject"]) {
     assert.deepEqual(uncaught, []);
   });
 }
+
+// ── X1b：特定 undici 的 assert(!this.paused)（nodejs/undici#5360）→ _notes/plans/cross-review-2026-10-x1b.md ──
+// 只有帶這個 assert 的 undici 會紅（Node 22.23.4、24.18 以上、Electron 24.20）；較舊的 Node 上永遠綠。
+// 觸發條件：parser 因為 body 沒人讀而暫停時，對端結束連線（startServer 一律 connection: close）。
+
+/** 本案期間的 unhandledRejection */
+function countUnhandled(t) {
+  const seen = [];
+  const on = (e) => seen.push(e?.code ?? String(e));
+  process.on("unhandledRejection", on);
+  t.after(() => process.off("unhandledRejection", on));
+  return seen;
+}
+
+/** 只對 p 的 fs.open 延後 ms 才真的開；其他路徑原樣轉給真的函式 */
+function delayOpen(t, p, ms) {
+  const realOpen = fs.open;
+  t.after(() => {
+    fs.open = realOpen;
+  });
+  fs.open = function (q, ...rest) {
+    if (q !== p) return realOpen.call(this, q, ...rest);
+    setTimeout(() => realOpen.call(this, q, ...rest), ms);
+  };
+}
+
+/** 只對 p 開出來的 fd，每次 fs.write 的 callback 延後 ms（慢磁碟）；其他 fd 原樣轉 */
+function slowWrites(t, p, ms) {
+  const realOpen = fs.open;
+  const realWrite = fs.write;
+  t.after(() => {
+    fs.open = realOpen;
+    fs.write = realWrite;
+  });
+  let fd = null;
+  fs.open = function (q, ...rest) {
+    if (q !== p) return realOpen.call(this, q, ...rest);
+    const cb = rest.pop();
+    return realOpen.call(this, q, ...rest, (err, got) => {
+      if (!err) fd = got;
+      cb(err, got);
+    });
+  };
+  fs.write = function (f, ...rest) {
+    if (f !== fd) return realWrite.call(this, f, ...rest);
+    const cb = rest.pop();
+    return realWrite.call(this, f, ...rest, (...args) =>
+      setTimeout(() => cb(...args), ms),
+    );
+  };
+}
+
+function serveWhole(body) {
+  return (req, res) => {
+    res.writeHead(200, { "content-length": String(body.length) });
+    res.end(body);
+  };
+}
+
+test(
+  "X1b U1: 64 KB body, connection: close, the .tmp opens 100 ms late ⇒ succeeds, nothing uncaught",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const uncaught = countUncaught(t);
+    const unhandled = countUnhandled(t);
+    const body = Buffer.alloc(64 * 1024, 0x55);
+    const srv = await startServer(serveWhole(body));
+    t.after(() => srv.close());
+    const target = await tempTarget(t);
+    delayOpen(t, `${target}.tmp`, 100);
+
+    const r = await outcome(downloadToFile(srv.url, target, null), "下載結束");
+    assert.equal(r.ok, true, String(r.error));
+    assert.deepEqual(await fsp.readFile(target), body);
+    assert.deepEqual(uncaught, []);
+    assert.deepEqual(unhandled, []);
+  },
+);
+
+test(
+  "X1b U2: 1 MB body, connection: close, every write to the .tmp takes 5 ms ⇒ succeeds, nothing uncaught",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const uncaught = countUncaught(t);
+    const unhandled = countUnhandled(t);
+    const body = Buffer.alloc(1024 * 1024, 0x56);
+    const srv = await startServer(serveWhole(body));
+    t.after(() => srv.close());
+    const target = await tempTarget(t);
+    slowWrites(t, `${target}.tmp`, 5);
+
+    const r = await outcome(downloadToFile(srv.url, target, null), "下載結束");
+    assert.equal(r.ok, true, String(r.error));
+    assert.deepEqual(await fsp.readFile(target), body);
+    assert.deepEqual(uncaught, []);
+    assert.deepEqual(unhandled, []);
+  },
+);

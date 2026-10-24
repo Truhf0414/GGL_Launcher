@@ -29,7 +29,8 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "extract-zip": "^2.0.1"
+    "extract-zip": "^2.0.1",
+    "undici": "8.12.3"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.12",
