@@ -1,4 +1,4 @@
-# Phase 6a — 先補保證（G1–G3）：細部 plan（狀態：**2026-10-24 初稿；同日 owner 裁 Q1–Q4 並追加兩項驗收要求（→ §裁決）；同日 owner 授權 6a-1 施工與 commit（不含 6a-2、push），施工完成，commit `a421da2`，同日 owner 驗收放行（→ §6a-1 施工紀錄）；6a-2 未授權**）
+# Phase 6a — 先補保證（G1–G3）：細部 plan（狀態：**2026-10-24 初稿；同日 owner 裁 Q1–Q4 並追加兩項驗收要求（→ §裁決）；同日 owner 授權 6a-1 施工與 commit（不含 6a-2、push），施工完成，commit `a421da2`，同日 owner 驗收放行（→ §6a-1 施工紀錄）；同日 owner 授權 6a-2 施工與 commit（不含 push、6b、6d），施工完成、待 owner 驗收（→ §6a-2 施工紀錄）**）
 
 上層＝`plans/cross-review-2026-10.md` §8 Phase 6（範圍、不做、不變量、驗收下限、回滾；子 Phase 切法也在那裡）；G1–G3 的定義＝`plans/defense-cleanup.md` §先補保證；證據＝上層 §5.6；改／留判準＝`plans/cross-review-2026-10-phase6-criteria.md`（本檔不重述）。
 
@@ -124,3 +124,20 @@
 - commit 前防禦寫法掃描（conventions §防禦與相容）：`scripts/`、`test/` 新增 144 行 0 命中（對照組 `7429a54` 用同一個 rg 命中 7 筆）。
 - **撞到**：A6 第一版的突變字串 `class="modal hidden no-drag"` 在 `index.html` 出現 2 次，被 `mutate()` 的護欄擋下（不是腳本行為），改成連同 `id="settingsModal"` 那行一起比對；新測試檔還沒被追蹤時 `git diff` 看不到它，自審 rg 的 0 命中不成立，`git add -N` 後重跑。
 - **沒跑**：打包（`pack:win`／`dist:win`，它們會先跑 `check:ui-css:strict`）、畫面的開機路徑。
+
+## 6a-2 施工紀錄（2026-10-24，基準 `5e2bfba`）〔實測〕
+
+**授權出處**：〔轉述〕owner 2026-10-24 在與 CC 的對話中貼入「GGL_Launcher — Phase 6a-2（G2）施工授權」（只授權 6a-2；不授權 push、6b、6d；A10 需要大型 harness ⇒ 停止回報），並回覆「辛苦啦，我們直接來推 6a-2 吧！」。
+
+- **現讀**（基準 `5e2bfba`）：`buildUiRefs` 仍在 `bootstrap-ctx.js:7-63`，47 個 ref（46 個 `el()`＋`.avatar`）；呼叫處仍是 `bootstrap.js:197`，外面沒有 `try`；它之前（`:1-196`）只做 bridge 檢查、fallback 組裝、`bootstrap_prelude_ok`、取 BG 模組，沒掛 IPC 監聽、沒碰 DOM ⇒ 在這裡 `return` 不會留下半套接線。Plan 前提沒有被推翻。
+- **改動**：`renderer/bootstrap-ctx.js` +7／-1（建完物件收集值為 `null` 的鍵，有缺就丟 `Error("UI refs missing from index.html: <鍵名>")`）；`renderer/bootstrap.js` +8／-1（`try` 接住 ⇒ `window.GglStructuredLog.gglError("renderer", "ui_refs_missing", err)` ⇒ `return`；不帶 detail、不寫 `?.`）；`lib/renderer-error-events.js` +4／-1（清單加 `ui_refs_missing`）；`test/log-ipc.test.cjs` +8（A11）；新檔 `test/renderer-bootstrap-ui-refs.test.cjs` 151 行（A8 兩案：少一個 id、少 `.avatar`；A9；A10）。
+- **測試手法**：沿用 `test/helpers/fake-dom.cjs` 的 `loadRendererModule`＋最小假 `document`（`getElementById` 查集合；`querySelector` 只認 `.class`，別種選擇器直接讓測試失敗）。A10 把**真的** `bootstrap-ctx.js` 與**真的** `bootstrap.js` 載進同一個 `window`、`document` 裡一個元素都沒有，記錄 `gglError`、`ggl.invoke`、`ggl.on`、`getModule` 的呼叫——沒有另蓋 renderer harness。A9 從真 `index.html`（先去掉 `<!-- -->`）抽 id 與 class 當資料，不另開第二份清單；**不驗瀏覽器初始化時序**。A8 的 id 集合也取自同一份真 HTML（HTML 不完整時 A8 也會紅）。
+- **紅燈**（修之前，Node v24.14.1）：A8 兩案 `Missing expected exception`；A10 `gglError` 0 次（`start()` 沒丟錯）；A11 記成 `{"s":"main","e":"renderer_log_rejected","d":{"type":"string"}}`；A9 綠（照表）。修前探針（同一假環境）：`start()` 一路跑完，14 個模組全取一遍、送出 `renderer:ready`，沒有任何錯誤。
+- **綠燈**：修之後 8／8（含既有 P1–P3）。同一探針：`gglError` 一次 `["renderer","ui_refs_missing"]`、`getModule` 只有 `GglRendererBackgroundVideo`、`invoke`／`on` 0 次。
+- **反向驗證**（備份後改、跑完 `cmp` 逐位元組還原）：M1 `index.html` 的 `id="btnRepair"` 改名 ⇒ A9 紅（`UI refs missing from index.html: btnRepair`），A8 兩案一起紅；M2 拿掉 `bootstrap.js` 的 `try/catch` ⇒ A10 紅（`start()` 往外丟）。
+- **回歸**：`npm test` 1243 → 1248（Node v24.14.1、v22.23.4 都 1248／1248）；`lint`、`check:ui-css`、`check:ui-css:strict`、`git diff --check`、prettier `--check`（五檔）都過。
+- **啟動**（`electron.exe .`、拿掉 `ELECTRON_RUN_AS_NODE`、隔離 `--user-data-dir`）：R1 正常 HTML＋`GGL_DEBUG_LOG=1`：15 秒後行程仍在，renderer 印出 `bootstrap_prelude_ok` 與 `bootstrap_ctx_ready`（`bootstrap.js:371`，在 `buildUiRefs` 之後），沒有 `ui_refs_missing`；另有 Electron 的 Insecure CSP 開發模式警告（`index.html` 本批未動；沒拿 HEAD 對照）。R2 `index.html` 暫改 `btnRepair` 的 id、非 debug：常駐日誌多一筆 `{"v":1,"s":"renderer","e":"ui_refs_missing"}`，沒有 `err`、沒有 `d`；`btnRepair`／`UI refs missing` 在該日誌 0 命中（對照組 `ui_refs_missing` 1 命中）；`index.html` 已 `cmp` 還原。
+- **review 清單**：`gglError` 呼叫不帶 detail（A10 斷言 3 個引數）；缺的鍵名只在畫面的 console（`renderer/ggl-log.js` 的 `err` 欄），常駐日誌只有事件 ID（R2）。
+- commit 前防禦寫法掃描（conventions §防禦與相容）命中 1 行：`bootstrap.js` 的 `catch (err)`——跨的是 DOM（`index.html` 解析出的頁面）邊界，記事件後停止初始化，不是吞錯。
+- **撞到**：新測試直接寫 `document` 被 ESLint `no-undef` 擋（測試跑在 Node），改成 `global.document`；`log-ipc.test.cjs` 在 HEAD 合 prettier，新增段破壞格式，整檔 format 後 diff 只剩新增的 8 行。
+- **沒跑**：打包；各 UI 模組拿到 `null` ref 時的行為（6d 的範圍）；畫面的實際外觀（owner 驗收）。

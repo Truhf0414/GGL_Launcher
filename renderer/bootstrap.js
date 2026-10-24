@@ -194,7 +194,14 @@
       requiredFns: MODULES.BG.requiredFns,
     });
 
-    const uiRefs = BCTX.buildUiRefs(el);
+    // 缺元素＝index.html 與 buildUiRefs 對不上：記事件 ID 後停止初始化（缺了哪些鍵只在 console）
+    let uiRefs;
+    try {
+      uiRefs = BCTX.buildUiRefs(el);
+    } catch (err) {
+      window.GglStructuredLog.gglError("renderer", "ui_refs_missing", err);
+      return;
+    }
     const {
       btnMinimize,
       btnClose,
