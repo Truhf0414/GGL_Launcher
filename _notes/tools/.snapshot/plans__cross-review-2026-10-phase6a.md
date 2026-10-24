@@ -1,4 +1,4 @@
-# Phase 6a — 先補保證（G1–G3）：細部 plan（狀態：**2026-10-24 初稿；同日 owner 裁 Q1–Q4 並追加兩項驗收要求（→ §裁決）；未授權施工**）
+# Phase 6a — 先補保證（G1–G3）：細部 plan（狀態：**2026-10-24 初稿；同日 owner 裁 Q1–Q4 並追加兩項驗收要求（→ §裁決）；同日 owner 授權 6a-1 施工與 commit（不含 6a-2、push），施工完成，commit `a421da2`，同日 owner 驗收放行（→ §6a-1 施工紀錄）；6a-2 未授權**）
 
 上層＝`plans/cross-review-2026-10.md` §8 Phase 6（範圍、不做、不變量、驗收下限、回滾；子 Phase 切法也在那裡）；G1–G3 的定義＝`plans/defense-cleanup.md` §先補保證；證據＝上層 §5.6；改／留判準＝`plans/cross-review-2026-10-phase6-criteria.md`（本檔不重述）。
 
@@ -9,24 +9,24 @@
 ## 動工前現查（2026-10-24，基準 `8f24784`）〔讀碼〕
 
 **G1**　`scripts/check-renderer-scripts.cjs`（86 行）
-- `:65-71`：`index.html` 沒有 `./renderer.js` 就印 `skipped`、`process.exit(0)`。註解寫的理由是「避免誤報其他頁面」，但這支腳本只讀 `index.html` 一個檔（`:5`），沒有「其他頁面」。
-- 其他分支會大聲：順序不符 `:73-84` exit 1。
+- `:65-71`：`index.html` 沒有 `./renderer.js` 就印 `skipped`、`process.exit(0)`。註解寫的理由是「避免誤報其他頁面」，但這支腳本只讀 `index.html` 一個檔（`:5`），沒有「其他頁面」。〔對齊 2026-10-24：`scripts/check-renderer-scripts.cjs:65-71` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 刪除（缺 `./renderer.js` 改由順序比對失敗）〕〔對齊 2026-10-24：`scripts/check-renderer-scripts.cjs:5` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 未移動〕
+- 其他分支會大聲：順序不符 `:73-84` exit 1。〔對齊 2026-10-24：`scripts/check-renderer-scripts.cjs:73-84` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 後 `:65-76`〕
 
-**G3**　`scripts/check-ui-css.cjs`（267 行）第 (8) 節 `:222-247`
-- `:240` `if (ok === null) continue;`：`settingsModal`、`notifOverlay` 這兩個 id 在 `index.html` 找不到時跳過。只要改名，這項檢查就無聲消失。
-- `:224-229`：讀 `index.html` 失敗時吞掉，整個第 (8) 節跳過。同一個根因（檢查無聲消失）；盤點原本列在 S-CHECK（6e），依 Q3 移到 6a。
-- 找到 id、但沒有 `no-drag` 時：非 strict 是警告，`--strict`（`pack:win`／`dist:win` 用）是錯誤（`:243`）。
+**G3**　`scripts/check-ui-css.cjs`（267 行）第 (8) 節 `:222-247`〔對齊 2026-10-24：`scripts/check-ui-css.cjs:222-247` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 後 `:223-244`〕
+- `:240` `if (ok === null) continue;`：`settingsModal`、`notifOverlay` 這兩個 id 在 `index.html` 找不到時跳過。只要改名，這項檢查就無聲消失。〔對齊 2026-10-24：`scripts/check-ui-css.cjs:240` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 改寫，後 `:235-238`（找不到 id ⇒ 錯誤）〕
+- `:224-229`：讀 `index.html` 失敗時吞掉，整個第 (8) 節跳過。同一個根因（檢查無聲消失）；盤點原本列在 S-CHECK（6e），依 Q3 移到 6a。〔對齊 2026-10-24：`scripts/check-ui-css.cjs:224-229` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 刪除（讀 `index.html` 改在檔頭 `:61`，讀不到就丟錯）〕
+- 找到 id、但沒有 `no-drag` 時：非 strict 是警告，`--strict`（`pack:win`／`dist:win` 用）是錯誤（`:243`）。〔對齊 2026-10-24：`scripts/check-ui-css.cjs:243` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 後 `:241`〕
 
 **G2**　`renderer/bootstrap-ctx.js` `buildUiRefs`（`:7-63`）
 - 46 個 `el("id")`＋1 個 `document.querySelector(".avatar")`，全部在 `index.html` 裡；正式產品裡可合法缺席的元素 0 個（→ 判準檔 §判例 4）。
 - 唯一呼叫處 `renderer/bootstrap.js:197`，外面沒有 `try`。
 - 若在這裡丟錯，會變成 renderer 沒接住的例外。非 debug 模式下它**不會進常駐日誌**：`main/renderer-failure-log.js` 只接 `preload-error` 與 `render-process-gone`；`console-message` 只在 debug 時掛（`main/main-window.js:82-94`）。能進常駐日誌的畫面錯誤只有 `log:rendererError` 這條，而且只收 `lib/renderer-error-events.js` 清單裡的事件 ID（目前只有 `bootstrap_ctx_factory_missing`；D-LOG-IPC）。
 - 同檔 `bootstrap.js:143-160` 已有一個同形狀的先例：工廠缺席 ⇒ `gglError("renderer", "bootstrap_ctx_factory_missing", …)` 後 `return`。
-- `renderer/ggl-log.js` 在 `bootstrap-ctx.js` 之前載入（`check-renderer-scripts.cjs:25,40` 的順序），所以新程式可以直接呼叫 `window.GglStructuredLog.gglError`，不用再寫 `?.`（conventions §防禦與相容「新寫的不准再犯」）。
+- `renderer/ggl-log.js` 在 `bootstrap-ctx.js` 之前載入（`check-renderer-scripts.cjs:25,40` 的順序），所以新程式可以直接呼叫 `window.GglStructuredLog.gglError`，不用再寫 `?.`（conventions §防禦與相容「新寫的不准再犯」）。〔對齊 2026-10-24：`scripts/check-renderer-scripts.cjs:25,40` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 未移動〕
 
 **測試**
 - `test/` 沒有任何測試跑這兩支檢查腳本，也沒有測試載入 `bootstrap-ctx.js` 或 `lib/renderer-error-events.js`〔rg；對照組：同一手段在 `test/` 搜 `fake-dom` 有命中〕。
-- 兩支腳本都用 `process.cwd()` 找 `index.html`／`styles.css`（各自的 `:4`），所以測試可以在暫存目錄裡放假檔，再用子行程在那裡跑腳本，**腳本本身不必為了測試改寫**。
+- 兩支腳本都用 `process.cwd()` 找 `index.html`／`styles.css`（各自的 `:4`），所以測試可以在暫存目錄裡放假檔，再用子行程在那裡跑腳本，**腳本本身不必為了測試改寫**。〔對齊 2026-10-24：`scripts/check-renderer-scripts.cjs:4` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 未移動〕〔對齊 2026-10-24：`scripts/check-ui-css.cjs:4` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 未移動〕
 
 ## 設計
 
@@ -34,8 +34,8 @@
 `:65-71` 改成失敗：沒有 `./renderer.js` 就印錯誤、exit 1。刪掉「其他頁面」那句註解。
 
 ### G3
-- `:240` 找不到 id ⇒ **錯誤**（Q2：不分 strict）。理由：這不是風格判斷，是「這項檢查失效了」；跟 `no-drag` 缺了要不要擋是兩回事。
-- `:224-229` 讀不到 `index.html` ⇒ 錯誤，不吞（Q3；原屬 6e S-CHECK，`defense-cleanup.md` 該列已加註，6e 不再做）。
+- `:240` 找不到 id ⇒ **錯誤**（Q2：不分 strict）。理由：這不是風格判斷，是「這項檢查失效了」；跟 `no-drag` 缺了要不要擋是兩回事。〔對齊 2026-10-24：`scripts/check-ui-css.cjs:240` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 改寫，後 `:235-238`〕
+- `:224-229` 讀不到 `index.html` ⇒ 錯誤，不吞（Q3；原屬 6e S-CHECK，`defense-cleanup.md` 該列已加註，6e 不再做）。〔對齊 2026-10-24：`scripts/check-ui-css.cjs:224-229` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 刪除（讀 `index.html` 改在檔頭 `:61`，讀不到就丟錯）〕
 
 ### G2（Q1 (a)）
 - `buildUiRefs` 建完物件後，收集值為 `null` 的鍵；有缺 ⇒ 丟 `Error`，訊息列出缺的鍵名。
@@ -51,7 +51,7 @@
 |---|---|---|---|
 | Q1 | G2 用什麼形式守 | **(a)**：`buildUiRefs` 執行時驗證、`ui_refs_missing` 常駐錯誤事件、真實 `index.html` 的契約測試；不增加第二套靜態檢查器 | (a) 見上；(b) 只做靜態檢查腳本，執行時不改；(c) 兩者都做。(b) 抓不到「腳本被改成 `defer`／搬進 `<head>`」：那時 ID 都在，但 `buildUiRefs` 執行時 DOM 還沒解析、全部是 `null`，而 G2 的前提（判準檔 §判例 4）正是 script 同步放在 `</body>` 前。(c) 是兩套機制守同一件事 |
 | Q2 | G3 找不到 id 時，非 strict 也算錯誤嗎 | **(a)**：一般模式與 strict 一律錯誤 | (b) 照 `no-drag` 的規則，非 strict 只警告。`check:ui-css` 在 commit 時會跑（`8f24784` 的 commit 輸出可見），改名當下就會被擋 |
-| Q3 | `check-ui-css.cjs:224-229` 讀 `index.html` 吞錯 | **移到 6a 一併修**；註明原屬 6e S-CHECK，避免重複施工 | 與 G3 同根因（檢查無聲消失）；不移的話，G3 修完後 `index.html` 一不見，第 (8) 節仍整段無聲消失 |
+| Q3 | `check-ui-css.cjs:224-229` 讀 `index.html` 吞錯 | **移到 6a 一併修**；註明原屬 6e S-CHECK，避免重複施工 | 與 G3 同根因（檢查無聲消失）；不移的話，G3 修完後 `index.html` 一不見，第 (8) 節仍整段無聲消失〔對齊 2026-10-24：`scripts/check-ui-css.cjs:224-229` → `a421da2`（plans/cross-review-2026-10-phase6a.md 6a-1） 刪除（讀 `index.html` 改在檔頭 `:61`，讀不到就丟錯）〕 |
 | Q4 | commit 怎麼切 | **(a)**：6a-1（G1＋G3）、6a-2（G2），各自驗收、各自回滾 | (b) 三個各一。G1、G3 同根因、同類檔、同一種測試手法；G2 改的是畫面程式與日誌清單。上層 §8.0：「能用一個小 commit 完成，就不拆」 |
 
 **追加的驗收要求**（同一出處）：
@@ -98,3 +98,29 @@
 ## 回滾
 
 每個 commit 獨立 revert。6a-2 revert 後，`buildUiRefs` 回到「缺了回 `null`」，各模組的空值檢查仍在（6d 還沒拆），行為與現在相同。
+
+## 6a-1 施工紀錄（2026-10-24，基準 `856c714`，commit `a421da2`）〔實測〕
+
+**驗收出處**：owner 2026-10-24（與 CC 對話）「啟動正常，6a-1 驗收過，收 docs commit」。
+
+**授權出處**：〔轉述〕owner 2026-10-24 在與 CC 的對話中貼入「GGL_Launcher — Phase 6a-1 施工放行」（採納 ChatGPT 對 6a-1 的施工前審查建議；只授權 G1＋G3＋Q3、不含 6a-2、不授權 push），並回覆「對，就是要做 6a-1。」「開工啦～」。該文件另加兩項要求：A4 分別測 `settingsModal`、`notifOverlay`；fixture 以真 `index.html`／`styles.css` 為底只施加單一突變。
+
+- **改動**：`scripts/check-renderer-scripts.cjs` -8（刪掉 skip 分支與「其他頁面」註解）；`scripts/check-ui-css.cjs` +17／-20（`index.html` 改在檔頭與 `styles.css` 同樣直接讀，讀不到就丟 ENOENT、exit 1；第 (8) 節找不到 id ⇒ `errors`，不分 strict；`no-drag` 分支原樣）；新檔 `test/ui-check-scripts.test.cjs`（A1–A7，A4 拆成 2 個 id × 一般／strict 共 4 案，合計 10 案）。
+- **G1 的寫法**：沒有另寫「缺 `./renderer.js`」的專用訊息，而是刪掉 skip，讓它掉進既有的順序比對（Expected 有、Actual 沒有 ⇒ `order mismatch`、exit 1）。〔假設：owner 接受訊息標題是 `order mismatch`；不接受就改成專用訊息。此假設列在驗收單上，owner 驗收放行 6a-1，未要求改〕
+- **測試手法**：暫存目錄放真檔副本，`mutate()` 要求突變字串剛好命中一次，否則測試本身就失敗；子行程拿掉 `UI_CSS_STRICT`，讓一般模式真的是一般模式。`index.html`／`styles.css` 是純 LF（`.gitattributes` `eol=lf`；rg `'\r'` 0 命中，對照組 CRLF 檔 2 命中）。
+- **紅燈**（修之前，Node v24.14.1）：
+
+| 案 | 預期 | 實際 exit | 輸出 |
+|---|---|---|---|
+| A1 | 1 | 0 | `[renderer-scripts-check] skipped (no ./renderer.js in index.html)` |
+| A4 `settingsModal` 一般／strict | 1 | 0／0 | `[ui-css-check] ok` |
+| A4 `notifOverlay` 一般／strict | 1 | 0／0 | `[ui-css-check] ok` |
+| A5 | 1 | 0 | `[ui-css-check] ok` |
+| A2、A3、A6、A7 | 照表 | 照表 | 綠 |
+
+- **綠燈**：修之後 10／10。A1 輸出 `order mismatch`、Actual 清單沒有 `./renderer.js`；A4 輸出 `cannot find element with id="…"`；A5 輸出 ENOENT 與 `index.html` 路徑。
+- **回歸**：`npm test` 1233 → 1243（Node v24.14.1、v22.23.4 都 1243／1243；22.23.4＝CI run `40100341939` 的版本，zip 雜湊對過 `SHASUMS256.txt`）；`lint`、`check:ui-css`、`check:ui-css:strict` exit 0；`git diff --check` exit 0；prettier `--check` 三檔通過。
+- **啟動**：`electron.exe .`（拿掉 `ELECTRON_RUN_AS_NODE`）、隔離 `--user-data-dir`（scratchpad），15 秒後行程仍在，日誌 `start_main_begin` → `main_window_created` → `start_main_done`，沒有錯誤。只看到主程序；畫面這批沒動，owner 開一次確認啟動仍待做。
+- commit 前防禦寫法掃描（conventions §防禦與相容）：`scripts/`、`test/` 新增 144 行 0 命中（對照組 `7429a54` 用同一個 rg 命中 7 筆）。
+- **撞到**：A6 第一版的突變字串 `class="modal hidden no-drag"` 在 `index.html` 出現 2 次，被 `mutate()` 的護欄擋下（不是腳本行為），改成連同 `id="settingsModal"` 那行一起比對；新測試檔還沒被追蹤時 `git diff` 看不到它，自審 rg 的 0 命中不成立，`git add -N` 後重跑。
+- **沒跑**：打包（`pack:win`／`dist:win`，它們會先跑 `check:ui-css:strict`）、畫面的開機路徑。
