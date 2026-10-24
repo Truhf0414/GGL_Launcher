@@ -102,6 +102,7 @@
 | 10-19 12:59 | owner（轉述，1792385986641） | 最終裁決：採 C（D-LINK-C 群）、N6 有限 B、N7 照拒並接受中斷後果、X1 另項、停止條件 |
 | 10-19 | owner（終端）＋CC | CC 核對回寫前的三個假設；owner 更正深層證據範圍、裁 `.ggl-tmp` 乙（D-LINK-C-TMP），授權文件回寫 |
 | 10-20 | owner（終端） | 貼上 outside voice 的收尾核對並指示照辦：採納 1b 兩項細節（D-LINK-C-DEEP-1B）、`<json>.tmp` 列入 N6 候選（D-N6）；提交本輪文件 |
+| 10-24 | owner＋ChatGPT＋CC（Crossfire，repo 外留言板） | Phase 6 判準四輪對辯；owner 裁 D-P6-COST、D-P6-TWO-STAGE、D-P6-FALLBACK → `plans/cross-review-2026-10-phase6-criteria.md` |
 
 ---
 
@@ -243,6 +244,10 @@
 |---|---|---|
 | D-N6 | **有限保護目前已識別的 GGL 內部寫入出口**（選 B）：已實測的只有 `jre21.zip.tmp` 是 file symlink 時覆寫外部並回報成功（§5.16 Z1）；`net-fetch` 的 `.part`、instance-record 的 `sync-record.json.tmp`／`sync-in-progress`、版本 json 的 `<json>.tmp` 是靜態候選，不得冒稱已實測。必須保住續傳 Range／部分檔、retry、hash、原子記錄與 Sync 中斷語意；不把只在原語層測過的 rm＋wx 當成 GGL 驗收；不為 `.part` 續傳另造下載機制；hardlink 不自動列入承諾。有停損（§8 N6 開頭） | 〔轉述：fakechat 1792385986641【N6】〕「選 B：**有限保護目前已識別的內部寫入出口**。」；CC 原建議「不改、記成缺口」被改判（§7 N-34）。`<json>.tmp` 列入候選：owner 2026-10-20（終端）貼上 outside voice 的收尾核對並指示照辦（「除了提交之外，也順便將 session 收尾工作也做一做吧！」）；核對原文：「改成「已列入 N6-B 候選、尚未實測、受原有停損條件約束」。只改這個狀態，不擴大施工承諾。」 |
 | D-X1 | `net-fetch` getReader 分支沒接 WriteStream 的 `error`（§5.16 Z3／Z4 實測 `uncaughtException`），**另立一項修，不依附 Junction**：開檔／寫入／`end` 的故障要 reject 原始錯誤、釋放資源、不 uncaught、不掛死、不吞錯；abort／stall／retry／progress／206／200 回退的既有契約不退化。先做最窄修法；只有窄修法做不到、又有具體證據時，才交 owner 裁要不要改成 pipeline | 〔轉述：fakechat 1792385986641【N8／X1】〕；CC 原建議先治本（pipeline）被改判（§7 N-35） |
+
+### 3.11 Phase 6 判準（2026-10-24）
+
+D-P6-COST、D-P6-TWO-STAGE、D-P6-FALLBACK 的本體與出處住 → `plans/cross-review-2026-10-phase6-criteria.md` §裁決，本表不重述。
 
 ---
 
@@ -919,6 +924,7 @@ owner 授權的三組 scratchpad 實驗（〔轉述：fakechat 1792340036259（1
 ### Phase 6 — 檢查工具，然後依根因分批清理
 
 **目的**：先補保證，再拆防線（原 `defense-cleanup.md` 的順序）。
+**判準**：改／留、退回、停止 → `plans/cross-review-2026-10-phase6-criteria.md`（2026-10-24，D-P6-*）。
 **範圍**：
 - G1、G2、G3（定義在 `defense-cleanup.md` §先補保證）：各自先寫突變測試證明修之前會漏（§5.6）。G2 要先分「必要元素」與「可選元素」，只對必要的強制（ChatGPT 第一輪的補充）。
 - 依 `defense-cleanup.md` §清理清單 分批清：renderer 組（R-A 模組缺席、R-B 雙輸入形狀、R-C bind 備援、R-D 常數四份、R-LOG、R-OLD、R-CONTRACT、R-DUP、R-SWALLOW、R-SILENT、R-PAYLOAD、R-THUMB、R-PLATFORM；B1 在 R-A／R-B 那批修）、IPC 與 DI 組（M-IPC、M-DI、M-SEND、M-WIN、M-IPCARG；U15，同一個 commit 重產 IPC 索引）、其他 main 組（M-STREAM、M-RE、M-LAUNCH、M-MISC、M-SILENT、M-OTHER）、lib 組（L-REC＝U5、L-NOTICE、L-SET、L-CONTRACT、L-REVAL＝U3、L-SERVERCFG＝U4、L-SILENT、L-DUP）、scripts／CSS 組（S-V2、S-CSS、S-CHECK、S-FMT）。U2 在 renderer 組。
