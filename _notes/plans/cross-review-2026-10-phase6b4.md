@@ -1,4 +1,4 @@
-# Phase 6b-4 — 其他 main 組：細部 plan（狀態：**2026-10-26 初稿，基準 `712f445`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄）；同日 owner 裁 Q4、Q7、Q13、Q14（→ §裁決），回寫進本檔（→ §裁決回寫紀錄），文件 `d4eef72`；同日 owner 授權 4a（→ §裁決 4a 施工授權），施工 commit `badebe9`，經 owner 驗收放行（→ §4a 施工紀錄）；4b–4g 未授權施工**）
+# Phase 6b-4 — 其他 main 組：細部 plan（狀態：**2026-10-26 初稿，基準 `712f445`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄）；同日 owner 裁 Q4、Q7、Q13、Q14（→ §裁決），回寫進本檔（→ §裁決回寫紀錄），文件 `d4eef72`；同日 owner 授權 4a（→ §裁決 4a 施工授權），施工 commit `badebe9`，經 owner 驗收放行（→ §4a 施工紀錄）；同日 owner 授權 4d（→ §裁決 4d 施工授權），施工 commit `6e63202`，經 owner 驗收放行（→ §4d 施工紀錄）；同日 owner 授權 4b（→ §裁決 4b 施工授權）；4c、4e–4g 未授權施工**）
 
 **授權出處**：〔轉述〕owner 2026-10-26 在與 CC 的對話中貼入「GGL_Launcher — Phase 6b-4 細部設計調查」：「本輪不修改正式程式、不 Commit、不 Push，也不預先認定全部盤點項目都必須修改。」交付物＝細部初稿與審查問題。
 **上層**：範圍、不做、不變量、驗收下限、回滾 → `plans/cross-review-2026-10.md` §8 Phase 6；改／留判準、退回、留的出口 → `plans/cross-review-2026-10-phase6-criteria.md`（以下「判準」）；候選的定義 → `plans/defense-cleanup.md` §清理清單 main/ 表；6b 的切法與既有裁決（Q3、Q6、Q8、Q10 …）→ `plans/cross-review-2026-10-phase6b.md`（以下「6b 檔」）§裁決、§候選總表 6b-4 列。
@@ -39,6 +39,16 @@
 
 **出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「收 docs commit，然後開工 4a」（訊息中斷），接著貼入「GGL_Launcher — Phase 6b-4a 正式施工授權」。
 **授權**：4a（M-STREAM，#1、#2）的正式程式修改，自動驗證全過後**一個**獨立的本機 commit；權威＝本檔 #1、#2、§分批、§驗收。保留 Web stream 的既有契約（空 body、中止、寫入錯誤、暫存檔清理、來源測速、連線關閉）；不改下載策略、錯誤語意或其他盤點項目；不得混入其他批次、不得把既有未提交的文件收進施工 commit。**不授權** 4b–4g、push。新證據推翻刪分支的前提 ⇒ 停。owner 的 GUI 更新／修復驗收是獨立的一關，本機 commit 完成不等於結案。
+
+### 4d 施工授權（2026-10-26）
+
+**出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「開工 4d」；CC 開工時說明 commit 那一步會先問，完成自動驗證後 owner 回「commit，修復正常，4d 驗收過」。
+**授權**：4d（#13）的正式程式、必要測試與**一個**獨立的本機 commit；權威＝本檔 #13、§分批、§驗收。**不授權** push、其他批次。
+
+### 4b 施工授權（2026-10-26）
+
+**出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「收 docs commit，然後開工 4b」。
+**授權**：4b（#3、#4、#9、#10、#14 的理由註解）的施工與驗證；權威＝本檔對應各項、§分批、§驗收。本機 commit 照 4d 的做法，自動驗證完成後先問 owner。**不授權** push、其他批次。
 
 ## 探針〔實測，2026-10-26〕
 
@@ -183,15 +193,15 @@
 - **非法外部回應**：對方回了不符合約定的東西（4xx、格式不對、少了約定要有的欄位）。
 - **內部程式錯誤**：我們自己的程式壞了（例：`describeStatus` 遇到未知的 kind）。只有這類一定要進常駐日誌；前兩類照 D-LOG-SCOPE，記了要能縮小故障範圍、又不能洗版。
 
-**#13 `main/sync/apply.js:288-299` `throwIfSiteChanged` 的 `catch {}`——退回**
+**#13 `main/sync/apply.js:288-299` `throwIfSiteChanged` 的 `catch {}`——退回**〔對齊 2026-10-26：→ `6e63202`（plans/cross-review-2026-10-phase6b4.md 4d）：`main/sync/apply.js:288-299` 改寫（`try`／`catch {}` 拿掉、JSDoc 補理由），後 `:292-300`（→ 同檔 §4d 施工紀錄）〕
 - **退回理由**：6b 檔判成「改分類為 §4 探測、補一行理由」。現讀推翻：這個 `catch` 實際接不到任何外部失敗。`deps.fetchReleaseFiles`（正式只有 `main/sync/index.js:393-397`）→ `siteClient.fetchSite(index)`（`site-client.js:154-161`）→ 兩支 `fetchClassified`（`:67-105`）：連線錯、逾時（`:69-77`）、不是 JSON（`:81-85`）、驗證丟錯（`:87-96`）、非 2xx（`:102-104`）全部轉成 `SiteResult`，**不丟**；`summarizeManifestFetchFailure` 只做字串比對、不丟（`lib/manifest-network.js:6-`）〔CC 讀碼〕。網路故障時 `fetchReleaseFiles` 回 `null`，`:293` 不成立，原本的 404 照丟——「探測失敗就回原錯」這個語意由 site-client 的分類負責，不靠這個 `catch`。它唯一接得到的是內部程式錯誤，接到之後無聲、改丟原本的 404。
 - **雙向舉證**：
   - 改的收益：E1（bug 不再被包成「HTTP 404」）；E4。
-  - 改的成本：C1＝1 個正式檔；C3＝`sync-apply.test.cjs:322,341` 兩案走真的 404 流程、不讓 `fetchReleaseFiles` 丟（rg 確認：`fetchReleaseFiles` 附近的 `throw|reject` 0 命中；對照：同寫法對 `prepareRuntime` 命中 3）⇒ 兩案不受影響；要另加一案證明「`fetchReleaseFiles` 丟錯 ⇒ 那個錯往外丟、不是 404」。行為變化只在 bug 發生時：更新照樣失敗（本來就在失敗），畫面看到的錯從「HTTP 404」變成 bug 的訊息。
+  - 改的成本：C1＝1 個正式檔；C3＝`sync-apply.test.cjs:322,341` 兩案走真的 404 流程、不讓 `fetchReleaseFiles` 丟（rg 確認：`fetchReleaseFiles` 附近的 `throw|reject` 0 命中；對照：同寫法對 `prepareRuntime` 命中 3）⇒ 兩案不受影響；要另加一案證明「`fetchReleaseFiles` 丟錯 ⇒ 那個錯往外丟、不是 404」。行為變化只在 bug 發生時：更新照樣失敗（本來就在失敗），畫面看到的錯從「HTTP 404」變成 bug 的訊息。〔對齊 2026-10-26：→ `6e63202`（plans/cross-review-2026-10-phase6b4.md 4d）：`sync-apply.test.cjs:322,341` 未移動（新案加在 `:357-380`）；其他行號指的檔不在本 commit〕
   - 留的收益：bug 發生時玩家看到的是比較好懂的 404。成本：bug 無聲；E4、E5。
   - 判斷：**改**——操作結果（更新失敗）兩邊相同，差在 bug 會不會被看見。不加 `gglError`（那會變成替一個只接 bug 的 `catch` 加出口，等於留著吞錯器）。
 - **最小改動**：`files = await deps.fetchReleaseFiles();`，拿掉 `try`／`catch`。成本：1 個正式檔、1 個新案。
-- **驗證**：新案的形狀——blob 回 404、注入的 `fetchReleaseFiles` 丟一個帶獨特標記的錯（例：`Object.assign(new Error("FETCH_RELEASE_BUG"), { code: "TEST_BUG" })`）；斷言 `applyPlan` reject 的**就是那個錯物件**（`===`，或 `code === "TEST_BUG"` 且訊息相同）、訊息不含 `HTTP 404`、`code` 不是 `GGL_SYNC_SITE_CHANGED`（寫法照 `sync-apply.test.cjs:322,341` 兩案的 `run(ctx, { next: [ghost], depsOverride })`）。修前——新案應紅，紅在拿到的是原本的 404（若紅在別處 ⇒ 停）。修後——新案綠、`:322`、`:341` 照綠。反向——放回 `catch {}` ⇒ 新案紅，紅的原因是又拿到 404。
+- **驗證**：新案的形狀——blob 回 404、注入的 `fetchReleaseFiles` 丟一個帶獨特標記的錯（例：`Object.assign(new Error("FETCH_RELEASE_BUG"), { code: "TEST_BUG" })`）；斷言 `applyPlan` reject 的**就是那個錯物件**（`===`，或 `code === "TEST_BUG"` 且訊息相同）、訊息不含 `HTTP 404`、`code` 不是 `GGL_SYNC_SITE_CHANGED`（寫法照 `sync-apply.test.cjs:322,341` 兩案的 `run(ctx, { next: [ghost], depsOverride })`）。修前——新案應紅，紅在拿到的是原本的 404（若紅在別處 ⇒ 停）。修後——新案綠、`:322`、`:341` 照綠。反向——放回 `catch {}` ⇒ 新案紅，紅的原因是又拿到 404。〔對齊 2026-10-26：→ `6e63202`（plans/cross-review-2026-10-phase6b4.md 4d）：`sync-apply.test.cjs:322,341` 未移動；新案在 `:357-380`〕
 - **建議**：**改**（退回項，列進驗收單）。
 
 **#14 `main/sync/site-client.js:121-137` `fetchLogLines` 的退路——退回，建議不改**
@@ -352,7 +362,7 @@
 | 項目 | 退回理由 | 判 |
 |---|---|---|
 | #11 `main-window.js:82-94,99-104` | 盤點的「留-1、只補理由」被推翻：理由寫不出來——找不到任何具體的錯誤契約需要這兩層無聲隔離（P8 只證明 44.3.0 實測正常；`w.show()` 仍是 Electron 邊界，已知的時序由 `isDestroyed` 判斷處理） | 改（`isDestroyed` 時序判斷留） |
-| #13 `sync/apply.js:288-299` | 盤點的「§4 探測」被推翻：外部失敗已由 site-client 轉成 `SiteResult`，`catch` 只接 bug | 改 |
+| #13 `sync/apply.js:288-299` | 盤點的「§4 探測」被推翻：外部失敗已由 site-client 轉成 `SiteResult`，`catch` 只接 bug | 改〔對齊 2026-10-26：→ `6e63202`（plans/cross-review-2026-10-phase6b4.md 4d）：`sync/apply.js:288-299` 改寫，後 `:292-300`〕 |
 | #14 `sync/site-client.js:121-137` | 盤點的「成立（無聲不是）」被推翻：公告路徑三段都無聲是一致的現況，單加一段會洗版又不一致 | 不改，補理由；公告的常駐痕跡進 future-work |
 
 E5 入帳：#11、#13 改了之後，`main-window.js`、`sync/apply.js` 兩檔裡的 `catch` 都有寫明的邊界；#14 不改，留下一個寫明理由的 `catch`，E5 不受損。
@@ -397,6 +407,22 @@ E5 入帳：#11、#13 改了之後，`main-window.js`、`sync/apply.js` 兩檔�
 - **owner GUI**：修復正常（驗收出處）。
 - **撞到**：6b 檔 §6b-3b 施工紀錄的 freeze 段寫 `runtime-minecraft`「沒有 HTTP server」而沒跑；本次實測它每跑收到 2015 個請求（原寫有誤，已在該處加更正註記）。本次已在兩個 Node 版本、8 個 offset 跑過、全綠。
 - **沒跑**：打包（U-13）；Java 實際重裝走一次測速（只有 P 案、H4 與 Electron 探針驗過）；N10（非續傳失敗後刪 `.tmp` 沒有斷言）照舊。
+
+## 4d 施工紀錄（2026-10-26，基準 `50fda81`，commit `6e63202`；本紀錄在之後的 docs commit 補寫）〔實測〕
+
+**驗收出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「commit，修復正常，4d 驗收過」。
+**授權出處**：→ §裁決「4d 施工授權」。
+
+- **改動**（numstat +／-）：`main/sync/apply.js` 6／5（`throwIfSiteChanged` 拿掉 `try`／`catch {}`，直接 `const files = await deps.fetchReleaseFiles()`；JSDoc 寫明「外部失敗由 site-client 轉成 null、照原本的 404 往外丟；自己丟的只會是內部錯誤，不接」）；`test/sync-apply.test.cjs` 24／0（新案：blob 404＋`fetchReleaseFiles` 丟帶標記的錯 ⇒ reject 的就是那個錯物件，不是 404、不是 `SITE_CHANGED`）。合計 2 檔 +30／-5。
+- **修前紅燈**（先寫測試、未動正式程式）：該檔 68 案 67 過、新案紅，拿到的是 `下載失敗：HTTP 404`——與 #13 的預測相同。
+- **綠燈**：該檔 68／68；全套 Node 24.14.1 與 22.23.4 都 **1350／1350**。
+- **反向驗證**（腳本放回 `catch {}`、跑該檔、原文寫回，sha256 相同）：新案紅，原因是又拿到 HTTP 404。
+- **靜態**：`lint`、`check:ui-css` 一般／strict、`git diff --check` exit 0；`apply.js` 合 prettier。`sync-apply.test.cjs` 在 HEAD 時就不合 prettier，沒有整份重排，新加的區塊照 prettier（抽出來單獨比對 diff 0）。conventions 的 commit 前 rg 0 命中。commit 時 pre-commit 通過。
+- **freeze**（改到的測試檔 `sync-apply` × 0–7 × 兩個 Node 版本＝16 跑）：全綠；每跑收到 143 個請求（比 4a 時多 1 個＝新案的 404）、卡 17–18 次，沒有卡頓 0 的一跑。
+- **啟動**（同 4a 的隔離方式）：開機到 `start_main_done`，沒有其他事件、沒有 TypeError、沒有殘留行程。
+- **owner GUI**：修復正常（驗收出處）。bug 那條路實機碰不到，只有自動測試驗。
+- **撞到**：比對新區塊與 prettier 時，第一次用 rg 取行號沒抓到、sed 抽出空檔，兩個空檔 diff 回 0——假綠燈。改用 Python 找行號、確認抽到 23 行後再比，才補上兩處折行；補完只動空白，所以只重跑該檔。
+- **沒跑**：打包。
 
 ## 新發現（盤點外，預設進 future-work，owner 可改）
 
