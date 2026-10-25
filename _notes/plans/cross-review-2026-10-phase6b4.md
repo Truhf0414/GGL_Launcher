@@ -1,4 +1,4 @@
-# Phase 6b-4 — 其他 main 組：細部 plan（狀態：**2026-10-26 初稿，基準 `712f445`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄）；同日 owner 裁 Q4、Q7、Q13、Q14（→ §裁決），回寫進本檔（→ §裁決回寫紀錄）；4a–4g 未授權施工**）
+# Phase 6b-4 — 其他 main 組：細部 plan（狀態：**2026-10-26 初稿，基準 `712f445`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄）；同日 owner 裁 Q4、Q7、Q13、Q14（→ §裁決），回寫進本檔（→ §裁決回寫紀錄），文件 `d4eef72`；同日 owner 授權 4a（→ §裁決 4a 施工授權），施工 commit `badebe9`，經 owner 驗收放行（→ §4a 施工紀錄）；4b–4g 未授權施工**）
 
 **授權出處**：〔轉述〕owner 2026-10-26 在與 CC 的對話中貼入「GGL_Launcher — Phase 6b-4 細部設計調查」：「本輪不修改正式程式、不 Commit、不 Push，也不預先認定全部盤點項目都必須修改。」交付物＝細部初稿與審查問題。
 **上層**：範圍、不做、不變量、驗收下限、回滾 → `plans/cross-review-2026-10.md` §8 Phase 6；改／留判準、退回、留的出口 → `plans/cross-review-2026-10-phase6-criteria.md`（以下「判準」）；候選的定義 → `plans/defense-cleanup.md` §清理清單 main/ 表；6b 的切法與既有裁決（Q3、Q6、Q8、Q10 …）→ `plans/cross-review-2026-10-phase6b.md`（以下「6b 檔」）§裁決、§候選總表 6b-4 列。
@@ -35,9 +35,14 @@
 - **C-1 Q14(2) 的兩行文案在現有狀態列顯示不成兩行**〔CC 讀碼，未看實際畫面〕。登入失敗的文字走 `renderer/account-ui.js:401` 的 `setStatus(formatLoginError(msg), 0)` → `renderer/ui-status.js:83-190` 的 `setStatus`：它只在「正在檢查／安裝／下載／套用／同步…」與進度百分比這幾種格式才拆成兩行（`:94-143`），不看換行字元；整段放進一個 `.launch-subtext-line`，CSS 是 `white-space: nowrap`＋`overflow: hidden`＋`text-overflow: ellipsis`（`styles.css:975-983`）⇒ 換行會被當成空白、兩句擠成一行，寬度不夠時尾端變成「…」；全文只在滑鼠移上去的 `title` 看得到（`ui-status.js:179`）。實際會截在哪裡沒看〔推論〕。可能的處理（**都沒做，交 owner**）：(a) 照原文送，接受一行顯示＋滑鼠移上去看全文；(b) owner 把文案改成一行；(c) 讓 `setStatus` 認換行、拆成兩行——這是盤點外的畫面改動，動到所有狀態文字共用的函式，要另外授權並看畫面。在 owner 回覆前，4g 的 renderer 映射照原文寫進 Plan，施工前先確認 C-1。
   - **了結（2026-10-26）**：owner 選 (b)，文案 「Microsoft 未提供維持登入的憑證，請重新登入。」（→ §裁決 Q14(2) 的註記）。CC 粗算這句的顯示寬度約 44 格（全形 2、半形 1），現有最長的登入錯誤約 36 格，仍可能被截；狀態列實際寬度沒量。owner 不量、接受最壞情況（截斷＋滑鼠移上去看全文），原話「其實我覺得沒差，因為被截斷的東東已經有超多了XD」。(c) 不做。
 
+### 4a 施工授權（2026-10-26）
+
+**出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「收 docs commit，然後開工 4a」（訊息中斷），接著貼入「GGL_Launcher — Phase 6b-4a 正式施工授權」。
+**授權**：4a（M-STREAM，#1、#2）的正式程式修改，自動驗證全過後**一個**獨立的本機 commit；權威＝本檔 #1、#2、§分批、§驗收。保留 Web stream 的既有契約（空 body、中止、寫入錯誤、暫存檔清理、來源測速、連線關閉）；不改下載策略、錯誤語意或其他盤點項目；不得混入其他批次、不得把既有未提交的文件收進施工 commit。**不授權** 4b–4g、push。新證據推翻刪分支的前提 ⇒ 停。owner 的 GUI 更新／修復驗收是獨立的一關，本機 commit 完成不等於結案。
+
 ## 探針〔實測，2026-10-26〕
 
-- **P6 Electron main 裡 fetch 回的 body**（`electron.exe` 44.3.0，內建 Node 24.20.0；拿掉 `ELECTRON_RUN_AS_NODE`；本機 http 伺服器）：全域 `fetch`（不是 `net.fetch`、也不是 undici 8 的 `fetch`）與 `require("undici").fetch`＋自建 `Agent`（`net-fetch.js:13,208-214` 的同一種呼叫）回的 `res.body` 都是 `ReadableStream`、`instanceof ReadableStream` 為 true、`typeof getReader === "function"`、**沒有** `pipe`／`on`。204 回應兩者的 body 都是 `null`。同一行程裡實走正式的 `downloadToFile`（300 KiB，3 個 chunk，檔案大小正確）與 `rankSourcesByQuickProbe`（回 1 個來源），都成功。
+- **P6 Electron main 裡 fetch 回的 body**（`electron.exe` 44.3.0，內建 Node 24.20.0；拿掉 `ELECTRON_RUN_AS_NODE`；本機 http 伺服器）：全域 `fetch`（不是 `net.fetch`、也不是 undici 8 的 `fetch`）與 `require("undici").fetch`＋自建 `Agent`（`net-fetch.js:13,208-214` 的同一種呼叫）回的 `res.body` 都是 `ReadableStream`、`instanceof ReadableStream` 為 true、`typeof getReader === "function"`、**沒有** `pipe`／`on`。204 回應兩者的 body 都是 `null`。同一行程裡實走正式的 `downloadToFile`（300 KiB，3 個 chunk，檔案大小正確）與 `rankSourcesByQuickProbe`（回 1 個來源），都成功。〔對齊 2026-10-26：→ `badebe9`（plans/cross-review-2026-10-phase6b4.md 4a）：`net-fetch.js:13,208-214` 未移動〕
 - **P7 純 Node（測試行程的環境）**：同樣的檢查在 v24.14.1 與 v22.23.4（CI 最近一次的版本）結果與 P6 相同。
 - **P8 `console-message` 的參數**（Electron 44.3.0，`show: false` 的視窗載入一段印 log／warn／error／debug 的頁面）：五次事件的第一個參數都是物件、不是 null；`level` 是字串（`info`／`warning`／`error`／`debug`）、`message` 是字串、`lineNumber` 是數字、`sourceId` 是字串；第二個參數是數字（舊式 level，與 `main-window.js:84-85` 的註解相符）。`webContents.on("console-message", …)` 沒有丟錯。`ready-to-show` 觸發時 `isDestroyed()` 是 false。
 - **Q7 的外部證據**〔查過〕：Node 的 `os.totalmem` 就是 binding `getTotalMem`（`nodejs/node` v22.x `lib/os.js`：`totalmem: getTotalMem`）；binding 只做 `static_cast<double>(uv_get_total_memory())` 再回傳（`src/node_os.cc`），沒有丟錯的路。libuv 文件 `uv_get_total_memory`：「Returns 0 when unknown.」（docs.libuv.org v1.x misc）；Windows 實作在 `GlobalMemoryStatusEx` 失敗時 `return 0`（`libuv` v1.x `src/win/util.c`）。Node 文件 `os.totalmem()` 只寫「Returns: <integer>」，沒提 0。
@@ -48,19 +53,19 @@
 
 ### M-STREAM
 
-**#1 `main/net-fetch.js:233` 的 `typeof body.getReader` 判斷＋`:278-315` 的 Node stream 分支**
-- **證據**：`downloadToFile` 的 `res` 只有一個來源——`fetchVia(undiciFetch, …, { dispatcher: downloadAgent })`（`:208-214`），沒有注入點〔CC 讀碼〕。P6、P7：這個 fetch 在 Electron main（44.3.0）、Node 24、Node 22 回的 body 都是 Web `ReadableStream`、沒有 `pipe`／`on`——在這三個實測過的環境裡 `:233` 都成立、`:278-315` 打不到（undici 8 的 `Response.body` 本來就是 Web stream；換 fetch 實作或升級 undici 的情況見「不改的反例」）。測試：`rg 'Readable|PassThrough|\.pipe\(|body\.on\(' test` 0 命中（對照：同一個 rg 的 `getReader` 命中 `test/net-fetch-download.test.cjs:63`）。
-- **現在的責任**：Web 分支（`:233-276`）負責一切：中止（`fetchVia` 把外部 signal 交給 fetch，`:245` 每圈再看一次 `sig.aborted`）、寫入失敗（`file.write` 的 callback reject，`:254-258`）、失敗清理（`:265-275`：`reader.cancel()`、`file.destroy()`、非續傳刪 `.tmp`）。這些由既有測試守（`net-fetch-download.test.cjs`）：T2a `:366`、T2b `:390`（外部中止）、X1 E `:581`（第二次寫入 ENOSPC）、X1 各案 `:514-580`（`.tmp` 是資料夾）、停滯看門狗 `:168-264`。Node 分支的語意與 Web 分支**不一樣**（寫入錯不刪 `.part`、中止用 `rmSync`），但它從來不執行，所以那些差異不是現行行為。
+**#1 `main/net-fetch.js:233` 的 `typeof body.getReader` 判斷＋`:278-315` 的 Node stream 分支**〔對齊 2026-10-26：→ `badebe9`（plans/cross-review-2026-10-phase6b4.md 4a）：`main/net-fetch.js:233` 刪除、`:278-315` 刪除（Node stream 分支，→ 同檔 §4a 施工紀錄）〕
+- **證據**：`downloadToFile` 的 `res` 只有一個來源——`fetchVia(undiciFetch, …, { dispatcher: downloadAgent })`（`:208-214`），沒有注入點〔CC 讀碼〕。P6、P7：這個 fetch 在 Electron main（44.3.0）、Node 24、Node 22 回的 body 都是 Web `ReadableStream`、沒有 `pipe`／`on`——在這三個實測過的環境裡 `:233` 都成立、`:278-315` 打不到（undici 8 的 `Response.body` 本來就是 Web stream；換 fetch 實作或升級 undici 的情況見「不改的反例」）。測試：`rg 'Readable|PassThrough|\.pipe\(|body\.on\(' test` 0 命中（對照：同一個 rg 的 `getReader` 命中 `test/net-fetch-download.test.cjs:63`）。〔對齊 2026-10-26：→ `badebe9`（plans/cross-review-2026-10-phase6b4.md 4a）：`net-fetch.js` 的 `:208-214` 未移動；`:233` 刪除、`:278-315` 刪除（Node stream 分支，→ 同檔 §4a 施工紀錄）〕
+- **現在的責任**：Web 分支（`:233-276`）負責一切：中止（`fetchVia` 把外部 signal 交給 fetch，`:245` 每圈再看一次 `sig.aborted`）、寫入失敗（`file.write` 的 callback reject，`:254-258`）、失敗清理（`:265-275`：`reader.cancel()`、`file.destroy()`、非續傳刪 `.tmp`）。這些由既有測試守（`net-fetch-download.test.cjs`）：T2a `:366`、T2b `:390`（外部中止）、X1 E `:581`（第二次寫入 ENOSPC）、X1 各案 `:514-580`（`.tmp` 是資料夾）、停滯看門狗 `:168-264`。Node 分支的語意與 Web 分支**不一樣**（寫入錯不刪 `.part`、中止用 `rmSync`），但它從來不執行，所以那些差異不是現行行為。〔對齊 2026-10-26：→ `badebe9`（plans/cross-review-2026-10-phase6b4.md 4a）：`net-fetch.js` 的 Web 分支 `:233-276` 改寫（外層 `if` 與 `:264` 的 `return;` 拿掉、縮排少一層），後 `:233-275`；`:245` 後 `:246`、`:254-258` 後 `:255-259`、`:265-275` 未移動；其他行號指的檔不在本 commit〕
 - **改的理由**：E4（看起來在處理 Node stream，實際永遠不執行）；E3（同一件事兩份寫法，語意還不同）；conventions §2、§6。
-- **不改的反例**：「將來換 fetch 實作，body 變成 Node stream」——換 fetch 會動到 `:5`、`:208`，那時 `body.getReader is not a function` 在第一次下載就 TypeError（會叫）；保留不會跑的分支反而讓那次換版不經測試就上線。找不到現在的反例。
-- **最小改動**：刪 `:233` 的 `if` 與 `:278-315`，Web 分支取消縮排；`:230-231` 的 `!body` 檢查留（204 的 body 是 null，P6；網路回應＝邊界）。成本：C1＝1 個正式檔，0 個測試檔；C2＝owner 更新或修復一次。
-- **驗證**：修前——在 scratchpad 副本把 `:278-315` 換成 `throw new Error("NODE_BRANCH")`、跑全套，預期全綠（＝沒有測試走到它；不綠 ⇒ 停）。修後——全套兩個 Node 版本；P6 的探針對修後的檔再跑一次。反向——把 `:233` 的條件改成 `false`（強迫走已刪的位置），`net-fetch-download` 應大量紅。freeze（二稿改為必跑，審查要求）：走到 `downloadToFile`／`rankSourcesByQuickProbe`、而且有 `http.Server` 真的收到請求的測試檔——`net-fetch-download`、`main-http-compat`、`runtime-java`、`sync-apply`、`sync-index`（後兩者的預設 `download` 就是 `downloadToFileWithStallGuard`，6b 檔 P1）——`FREEZE_OFFSET` 0–7 × 兩個 Node 版本，共 80 次；每次設 `FREEZE_MARK`，紀錄寫每檔「收到幾個請求、卡了幾次」，卡頓 0 次的那一跑不算數（＝freeze 沒作用）。成本估計：6b-3b 跑 6 檔 96 次、12 路並行約 3 分鐘（6b 檔 §6b-3b 施工紀錄），這次同等級。施工前先確認 5 檔清單：rg 測試檔裡誰載了 `net-fetch`／`runtime/download`／`sync/apply`。
+- **不改的反例**：「將來換 fetch 實作，body 變成 Node stream」——換 fetch 會動到 `:5`、`:208`，那時 `body.getReader is not a function` 在第一次下載就 TypeError（會叫）；保留不會跑的分支反而讓那次換版不經測試就上線。找不到現在的反例。〔對齊 2026-10-26：→ `badebe9`（plans/cross-review-2026-10-phase6b4.md 4a）：`net-fetch.js` 的 `:5`、`:208` 未移動〕
+- **最小改動**：刪 `:233` 的 `if` 與 `:278-315`，Web 分支取消縮排；`:230-231` 的 `!body` 檢查留（204 的 body 是 null，P6；網路回應＝邊界）。成本：C1＝1 個正式檔，0 個測試檔；C2＝owner 更新或修復一次。〔對齊 2026-10-26：→ `badebe9`（plans/cross-review-2026-10-phase6b4.md 4a）：`net-fetch.js` 的 `:233` 刪除、`:278-315` 刪除（Node stream 分支，→ 同檔 §4a 施工紀錄）；`:230-231` 未移動〕
+- **驗證**：修前——在 scratchpad 副本把 `:278-315` 換成 `throw new Error("NODE_BRANCH")`、跑全套，預期全綠（＝沒有測試走到它；不綠 ⇒ 停）。修後——全套兩個 Node 版本；P6 的探針對修後的檔再跑一次。反向——把 `:233` 的條件改成 `false`（強迫走已刪的位置），`net-fetch-download` 應大量紅。freeze（二稿改為必跑，審查要求）：走到 `downloadToFile`／`rankSourcesByQuickProbe`、而且有 `http.Server` 真的收到請求的測試檔——`net-fetch-download`、`main-http-compat`、`runtime-java`、`sync-apply`、`sync-index`（後兩者的預設 `download` 就是 `downloadToFileWithStallGuard`，6b 檔 P1）——`FREEZE_OFFSET` 0–7 × 兩個 Node 版本，共 80 次；每次設 `FREEZE_MARK`，紀錄寫每檔「收到幾個請求、卡了幾次」，卡頓 0 次的那一跑不算數（＝freeze 沒作用）。成本估計：6b-3b 跑 6 檔 96 次、12 路並行約 3 分鐘（6b 檔 §6b-3b 施工紀錄），這次同等級。施工前先確認 5 檔清單：rg 測試檔裡誰載了 `net-fetch`／`runtime/download`／`sync/apply`。〔對齊 2026-10-26：→ `badebe9`（plans/cross-review-2026-10-phase6b4.md 4a）：`net-fetch.js` 的 `:278-315`、`:233` 刪除（Node stream 分支，→ 同檔 §4a 施工紀錄）；其他行號指的檔不在本 commit〕
 - **未驗與停止**：U-13（見 §未驗）。修前那輪不是全綠 ⇒ 停。
 - **建議**：**改**。
 
-**#2 `main/runtime/download.js:230` 的 `typeof body.getReader`＋`:239-253` 的 Node 分支（Java 候選測速 `rankSourcesByQuickProbe`）**
-- **證據**：`res` 只來自 `fetchWithNiceError`（`:219`）→ `fetchVia(fetch, …)`（`net-fetch.js:99-101`）＝全域 fetch，沒有注入點〔CC 讀碼〕。P6、P7：Web stream。唯一的正式呼叫者 `runtime/java.js:492`（`deps.rankSources ?? rankSourcesByQuickProbe`，Q6 已准的縫）；不注入時跑真測速的測試＝`runtime-java.test.cjs:760` P 案與 `helpers/main-http-compat-client.cjs:219-233` H4（「抓前 256 KB 就停、伺服器看到連線關了、失敗的來源排最後」）。
-- **現在的責任**：測速語意＝每個來源抓前 256 KiB、量耗時，失敗或非 2xx 排最後（`:254-268`）。Web 分支讀到 256 KiB 就跳出，連線靠 `finally` 的 `ac.abort()`（`:258-263`）收掉——H4 斷言伺服器看到連線關閉。Node 分支的 `body.destroy()` 只是另一種收連線的寫法。
+**#2 `main/runtime/download.js:230` 的 `typeof body.getReader`＋`:239-253` 的 Node 分支（Java 候選測速 `rankSourcesByQuickProbe`）**〔對齊 2026-10-26：→ `badebe9`（plans/cross-review-2026-10-phase6b4.md 4a）：`main/runtime/download.js:230` 刪除、`:239-253` 刪除（測速的 Node stream 分支，→ 同檔 §4a 施工紀錄）〕
+- **證據**：`res` 只來自 `fetchWithNiceError`（`:219`）→ `fetchVia(fetch, …)`（`net-fetch.js:99-101`）＝全域 fetch，沒有注入點〔CC 讀碼〕。P6、P7：Web stream。唯一的正式呼叫者 `runtime/java.js:492`（`deps.rankSources ?? rankSourcesByQuickProbe`，Q6 已准的縫）；不注入時跑真測速的測試＝`runtime-java.test.cjs:760` P 案與 `helpers/main-http-compat-client.cjs:219-233` H4（「抓前 256 KB 就停、伺服器看到連線關了、失敗的來源排最後」）。〔對齊 2026-10-26：→ `badebe9`（plans/cross-review-2026-10-phase6b4.md 4a）：`runtime/download.js:219` 未移動；`net-fetch.js:99-101` 未移動；其他行號指的檔不在本 commit〕
+- **現在的責任**：測速語意＝每個來源抓前 256 KiB、量耗時，失敗或非 2xx 排最後（`:254-268`）。Web 分支讀到 256 KiB 就跳出，連線靠 `finally` 的 `ac.abort()`（`:258-263`）收掉——H4 斷言伺服器看到連線關閉。Node 分支的 `body.destroy()` 只是另一種收連線的寫法。〔對齊 2026-10-26：→ `badebe9`（plans/cross-review-2026-10-phase6b4.md 4a）：`runtime/download.js` 的 `:254-268` 後 `:240-254`、`:258-263` 後 `:244-249`〕
 - **改的理由／反例**：同 #1。
 - **最小改動**：刪 `:230` 的 `if`、`else` 整塊（`:239-253`）；`:226-227` 的 `!body` 留。成本：1 個正式檔；Java 只在缺 runtime 時才裝，owner 畫面上平常碰不到 ⇒ 靠 H4、P 案與 P6。
 - **驗證**：修前——同 #1 的換成 `throw`，跑全套應全綠。修後——`runtime-java`、`main-http-compat` 兩個 Node 版本；P6 再跑。反向——`:230` 條件改 `false` ⇒ H4、P 案應紅。
@@ -363,7 +368,7 @@ E5 入帳：#11、#13 改了之後，`main-window.js`、`sync/apply.js` 兩檔�
 - **U-18**（2026-10-26 了結）#15 的 GGL 產品契約原本是由 token-refresh plan 的目標推得；owner 已以 Q14(1) 正式決定（→ §裁決）。了結的只是產品契約，**Microsoft 外部協定照舊未驗（U-15）**。
 - **U-19** #15 測試 7（`account-ui` 映射）的可行性是讀碼推論：`init` 會以 `document`、`window` 為目標綁事件（`renderer/account-ui.js:407-437`），測試要設 `global.document` 並注入 `onDom`；`fake-dom` 是否不必改就跑得動，施工時驗。
 - **C-1**（2026-10-26 了結：owner 選 (b) 一行文案 → §裁決）。剩下的未驗：新文案在狀態列會不會被截斷沒量，owner 接受。
-- Web 分支在非續傳下載失敗後刪 `.tmp` 的那一行（`net-fetch.js:272`）沒有測試斷言（→ §新發現 N10）；本批不改它。
+- Web 分支在非續傳下載失敗後刪 `.tmp` 的那一行（`net-fetch.js:272`）沒有測試斷言（→ §新發現 N10）；本批不改它。〔對齊 2026-10-26：→ `badebe9`（plans/cross-review-2026-10-phase6b4.md 4a）：`net-fetch.js:272` 未移動〕
 
 **停止並回報**：
 - 任一「修前」結果與預期不同（例如 #1 換成 `throw` 之後有測試紅、#6 的記錄插在 C8／S4 以外也被打到）。
@@ -376,9 +381,26 @@ E5 入帳：#11、#13 改了之後，`main-window.js`、`sync/apply.js` 兩檔�
 
 **回滾**：七批各一個 commit、各自可 revert，順序不限（唯一共用的測試檔見 §分批）。revert 4a ⇒ 回到兩種 stream 分支；revert 4b ⇒ 回到轉出與正規化；revert 4c ⇒ 回到 `system-memory` 的防禦與 `main-window` 的兩個 `try`（Q7＝刪時連 `lib/settings-logic.js` 的 null 分支一起回來）；revert 4d ⇒ 回到 `throwIfSiteChanged` 的 `catch {}`；revert 4e ⇒ 兩道第二道與 `GGL_LAUNCH_NOT_READY` 回來（C8、S4、C10 一起回去）；revert 4f ⇒ 回到無聲退路；revert 4g ⇒ 回到存空字串。
 
+## 4a 施工紀錄（2026-10-26，基準 `d4eef72`，commit `badebe9`；本紀錄在之後的 docs commit 補寫）〔實測〕
+
+**驗收出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「修復正常，4a 驗收過，收 docs commit」。
+**授權出處**：→ §裁決「4a 施工授權」。
+
+- **改動**（numstat +／-）：`main/net-fetch.js` 40／80（`downloadToFile` 拿掉 `typeof body.getReader` 的 `if` 與整段 `pipe` 寫法的 Node stream 分支；Web 分支只少一層縮排，另拿掉因此多餘的 `return;`，加兩行註解指向 #1）；`main/runtime/download.js` 9／23（`rankSourcesByQuickProbe` 拿掉 `on("data")` 的 `else`，加註解指向 #2）。用 `git diff -w` 看，實質改動只有這些刪除與註解。合計 2 檔 +49／-103，測試檔 0。
+- **修前探針**（scratchpad 腳本暫改 repo 的兩個檔、跑完寫回，前後 sha256 相同）：兩條 Node 分支換成 `throw`，Web 分支插「走到就記一筆（記測試檔名）」，全套 Node 24.14.1 **1349／1349**，輸出裡 `NODE_BRANCH` 0 次。Web 分支被 9 個測試檔走到：`downloadToFile`——`runtime-minecraft` 1967 次、`runtime-prepare` 179、`sync-apply` 136、`runtime-java` 135、`sync-index` 40、`net-fetch-download` 26、`runtime-download` 12、`net-fetch-dispatcher` 1；測速——`runtime-java` 3、`main-http-compat` 的子行程 3。
+- **偏離**：#1 的 freeze 清單原寫 5 檔、並註明「施工前先確認」；修前探針量出 9 檔，照 9 檔跑。另多拿掉一個 `return;`（刪掉 Node 分支後它變多餘，屬自己改動產生的孤兒）。
+- **修後**：Node 24.14.1 與 22.23.4 都 **1349／1349**。`lint`、`check:ui-css` 一般／strict、`git diff --check`、prettier（改到的 2 檔）exit 0。conventions 的 commit 前 rg 命中 5 行，全是 Web 分支原有的程式因少一層縮排而重排（`sig?.aborted`、清理的 `catch`），不是新加的防禦。commit 時 pre-commit 的 `check:ui-css`、`lint` 通過。
+- **反向驗證**（同一腳本，跑完寫回、sha256 相同）：修後把兩處 `body.getReader()` 換成 `throw` ⇒ 全套 1160 過、**185 紅**、4 取消；`net-fetch` 那條的錯在輸出出現 361 次；測速那條被測速函式自己的 `catch` 收成「這個來源失敗」，所以看紅燈：`runtime-java` 的 P 案、`main-http-compat` 的 X1b H1–H5 都紅。
+- **freeze**（9 檔 × `FREEZE_OFFSET` 0–7 × 兩個 Node 版本＝144 跑，12 路並行，牆鐘 326 秒；每跑各寫一個 `FREEZE_MARK` 檔）：144 跑全綠，兩個版本的數字完全相同。每跑「收到的請求數／卡頓次數」：`runtime-minecraft` 2015／251–252、`sync-index` 739／92–93、`runtime-java` 442／55–56、`runtime-prepare` 180／22–23、`sync-apply` 142／17–18、`main-http-compat` 80／10、`net-fetch-download` 35／4–5、`runtime-download` 23／2–3、`net-fetch-dispatcher` 1／offset 0 卡 1 次。卡頓 0 次的 14 跑全是 `net-fetch-dispatcher` 的 offset 1–7（它只發 1 個請求），不算數；它唯一的請求在兩個版本的 offset 0 各被卡到 1 次。
+- **Electron 探針（修後，P6 同一支腳本）**：44.3.0 裡兩種 fetch 的 body 照舊是 `ReadableStream`；正式 `downloadToFile` 寫出 307200 bytes、3 個 chunk，`rankSourcesByQuickProbe` 回 1 個來源——與修前相同。
+- **啟動**（`electron.exe .`、拿掉 `ELECTRON_RUN_AS_NODE`、隔離 `--user-data-dir`、`settings.json` 預先放好、安裝位置指 scratchpad、debug 關）：15 秒後行程仍在，常駐日誌只有 `start_main_begin` → `app_ready_begin` → `main_window_created` → `app_ready_wired` → `start_main_done`，輸出沒有 TypeError；`taskkill /T` 之後沒有帶這個 user-data-dir 的 electron 行程（查法的對照組：行程活著時同一查法找到 4 個）。
+- **owner GUI**：修復正常（驗收出處）。
+- **撞到**：6b 檔 §6b-3b 施工紀錄的 freeze 段寫 `runtime-minecraft`「沒有 HTTP server」而沒跑；本次實測它每跑收到 2015 個請求（原寫有誤，已在該處加更正註記）。本次已在兩個 Node 版本、8 個 offset 跑過、全綠。
+- **沒跑**：打包（U-13）；Java 實際重裝走一次測速（只有 P 案、H4 與 Electron 探針驗過）；N10（非續傳失敗後刪 `.tmp` 沒有斷言）照舊。
+
 ## 新發現（盤點外，預設進 future-work，owner 可改）
 
-- **N10** `main/net-fetch.js:265-275` 失敗清理（`reader.cancel`、`file.destroy`、非續傳刪 `.tmp`）沒有測試斷言 `.tmp` 真的被刪〔CC：rg `net-fetch-download.test.cjs` 的 `.tmp` 斷言只有連結與資料夾的案〕。#1 不改它，但它是刪掉 Node 分支之後唯一的清理寫法。
+- **N10** `main/net-fetch.js:265-275` 失敗清理（`reader.cancel`、`file.destroy`、非續傳刪 `.tmp`）沒有測試斷言 `.tmp` 真的被刪〔CC：rg `net-fetch-download.test.cjs` 的 `.tmp` 斷言只有連結與資料夾的案〕。#1 不改它，但它是刪掉 Node 分支之後唯一的清理寫法。〔對齊 2026-10-26：→ `badebe9`（plans/cross-review-2026-10-phase6b4.md 4a）：`main/net-fetch.js:265-275` 未移動〕
 - **N11** `main/diagnostics-export.js:52-55`：`record?.` 合理（沒裝過時記錄是 null），`|| ""` 與 `Array.isArray(record?.files)` 防的是 `record-format` 驗過的值〔CC 讀碼〕。與 #10 同檔，但不在盤點列的行號裡（母體凍結）。
 - **N12** `main/sync/index.js:396` `r?.side === "ok"`：`fetchSite(ok 的索引)` 一定回物件〔CC 讀碼〕。
 - **N13** 公告路徑（索引、notice.json、logUrl）的失敗全部無聲（→ #14）：要不要有常駐痕跡、怎麼避免每 30 秒一筆，三段一起裁。
