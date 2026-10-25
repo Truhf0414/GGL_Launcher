@@ -230,89 +230,49 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
       const body = res.body;
       if (!body) throw new Error("下載失敗：response body 為空");
 
-      if (typeof body.getReader === "function") {
-        const file = fs.createWriteStream(partPath, {
-          flags: resume && existing > 0 ? "a" : "w",
-        });
-        // 吞得掉：錯由下面等著的開檔／write／end 帶回，這裡只讓同一個錯的 'error' 事件不變成 uncaught
-        file.on("error", () => {});
-        const reader = body.getReader();
-
-        try {
-          // 先等開檔：開不了就在讀 body 之前失敗，不會卡在等不到資料的 read()
-          await once(file, "ready");
-          while (true) {
-            if (sig?.aborted) throw new Error("下載中止");
-            const { value, done } = await reader.read();
-            if (done) break;
-            if (!value) continue;
-
-            const bytes = value.byteLength || value.length || 0;
-            received += bytes;
-            if (onChunk) onChunk({ received, total: totalOverall, bytes });
-
-            await new Promise((resolve, reject) => {
-              file.write(Buffer.from(value), (err) =>
-                err ? reject(err) : resolve(),
-              );
-            });
-          }
-          await new Promise((resolve, reject) =>
-            file.end((err) => (err ? reject(err) : resolve())),
-          );
-          await fsp.rename(partPath, absPath);
-          return;
-        } catch (e) {
-          // 放掉連線；吞得掉：下載已經失敗，cancel 自己失敗或停住都不該蓋過、延後原始錯誤
-          reader.cancel().catch(() => {});
-          try {
-            file.destroy();
-          } catch {}
-          try {
-            if (!resume) await fsp.rm(partPath, { force: true });
-          } catch {}
-          throw e;
-        }
-      }
-
-      return await new Promise((resolve, reject) => {
-        const file = fs.createWriteStream(partPath, {
-          flags: resume && existing > 0 ? "a" : "w",
-        });
-        const abort = () => {
-          try {
-            body.destroy(new Error("下載中止"));
-          } catch {}
-          try {
-            file.destroy(new Error("下載中止"));
-          } catch {}
-          try {
-            if (!resume) fs.rmSync(partPath, { force: true });
-          } catch {}
-          reject(new Error("下載中止"));
-        };
-        if (sig && typeof sig.addEventListener === "function") {
-          if (sig.aborted) return abort();
-          sig.addEventListener("abort", abort, { once: true });
-        }
-
-        body.on("data", (chunk) => {
-          received += chunk.length;
-          if (onChunk)
-            onChunk({ received, total: totalOverall, bytes: chunk.length });
-        });
-        body.on("error", reject);
-        file.on("error", reject);
-        file.on("finish", async () => {
-          try {
-            await fsp.rename(partPath, absPath);
-            resolve();
-          } catch (e) {
-            reject(e);
-          }
-        });
-        body.pipe(file);
+      const file = fs.createWriteStream(partPath, {
+        flags: resume && existing > 0 ? "a" : "w",
       });
+      // 吞得掉：錯由下面等著的開檔／write／end 帶回，這裡只讓同一個錯的 'error' 事件不變成 uncaught
+      file.on("error", () => {});
+      // undici 8 的 fetch 交的 body 是 Web ReadableStream；Node stream 的備用分支沒人走過、已刪
+      // （→ _notes/plans/cross-review-2026-10-phase6b4.md #1）
+      const reader = body.getReader();
+
+      try {
+        // 先等開檔：開不了就在讀 body 之前失敗，不會卡在等不到資料的 read()
+        await once(file, "ready");
+        while (true) {
+          if (sig?.aborted) throw new Error("下載中止");
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (!value) continue;
+
+          const bytes = value.byteLength || value.length || 0;
+          received += bytes;
+          if (onChunk) onChunk({ received, total: totalOverall, bytes });
+
+          await new Promise((resolve, reject) => {
+            file.write(Buffer.from(value), (err) =>
+              err ? reject(err) : resolve(),
+            );
+          });
+        }
+        await new Promise((resolve, reject) =>
+          file.end((err) => (err ? reject(err) : resolve())),
+        );
+        await fsp.rename(partPath, absPath);
+      } catch (e) {
+        // 放掉連線；吞得掉：下載已經失敗，cancel 自己失敗或停住都不該蓋過、延後原始錯誤
+        reader.cancel().catch(() => {});
+        try {
+          file.destroy();
+        } catch {}
+        try {
+          if (!resume) await fsp.rm(partPath, { force: true });
+        } catch {}
+        throw e;
+      }
     },
     {
       retries: 1,
