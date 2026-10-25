@@ -551,7 +551,7 @@ N24 三案（注入會丟的假 `sendInstanceStatus`）改寫成 B5a–c：它�
 - **防禦寫法掃描**：新增行命中 5 處——`typeof next[key] !== "function"`＝Q8 的必要接線檢查；兩處 `e?.message ?? e` 與 `catch (e)`＝原有 `catch` 的同一段搬進共用出口，值來自子行程（spawn）；測試讀 launcher log 的 `catch {}`＝檔案還沒寫出，有寫理由。
 - **啟動**（同 6b-3a 的隔離方式）：開機到 `start_main_done`，沒有其他事件、沒有 TypeError、沒有殘留行程。
 - **owner GUI**：啟動正常（驗收出處）。helper 失敗那條路在正式環境碰不到，只有自動測試驗過。
-- **留下的**：第一輪留下的測試暫存資料夾 `C:\Users\Mochi122\AppData\Local\Temp\ggl-discord-rpc-UOAMZv`（只有 helper 的 log 與狀態檔；helper 比 `test.after` 晚寫檔）沒刪。
+- **留下的**：第一輪留下的測試暫存資料夾 `C:\Users\Mochi122\AppData\Local\Temp\ggl-discord-rpc-UOAMZv`（只有 helper 的 log 與狀態檔；helper 比 `test.after` 晚寫檔）沒刪。〔2026-10-25 docs commit `a9bd221` 之後，owner 要求刪除，已刪（刪前確認裡面只有那兩個檔、沒有連結）〕
 - **沒跑**：打包；Electron main 裡 helper 非同步失敗的實際後果（U-4，修後不再發生）。
 
 ## 6b-2～6b-4 方向（細節開工前另補）
