@@ -1,13 +1,16 @@
 /**
  * `app.whenReady` 本體：設定檔、主視窗、各子模組 `configure*`、IPC、輪詢與第一次狀態檢查。
- * 依賴全部由 `main.js` 注入，避免此檔與其它 main 模組形成難控的 require 順序／循環。
+ * 依賴全部由 `main/start-main.js` 的 `createMainAppReadyContext()` 注入，避免此檔與其它 main 模組形成難控的 require 順序／循環。
  *
  * @param {object} ctx
  */
 
 const { gglEvent, gglError } = require("./ggl-log");
 
-/** 與 `main.js` 的 `getMainAppReadyContext()` 鍵名一致；增刪注入時請兩邊一併改。 */
+/**
+ * 鍵名的權威：`start-main.js` 的 `createMainAppReadyContext()` 回傳與下面的解構都照這份寫，增刪注入時三處一併改。
+ * 生產端少給由 assertMainAppReadyContext 在開機時擋；消費端多用由 test/app-ready.test.cjs 擋（只用這份組 ctx）。
+ */
 const MAIN_APP_READY_KEYS = [
   "app",
   "initSettingsAtBoot",
@@ -30,6 +33,7 @@ const MAIN_APP_READY_KEYS = [
   "sendMcStatus",
   "sendSyncDone",
   "sendMcRunning",
+  "sendRpcNotice",
   "sendServerStatus",
   "getMainWindow",
   "getAppIconPath",
@@ -98,6 +102,7 @@ async function runMainAppReady(ctx) {
     sendMcStatus,
     sendSyncDone,
     sendMcRunning,
+    sendRpcNotice,
     sendServerStatus,
     getMainWindow,
     getAppIconPath,
@@ -154,7 +159,7 @@ async function runMainAppReady(ctx) {
     serverStatusPort: serverConfig.serverStatus.port,
     serverStatusUrl: serverConfig.serverStatus.url,
   });
-  configureDiscordRpc({ getMainWindow, discord: serverConfig.discord });
+  configureDiscordRpc({ sendRpcNotice, discord: serverConfig.discord });
   setupMainIpc();
   startServerStatusPolling();
   startNoticeFeed();
@@ -167,4 +172,4 @@ async function runMainAppReady(ctx) {
   }, 350);
 }
 
-module.exports = { runMainAppReady };
+module.exports = { runMainAppReady, MAIN_APP_READY_KEYS };

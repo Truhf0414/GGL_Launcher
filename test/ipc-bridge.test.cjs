@@ -247,6 +247,7 @@ const ONE_SHOT = [
   ["sendSyncDone", ["t"], "sync:done"],
   ["sendMcStatus", ["t"], "minecraft:status"],
   ["sendMcRunning", [true], "minecraft:running"],
+  ["sendRpcNotice", ["t"], "rpc:notice"],
 ];
 const STATE = [
   ["sendInstanceStatus", [status("up-to-date", true)], "instance:status"],
@@ -291,7 +292,20 @@ function destroyedWindow() {
   return win;
 }
 
-test("B1 webContents 已 destroyed（S2）⇒ 五個一次性 sender 都不丟、不送、不記", () => {
+test("B12 sendRpcNotice 送一次 rpc:notice、payload { text }；一次性，不記住、不重播（6b-3a R-a）", () => {
+  const { senders, mainWc, errors } = setup();
+  senders.sendRpcNotice("Discord 狀態未啟用（未設定 Client ID）");
+  assert.deepEqual(mainWc.sent, [
+    {
+      channel: "rpc:notice",
+      payload: { text: "Discord 狀態未啟用（未設定 Client ID）" },
+    },
+  ]);
+  assert.deepEqual(senders.replayLatest(makeWebContents()), []);
+  assert.deepEqual(errors, []);
+});
+
+test("B1 webContents 已 destroyed（S2）⇒ 六個一次性 sender 都不丟、不送、不記", () => {
   for (const [name, args] of ONE_SHOT) {
     const { win, wc } = windowWithDestroyedWebContents();
     const { senders, errors } = bridgeWith(() => win);
@@ -301,7 +315,7 @@ test("B1 webContents 已 destroyed（S2）⇒ 五個一次性 sender 都不丟�
   }
 });
 
-test("B1w 視窗已 destroyed（S3）⇒ 九個 sender 都不丟、沒讀 .webContents、不記", () => {
+test("B1w 視窗已 destroyed（S3）⇒ 十個 sender 都不丟、沒讀 .webContents、不記", () => {
   for (const [name, args] of [...ONE_SHOT, ...STATE]) {
     const win = destroyedWindow();
     const { senders, errors } = bridgeWith(() => win);
@@ -327,7 +341,7 @@ test("B2 webContents 已 destroyed 時送的狀態照樣記住；renderer:ready 
   assert.equal(errors.length, 0);
 });
 
-test("B3 沒有主視窗（null）⇒ 九個 sender 都不丟、不記", () => {
+test("B3 沒有主視窗（null）⇒ 十個 sender 都不丟、不記", () => {
   for (const [name, args] of [...ONE_SHOT, ...STATE]) {
     const { senders, errors } = bridgeWith(() => null);
     assert.doesNotThrow(() => senders[name](...args), name);
@@ -335,7 +349,7 @@ test("B3 沒有主視窗（null）⇒ 九個 sender 都不丟、不記", () => {
   }
 });
 
-test("B4 活的 webContents 但 send 丟錯 ⇒ 九個 sender 都不丟；各記一筆 renderer_send_failed 帶自己的 channel；狀態照樣記住", () => {
+test("B4 活的 webContents 但 send 丟錯 ⇒ 十個 sender 都不丟；各記一筆 renderer_send_failed 帶自己的 channel；狀態照樣記住", () => {
   const boom = new Error("boom");
   const wc = makeWebContents();
   wc.send = () => {
