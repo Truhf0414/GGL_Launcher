@@ -1,4 +1,4 @@
-# Phase 6b — IPC／DI 組＋其他 main 組：細部 plan（狀態：**2026-10-25 初稿；同日 owner 裁 Q3 產品語意（→ §裁決），依此修訂為二稿；同日 ChatGPT 審二稿（→ §審查），修訂為三稿；同日 owner 裁 6b-1 實作方案並授權 6b-1 施工與一個 commit（→ §裁決）；同日 6b-1 施工，commit `48452a9`，經 owner 驗收放行（→ §6b-1 施工紀錄）；同日 owner 裁 Q1（修正版 B）並授權 6b-2 施工與一個 commit（→ §裁決）；同日 6b-2 施工，commit `4362d28`，經 owner 驗收放行（→ §6b-2 施工紀錄）；同日 6b-3 細部初稿，經 ChatGPT 審查修訂為二稿（→ §6b-3 細部初稿）；同日 owner 裁 Q6、Q8、Q10、Q12、O1（→ §裁決 6b-3）；同日 owner 授權 6b-3a（→ §裁決 6b-3a 施工授權），施工 commit `fb1f48d`，經 owner 驗收放行（→ §6b-3a 施工紀錄）；同日 owner 授權 N8（→ §裁決 N8 施工授權），施工 commit `343254e`，經 owner 驗收放行（→ §N8 施工紀錄）；同日 owner 授權 6b-3b（→ §裁決 6b-3b 施工授權），施工 commit `e8cc11b`，經 owner 驗收放行（→ §6b-3b 施工紀錄）；Q4、Q7 未裁；6b-4 未授權施工**）
+# Phase 6b — IPC／DI 組＋其他 main 組：細部 plan（狀態：**2026-10-25 初稿；同日 owner 裁 Q3 產品語意（→ §裁決），依此修訂為二稿；同日 ChatGPT 審二稿（→ §審查），修訂為三稿；同日 owner 裁 6b-1 實作方案並授權 6b-1 施工與一個 commit（→ §裁決）；同日 6b-1 施工，commit `48452a9`，經 owner 驗收放行（→ §6b-1 施工紀錄）；同日 owner 裁 Q1（修正版 B）並授權 6b-2 施工與一個 commit（→ §裁決）；同日 6b-2 施工，commit `4362d28`，經 owner 驗收放行（→ §6b-2 施工紀錄）；同日 6b-3 細部初稿，經 ChatGPT 審查修訂為二稿（→ §6b-3 細部初稿）；同日 owner 裁 Q6、Q8、Q10、Q12、O1（→ §裁決 6b-3）；同日 owner 授權 6b-3a（→ §裁決 6b-3a 施工授權），施工 commit `fb1f48d`，經 owner 驗收放行（→ §6b-3a 施工紀錄）；同日 owner 授權 N8（→ §裁決 N8 施工授權），施工 commit `343254e`，經 owner 驗收放行（→ §N8 施工紀錄）；同日 owner 授權 6b-3b（→ §裁決 6b-3b 施工授權），施工 commit `e8cc11b`，經 owner 驗收放行（→ §6b-3b 施工紀錄）；Q4、Q7 未裁；6b-4 未授權施工；2026-10-26 6b-4 細部初稿另開一檔 → `plans/cross-review-2026-10-phase6b4.md`；同日 owner 在該檔裁 Q4、Q7（另有 Q13、Q14）→ 該檔 §裁決**）
 
 上層＝`plans/cross-review-2026-10.md` §8 Phase 6（範圍、不做、不變量、驗收下限、回滾；6b 的切法在同節子 Phase 表）；候選的定義＝`plans/defense-cleanup.md` §清理清單 main/ 表；改／留判準＝`plans/cross-review-2026-10-phase6-criteria.md`（本檔不重述；§判例 3 是 M-LAUNCH／M-SEND 的起點）；U15 的裁決本體＝上層 §4.2 U15。
 
@@ -63,7 +63,7 @@
 | Q9 | 撤回（P4：移除 N6 的 `catch` 不能讓漏接錯誤浮出）；N6 維持 Q5 的 future-work | — |
 | Q11 | 維持 A11／D3：`game-closed-dialog` 的 `getMainWindow` 繼續選填，不修改 | — |
 
-**仍未裁**：Q4、Q7，不提前處理。
+**仍未裁**：Q4、Q7，不提前處理。〔2026-10-26 已裁 → `plans/cross-review-2026-10-phase6b4.md` §裁決〕
 **施工順序（同意的方向，未授權）**：6b-3a（M-OTHER 接線測試＋Discord RPC 經 bridge）→ N8（獨立 commit）→ 6b-3b（M-DI 必要依賴與單一注入契約，保留 Q6 已准的預設）。
 **授權**：本輪只授權文件回填。三批都**未獲施工授權**；Q6／Q8／Q10／Q12 已裁不等於可以開始改程式或建立施工 commit。
 
@@ -582,11 +582,11 @@ N24 三案（注入會丟的假 `sendInstanceStatus`）改寫成 B5a–c：它�
 
 - **6b-2**：照 U15 裁決刪三層；帳號 handler 的註冊與 `plainErrorIpcMain` 包裝收進 `registerAllMainIpc`，`scripts/lib/ipc-registry.js` 與 `test/ipc-plain-errors.test.cjs` 改呼叫它；拿掉 `setupOnce` 旗標與 `removeHandler`；`register*` 的 `ctx || {}`／`ctx?.` 拿掉。要一起改：`ARCHITECTURE.md:38,73-75,154`、`package.json` `format:ui` 清單裡的 `main/ipc-handlers.js`。**IPC 索引**：channel 不增刪、註冊檔理應不變，但 `ipc-registry` 換了入口，`docs:ipc` 要跑且比對 diff；重複註冊由 Electron 丟錯（上層 §5.5 實測）加 `ipc-registry` 的 `duplicated` 守。待裁：Q1（2026-10-25 已裁修正版 B → §裁決）。〔對齊 2026-10-25：→ `4362d28`（plans/cross-review-2026-10-phase6b.md 6b-2）：`ARCHITECTURE.md:38` 原地改寫、`:73-75` 改寫後 `:73-74`、`:154` 改寫後 `:153`（→ §6b-2 施工紀錄）〕〔對齊 2026-10-25：→ `fb1f48d`（plans/cross-review-2026-10-phase6b.md 6b-3a）：`ARCHITECTURE.md:38`、`:73-74`、`:153`（上次對齊）未移動〕〔對齊 2026-10-25：→ `343254e`（plans/cross-review-2026-10-phase6b.md N8）：`ARCHITECTURE.md:38`、`:73-74`、`:153`（上次對齊）未移動〕〔對齊 2026-10-25：→ `e8cc11b`（plans/cross-review-2026-10-phase6b.md 6b-3b）：`ARCHITECTURE.md:38`、`:73-74`、`:153`（上次對齊）未移動；其中 `:73`（`microsoft-auth` 那列）原地改寫〕
 - **6b-3**：每個 `configure*` 模組改成建立時檢查必要依賴（範本：`sync/index.js` 的 `assertRequiredDeps`），依賴預設值的測試改成給齊；`launchMinecraft` 只留一條注入路；`discord-rpc` 的送出收進 bridge（用 `IPC.on.RPC_NOTICE`，走 D2 的 `send`）；`app-ready`／`start-main` 的鍵名只留一份，修過期地址。測試改動面最大。待裁：Q6。〔2026-10-25 細部初稿 → §6b-3 細部初稿：分兩批、鍵名一節偏離「只留一份」〕〔2026-10-25 owner 裁 Q6、Q8、Q10、Q12、O1 → §裁決 6b-3：三批 3a → N8 → 3b，鍵名維持三份明確宣告（O1）〕
-- **6b-4**：M-STREAM 刪 Node stream 分支（兩檔）；M-RE 呼叫者改直接載 lib；兩個「第二道」刪除（C8、S4 改寫）；M-MISC、M-SILENT 照總表；`site-client` 退路加 `gglError`、`microsoft-auth.js:621` 缺 refresh_token 要出聲（這兩處碰網路回應與 token，各加假 token 案例，照 D-LOG-PRIVACY）。待裁：Q4、Q7。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`microsoft-auth.js:621` 後 `:617`〕〔對齊 2026-10-25：→ `4362d28`（plans/cross-review-2026-10-phase6b.md 6b-2）：`microsoft-auth.js:617`（上次對齊）未移動〕〔對齊 2026-10-25：→ `e8cc11b`（plans/cross-review-2026-10-phase6b.md 6b-3b）：`microsoft-auth.js:617`（上次對齊）後 `:627`〕
+- **6b-4**：M-STREAM 刪 Node stream 分支（兩檔）；M-RE 呼叫者改直接載 lib；兩個「第二道」刪除（C8、S4 改寫）；M-MISC、M-SILENT 照總表；`site-client` 退路加 `gglError`、`microsoft-auth.js:621` 缺 refresh_token 要出聲（這兩處碰網路回應與 token，各加假 token 案例，照 D-LOG-PRIVACY）。待裁：Q4、Q7。〔2026-10-26 細部初稿 → `plans/cross-review-2026-10-phase6b4.md`：§候選總表 6b-4 那幾列的判定以該檔為準；`site-client` 加 `gglError` 撤回（該檔 #14）〕〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`microsoft-auth.js:621` 後 `:617`〕〔對齊 2026-10-25：→ `4362d28`（plans/cross-review-2026-10-phase6b.md 6b-2）：`microsoft-auth.js:617`（上次對齊）未移動〕〔對齊 2026-10-25：→ `e8cc11b`（plans/cross-review-2026-10-phase6b.md 6b-3b）：`microsoft-auth.js:617`（上次對齊）後 `:627`〕
 
 ## 待 owner 裁決
 
-以下是 CC 當時的提案與理由，原樣保留；owner 實際怎麼裁只看 §裁決（Q2、Q3-impl、W19、B7、Q5 於 6b-1 授權時裁，Q1 於 6b-2 授權時裁，Q1 裁的是修正版 B、不是本表的 B；Q6 於 2026-10-25 6b-3 裁決時裁 A 保留，範圍是 §6b-3 細部初稿 §Q6 收窄後的清單、不是本表的 `sync/index.js:161-164` 三項全文）。〔對齊 2026-10-25：→ `e8cc11b`（plans/cross-review-2026-10-phase6b.md 6b-3b）：`sync/index.js:161-164` 是引述 §待 owner 裁決 Q6 那列的原文，不是地址（現在的位置 → 該列的對齊註記）〕
+以下是 CC 當時的提案與理由，原樣保留；owner 實際怎麼裁只看 §裁決（Q4、Q7 例外：2026-10-26 在 `plans/cross-review-2026-10-phase6b4.md` §裁決 裁；Q2、Q3-impl、W19、B7、Q5 於 6b-1 授權時裁，Q1 於 6b-2 授權時裁，Q1 裁的是修正版 B、不是本表的 B；Q6 於 2026-10-25 6b-3 裁決時裁 A 保留，範圍是 §6b-3 細部初稿 §Q6 收窄後的清單、不是本表的 `sync/index.js:161-164` 三項全文）。〔對齊 2026-10-25：→ `e8cc11b`（plans/cross-review-2026-10-phase6b.md 6b-3b）：`sync/index.js:161-164` 是引述 §待 owner 裁決 Q6 那列的原文，不是地址（現在的位置 → 該列的對齊註記）〕
 
 | # | 問題 | 選項 | CC 傾向與理由 |
 |---|---|---|---|
