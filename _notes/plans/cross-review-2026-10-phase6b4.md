@@ -1,4 +1,4 @@
-# Phase 6b-4 — 其他 main 組：細部 plan（狀態：**2026-10-26 初稿，基準 `712f445`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄）；同日 owner 裁 Q4、Q7、Q13、Q14（→ §裁決），回寫進本檔（→ §裁決回寫紀錄），文件 `d4eef72`；同日 owner 授權 4a（→ §裁決 4a 施工授權），施工 commit `badebe9`，經 owner 驗收放行（→ §4a 施工紀錄）；同日 owner 授權 4d（→ §裁決 4d 施工授權），施工 commit `6e63202`，經 owner 驗收放行（→ §4d 施工紀錄）；同日 owner 授權 4b（→ §裁決 4b 施工授權）；4c、4e–4g 未授權施工**）
+# Phase 6b-4 — 其他 main 組：細部 plan（狀態：**2026-10-26 初稿，基準 `712f445`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄）；同日 owner 裁 Q4、Q7、Q13、Q14（→ §裁決），回寫進本檔（→ §裁決回寫紀錄），文件 `d4eef72`；同日 owner 授權 4a（→ §裁決 4a 施工授權），施工 commit `badebe9`，經 owner 驗收放行（→ §4a 施工紀錄）；同日 owner 授權 4d（→ §裁決 4d 施工授權），施工 commit `6e63202`，經 owner 驗收放行（→ §4d 施工紀錄）；同日 owner 授權 4b（→ §裁決 4b 施工授權），施工 commit `ff177df`，經 owner 驗收放行（→ §4b 施工紀錄）；同日 owner 授權 4e（→ §裁決 4e 施工授權）；4c、4f、4g 未授權施工**）
 
 **授權出處**：〔轉述〕owner 2026-10-26 在與 CC 的對話中貼入「GGL_Launcher — Phase 6b-4 細部設計調查」：「本輪不修改正式程式、不 Commit、不 Push，也不預先認定全部盤點項目都必須修改。」交付物＝細部初稿與審查問題。
 **上層**：範圍、不做、不變量、驗收下限、回滾 → `plans/cross-review-2026-10.md` §8 Phase 6；改／留判準、退回、留的出口 → `plans/cross-review-2026-10-phase6-criteria.md`（以下「判準」）；候選的定義 → `plans/defense-cleanup.md` §清理清單 main/ 表；6b 的切法與既有裁決（Q3、Q6、Q8、Q10 …）→ `plans/cross-review-2026-10-phase6b.md`（以下「6b 檔」）§裁決、§候選總表 6b-4 列。
@@ -49,6 +49,12 @@
 
 **出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「收 docs commit，然後開工 4b」。
 **授權**：4b（#3、#4、#9、#10、#14 的理由註解）的施工與驗證；權威＝本檔對應各項、§分批、§驗收。本機 commit 照 4d 的做法，自動驗證完成後先問 owner。**不授權** push、其他批次。
+**commit 出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「commit，診斷正常，4b 驗收過」。
+
+### 4e 施工授權（2026-10-26）
+
+**出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「收 docs commit，然後開工 4e」。
+**授權**：4e（#5、#6）的施工與驗證；權威＝本檔 #5、#6（含責任轉移表）、§分批、§驗收。本機 commit 照 4d 的做法，自動驗證完成後先問 owner。**不授權** push、其他批次。
 
 ## 探針〔實測，2026-10-26〕
 
@@ -83,16 +89,16 @@
 
 ### M-RE
 
-**#3 `main/paths.js:10-14,33-35` 原樣轉出 `lib/paths-layout.js` 的 `DEFAULT_LAUNCHER_ROOT_DIR`、`INSTANCE_ID`、`getPaths`**
-- **證據**〔CC 讀碼，rg 所有 `require(…paths…)`〕：經 `main/paths` 拿這三個的只有 `main/settings.js:6`（`DEFAULT_LAUNCHER_ROOT_DIR`）與 `main/start-main.js:12`（`getPaths`、`DEFAULT_LAUNCHER_ROOT_DIR`）；`INSTANCE_ID` 經 `main/paths` 的使用者 0。同時 `main/sync/index.js:10` 與 13 個測試檔直接載 `lib/paths-layout.js` 的 `getPaths`——同一個函式兩個地址。`main/paths.js` 自己的三個函式（`getSettingsPath` 等，用到 electron 的 userData 路徑）有真實責任，不在本項。`lib/paths-layout.js` 的 `INSTANCE_ID` 匯出只有 `main/paths` 一個使用者（rg 對照：同一個 rg 找到 `paths-layout.js:17` 的內部使用）。
-- **現在的責任**：沒有——轉出不加任何東西。檔頭 `:1`「啟動器相對路徑單一來源（userData、安裝根、實例目錄）」與實情不符（安裝根、實例目錄的權威是 `lib/paths-layout.js`）。Phase 4 已刪過同一檔的另外兩個轉出（`plans/cross-review-2026-10-phase4.md:156,267`），留下的這三個是同一類。
+**#3 `main/paths.js:10-14,33-35` 原樣轉出 `lib/paths-layout.js` 的 `DEFAULT_LAUNCHER_ROOT_DIR`、`INSTANCE_ID`、`getPaths`**〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`main/paths.js:10-14`、`:33-35` 刪除（→ 同檔 §4b 施工紀錄）〕
+- **證據**〔CC 讀碼，rg 所有 `require(…paths…)`〕：經 `main/paths` 拿這三個的只有 `main/settings.js:6`（`DEFAULT_LAUNCHER_ROOT_DIR`）與 `main/start-main.js:12`（`getPaths`、`DEFAULT_LAUNCHER_ROOT_DIR`）；`INSTANCE_ID` 經 `main/paths` 的使用者 0。同時 `main/sync/index.js:10` 與 13 個測試檔直接載 `lib/paths-layout.js` 的 `getPaths`——同一個函式兩個地址。`main/paths.js` 自己的三個函式（`getSettingsPath` 等，用到 electron 的 userData 路徑）有真實責任，不在本項。`lib/paths-layout.js` 的 `INSTANCE_ID` 匯出只有 `main/paths` 一個使用者（rg 對照：同一個 rg 找到 `paths-layout.js:17` 的內部使用）。〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`main/settings.js:6` 改寫（`DEFAULT_LAUNCHER_ROOT_DIR` 改從 lib 載，後 `:6-7`）、`main/start-main.js:12` 改寫（後 `:14-17`）、`paths-layout.js:17` 後 `:24`；其他行號指的檔不在本 commit〕
+- **現在的責任**：沒有——轉出不加任何東西。檔頭 `:1`「啟動器相對路徑單一來源（userData、安裝根、實例目錄）」與實情不符（安裝根、實例目錄的權威是 `lib/paths-layout.js`）。Phase 4 已刪過同一檔的另外兩個轉出（`plans/cross-review-2026-10-phase4.md:156,267`），留下的這三個是同一類。〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`main/paths.js` 的檔頭 `:1` 改寫（目錄結構說明搬到 `lib/paths-layout.js:3-9`）；其他行號指的檔不在本 commit〕
 - **改的理由**：E3、conventions §6。**反例**：「`main/` 的模組只從 `main/paths` 拿路徑，邊界比較清楚」——現況已經不是這樣（`sync/index` 直接載 lib），而且 lib 是純邏輯、本來就給 main 載。找不到行為上的反例。
-- **最小改動**：`settings.js`、`start-main.js` 改從 `../lib/paths-layout.js` 取；`main/paths.js` 拿掉三個轉出與 `:10-14` 的 require，檔頭改寫成「userData 底下的檔案路徑；安裝根與實例目錄 → `lib/paths-layout.js`」；`lib/paths-layout.js:56` 的 `INSTANCE_ID` 匯出變成孤兒、一併拿掉（常數本身 `:10` 仍被 `:17` 用）；`ARCHITECTURE.md:55` 那列改寫。成本：4 個正式檔＋`ARCHITECTURE.md`，0 個測試檔。
+- **最小改動**：`settings.js`、`start-main.js` 改從 `../lib/paths-layout.js` 取；`main/paths.js` 拿掉三個轉出與 `:10-14` 的 require，檔頭改寫成「userData 底下的檔案路徑；安裝根與實例目錄 → `lib/paths-layout.js`」；`lib/paths-layout.js:56` 的 `INSTANCE_ID` 匯出變成孤兒、一併拿掉（常數本身 `:10` 仍被 `:17` 用）；`ARCHITECTURE.md:55` 那列改寫。成本：4 個正式檔＋`ARCHITECTURE.md`，0 個測試檔。〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`main/paths.js:10-14` 刪除；`lib/paths-layout.js:56` 刪除、`:10`、`:17` 後 `:17`、`:24`；`ARCHITECTURE.md:55` 原地改寫〕
 - **驗證**：修前——rg 列出所有經 `main/paths` 取這三個名字的地方（現在 2 檔）。修後——同一個 rg 0 命中（對照：`getSettingsPath` 仍命中）；全套；開機到 `start_main_done`。反向——`settings.js` 改回取 `main/paths` 的 `DEFAULT_LAUNCHER_ROOT_DIR` ⇒ 載入時 undefined、設定測試紅（施工時確認紅在哪一案）。
 - **建議**：**改**。
 
-**#4 `main/launcher-log.js:5-7,100` 原樣轉出 `lib/launcher-debug-logging.js` 的 `computeDebugLoggingEnabled`**
-- **證據**〔CC 讀碼〕：經 `main/launcher-log` 拿它的只有 `main/settings.js:8`、`main/start-main.js:5`；`test/launcher-debug-logging.test.cjs:8` 直接載 lib。`launcher-log.js` 匯出的 `formatSyncProgressLog`、`syncProgressBucket` 是它自己的函式（給 `launcher-log-format` 測試用），不是轉出、不在本項。
+**#4 `main/launcher-log.js:5-7,100` 原樣轉出 `lib/launcher-debug-logging.js` 的 `computeDebugLoggingEnabled`**〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`main/launcher-log.js:5-7`、`:100` 刪除（→ 同檔 §4b 施工紀錄）〕
+- **證據**〔CC 讀碼〕：經 `main/launcher-log` 拿它的只有 `main/settings.js:8`、`main/start-main.js:5`；`test/launcher-debug-logging.test.cjs:8` 直接載 lib。`launcher-log.js` 匯出的 `formatSyncProgressLog`、`syncProgressBucket` 是它自己的函式（給 `launcher-log-format` 測試用），不是轉出、不在本項。〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`main/settings.js:8` 後 `:10`（改從 lib 載，`:9-11`）、`main/start-main.js:5` 刪除（改從 lib 載，`:10-12`）；其他行號指的檔不在本 commit〕
 - **責任／理由／反例**：同 #3。
 - **最小改動**：兩個呼叫者改載 lib；拿掉 `:5-7` 與 `:100`。`app-ready` 的 `MAIN_APP_READY_KEYS` 只認鍵名、不認來源，不動。成本：3 個正式檔。
 - **驗證**：同 #3 的 rg 前後對照；全套。
@@ -101,7 +107,7 @@
 ### M-LAUNCH
 
 三項共用的保證鏈〔CC 讀碼〕：
-1. 啟動只有一條正式路：`ipc/minecraft-ipc.js:115-129` 兩個 handler → `launchThroughGate`（`:36-61`）→ `deps.withLaunchLock`（＝`main/sync/index.js:459-482`）→ 鎖內的 `fn` 先問 `isMinecraftRunning`（`:41-43`）再呼叫 `deps.launchMinecraft`（`:44-50`）。`launchMinecraft` 的正式使用者只有這一處（rg `launchMinecraft` main/：定義、`start-main.js:33,137` 的接線、`minecraft-ipc.js:44`）。
+1. 啟動只有一條正式路：`ipc/minecraft-ipc.js:115-129` 兩個 handler → `launchThroughGate`（`:36-61`）→ `deps.withLaunchLock`（＝`main/sync/index.js:459-482`）→ 鎖內的 `fn` 先問 `isMinecraftRunning`（`:41-43`）再呼叫 `deps.launchMinecraft`（`:44-50`）。`launchMinecraft` 的正式使用者只有這一處（rg `launchMinecraft` main/：定義、`start-main.js:33,137` 的接線、`minecraft-ipc.js:44`）。〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`start-main.js:33,137` 後 `:38,143`；其他行號指的檔不在本 commit〕
 2. `withLaunchLock` 先 `acquire`（鎖被任何人持有就丟 busy，`:183-186`），在鎖內當場算狀態（`:462`），`!status.ui.canLaunch` ⇒ 丟 `GGL_SYNC_LAUNCH_BLOCKED`、不呼叫 `fn`（`:463-469`）；否則把**同一次計算**讀到的 `record` 與 `local.runtime.launch` 交給 `fn`（`:472-477`）。
 3. `canLaunch` 為真 ⇒ `localReady` 為真（`lib/sync/status-kind.js:92-99`：`always` 只有 `up-to-date`（`:84-87`），`ifLocalReady` 要 `localReady`；`up-to-date` 只在 `syncReasons` 為空時成立，`:255-256`）⇒ 沒有 `runtime-missing`（`:157-161,235-236`）⇒ `runtime.ready` 為真（`:178`）⇒ `checkRuntimeReady` 過了 `recordComplete`（`lib/runtime-readiness.js:32`）且帶 `launch`（`:53`，`launch` 就是 `runtimeNeeds` 剛組好的成品）。
 4. 會叫的測試：`runtime-readiness.test.cjs:75` C1（記錄不完整五種 ⇒ 只有 `record`）、`:161` N2（不就緒沒有 `launch`）；`sync-status-kind.test.cjs:112-113` 起的政策表；`sync-index.test.cjs:2173` C12（③ 的記錄 ⇒ `update-available`、`runtime-missing`）、`:2186` C12（不就緒 ⇒ `GGL_SYNC_LAUNCH_BLOCKED`、`fn` 0 次）、`:1736` N16（放行時 `fn` 拿到那次的輸入）；`minecraft-ipc-launch.test.cjs:469` W16e（遊戲在跑 ⇒ 兩個 handler 在鎖內拒絕、`launch` 0 次）。
@@ -156,15 +162,15 @@
 - **驗證**：修後——全套；owner 打開設定頁看記憶體提示一次。反向（留的話）——把 `=== 0` 拿掉、用測試替身讓 `os.totalmem` 回 0：目前沒有測試能注入 `os`〔U-14〕。最小補法是 `test/` 裡 monkeypatch `os.totalmem` 再 `require` 這個檔（不新增注入參數）；成本一個小測試檔。
 - **建議**：前半**改**；`<= 0` **待裁（Q7）**。〔2026-10-26 Q7 已裁「算」→ §裁決：只走上面「Q7＝算」那條（改成 `=== 0 ⇒ null` 並寫理由）；「Q7＝不算」那條與 `lib/settings-logic.js`、`settings-logic.test.cjs:49` 的改動**作廢**，下游「無法偵測系統記憶體」照留〕
 
-**#9 版本號的正規化：`main/start-main.js:109` `String(require("../package.json").version || "").trim()`、`main/diagnostics-export.js:74` `String(…version || "")`**
+**#9 版本號的正規化：`main/start-main.js:109` `String(require("../package.json").version || "").trim()`、`main/diagnostics-export.js:74` `String(…version || "")`**〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`main/start-main.js:109` 改寫，後 `:114-115`；`main/diagnostics-export.js:74` 原地改寫〕
 - **證據**：`package.json` 跟程式同一包出貨（conventions §防禦與相容「`main` 送給畫面的資料（同一包出貨）」同類）⇒ 邊界內。`start-main` 這份交給 `createInstanceSync`，它在建立時驗 `x.y.z`（`main/sync/index.js:90-96`，`compareVersionCore` 用 `String(a)` 配 `^(\d+)\.(\d+)\.(\d+)`，`lib/sync/site-format.js:18,210-214`）：`undefined` ⇒ `"undefined"` 不符 ⇒ TypeError；前面多空白 ⇒ 不符 ⇒ TypeError。`minecraft-launch.js:22-25` 讀同一個欄位就沒有正規化。
 - **改的理由**：`|| ""`、`.trim()` 防的值不存在；而且 `.trim()` 會把「`package.json` 版本前面有空白」這種真錯靜默修掉，拿掉後改由 `createInstanceSync` 的檢查在開機時叫（E1、E5）。**反例**：沒找到——錯的版本號拿掉正規化之後仍然會叫，叫的位置相同（開機的 `start_main_failed`）。
 - **最小改動**：兩處都寫成 `require("../package.json").version`。成本：2 個正式檔，0 個測試檔（`diagnostics-export` 的測試不比對版本；施工時確認）。
 - **驗證**：修後——全套；開機；匯出診斷一次看 `report.json` 的 `app.version`。反向——暫時把 `package.json` 的 version 改成 ` 1.0.0`（前面加空白）⇒ 修前開機正常、修後開機 `start_main_failed`（`cmp` 還原 `package.json`）。
 - **建議**：**改**。
 
-**#10 `main/diagnostics-export.js:81-84,103`**
-- **證據**：`settings` 是 `deps.readSettings()` 驗過的那份（`main/settings.js` 不合法就拒絕，`:43-44` 的註解），`launcherRootDir` 一定是字串；`paths` 是 `getPaths(settings)` 的回傳（`lib/paths-layout.js:13-`，一定是有這些字串欄位的物件）。`settings?.`、`paths?.`、`|| ""`、`String(…)`、`:103` 的 `if (paths?.syncRecordPath)` 防的都是邊界內的值。測試 `diagnostics-export.test.cjs:18-29` 給的就是完整設定與真的 `getPaths`。
+**#10 `main/diagnostics-export.js:81-84,103`**〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`main/diagnostics-export.js:81-84` 改寫後 `:81-85`、`:103` 的 `if` 刪除〕
+- **證據**：`settings` 是 `deps.readSettings()` 驗過的那份（`main/settings.js` 不合法就拒絕，`:43-44` 的註解），`launcherRootDir` 一定是字串；`paths` 是 `getPaths(settings)` 的回傳（`lib/paths-layout.js:13-`，一定是有這些字串欄位的物件）。`settings?.`、`paths?.`、`|| ""`、`String(…)`、`:103` 的 `if (paths?.syncRecordPath)` 防的都是邊界內的值。測試 `diagnostics-export.test.cjs:18-29` 給的就是完整設定與真的 `getPaths`。〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`diagnostics-export.js` 的 `:43-44` 未移動；`lib/paths-layout.js:13-` 後 `:20-`〕
 - **反例**：沒找到。`safeCopyFile`（`:19-27`）吞掉「檔不在」是磁碟邊界、照留。
 - **最小改動**：`:81-84` 直接取值；`:103` 的 `if` 拿掉、照樣呼叫 `safeCopyFile`。成本：1 個正式檔（與 #9 同檔）。
 - **驗證**：修後——`diagnostics-export` 測試；匯出診斷一次。
@@ -172,7 +178,7 @@
 
 **#11 `main/main-window.js:82-94`（`console-message` 的 `try`＋`details?.`／`??`）、`:99-104`（`ready-to-show` 的 `try`）——退回**
 - **退回理由**：6b 檔 §候選總表把這兩段判成「改分類（留-1：時序／外部 API）、只補理由」。現讀推翻「只補理由」：理由寫不出來——找不到任何具體的錯誤契約需要這兩層**無聲**隔離。
-  - `:82-94`：`try` 包的是 `webContents.on("console-message", …)` 掛監聽。P8 在 44.3.0 實測掛監聽沒有丟錯、payload 的四個欄位都在且型別對（與 `:84-85` 註解引的 `electron.d.ts` 相符）。這只證明這個版本實測正常，**不證明** Electron 的這個 API 永遠不會丟錯；但本專案的紀錄沒有任何一處描述過「掛這個監聽可能失敗、失敗時應忽略」〔查過：rg `console-message|ready-to-show` 在 `_notes/`、`docs/`、`ARCHITECTURE.md`，命中的 `plans/cross-review-2026-10-phase2.md:183`、`plans/cross-review-2026-10.md:354` 只談哪些事件要掛、debug 才掛〕；Electron 文件對這個 API 會不會丟錯沒查〔未查〕。所以目前沒有可描述的契約讓這層 `catch {}` 守。`details?.`、`??`、`Number(…)` 同理：防的是型別定義與實測都沒出現過的形狀。
+  - `:82-94`：`try` 包的是 `webContents.on("console-message", …)` 掛監聽。P8 在 44.3.0 實測掛監聽沒有丟錯、payload 的四個欄位都在且型別對（與 `:84-85` 註解引的 `electron.d.ts` 相符）。這只證明這個版本實測正常，**不證明** Electron 的這個 API 永遠不會丟錯；但本專案的紀錄沒有任何一處描述過「掛這個監聽可能失敗、失敗時應忽略」〔查過：rg `console-message|ready-to-show` 在 `_notes/`、`docs/`、`ARCHITECTURE.md`，命中的 `plans/cross-review-2026-10-phase2.md:183`、`plans/cross-review-2026-10.md:354` 只談哪些事件要掛、debug 才掛〕；Electron 文件對這個 API 會不會丟錯沒查〔未查〕。所以目前沒有可描述的契約讓這層 `catch {}` 守。`details?.`、`??`、`Number(…)` 同理：防的是型別定義與實測都沒出現過的形狀。〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`ARCHITECTURE.md`（這處沒有行號）〕
   - `:99-104`：`w.show()` 是 Electron API 呼叫，**仍然是 Electron 邊界**（不重新分類為內部值）。拿掉 `try` 的理由不是「它不會丟」，而是：(1) 視窗已銷毀這個已知的時序，已由 `w && !w.isDestroyed()`（`:101-102`，A11 的規則，6b-1 D1 保留）處理，不靠 `catch`；(2) 除此之外的失敗沒有任何已知形狀，而 `catch {}` 會讓它變成「視窗永遠不出現、沒有任何紀錄」——照 conventions §4，吞錯只限清理與探測、要寫得出理由，這裡寫不出來。
 - **雙向舉證**：
   - 改的收益：E4（兩個空 `catch` 與四個預設看起來在防守、實際只在沒人描述過的情況下作用）；E1（若真有未知的失敗，從「視窗無聲地不出現／debug 輸出無聲消失」變成看得到的錯）；E5（`main-window.js` 是 6b-3b 剛整理過的檔）。
@@ -194,7 +200,7 @@
 - **內部程式錯誤**：我們自己的程式壞了（例：`describeStatus` 遇到未知的 kind）。只有這類一定要進常駐日誌；前兩類照 D-LOG-SCOPE，記了要能縮小故障範圍、又不能洗版。
 
 **#13 `main/sync/apply.js:288-299` `throwIfSiteChanged` 的 `catch {}`——退回**〔對齊 2026-10-26：→ `6e63202`（plans/cross-review-2026-10-phase6b4.md 4d）：`main/sync/apply.js:288-299` 改寫（`try`／`catch {}` 拿掉、JSDoc 補理由），後 `:292-300`（→ 同檔 §4d 施工紀錄）〕
-- **退回理由**：6b 檔判成「改分類為 §4 探測、補一行理由」。現讀推翻：這個 `catch` 實際接不到任何外部失敗。`deps.fetchReleaseFiles`（正式只有 `main/sync/index.js:393-397`）→ `siteClient.fetchSite(index)`（`site-client.js:154-161`）→ 兩支 `fetchClassified`（`:67-105`）：連線錯、逾時（`:69-77`）、不是 JSON（`:81-85`）、驗證丟錯（`:87-96`）、非 2xx（`:102-104`）全部轉成 `SiteResult`，**不丟**；`summarizeManifestFetchFailure` 只做字串比對、不丟（`lib/manifest-network.js:6-`）〔CC 讀碼〕。網路故障時 `fetchReleaseFiles` 回 `null`，`:293` 不成立，原本的 404 照丟——「探測失敗就回原錯」這個語意由 site-client 的分類負責，不靠這個 `catch`。它唯一接得到的是內部程式錯誤，接到之後無聲、改丟原本的 404。
+- **退回理由**：6b 檔判成「改分類為 §4 探測、補一行理由」。現讀推翻：這個 `catch` 實際接不到任何外部失敗。`deps.fetchReleaseFiles`（正式只有 `main/sync/index.js:393-397`）→ `siteClient.fetchSite(index)`（`site-client.js:154-161`）→ 兩支 `fetchClassified`（`:67-105`）：連線錯、逾時（`:69-77`）、不是 JSON（`:81-85`）、驗證丟錯（`:87-96`）、非 2xx（`:102-104`）全部轉成 `SiteResult`，**不丟**；`summarizeManifestFetchFailure` 只做字串比對、不丟（`lib/manifest-network.js:6-`）〔CC 讀碼〕。網路故障時 `fetchReleaseFiles` 回 `null`，`:293` 不成立，原本的 404 照丟——「探測失敗就回原錯」這個語意由 site-client 的分類負責，不靠這個 `catch`。它唯一接得到的是內部程式錯誤，接到之後無聲、改丟原本的 404。〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`site-client.js:154-161` 後 `:156-163`、`:67-105` 未移動；其他行號指的檔不在本 commit〕
 - **雙向舉證**：
   - 改的收益：E1（bug 不再被包成「HTTP 404」）；E4。
   - 改的成本：C1＝1 個正式檔；C3＝`sync-apply.test.cjs:322,341` 兩案走真的 404 流程、不讓 `fetchReleaseFiles` 丟（rg 確認：`fetchReleaseFiles` 附近的 `throw|reject` 0 命中；對照：同寫法對 `prepareRuntime` 命中 3）⇒ 兩案不受影響；要另加一案證明「`fetchReleaseFiles` 丟錯 ⇒ 那個錯往外丟、不是 404」。行為變化只在 bug 發生時：更新照樣失敗（本來就在失敗），畫面看到的錯從「HTTP 404」變成 bug 的訊息。〔對齊 2026-10-26：→ `6e63202`（plans/cross-review-2026-10-phase6b4.md 4d）：`sync-apply.test.cjs:322,341` 未移動（新案加在 `:357-380`）；其他行號指的檔不在本 commit〕
@@ -204,9 +210,9 @@
 - **驗證**：新案的形狀——blob 回 404、注入的 `fetchReleaseFiles` 丟一個帶獨特標記的錯（例：`Object.assign(new Error("FETCH_RELEASE_BUG"), { code: "TEST_BUG" })`）；斷言 `applyPlan` reject 的**就是那個錯物件**（`===`，或 `code === "TEST_BUG"` 且訊息相同）、訊息不含 `HTTP 404`、`code` 不是 `GGL_SYNC_SITE_CHANGED`（寫法照 `sync-apply.test.cjs:322,341` 兩案的 `run(ctx, { next: [ghost], depsOverride })`）。修前——新案應紅，紅在拿到的是原本的 404（若紅在別處 ⇒ 停）。修後——新案綠、`:322`、`:341` 照綠。反向——放回 `catch {}` ⇒ 新案紅，紅的原因是又拿到 404。〔對齊 2026-10-26：→ `6e63202`（plans/cross-review-2026-10-phase6b4.md 4d）：`sync-apply.test.cjs:322,341` 未移動；新案在 `:357-380`〕
 - **建議**：**改**（退回項，列進驗收單）。
 
-**#14 `main/sync/site-client.js:121-137` `fetchLogLines` 的退路——退回，建議不改**
+**#14 `main/sync/site-client.js:121-137` `fetchLogLines` 的退路——退回，建議不改**〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`main/sync/site-client.js:121-137` 後 `:121-139`（`catch` 裡加兩行理由）〕
 - **證據**：`try` 裡只有 `fetchText`（網路，`:46-65`）與 `parseNoticeLogText`（`lib/sync/notice.js:33-56`：輸入是 `res.text()` 的字串，JSON 失敗自己接、退回切行，沒有會丟的路）〔CC 讀碼〕。所以 `:134-136` 接的是「正常可預期的網路故障」；`:130` 的非 2xx 是「非法或異常外部回應」。兩者都走 R6 的恢復路徑（`plans/instance-sync-v3-commit3b2.md:25`，owner 2026-10-06「也擋：抓失敗沿用上次的 log」）。測試：F16（`sync-notice-feed.test.cjs:382`）、`sync-site-client.test.cjs:371`。
-- **退回理由**：6b 檔判「成立：沿用舊資料是 R6 的決定，無聲不是」，6b 檔 §6b-2～6b-4 方向也寫了「`site-client` 退路加 `gglError`」——那是 CC 當時的方向，不是 owner 裁決。現讀推翻「單獨在這裡加」的前提：公告這條路的三段失敗**全部**無聲，是一致的現況——索引不 ok 直接 return（`main/sync/notice-feed.js:83`）、notice.json 失敗回 null（`site-client.js:142`）、log 失敗沿用舊的（本項）。
+- **退回理由**：6b 檔判「成立：沿用舊資料是 R6 的決定，無聲不是」，6b 檔 §6b-2～6b-4 方向也寫了「`site-client` 退路加 `gglError`」——那是 CC 當時的方向，不是 owner 裁決。現讀推翻「單獨在這裡加」的前提：公告這條路的三段失敗**全部**無聲，是一致的現況——索引不 ok 直接 return（`main/sync/notice-feed.js:83`）、notice.json 失敗回 null（`site-client.js:142`）、log 失敗沿用舊的（本項）。〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`site-client.js:142` 後 `:144`；其他行號指的檔不在本 commit〕
 - **雙向舉證**：
   - 加 `gglError` 的收益：logUrl 設錯（4xx）時常駐日誌看得到。
   - 加的成本：輪詢每 30 秒一次（`notice-feed.js:15`），失敗時不更新快取時間、下次照樣重抓（`:121-122` 的註解）——logUrl 壞著的期間每 30 秒一筆，一天約 2880 筆，常駐日誌 1 MiB 就輪替（`main/ggl-log.js`），會把真正的故障洗掉；要避免就得加「狀態變了才記」的狀態，那是新機制。另外只在第三段加、前兩段不加，本身就不一致。上層 §9 第 1 點：`gglError` 是同步寫檔，迴圈裡頻繁呼叫要看頻率。
@@ -275,7 +281,7 @@
 **CC 傾向**：A＋(ii)。理由：B 的洞是真的路徑；兩筆分得出來、不是洗版。ChatGPT 審查建議相同（§審查）。〔2026-10-26 owner 裁 A＋(ii) → §裁決〕
 
 **裁決後的實作細節（回寫時補；設計已收斂、未施工）**：
-- **`kind` 的來源**〔CC 讀碼，`712f445`〕：送進 `textOf` 的 status 只有一個來源——`main/sync/index.js:274` 的 `deps.sendInstanceStatus(status)`（正式接線 `start-main.js:104`）；`explainLaunchBlocked` 的 status 只來自 `sync/index.js:463-469` 丟的 `GGL_SYNC_LAUNCH_BLOCKED`（rg 全 main/、lib/ 只有這一處丟、`minecraft-ipc.js:54` 一處接）。這些 status 由 `derive`（`kind` 取自 `computeStatusKind`，全是 `lib/sync/status-kind.js` 裡的字面值）、`internalErrorStatus`（`"internal-error"`，`sync/index.js:129-131`）、`settingsErrorStatus`（`"settings-error"`，`:145-147`）產生——都在 `KINDS`（`status-kind.js:14-27`）裡。沒有任何外部輸入能寫進 `kind`。
+- **`kind` 的來源**〔CC 讀碼，`712f445`〕：送進 `textOf` 的 status 只有一個來源——`main/sync/index.js:274` 的 `deps.sendInstanceStatus(status)`（正式接線 `start-main.js:104`）；`explainLaunchBlocked` 的 status 只來自 `sync/index.js:463-469` 丟的 `GGL_SYNC_LAUNCH_BLOCKED`（rg 全 main/、lib/ 只有這一處丟、`minecraft-ipc.js:54` 一處接）。這些 status 由 `derive`（`kind` 取自 `computeStatusKind`，全是 `lib/sync/status-kind.js` 裡的字面值）、`internalErrorStatus`（`"internal-error"`，`sync/index.js:129-131`）、`settingsErrorStatus`（`"settings-error"`，`:145-147`）產生——都在 `KINDS`（`status-kind.js:14-27`）裡。沒有任何外部輸入能寫進 `kind`。〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`start-main.js:104` 後 `:109`；其他行號指的檔不在本 commit〕
 - **但不靠「它一定安全」**（照 §裁決 Q4 的要求）：`describeStatus` 丟錯本身就代表 status 不符預期，所以 `detail` 照呼叫處白名單（D-LOG-PRIVACY）寫成 `{ kind: KINDS.includes(status.kind) ? status.kind : "unknown" }`——只會落盤 12 個程式常數之一或固定字串 `"unknown"`，不論 `kind` 實際是什麼。`KINDS` 已由 `status-kind.js` 匯出，不新增清單。`err` 照 D-LOG-FIELDS 只留 `name`、`code`、`syscall`、`st`，`err.message`（含 kind 或原因名稱）不落盤。
 - **事件 ID**：`textOf` 用 `instance_status_text_failed`、`explainLaunchBlocked` 用 `launch_blocked_text_failed`（scope 都是 `"main"`，照既有 `renderer_send_failed` 的命名）。施工時 rg 確認沒有撞名。
 - **測試追加**：W11（kind `"bogus"`）斷言 `detail` 是 `{ kind: "unknown" }`；新的 `explainLaunchBlocked` 案用「kind 合法、原因未知」讓 `describeStatus` 丟（`status-text.js:37-41`），斷言 `detail` 是那個合法的 kind；兩案都斷言 `detail` 的鍵只有 `kind`。另照驗證那段，用帶 token 形狀字串的假 status 確認落盤內容不含它。
@@ -363,7 +369,7 @@
 |---|---|---|
 | #11 `main-window.js:82-94,99-104` | 盤點的「留-1、只補理由」被推翻：理由寫不出來——找不到任何具體的錯誤契約需要這兩層無聲隔離（P8 只證明 44.3.0 實測正常；`w.show()` 仍是 Electron 邊界，已知的時序由 `isDestroyed` 判斷處理） | 改（`isDestroyed` 時序判斷留） |
 | #13 `sync/apply.js:288-299` | 盤點的「§4 探測」被推翻：外部失敗已由 site-client 轉成 `SiteResult`，`catch` 只接 bug | 改〔對齊 2026-10-26：→ `6e63202`（plans/cross-review-2026-10-phase6b4.md 4d）：`sync/apply.js:288-299` 改寫，後 `:292-300`〕 |
-| #14 `sync/site-client.js:121-137` | 盤點的「成立（無聲不是）」被推翻：公告路徑三段都無聲是一致的現況，單加一段會洗版又不一致 | 不改，補理由；公告的常駐痕跡進 future-work |
+| #14 `sync/site-client.js:121-137` | 盤點的「成立（無聲不是）」被推翻：公告路徑三段都無聲是一致的現況，單加一段會洗版又不一致 | 不改，補理由；公告的常駐痕跡進 future-work〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`sync/site-client.js:121-137` 後 `:121-139`〕 |
 
 E5 入帳：#11、#13 改了之後，`main-window.js`、`sync/apply.js` 兩檔裡的 `catch` 都有寫明的邊界；#14 不改，留下一個寫明理由的 `catch`，E5 不受損。
 
@@ -424,10 +430,25 @@ E5 入帳：#11、#13 改了之後，`main-window.js`、`sync/apply.js` 兩檔�
 - **撞到**：比對新區塊與 prettier 時，第一次用 rg 取行號沒抓到、sed 抽出空檔，兩個空檔 diff 回 0——假綠燈。改用 Python 找行號、確認抽到 23 行後再比，才補上兩處折行；補完只動空白，所以只重跑該檔。
 - **沒跑**：打包。
 
+## 4b 施工紀錄（2026-10-26，基準 `3db5b91`，commit `ff177df`；本紀錄在之後的 docs commit 補寫）〔實測〕
+
+**驗收出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「commit，診斷正常，4b 驗收過」。
+**授權出處**：→ §裁決「4b 施工授權」。
+
+- **改動**（numstat +／-）：`main/paths.js` 3／14（拿掉 `getPaths`、`DEFAULT_LAUNCHER_ROOT_DIR`、`INSTANCE_ID` 三個轉出與 require；檔頭改寫成「userData 底下的檔案路徑，目錄結構 → `lib/paths-layout.js`」）；`lib/paths-layout.js` 7／1（舊 `main/paths.js` 檔頭的目錄結構說明原文搬來；沒人用的 `INSTANCE_ID` 匯出拿掉，常數本身照留）；`main/launcher-log.js` 0／4（`computeDebugLoggingEnabled` 的轉出）；`main/settings.js` 4／3、`main/start-main.js` 9／3（改直接載兩個 lib；`launcherVersion` 直接取 `package.json`、加一行註解）；`main/diagnostics-export.js` 10／11（version 直接取；設定與路徑直接取、加一行註解；`:103` 的 `if` 拿掉，該檔在 HEAD 合 prettier，故 `prettier --write`）；`main/sync/site-client.js` 2／0（`fetchLogLines` 的 `catch` 補理由，行為不動）；`ARCHITECTURE.md` 1／1（`main/paths.js` 那列）。合計 8 檔 +36／-37，測試檔 0。
+- **偏離**：目錄結構說明的搬家 plan 沒寫——直接改寫 `main/paths.js` 檔頭會讓這段說明消失（`lib/paths-layout.js` 原本沒有），所以原文搬過去。
+- **修前對照**（#9；`package.json` 暫改、`cmp` 還原）：version 改成 ` 1.0.0`（前面多一個空白），隔離開機照常到 `start_main_done`——錯的版本號被 `.trim()` 無聲修掉。
+- **呼叫者清查**：修後列出所有 `require("./paths")`、`require("./launcher-log")`，沒有人再從這兩檔取那三個名字（`./paths` 只剩 `getGglLogPath`、`getSettingsPath`、`getNotificationsDismissedPath`）。第一版 rg 的正則太複雜、0 命中不能當證據，改成直接列全部載入處逐行看。
+- **修後**：Node 24.14.1 與 22.23.4 都 **1350／1350**。改到的 7 個 js 檔合 prettier；`lint`、`check:ui-css` 一般／strict、`git diff --check` exit 0；conventions 的 commit 前 rg 0 命中。commit 時 pre-commit 通過。測試檔沒改，照 conventions 不跑 freeze。
+- **反向驗證**（暫改、跑完寫回，sha256／`cmp` 相同）：A `settings.js` 改回從 `./paths` 拿 `DEFAULT_LAUNCHER_ROOT_DIR`（已不轉出 ⇒ `undefined`）⇒ 全套 **16 紅**（設定檔建檔、讀寫並行各案）；B 修後 version 帶空白 ⇒ 開機 `start_main_begin` → `start_main_failed`、行程結束；C `start-main` 改回從 `launcher-log` 拿 `computeDebugLoggingEnabled`（已不轉出）⇒ 同樣 `start_main_failed`。
+- **啟動**（同 4a 的隔離方式）：開機到 `start_main_done`，沒有其他事件、沒有 TypeError、沒有殘留行程。
+- **owner GUI**：匯出診斷正常（驗收出處）。
+- **沒跑**：打包。
+
 ## 新發現（盤點外，預設進 future-work，owner 可改）
 
 - **N10** `main/net-fetch.js:265-275` 失敗清理（`reader.cancel`、`file.destroy`、非續傳刪 `.tmp`）沒有測試斷言 `.tmp` 真的被刪〔CC：rg `net-fetch-download.test.cjs` 的 `.tmp` 斷言只有連結與資料夾的案〕。#1 不改它，但它是刪掉 Node 分支之後唯一的清理寫法。〔對齊 2026-10-26：→ `badebe9`（plans/cross-review-2026-10-phase6b4.md 4a）：`main/net-fetch.js:265-275` 未移動〕
-- **N11** `main/diagnostics-export.js:52-55`：`record?.` 合理（沒裝過時記錄是 null），`|| ""` 與 `Array.isArray(record?.files)` 防的是 `record-format` 驗過的值〔CC 讀碼〕。與 #10 同檔，但不在盤點列的行號裡（母體凍結）。
+- **N11** `main/diagnostics-export.js:52-55`：`record?.` 合理（沒裝過時記錄是 null），`|| ""` 與 `Array.isArray(record?.files)` 防的是 `record-format` 驗過的值〔CC 讀碼〕。與 #10 同檔，但不在盤點列的行號裡（母體凍結）。〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`main/diagnostics-export.js:52-55` 未移動〕
 - **N12** `main/sync/index.js:396` `r?.side === "ok"`：`fetchSite(ok 的索引)` 一定回物件〔CC 讀碼〕。
 - **N13** 公告路徑（索引、notice.json、logUrl）的失敗全部無聲（→ #14）：要不要有常駐痕跡、怎麼避免每 30 秒一筆，三段一起裁。
 
