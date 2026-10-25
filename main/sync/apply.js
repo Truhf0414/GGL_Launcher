@@ -284,12 +284,13 @@ async function downloadAll({ plan, record, filesBaseUrl, stagingDir, deps }) {
   }
 }
 
-/** blob 404：站台可能在下載途中發了新版、舊 blob 被清掉 */
+/**
+ * blob 404：站台可能在下載途中發了新版、舊 blob 被清掉。
+ * 重查站台的外部失敗（連不上、格式不對）由 site-client 轉成 null，這裡照原本的 404 往外丟；
+ * fetchReleaseFiles 自己丟出來的只會是內部錯誤，不接、原樣往外傳（→ _notes/plans/cross-review-2026-10-phase6b4.md #13）
+ */
 async function throwIfSiteChanged(deps, record) {
-  let files = null;
-  try {
-    files = await deps.fetchReleaseFiles();
-  } catch {}
+  const files = await deps.fetchReleaseFiles();
   if (files && !sameFiles(files, record.files)) {
     throw new SyncApplyError(
       "GGL_SYNC_SITE_CHANGED",
