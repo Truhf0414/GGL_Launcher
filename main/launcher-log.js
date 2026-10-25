@@ -2,9 +2,6 @@
 // electron 在用到時才 require：測試會載入本檔（見 test/helpers/forbid-electron.cjs）
 const path = require("path");
 const fsp = require("fs/promises");
-const {
-  computeDebugLoggingEnabled,
-} = require("../lib/launcher-debug-logging.js");
 
 let debugLoggingEnabled = false;
 
@@ -97,7 +94,6 @@ function logSyncProgressThrottled(text, progress01) {
 }
 
 module.exports = {
-  computeDebugLoggingEnabled,
   getDebugLoggingEnabled,
   setDebugLoggingEnabled,
   appendLauncherLog,

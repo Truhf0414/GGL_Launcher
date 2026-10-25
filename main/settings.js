@@ -3,11 +3,12 @@
 // 不正規化、不 trim、不夾值：不合法就拒絕並寫出哪裡不對。
 const fsp = require("fs/promises");
 const path = require("path");
-const { getSettingsPath, DEFAULT_LAUNCHER_ROOT_DIR } = require("./paths");
+const { getSettingsPath } = require("./paths");
+const { DEFAULT_LAUNCHER_ROOT_DIR } = require("../lib/paths-layout.js");
+const { setDebugLoggingEnabled } = require("./launcher-log");
 const {
   computeDebugLoggingEnabled,
-  setDebugLoggingEnabled,
-} = require("./launcher-log");
+} = require("../lib/launcher-debug-logging.js");
 const { gglEvent } = require("./ggl-log");
 const {
   writeExclusive,

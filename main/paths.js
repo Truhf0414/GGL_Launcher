@@ -1,17 +1,9 @@
-// 啟動器相對路徑單一來源（userData、安裝根、實例目錄）
+// userData 底下的檔案路徑（settings.json、公告已讀、常駐故障日誌）
 //
-// 目錄結構（預設根 DEFAULT_LAUNCHER_ROOT_DIR）：
-// <root>\group   -> Minecraft 實例（每個實例一個資料夾）
-// <root>\runtime -> 內建 Java（runtime\java-<major>，依 Minecraft 版本要的大版本）
-// <root>\.temp   -> 暫存下載檔/中繼檔（避免下載中斷時破壞實例）
-// 實際根目錄是 settings.launcherRootDir（main/settings.js 驗過才交出來，不另外正規化）。
+// 安裝根、實例目錄、內建 Java 等目錄結構（含說明）的唯一來源是 lib/paths-layout.js（getPaths），
+// 呼叫者直接載它；本檔不再轉出（→ _notes/plans/cross-review-2026-10-phase6b4.md #3）。
 // electron 在用到時才 require：測試會載入本檔（見 test/helpers/forbid-electron.cjs）
 const path = require("path");
-const {
-  DEFAULT_LAUNCHER_ROOT_DIR,
-  INSTANCE_ID,
-  getPaths,
-} = require("../lib/paths-layout.js");
 
 function getSettingsPath() {
   const { app } = require("electron");
@@ -30,9 +22,6 @@ function getGglLogPath() {
 }
 
 module.exports = {
-  DEFAULT_LAUNCHER_ROOT_DIR,
-  INSTANCE_ID,
-  getPaths,
   getSettingsPath,
   getNotificationsDismissedPath,
   getGglLogPath,

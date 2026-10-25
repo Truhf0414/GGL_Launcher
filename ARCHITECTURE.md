@@ -52,7 +52,7 @@ Use this table to find code after splits. **When you add or extract a new `main/
 
 | Module                  | Responsibility                                                                                                                                              |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `main/paths.js`         | `getPaths`, `getSettingsPath`, `INSTANCE_ID`, default install root                                                                                          |
+| `main/paths.js`         | userData file paths: `getSettingsPath`, `getNotificationsDismissedPath`, `getGglLogPath` (install layout, `getPaths`, default root → `lib/paths-layout.js`) |
 | `main/launcher-log.js`  | Debug logging flag, `appendLauncherLog` / RPC diag log, log rotation, sync progress throttling                                                              |
 | `lib/server-config.js` | 換伺服器時要換的值的唯一權威（凍結物件）：`manifestUrl`、`serverStatus`、`microsoftAuth`、`discord`、`launcherRootDir`、`instanceId`、`protectedPaths`；`main/start-main.js` 以單一 `serverConfig` 注入，由 `main/app-ready.js` 拆給各模組。開新伺服器要改的地方見 `docs/new-server-checklist.md` |
 | `main/account-store.js` | `account.json` read/write, safe payload for renderer (strips `mcAccessToken`)                                                                               |
