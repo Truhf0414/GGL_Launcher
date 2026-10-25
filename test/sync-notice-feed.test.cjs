@@ -131,13 +131,21 @@ function setup(over = {}) {
 
 const flush = () => new Promise((r) => setImmediate(r));
 
-test("F1 missing siteClient or onChange ⇒ TypeError naming the key", () => {
-  const base = { siteClient: fakeSiteClient(), onChange: () => {} };
+// serverConfig、log：6b-3b 起必填（M-DI #9；log 取代 R7 的「選填」→ phase6b.md §裁決 6b-3 Q10）
+test("F1 missing siteClient, onChange, serverConfig or log ⇒ TypeError naming the key; log not a function too", () => {
+  const base = {
+    siteClient: fakeSiteClient(),
+    onChange: () => {},
+    serverConfig: { manifestUrl: URL_A },
+    log: () => {},
+  };
   assert.doesNotThrow(() => createNoticeFeed(base));
-  for (const key of ["siteClient", "onChange"]) {
+  for (const key of ["siteClient", "onChange", "serverConfig", "log"]) {
     const absent = { ...base };
     delete absent[key];
-    for (const deps of [absent, { ...base, [key]: undefined }]) {
+    const cases = [absent, { ...base, [key]: undefined }];
+    if (key === "log") cases.push({ ...base, log: "not a function" });
+    for (const deps of cases) {
       assert.throws(
         () => createNoticeFeed(deps),
         (e) => e instanceof TypeError && e.message.includes(key),

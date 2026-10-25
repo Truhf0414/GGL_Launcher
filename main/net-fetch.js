@@ -12,18 +12,28 @@ const { ensureDirForFile, removeLinkAt } = require("./fs-utils");
 // require("undici") 本身就會初始化全域 dispatcher，main 程序其他內建 fetch 的底層可能因此改變（X1b-D3）。
 const downloadAgent = new Agent();
 
-const defaultNetDeps = {
+// 缺了就在開機的 configure 時丟：空函式預設會讓忘了接的重試提示與重試 log 靜默消失
+// （→ _notes/plans/cross-review-2026-10-phase6b.md §6b-3 細部初稿 M-DI #2）
+const REQUIRED_FUNCTIONS = [
   /** 下載 / fetch 重試時給 UI 的提示（例如 sendSyncStatus + sendMcStatus） */
-  onRetryNotify: () => {},
+  "onRetryNotify",
   /** 與 launcher-log 的 appendLauncherLog 相同簽名即可 */
-  appendLauncherLog: async () => {},
-};
+  "appendLauncherLog",
+];
 
-/** @type {typeof defaultNetDeps} */
-let netDeps = { ...defaultNetDeps };
+/**
+ * 沒 configure 就用到 ⇒ TypeError，但會被下面兩個 best-effort 出口與 withRetries 吞掉（P4），
+ * 「一定呼叫且給齊」靠 test/app-ready.test.cjs 釘
+ * @type {null | { onRetryNotify: (text: string) => void, appendLauncherLog: (line: string) => unknown }}
+ */
+let netDeps = null;
 
 function configureNetFetch(next) {
-  netDeps = { ...defaultNetDeps, ...next };
+  for (const key of REQUIRED_FUNCTIONS) {
+    if (typeof next?.[key] !== "function")
+      throw new TypeError(`configureNetFetch: 缺少必填的注入 ${key}`);
+  }
+  netDeps = { ...next };
 }
 
 function notifyRetryToUi(text) {

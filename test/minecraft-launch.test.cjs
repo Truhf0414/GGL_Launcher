@@ -40,6 +40,17 @@ function fakeChild() {
   return c;
 }
 
+/** 案例之間換回的安靜替身；spawn 也換掉，漏 configure 的案例不會啟動真的行程 */
+const QUIET_LAUNCH = {
+  sendMcStatus: () => {},
+  sendMcRunning: () => {},
+  tryStartDiscordRpcHelper: async () => {},
+  log: () => {},
+  spawn: () => {
+    throw new Error("測試沒換掉 spawn");
+  },
+};
+
 /**
  * 裝好實例、改 json（fabric／vanilla 是改法）、跑真的就緒拿成品（閘做的事）。
  * record 只換交給啟動的那份；成品照完整的 RUNTIME 算。
@@ -77,10 +88,20 @@ async function setup(t, { record = { ...RUNTIME }, fabric, vanilla, settings: ov
   };
   t.after(() => {
     for (const c of calls.children) c.emit("exit", 0);
+    configureMinecraftLaunch(QUIET_LAUNCH);
   });
-  /** over＝換掉的 deps；input＝換掉的 launchMinecraft 參數（如 launch） */
-  const launch = (auth, over = {}, input = {}) =>
-    launchMinecraft({ settings, paths, record, launch: bundle, auth, ...input, deps: { ...deps, ...over } });
+  /** over＝換掉的 deps；input＝換掉的 launchMinecraft 參數（如 launch）。依賴只經模組層 configure（6b-3b，M-DI #3） */
+  const launch = (auth, over = {}, input = {}) => {
+    configureMinecraftLaunch({ ...deps, ...over });
+    return launchMinecraft({
+      settings,
+      paths,
+      record,
+      launch: bundle,
+      auth,
+      ...input,
+    });
+  };
   return { paths, calls, launch, bundle };
 }
 
@@ -385,8 +406,6 @@ async function launchWithRealBridge(t, h) {
     io.sent.push({ channel, payload });
   });
   const senders = { sendMcStatus: bridge.sendMcStatus, sendMcRunning: bridge.sendMcRunning };
-  configureMinecraftLaunch(senders);
-  t.after(() => configureMinecraftLaunch({}));
   await h.launch(online, senders);
   assert.equal(h.calls.children.length, 1);
   return { io, errors, child: h.calls.children[0] };
@@ -414,4 +433,71 @@ test("B7 同 B6，但 send 丟錯 ⇒ 仍回 false、只送 1 次、記一筆常
     errors.map((e) => [e[1], e[3].channel]),
     [["renderer_send_failed", "minecraft:running"]],
   );
+});
+
+// ── configure（6b-3b，M-DI #3）：四個函式必填、spawn 留預設（Q6）、只有一條注入路 ──
+
+const MISSING_SHAPES = [
+  ["鍵不存在", (deps, key) => delete deps[key]],
+  ["值為 undefined", (deps, key) => (deps[key] = undefined)],
+  ["不是函式", (deps, key) => (deps[key] = "not a function")],
+];
+
+test("C3b 四個函式都給、沒給 spawn ⇒ 不丟（spawn 的預設是 child_process.spawn，Q6）", () => {
+  const { spawn, ...rest } = QUIET_LAUNCH;
+  void spawn;
+  assert.doesNotThrow(() => configureMinecraftLaunch(rest));
+  configureMinecraftLaunch(QUIET_LAUNCH);
+});
+
+for (const key of [
+  "sendMcStatus",
+  "sendMcRunning",
+  "tryStartDiscordRpcHelper",
+  "log",
+]) {
+  for (const [shape, change] of MISSING_SHAPES) {
+    test(`C3b 缺必填 ${key}（${shape}）⇒ configureMinecraftLaunch 丟 TypeError、訊息含鍵名`, () => {
+      const deps = { ...QUIET_LAUNCH };
+      change(deps, key);
+      assert.throws(
+        () => configureMinecraftLaunch(deps),
+        (e) => e instanceof TypeError && e.message.includes(key),
+      );
+    });
+  }
+}
+
+for (const [shape, change] of MISSING_SHAPES.slice(1)) {
+  test(`C3b spawn ${shape} ⇒ configureMinecraftLaunch 丟 TypeError（蓋掉預設不算沒給）`, () => {
+    const deps = { ...QUIET_LAUNCH };
+    change(deps, "spawn");
+    assert.throws(
+      () => configureMinecraftLaunch(deps),
+      (e) => e instanceof TypeError && e.message.includes("spawn"),
+    );
+  });
+}
+
+test("C3b 只有一條注入路：launchMinecraft 收到的 deps 不採用，spawn 走 configure 的那個", async (t) => {
+  const h = await setup(t);
+  const other = [];
+  const otherSpawn = (...args) => {
+    other.push(args);
+    const c = fakeChild();
+    h.calls.children.push(c);
+    setImmediate(() => c.emit("spawn"));
+    return c;
+  };
+  await h.launch(online, {}, { deps: { spawn: otherSpawn } });
+  assert.equal(other.length, 0, "逐次 deps 的 spawn 不該被叫");
+  assert.equal(h.calls.spawn.length, 1);
+});
+
+test("C3b 同一份 configure：啟動送 running true、清過期行程送 false，都到同一個 sendMcRunning", async (t) => {
+  const h = await setup(t);
+  await h.launch(online);
+  h.calls.children[0].exitCode = 0;
+  assert.equal(isMinecraftRunning(), false);
+  assert.deepEqual(h.calls.running, [true, false]);
 });

@@ -258,6 +258,7 @@ async function hub(t, { installed }) {
     readSettings: async () => settings,
     isMinecraftRunning: async () => false,
     log: () => {},
+    onProgress: () => {}, // 必填（6b-3b，M-DI #8）
     sendInstanceStatus: () => {},
     confirmGameClosed: async () => true,
   });
@@ -669,6 +670,7 @@ test("SF-N5 啟動後 1.2 秒抓第一次，之後每 30 秒重抓：改了 noti
     siteClient: { fetchIndex: async () => {}, fetchNotice: async () => null },
     onChange: () => {},
     serverConfig: { manifestUrl: MANIFEST_URL },
+    log: () => {}, // 必填（6b-3b，Q10）
     timers,
   }).start();
   assert.deepEqual(log, [

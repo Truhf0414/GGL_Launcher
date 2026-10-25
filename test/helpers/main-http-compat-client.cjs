@@ -166,6 +166,7 @@ function h3(results, p) {
         resolve();
       },
       serverStatusUrl: `${base}${p}`,
+      gglError: () => {}, // 必填（6b-3b，M-DI #6）
     });
     startServerStatusPolling();
   });
@@ -234,7 +235,14 @@ async function h4(results) {
 // ── H5：net-fetch 的 fetchJson（真模組，走內建 fetch） ──
 
 async function h5(results) {
-  const { fetchJson } = require(path.join(MAIN, "net-fetch.js"));
+  const { fetchJson, configureNetFetch } = require(
+    path.join(MAIN, "net-fetch.js"),
+  );
+  // 兩個函式必填（6b-3b，M-DI #2）
+  configureNetFetch({
+    onRetryNotify: () => {},
+    appendLauncherLog: async () => {},
+  });
   await run(results, "H5 fetchJson ok", async () => fetchJson(`${base}/h5/ok`));
   await run(results, "H5 fetchJson body is not JSON", async () =>
     fetchJson(`${base}/h5/bad`),

@@ -26,6 +26,13 @@ const {
   withRetries,
 } = require("../main/net-fetch.js");
 
+// 兩個函式必填（6b-3b，M-DI #2）：沒換的案例用這份安靜的；換掉的案例結束時換回它
+const QUIET_NET = {
+  onRetryNotify: () => {},
+  appendLauncherLog: async () => {},
+};
+configureNetFetch(QUIET_NET);
+
 /** p 在 ms 內沒結果 ⇒ 回 "pending"；有結果 ⇒ { ok, value | error } */
 function settleWithin(p, ms) {
   let timer;
@@ -292,8 +299,8 @@ test(
     const target = await tempTarget(t);
     // 重試提示在排上 650 ms 等待的同一段同步程式裡發出：拿它當「等待已排上」的訊號
     let retries = 0;
-    configureNetFetch({ onRetryNotify: () => retries++ });
-    t.after(() => configureNetFetch({}));
+    configureNetFetch({ ...QUIET_NET, onRetryNotify: () => retries++ });
+    t.after(() => configureNetFetch(QUIET_NET));
 
     const p = downloadToFile(srv.url, target, null, { timeoutMs: 200 });
     const w = watch(p);
@@ -327,13 +334,14 @@ test(
     const { sendSyncStatus, sendMcStatus } = bridge;
     let retries = 0;
     configureNetFetch({
+      ...QUIET_NET,
       onRetryNotify: (text) => {
         retries++;
         sendSyncStatus(text);
         sendMcStatus(text);
       },
     });
-    t.after(() => configureNetFetch({}));
+    t.after(() => configureNetFetch(QUIET_NET));
 
     const p = downloadToFile(srv.url, target, null, { timeoutMs: 200 });
     await until(() => srv.requests.length === 1, "第一次請求送達");
@@ -652,6 +660,7 @@ async function linkTarget(t) {
 function captureNetLog(t, fail = null) {
   const lines = [];
   configureNetFetch({
+    ...QUIET_NET,
     appendLauncherLog:
       fail === "throw"
         ? (line) => {
@@ -663,7 +672,7 @@ function captureNetLog(t, fail = null) {
             if (fail === "reject") throw new Error("log down");
           },
   });
-  t.after(() => configureNetFetch({}));
+  t.after(() => configureNetFetch(QUIET_NET));
   return lines;
 }
 

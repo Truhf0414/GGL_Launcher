@@ -59,6 +59,21 @@ function sameFiles(a, b) {
   return b.every((f) => keys.has(keyOf(f)));
 }
 
+// 唯一的正式呼叫者（sync/index.js）每次都給；缺了在進門就丟——清殘檔、建中斷標記、下載之前，什麼都沒動
+// （→ _notes/plans/cross-review-2026-10-phase6b.md §6b-3 細部初稿 M-DI #7）
+const REQUIRED_FUNCTIONS = [
+  "prepareRuntime",
+  "fetchReleaseFiles",
+  "sendSyncProgress",
+];
+
+function assertRequiredDeps(deps) {
+  for (const key of REQUIRED_FUNCTIONS) {
+    if (typeof deps[key] !== "function")
+      throw new TypeError(`applyPlan: 缺少必填的注入 ${key}`);
+  }
+}
+
 /**
  * @param {{
  *   plan: { download: {path,sha256,size}[], remove: string[], removeFirst: string[], rename: {from,to}[] },
@@ -72,18 +87,18 @@ function sameFiles(a, b) {
  * @returns {Promise<{ movedAside: { from: string, to: string }[], record: object }>}  record＝實際寫入的那份
  */
 async function applyPlan({ plan, record, paths, filesBaseUrl, deps: given }) {
+  // IO 與時間：正式不注入、預設就是正式實作，是測試縫（→ _notes/plans/cross-review-2026-10-phase6b.md §裁決 6b-3 Q6）
   const deps = {
     markInProgress: instanceRecord.markInProgress,
     clearInProgress: instanceRecord.clearInProgress,
     writeRecord: instanceRecord.writeRecord,
     download: downloadToFileWithStallGuard,
     hashFile,
-    fetchReleaseFiles: async () => null,
-    sendSyncProgress: () => {},
     now: () => new Date(),
     fsp: defaultFsp,
     ...given,
   };
+  assertRequiredDeps(deps);
   const { fsp } = deps;
   const abs = (rel) => path.join(paths.gameDir, ...rel.split("/"));
   const stagingDir = path.join(paths.tempDir, "sync-staging");

@@ -5,30 +5,30 @@ const { getDebugLoggingEnabled } = require("./launcher-log");
 const { gglEvent, gglError } = require("./ggl-log");
 const { attachRendererFailureLog } = require("./renderer-failure-log");
 
-let appRoot = path.join(__dirname, "..");
+/** @type {string | null} 沒 configure 就建視窗 ⇒ 組路徑時 TypeError */
+let appRoot = null;
 /** @type {string} */
 let appIconPath = "";
 
 /** @type {import("electron").BrowserWindow | null} */
 let mainWindow = null;
 
-/** @type {(minimized: boolean) => void} 由 ipc-bridge 送出並記住（renderer:ready 時重送） */
-let sendWindowPower = () => {};
+/** @type {null | ((minimized: boolean) => void)} 由 ipc-bridge 送出並記住（renderer:ready 時重送） */
+let sendWindowPower = null;
 
 /**
  * 必須在 `createMainWindow` 之前呼叫一次，讓 `getAppIconPath()` 與
  * `preload` / `index.html` 路徑以啟動入口目錄為準（`main.js` 傳 `__dirname`）。
  * `sendWindowPower` 來自 `createIpcBridgeSenders`（`main/ipc-bridge.js`），所以要在它之後呼叫。
+ * 兩個都必填：缺了在開機時丟，不退回空函式或 main/ 的上一層（→ _notes/plans/cross-review-2026-10-phase6b.md §6b-3 細部初稿 M-DI #5）
  */
-function configureMainWindow(deps = {}) {
-  if (typeof deps.sendWindowPower === "function") {
-    sendWindowPower = deps.sendWindowPower;
-  }
-  const root =
-    typeof deps.appRoot === "string" && deps.appRoot.trim()
-      ? path.resolve(deps.appRoot.trim())
-      : path.join(__dirname, "..");
-  appRoot = root;
+function configureMainWindow(deps) {
+  if (typeof deps?.sendWindowPower !== "function")
+    throw new TypeError("configureMainWindow: 缺少必填的注入 sendWindowPower");
+  if (typeof deps.appRoot !== "string" || deps.appRoot === "")
+    throw new TypeError("configureMainWindow: appRoot 必須是非空字串");
+  sendWindowPower = deps.sendWindowPower;
+  appRoot = path.resolve(deps.appRoot);
 
   const ico = path.join(appRoot, "assets", "icon.ico");
   const png = path.join(appRoot, "assets", "icon.png");

@@ -6,7 +6,6 @@ const fsp = require("fs/promises");
 const path = require("path");
 const { spawn } = require("child_process");
 const { ensureWritableTree } = require("./fs-utils");
-const { appendLauncherLog } = require("./launcher-log");
 const { launchIdFor } = require("../lib/runtime-target.js");
 const {
   recordComplete,
@@ -33,19 +32,28 @@ class LaunchError extends Error {
   }
 }
 
-const defaultLaunchDeps = {
-  sendMcStatus: () => {},
-  sendMcRunning: () => {},
-  tryStartDiscordRpcHelper: async () => {},
-  spawn,
-  // 預設就接 launcher log：選填加空函式＝忘了接 argv log 就靜默消失（R#27）
-  log: appendLauncherLog,
-};
+// 缺了就在 configure 時丟：空函式預設＝忘了接的狀態字、執行中旗標、Discord 啟動靜默消失；
+// log 正式一定給（app-ready），改必填擋 R#27 擔心的「忘了接 argv log 就靜默消失」
+// （→ _notes/plans/cross-review-2026-10-phase6b.md §6b-3 細部初稿 M-DI #3）
+const REQUIRED_FUNCTIONS = [
+  "sendMcStatus",
+  "sendMcRunning",
+  "tryStartDiscordRpcHelper",
+  "log",
+  "spawn",
+];
 
-let launchDeps = { ...defaultLaunchDeps };
+/** 沒 configure 就用到 ⇒ 用到那一刻 TypeError */
+let launchDeps = null;
 
 function configureMinecraftLaunch(next) {
-  launchDeps = { ...defaultLaunchDeps, ...next };
+  // spawn 正式不注入、預設就是正式實作：測試縫（→ 同檔 §裁決 6b-3 Q6）；給了 undefined 也算蓋掉
+  const merged = { spawn, ...next };
+  for (const key of REQUIRED_FUNCTIONS) {
+    if (typeof merged[key] !== "function")
+      throw new TypeError(`configureMinecraftLaunch: 缺少必填的注入 ${key}`);
+  }
+  launchDeps = merged;
 }
 
 function sendMcRunning(isRunning) {
@@ -143,17 +151,11 @@ function waitSpawned(p) {
 /**
  * 連點／兩個 IPC 同時啟動由呼叫端的啟動鎖擋（main/sync 的 withLaunchLock）；
  * record、launch 是閘那次計算的那份（④c A1）；launch＝就緒交出的成品，啟動不讀 json、不重算（⑤c P2′）。
- * @param {{ settings: object, paths: object, record: object, launch: object, auth?: object, deps?: object }} input
+ * 依賴只經 configureMinecraftLaunch（一條注入路，6b-3b）。
+ * @param {{ settings: object, paths: object, record: object, launch: object, auth?: object }} input
  */
-async function launchMinecraft({
-  settings,
-  paths,
-  record,
-  launch,
-  auth,
-  deps,
-}) {
-  const d = { ...launchDeps, ...deps };
+async function launchMinecraft({ settings, paths, record, launch, auth }) {
+  const d = launchDeps;
   // 閘已擋過不就緒；這裡只防記錄不完整、沒有成品（第二道）
   if (!recordComplete(record) || launch === null || launch === undefined) {
     throw new LaunchError(

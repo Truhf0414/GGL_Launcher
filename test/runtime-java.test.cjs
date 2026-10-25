@@ -21,6 +21,12 @@ const {
 } = require("./helpers/mock-clock.cjs");
 const { installJava, runJava, DEFAULT_ENDPOINTS } = require("../main/runtime/java.js");
 
+// 下載走 net-fetch：兩個函式必填（6b-3b，M-DI #2），這裡給安靜的
+require("../main/net-fetch.js").configureNetFetch({
+  onRetryNotify: () => {},
+  appendLauncherLog: async () => {},
+});
+
 const HANG_LIMIT_MS = 10_000;
 const sha = (algo, buf) => crypto.createHash(algo).update(buf).digest("hex");
 const exists = (p) => fsp.stat(p).then(() => true, () => false);

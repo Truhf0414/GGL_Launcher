@@ -1,9 +1,9 @@
 const net = require("net");
 
-/** @type {(state: string) => void} */
-let sendServerStatus = () => {};
-/** @type {(scope: string, event: string, err: unknown) => void} 常駐故障日誌（main/ggl-log.js） */
-let gglError;
+/** @type {null | ((state: string) => void)} 沒 configure 就輪詢 ⇒ 用到那一刻 TypeError */
+let sendServerStatus = null;
+/** @type {null | ((scope: string, event: string, err: unknown) => void)} 常駐故障日誌（main/ggl-log.js） */
+let gglError = null;
 let serverStatusHost = "";
 let serverStatusPort = 0;
 let serverStatusUrl = "";
@@ -11,7 +11,15 @@ let serverStatusUrl = "";
 /** @type {ReturnType<typeof setInterval> | null} */
 let pollIntervalId = null;
 
+// 兩個函式缺了就在開機的 configure 時丟：漏接的話 tick 的錯誤沒人記、變成沒人接的 rejection；
+// host／port／url 沒設是合法的「unknown」，不算接線錯（→ _notes/plans/cross-review-2026-10-phase6b.md §6b-3 細部初稿 M-DI #6）
+const REQUIRED_FUNCTIONS = ["sendServerStatus", "gglError"];
+
 function configureServerStatus(deps) {
+  for (const key of REQUIRED_FUNCTIONS) {
+    if (typeof deps?.[key] !== "function")
+      throw new TypeError(`configureServerStatus: 缺少必填的注入 ${key}`);
+  }
   sendServerStatus = deps.sendServerStatus;
   gglError = deps.gglError;
   serverStatusHost = String(deps.serverStatusHost ?? "").trim();

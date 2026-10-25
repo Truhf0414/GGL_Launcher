@@ -30,7 +30,6 @@ const {
   sameRuntimeTarget,
 } = require("../../lib/runtime-target.js");
 const instanceRecord = require("./instance-record.js");
-const { createSiteClient } = require("./site-client.js");
 const { checkGameRunning } = require("./game-running.js");
 const { makeRuntimeProbe } = require("./runtime-probe.js");
 const { removeStaleRuntime } = require("./runtime-cleanup.js");
@@ -73,11 +72,19 @@ const REQUIRED_FUNCTIONS = [
   // 不丟錯：送畫面失敗由 ipc-bridge 的 deliver 接住並記常駐日誌（Q3）；withSyncLock「重算不蓋掉結果」靠它
   "sendInstanceStatus",
   "confirmGameClosed",
+  // 6b-3b（→ _notes/plans/cross-review-2026-10-phase6b.md §6b-3 細部初稿 M-DI #8）：空函式預設＝進度靜默消失
+  "onProgress",
 ];
+// 正式一定給（start-main 與公告共用同一個 site-client、同一個 serverConfig）；只驗有給，不驗形狀
+const REQUIRED_OBJECTS = ["siteClient", "serverConfig"];
 
 function assertRequiredDeps(deps) {
   for (const key of REQUIRED_FUNCTIONS) {
     if (typeof deps?.[key] !== "function")
+      throw new TypeError(`createInstanceSync: 缺少必填的注入 ${key}`);
+  }
+  for (const key of REQUIRED_OBJECTS) {
+    if (deps[key] == null)
       throw new TypeError(`createInstanceSync: 缺少必填的注入 ${key}`);
   }
   try {
@@ -152,13 +159,12 @@ function settingsErrorStatus(err) {
 
 /**
  * @param {object} deps 必填與選填的注入 → _notes/plans/instance-sync-v3-commit3b1b.md §介面
+ *   （該表的 onProgress、siteClient、serverConfig 在 6b-3b 改必填；現行必填以上方 REQUIRED_* 為準）
  */
 function createInstanceSync(deps) {
   assertRequiredDeps(deps);
-  const { launcherVersion } = deps;
-  const serverConfig =
-    deps.serverConfig ?? require("../../lib/server-config.js");
-  const siteClient = deps.siteClient ?? createSiteClient();
+  const { launcherVersion, serverConfig, siteClient, onProgress } = deps;
+  // 以下三個與 cleanupFs、runPowerShell：正式不注入、預設就是正式實作，是測試縫（→ phase6b.md §裁決 6b-3 Q6）
   const applyPlan = deps.applyPlan ?? require("./apply.js").applyPlan;
   const prepareRuntime =
     deps.prepareRuntime ?? require("../runtime/prepare.js").prepareRuntime;
@@ -166,7 +172,6 @@ function createInstanceSync(deps) {
   // 就緒與安裝過濾 library 用同一份，只在這裡組（→ _notes/plans/instance-sync-v3-commit5b.md Q2）
   const runtimeEnv = windowsEnv(os.release());
   const cleanupFs = deps.cleanupFs; // 測試換掉 D2 用的 fs（R#17）；預設＝fs/promises
-  const onProgress = deps.onProgress ?? (() => {});
   const gameDeps = { isMinecraftRunning: deps.isMinecraftRunning };
   if (deps.runPowerShell) gameDeps.runPowerShell = deps.runPowerShell;
 
