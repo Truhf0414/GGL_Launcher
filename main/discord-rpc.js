@@ -2,7 +2,7 @@
 const path = require("path");
 const fsp = require("fs/promises");
 const fs = require("fs");
-const { spawn } = require("child_process");
+const { spawn: childProcessSpawn } = require("child_process");
 const { app } = require("electron");
 const { buildDiscordHelperArgs } = require("../lib/discord-helper-args.js");
 const {
@@ -17,15 +17,22 @@ const {
  * @type {((text: string) => void) | null}
  */
 let sendRpcNotice = null;
+/** @type {((scope: string, event: string, err: unknown) => void) | null} 常駐故障日誌（main/ggl-log.js） */
+let gglError = null;
+/** 正式路徑不注入，預設就是 child_process.spawn；測試換成假的 ChildProcess（6b-3 Q6 核實清單，只批准這一個縫） */
+let spawn = childProcessSpawn;
 /** server-config 的 discord 區塊；未注入時為 null，此時不啟動 helper */
 let discordConfig = null;
 
 function configureDiscordRpc(deps) {
-  // 必要接線缺了在 configure 時丟（6b-3 Q8）；Client ID 沒設是合法未啟用，不在這裡擋
-  if (typeof deps.sendRpcNotice !== "function") {
-    throw new TypeError("configureDiscordRpc: 缺少必填的 sendRpcNotice");
+  // 必要接線缺了、型別不符在 configure 時丟（6b-3 Q8）；Client ID 沒設是合法未啟用，不在這裡擋
+  const next = { spawn: childProcessSpawn, ...deps };
+  for (const key of ["sendRpcNotice", "gglError", "spawn"]) {
+    if (typeof next[key] !== "function") {
+      throw new TypeError(`configureDiscordRpc: ${key} 必須是函式`);
+    }
   }
-  sendRpcNotice = deps.sendRpcNotice;
+  ({ sendRpcNotice, gglError, spawn } = next);
   if (deps.discord && typeof deps.discord === "object") {
     discordConfig = deps.discord;
   }
@@ -86,26 +93,43 @@ async function tryStartDiscordRpcHelper({ mcPid }) {
   // 只在 debug logging 開啟時寫檔（appendRpcDiagLog 自己判斷）；驗收時對這行看按鈕網址
   void appendRpcDiagLog(`argv ${JSON.stringify(args)}`);
 
+  // 同步丟錯與非同步的 error 事件共用一個出口、只報告一次（6b-3 Q12）。helper 起不來不影響遊戲啟動：
+  // 這個函式照樣 resolve。常駐日誌不帶 detail：argv 有 Client ID 與按鈕網址，路徑在錯誤訊息裡（D-LOG-PRIVACY）
+  let reported = false;
+  const reportStartFailed = (e) => {
+    if (reported) return;
+    reported = true;
+    void appendLauncherLog(
+      `DISCORD_RPC start failed: ${String(e?.message ?? e)}`,
+    );
+    void appendRpcDiagLog(`start failed: ${String(e?.message ?? e)}`);
+    gglError("main", "discord_rpc_spawn_failed", e);
+    sendRpcNotice("Discord 狀態啟動失敗（helper 無法啟動）");
+  };
+
+  let p;
   try {
-    const p = spawn(helperExe, args, {
+    p = spawn(helperExe, args, {
       detached: true,
       windowsHide: true,
       stdio: "ignore",
     });
-    p.unref();
+  } catch (e) {
+    reportStartFailed(e);
+    return;
+  }
+  // 常駐 listener：沒人聽的 error 事件會變成 uncaught exception，第二次 error 也要有人接
+  p.on("error", reportStartFailed);
+  // 真的起來才算：拿到 ChildProcess 不代表起得來（起不來時 pid 是 undefined）
+  p.once("spawn", () => {
     void appendLauncherLog(
       `DISCORD_RPC started pid=${p.pid} helper=${helperExe}`,
     );
     void appendRpcDiagLog(
       `started helper pid=${p.pid} mcPid=${pid} helper=${helperExe}`,
     );
-  } catch (e) {
-    void appendLauncherLog(
-      `DISCORD_RPC start failed: ${String(e?.message ?? e)}`,
-    );
-    void appendRpcDiagLog(`start failed: ${String(e?.message ?? e)}`);
-    sendRpcNotice("Discord 狀態啟動失敗（helper 無法啟動）");
-  }
+  });
+  p.unref();
 }
 
 module.exports = {

@@ -159,7 +159,11 @@ async function runMainAppReady(ctx) {
     serverStatusPort: serverConfig.serverStatus.port,
     serverStatusUrl: serverConfig.serverStatus.url,
   });
-  configureDiscordRpc({ sendRpcNotice, discord: serverConfig.discord });
+  configureDiscordRpc({
+    sendRpcNotice,
+    gglError,
+    discord: serverConfig.discord,
+  });
   setupMainIpc();
   startServerStatusPolling();
   startNoticeFeed();
