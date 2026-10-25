@@ -2,14 +2,19 @@
 // main.js should only own Electron app lifecycle; this module does the wiring.
 
 const {
-  computeDebugLoggingEnabled,
   setDebugLoggingEnabled,
   appendLauncherLog,
   rotateLauncherLogIfTooLarge,
   logSyncProgressThrottled,
 } = require("./launcher-log");
+const {
+  computeDebugLoggingEnabled,
+} = require("../lib/launcher-debug-logging.js");
 const { readAccount, writeAccount } = require("./account-store");
-const { getPaths, DEFAULT_LAUNCHER_ROOT_DIR } = require("./paths");
+const {
+  getPaths,
+  DEFAULT_LAUNCHER_ROOT_DIR,
+} = require("../lib/paths-layout.js");
 const {
   initSettingsAtBoot,
   readSettings,
@@ -106,7 +111,8 @@ function createMainAppReadyContext({ app, appRoot }) {
       dialog: require("electron").dialog,
       getMainWindow,
     }),
-    launcherVersion: String(require("../package.json").version || "").trim(),
+    // 同一包出貨的 package.json，不正規化：格式不對由 createInstanceSync 在開機時擋（→ _notes/plans/cross-review-2026-10-phase6b4.md #9）
+    launcherVersion: require("../package.json").version,
     siteClient,
     serverConfig,
     // describeProgress 永不丟錯：進度回呼丟錯會打斷套用

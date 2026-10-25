@@ -132,6 +132,8 @@ function createSiteClient({
       logCache.set(logUrl, { ts: now(), lines });
       return lines;
     } catch {
+      // 吞得掉：網路回應（連不上、逾時）；抓不到就沿用上一次成功的（R6）。不寫常駐日誌：輪詢每 30 秒一次，
+      // 公告路徑的三段失敗都不記，要記三段一起裁（→ _notes/plans/cross-review-2026-10-phase6b4.md #14、N13）
       return fallback;
     }
   }

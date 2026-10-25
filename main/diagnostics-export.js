@@ -71,17 +71,18 @@ async function exportDiagnostics(deps) {
   const report = {
     createdAt: new Date().toISOString(),
     app: {
-      version: String(require("../package.json").version || ""),
+      version: require("../package.json").version,
       execPath: process.execPath,
       platform: process.platform,
       arch: process.arch,
       userData: app.getPath("userData"),
     },
     paths: {
-      launcherRootDir: String(settings?.launcherRootDir || ""),
-      gameDir: String(paths?.gameDir || ""),
-      syncRecordPath: String(paths?.syncRecordPath || ""),
-      tempDir: String(paths?.tempDir || ""),
+      // settings 是 readSettings 驗過的、paths 是 getPaths 組的：都是邊界內的值，直接取（→ _notes/plans/cross-review-2026-10-phase6b4.md #10）
+      launcherRootDir: settings.launcherRootDir,
+      gameDir: paths.gameDir,
+      syncRecordPath: paths.syncRecordPath,
+      tempDir: paths.tempDir,
     },
     syncRecord,
     remote: {
@@ -100,12 +101,10 @@ async function exportDiagnostics(deps) {
   );
 
   // Snapshot a few local files (best-effort)
-  if (paths?.syncRecordPath) {
-    await safeCopyFile(
-      paths.syncRecordPath,
-      path.join(outDir, "sync-record.json"),
-    );
-  }
+  await safeCopyFile(
+    paths.syncRecordPath,
+    path.join(outDir, "sync-record.json"),
+  );
 
   // settings.json 經 main/settings.js 的序列化區段複製（D-SET-SERIAL：複製開著來源時會擋住替換）
   try {
