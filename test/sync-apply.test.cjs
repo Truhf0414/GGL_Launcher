@@ -1159,8 +1159,10 @@ test("D7 runtime 深層 junction 經 applyPlan 被拒 ⇒ IPC 之後仍是 game 
 test("T-A1 N6: staging <sha>.part is a junction ⇒ the first update succeeds, outside untouched, the removal is logged", { skip: !onWindows, timeout: HANG_LIMIT_MS }, async (t) => {
   const ctx = await setup(t);
   const netLogs = [];
-  configureNetFetch({ appendLauncherLog: async (l) => netLogs.push(l) });
-  t.after(() => configureNetFetch({}));
+  // 兩個函式必填（6b-3b，M-DI #2）：結束時換回一份安靜的
+  const quiet = { onRetryNotify: () => {}, appendLauncherLog: async () => {} };
+  configureNetFetch({ ...quiet, appendLauncherLog: async (l) => netLogs.push(l) });
+  t.after(() => configureNetFetch(quiet));
   const staged = path.join(stagingDir(ctx.paths), sha(A));
   const outside = await linkAt(ctx, `${staged}.part`);
   const before = await snapshot(outside);
@@ -1196,3 +1198,58 @@ test("T-A2 N6: sync-in-progress and sync-record.json.tmp are file symlinks ⇒ u
     `SYNC_RECORD_TMP_LINK_REMOVED ${ctx.paths.syncRecordPath}.tmp`,
   ]);
 });
+
+// ── 必填（6b-3b，M-DI #7）：進門就驗，缺了什麼都不動——不清殘檔、不建中斷標記、不下載、不刪檔、不寫記錄 ──
+
+const MISSING_SHAPES = [
+  ["鍵不存在", (d, key) => delete d[key]],
+  ["值為 undefined", (d, key) => (d[key] = undefined)],
+  ["不是函式", (d, key) => (d[key] = "not a function")],
+];
+
+for (const key of ["prepareRuntime", "fetchReleaseFiles", "sendSyncProgress"]) {
+  for (const [shape, change] of MISSING_SHAPES) {
+    test(`C3b 缺必填 ${key}（${shape}）⇒ TypeError、訊息含鍵名，檔案系統與網路都沒被碰`, async (t) => {
+      const ctx = await setup(t);
+      await put(ctx.paths, "mods/old.jar", "x");
+      const leftover = path.join(stagingDir(ctx.paths), "leftover.part");
+      await fsp.mkdir(stagingDir(ctx.paths), { recursive: true });
+      await fsp.writeFile(leftover, "left");
+      const next = [entry("mods/a.jar", A)];
+      const p = await plan(ctx.paths, {
+        previous: [{ path: "mods/old.jar", sha256: "1".repeat(64) }],
+        next,
+      });
+      assert.ok(
+        p.download.length > 0 && p.remove.length > 0,
+        "計畫要有下載與刪除，才看得出沒動",
+      );
+      const d = deps();
+      change(d, key);
+      await assert.rejects(
+        applyPlan({
+          plan: p,
+          record: recordFor(next),
+          paths: ctx.paths,
+          filesBaseUrl: ctx.filesBaseUrl,
+          deps: d,
+        }),
+        (e) => e instanceof TypeError && e.message.includes(key),
+      );
+      assert.equal(await isInProgress(ctx.paths), false, "中斷標記");
+      assert.equal(await readRecord(ctx.paths), null, "記錄");
+      assert.equal(ctx.srv.requests.length, 0, "下載請求");
+      assert.equal(
+        String(await read(ctx.paths, "mods/old.jar")),
+        "x",
+        "要刪的檔",
+      );
+      assert.equal(
+        String(await fsp.readFile(leftover)),
+        "left",
+        "staging 殘檔",
+      );
+      assert.deepEqual(d.progress, [], "進度");
+    });
+  }
+}

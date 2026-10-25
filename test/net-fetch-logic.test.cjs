@@ -69,3 +69,34 @@ test("withRetries: stops on non-retryable", async () => {
     /HTTP 404/,
   );
 });
+
+// ── configure（6b-3b，M-DI #2）：兩個函式必填，漏接在開機的 configure 就丟 ──
+
+const { configureNetFetch } = require("../main/net-fetch.js");
+
+const QUIET_NET = {
+  onRetryNotify: () => {},
+  appendLauncherLog: async () => {},
+};
+const MISSING_SHAPES = [
+  ["鍵不存在", (deps, key) => delete deps[key]],
+  ["值為 undefined", (deps, key) => (deps[key] = undefined)],
+  ["不是函式", (deps, key) => (deps[key] = "not a function")],
+];
+
+test("C3b 兩個都給 ⇒ configureNetFetch 不丟（對照列）", () => {
+  assert.doesNotThrow(() => configureNetFetch(QUIET_NET));
+});
+
+for (const key of ["onRetryNotify", "appendLauncherLog"]) {
+  for (const [shape, change] of MISSING_SHAPES) {
+    test(`C3b 缺必填 ${key}（${shape}）⇒ configureNetFetch 丟 TypeError、訊息含鍵名`, () => {
+      const deps = { ...QUIET_NET };
+      change(deps, key);
+      assert.throws(
+        () => configureNetFetch(deps),
+        (e) => e instanceof TypeError && e.message.includes(key),
+      );
+    });
+  }
+}

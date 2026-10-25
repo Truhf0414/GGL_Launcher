@@ -510,6 +510,7 @@ async function setupRealHub(t, ipcDepsOverrides = {}) {
     readSettings: async () => settings,
     isMinecraftRunning: () => false,
     log: () => {},
+    onProgress: () => {}, // 必填（6b-3b，M-DI #8）
     sendInstanceStatus: () => {},
     confirmGameClosed: async () => false,
     launcherVersion: "1.0.0",

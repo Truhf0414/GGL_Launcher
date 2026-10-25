@@ -19,24 +19,30 @@ const FIRST_DELAY_MS = 1_200;
  * @param {{
  *   siteClient: { fetchIndex: Function, fetchNotice: Function },
  *   onChange: (snapshot: { notice: object | null, notifications: object[] }) => void,
- *   serverConfig?: { manifestUrl: string },
- *   log?: (err: unknown) => void,
+ *   serverConfig: { manifestUrl: string },
+ *   log: (err: unknown) => void,
  *   pollMs?: number, firstDelayMs?: number,
  *   timers?: { setTimeout: Function, clearTimeout: Function, setInterval: Function, clearInterval: Function },
  *   now?: () => number,
  * }} deps
+ * serverConfig、log 6b-3b 起必填：正式一定給；log 是程式錯誤唯一的出口，取代 R7 的「選填」
+ * （→ _notes/plans/cross-review-2026-10-phase6b.md §裁決 6b-3 Q10、§6b-3 細部初稿 M-DI #9）。
+ * 計時器、時間、輪詢間隔：正式不注入、預設就是正式實作，是測試縫（同檔 §裁決 6b-3 Q6）
  */
 function createNoticeFeed(deps) {
-  for (const key of ["siteClient", "onChange"]) {
+  for (const key of ["siteClient", "onChange", "serverConfig"]) {
     if (deps?.[key] == null) {
       throw new TypeError(`createNoticeFeed: 缺少必填的 ${key}`);
     }
   }
+  if (typeof deps.log !== "function") {
+    throw new TypeError("createNoticeFeed: 缺少必填的 log");
+  }
   const {
     siteClient,
     onChange,
-    serverConfig = require("../../lib/server-config.js"),
-    log = () => {},
+    serverConfig,
+    log,
     pollMs = POLL_MS,
     firstDelayMs = FIRST_DELAY_MS,
     timers = { setTimeout, clearTimeout, setInterval, clearInterval },

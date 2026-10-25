@@ -27,6 +27,12 @@ const {
 } = require("../main/runtime/minecraft.js");
 const { createSourceHealth } = require("../main/runtime/download.js");
 
+// 下載走 net-fetch：兩個函式必填（6b-3b，M-DI #2），這裡給安靜的
+require("../main/net-fetch.js").configureNetFetch({
+  onRetryNotify: () => {},
+  appendLauncherLog: async () => {},
+});
+
 const HANG_LIMIT_MS = 10_000;
 const STALL = { windowMs: 300, minBytes: 1 };
 const DEADLINE_MS = 300;

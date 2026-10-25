@@ -17,20 +17,30 @@ const {
  * 四段各自預設 25s，最壞相加約 100s；抓一點餘裕設 110s，不是四段之一額外再等。 */
 const REFRESH_CHAIN_DEADLINE_MS = 110_000;
 
-const defaultDeps = {
+// 值型可以沒設（登入時才報「尚未設定」）；正規化屬 U4，本檔不動
+const defaultValues = {
   msClientId: "",
   loopbackPort: 0,
-  getMainWindow: () => null,
-  getAppIconPath: () => "",
-  sendSyncStatus: () => {},
-  sendSyncDone: () => {},
 };
 
-/** @type {typeof defaultDeps} */
-let deps = { ...defaultDeps };
+// 缺了就在 configure 時丟：空函式預設會讓忘了接的狀態字、「登入完成」、視窗 parent 靜默消失
+// （→ _notes/plans/cross-review-2026-10-phase6b.md §6b-3 細部初稿 M-DI #1）
+const REQUIRED_FUNCTIONS = [
+  "getMainWindow",
+  "getAppIconPath",
+  "sendSyncStatus",
+  "sendSyncDone",
+];
+
+/** 沒 configure 就用到 ⇒ 用到那一刻 TypeError */
+let deps = null;
 
 function configureMicrosoftAuth(next) {
-  deps = { ...defaultDeps, ...next };
+  for (const key of REQUIRED_FUNCTIONS) {
+    if (typeof next?.[key] !== "function")
+      throw new TypeError(`configureMicrosoftAuth: 缺少必填的注入 ${key}`);
+  }
+  deps = { ...defaultValues, ...next };
 }
 
 /** OAuth / XBL / Minecraft services：避免無 timeout 的 fetch 永遠掛住 */

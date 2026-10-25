@@ -11,7 +11,15 @@ const {
 } = require("../main/microsoft-auth.js");
 const { ACCOUNT_STATE, REFRESH_OUTCOME } = require("../lib/account-secret.js");
 
-configureMicrosoftAuth({ msClientId: "test-client-id" });
+// 四個函式必填（→ _notes/plans/cross-review-2026-10-phase6b.md §6b-3 細部初稿 M-DI #1）；換新鏈只用到 msClientId
+const QUIET_DEPS = {
+  msClientId: "test-client-id",
+  getMainWindow: () => null,
+  getAppIconPath: () => "",
+  sendSyncStatus: () => {},
+  sendSyncDone: () => {},
+};
+configureMicrosoftAuth(QUIET_DEPS);
 
 function jsonResponse(status, body) {
   return {
@@ -199,4 +207,38 @@ test("沒有 refresh token 可用：直接歸類 invalid_grant，不打任何網
   const result = await refreshMicrosoftAndMinecraftTokens(acct);
   assert.equal(result.outcome, REFRESH_OUTCOME.INVALID_GRANT);
   assert.equal(fetchMock.calls.length, 0);
+});
+
+// ── configure（6b-3b，M-DI #1）：丟錯時不換掉已設定的那份，後面的案例照樣用 QUIET_DEPS ──
+
+const REQUIRED_FUNCTIONS = [
+  "getMainWindow",
+  "getAppIconPath",
+  "sendSyncStatus",
+  "sendSyncDone",
+];
+const MISSING_SHAPES = [
+  ["鍵不存在", (deps, key) => delete deps[key]],
+  ["值為 undefined", (deps, key) => (deps[key] = undefined)],
+  ["不是函式", (deps, key) => (deps[key] = "not a function")],
+];
+
+for (const key of REQUIRED_FUNCTIONS) {
+  for (const [shape, change] of MISSING_SHAPES) {
+    test(`C3b 缺必填 ${key}（${shape}）⇒ configureMicrosoftAuth 丟 TypeError、訊息含鍵名`, () => {
+      const deps = { ...QUIET_DEPS };
+      change(deps, key);
+      assert.throws(
+        () => configureMicrosoftAuth(deps),
+        (e) => e instanceof TypeError && e.message.includes(key),
+      );
+    });
+  }
+}
+
+test("C3b 沒給 msClientId、loopbackPort ⇒ 照收（合法未設定，登入時才報；值型不在本批）", () => {
+  const { msClientId, ...deps } = QUIET_DEPS;
+  void msClientId;
+  assert.doesNotThrow(() => configureMicrosoftAuth(deps));
+  configureMicrosoftAuth(QUIET_DEPS);
 });

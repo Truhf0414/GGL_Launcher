@@ -260,6 +260,7 @@ async function setup(
       return realApplyPlan(input);
     },
     runPowerShell: async () => ({ code: 0, stdout: "" }),
+    onProgress: () => {}, // 必填（6b-3b，M-DI #8）；要看進度的案例用 depsOver 換掉
     ...depsOver,
   };
   if (installed) await install(paths, installed);
@@ -598,13 +599,20 @@ test("N18 Status 恰好是規定的那些鍵（沒有 notice）、版本與 gate
 
 // ── 建立 ──
 
-const REQUIRED_KEYS = [
+// onProgress、siteClient、serverConfig：6b-3b 起必填（M-DI #8）；兩個物件只驗有給（不驗形狀）
+const REQUIRED_FUNCTIONS = [
   "readSettings",
   "isMinecraftRunning",
   "log",
   "sendInstanceStatus",
   "confirmGameClosed",
+  "onProgress",
+];
+const REQUIRED_KEYS = [
+  ...REQUIRED_FUNCTIONS,
   "launcherVersion",
+  "siteClient",
+  "serverConfig",
 ];
 const minimalDeps = () => ({
   readSettings: async () => ({}),
@@ -612,19 +620,25 @@ const minimalDeps = () => ({
   log: () => {},
   sendInstanceStatus: () => {},
   confirmGameClosed: async () => false,
+  onProgress: () => {},
   launcherVersion: "1.0.0",
+  siteClient: {},
+  serverConfig: {},
 });
 
-test("N21 六個都給 ⇒ 不丟（對照列）", () => {
+test("N21 必填都給 ⇒ 不丟（對照列）", () => {
   assert.doesNotThrow(() => createInstanceSync(minimalDeps()));
 });
 
 for (const key of REQUIRED_KEYS) {
-  for (const shape of ["鍵不存在", "值為 undefined"]) {
+  const shapes = ["鍵不存在", "值為 undefined"];
+  if (REQUIRED_FUNCTIONS.includes(key)) shapes.push("不是函式");
+  for (const shape of shapes) {
     test(`N21 缺必填注入 ${key}（${shape}）⇒ TypeError、訊息含鍵名`, () => {
       const deps = minimalDeps();
       if (shape === "鍵不存在") delete deps[key];
-      else deps[key] = undefined;
+      else if (shape === "值為 undefined") deps[key] = undefined;
+      else deps[key] = "not a function";
       assert.throws(
         () => createInstanceSync(deps),
         (e) => e instanceof TypeError && e.message.includes(key),
