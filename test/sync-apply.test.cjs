@@ -354,6 +354,30 @@ test("404 and the release is unchanged ⇒ the original 404 error, not SITE_CHAN
   );
 });
 
+// 重查站台的外部失敗由 site-client 轉成回傳值、不會丟；丟出來的只會是內部錯誤，要原樣往外傳、不能被 404 蓋掉
+// （→ _notes/plans/cross-review-2026-10-phase6b4.md #13）
+test("404 and fetchReleaseFiles itself throws ⇒ that error propagates as-is, not the 404, not SITE_CHANGED", async (t) => {
+  const ctx = await setup(t);
+  const ghost = { path: "mods/ghost.jar", sha256: "f".repeat(64), size: 3 };
+  const bug = Object.assign(new Error("FETCH_RELEASE_BUG"), {
+    code: "TEST_BUG",
+  });
+  await assert.rejects(
+    run(ctx, {
+      next: [ghost],
+      depsOverride: {
+        fetchReleaseFiles: async () => {
+          throw bug;
+        },
+      },
+    }),
+    (e) =>
+      e === bug &&
+      !/HTTP 404/.test(e.message) &&
+      e.code !== "GGL_SYNC_SITE_CHANGED",
+  );
+});
+
 for (const [label, wrong] of [
   ["same length", Buffer.from("X".repeat(A.length))],
   ["shorter", Buffer.from("short")],
