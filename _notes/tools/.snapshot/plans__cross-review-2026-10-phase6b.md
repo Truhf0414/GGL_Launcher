@@ -1,4 +1,4 @@
-# Phase 6b — IPC／DI 組＋其他 main 組：細部 plan（狀態：**2026-10-25 初稿；同日 owner 裁 Q3 產品語意（→ §裁決），依此修訂為二稿；同日 ChatGPT 審二稿（→ §審查），修訂為三稿；同日 owner 裁 6b-1 實作方案並授權 6b-1 施工與一個 commit（→ §裁決）；同日 6b-1 施工，commit `48452a9`，經 owner 驗收放行（→ §6b-1 施工紀錄）；同日 owner 裁 Q1（修正版 B）並授權 6b-2 施工與一個 commit（→ §裁決）；同日 6b-2 施工，commit `4362d28`，經 owner 驗收放行（→ §6b-2 施工紀錄）；Q4、Q6、Q7 未裁；6b-3、6b-4 未授權**）
+# Phase 6b — IPC／DI 組＋其他 main 組：細部 plan（狀態：**2026-10-25 初稿；同日 owner 裁 Q3 產品語意（→ §裁決），依此修訂為二稿；同日 ChatGPT 審二稿（→ §審查），修訂為三稿；同日 owner 裁 6b-1 實作方案並授權 6b-1 施工與一個 commit（→ §裁決）；同日 6b-1 施工，commit `48452a9`，經 owner 驗收放行（→ §6b-1 施工紀錄）；同日 owner 裁 Q1（修正版 B）並授權 6b-2 施工與一個 commit（→ §裁決）；同日 6b-2 施工，commit `4362d28`，經 owner 驗收放行（→ §6b-2 施工紀錄）；同日 6b-3 細部初稿，經 ChatGPT 審查修訂為二稿（→ §6b-3 細部初稿）；同日 owner 裁 Q6、Q8、Q10、Q12、O1（→ §裁決 6b-3）；Q4、Q7 未裁；6b-3a、N8、6b-3b、6b-4 未授權施工**）
 
 上層＝`plans/cross-review-2026-10.md` §8 Phase 6（範圍、不做、不變量、驗收下限、回滾；6b 的切法在同節子 Phase 表）；候選的定義＝`plans/defense-cleanup.md` §清理清單 main/ 表；改／留判準＝`plans/cross-review-2026-10-phase6-criteria.md`（本檔不重述；§判例 3 是 M-LAUNCH／M-SEND 的起點）；U15 的裁決本體＝上層 §4.2 U15。
 
@@ -48,6 +48,24 @@
 **驗收要求**（同一出處）：「正式啟動只有一個呼叫點」的讀碼證據與「重複註冊會明確失敗」的動態測試分開列；後者可用最小假 `ipcMain`，不新增執行期註冊管理器。先驗修前基準，再驗施工後正式路徑、IPC 索引、完整回歸與 Electron 啟動。出現新的依賴循環、重複註冊、錯誤包裝遺失，或必須新增另一層組裝抽象 ⇒ 停止回報。
 
 **授權**：6b-2 施工與**一個**可獨立 revert 的 commit；完成後交 ChatGPT 與 owner 驗收，文件收尾另行處理。**不授權** push、6b-3／6b-4、盤點外清理。
+
+### 6b-3 裁決（2026-10-25）
+
+**出處**：〔轉述〕owner 2026-10-25 在與 CC 的對話中先貼入「GGL_Launcher — Phase 6b-3 Owner 裁決回填」（以 §6b-3 細部初稿 二稿為基礎）；CC 回覆兩項反駁（N8 的 `spawn` 縫撞 Q6「新增預設須重新舉證」；Q10 的正式 logger 在 debug 關閉時不寫）後，owner 貼入「6b-3 裁決回填 — CC 反駁處置」：「兩項反駁均接受」，並補 Q12 實作細節。下表合併兩份；後者是補充與勘誤，前者的裁決繼續有效。
+
+| # | 裁決 | 範圍與限制 |
+|---|---|---|
+| Q6 | **A，保留**：§Q6 範圍表逐項核實的「正式路徑不注入、預設為正式實作、選用預設時沒有外部副作用」依賴，保留為測試替身的注入點。理由：不把錯誤偽裝成成功；正式實作的選擇留在擁有該責任的模組；強制搬到組裝根不一定增加保證，還可能減少現有測試對正式實作選擇的覆蓋；不為形式上的 DI 一致性增加無收益的接線 | 只適用已核實清單（含後補的 `discord-rpc` 的 `spawn`，只批准這一個縫，不擴張成通用豁免）；未來新增預設須重新舉證；正式路徑有注入的依賴不適用；`cleanupFs`、`runPowerShell` 是測試覆寫／向下傳遞的入口，保留其實際責任描述，不硬歸為一般 `??` 預設；保留「測試漏注入可能誤用真實 IO／網路」的已知風險，不宣稱已排除。針對現有契約，不新增通用 DI 規範、不要求改 conventions |
+| Q8 | **A**：內部必要依賴漏接或型別不符，在建立或 configure 時明確報錯；正式啟動時沿既有 `start_main_failed`＋錯誤框報告，不以空函式、合法未設定或靜默停用掩蓋 | 不算接線錯誤：Discord Client ID 沒設定（合法未啟用）；RPC helper 不存在或啟動失敗（不阻止 Launcher／Minecraft 啟動）；server-status 網址合法未設定；Q6 已准的預設被省略。Q8 不是 Q6 的 fallback：Q6 決定哪些可合法省略，Q8 決定必要接線出錯怎麼報 |
+| Q10 | **A，改必填**：owner 修訂 R7（`plans/instance-sync-v3-commit3b2.md:26`，2026-10-06）的「log 選填」介面契約——`notice-feed` 的 `log(err)` 改為必要依賴，建立時驗證。本裁決**取代 R7 的「選填」部分**，R7 其餘照舊 | 只保證建立時必要 logger 已接入，**不保證錯誤進常駐日誌**：正式 logger 是 `appendLauncherLog`，debug 關閉時不寫（`main/launcher-log.js:24-25`）。R7「程式錯誤應留下紀錄」與 debug-only 出口之間的落差列為未結問題（→ §6b-3 細部初稿 §未驗 U-11）；不藉此授權改 N9 或新增 `gglError` 接線。保留：抓取失敗沿用既有公告、A8 的錯誤處理語意、`safeLog` 的 best-effort 契約 |
+| Q12 | **N8 納入 Phase 6b-3，施工另行授權**。核准方案：(1) helper 的 ChildProcess 掛**常駐** `error` listener＋一次性報告旗標（第二次 error 不變成未處理事件）；(2) 同步與非同步啟動失敗共用同一個失敗報告出口；(3) `started` 只在收到 `spawn` 事件後記錄；(4) 失敗新增常駐事件 `gglError` `discord_rpc_spawn_failed`；(5) 常駐事件不帶 argv、token、Client ID、helper 路徑等 detail，遵守 D-LOG-FIELDS、D-LOG-PRIVACY；施工時另查 console 的原始錯誤訊息含什麼，不新增通用脫敏框架；(6) helper 失敗不改變 Minecraft 啟動結果；(7) 不新增通用 ChildProcess manager、重試或第二個錯誤隔離層。測試縫：`configureDiscordRpc` 收選填 `spawn`、預設 `child_process.spawn`，並驗證最終的 `spawn` 是函式 | 在 6b-3a 之後獨立一個施工 commit，可單獨 revert。測試用受控的假 ChildProcess：非同步失敗被處理、只報告一次、沒有假的 `started` 記錄、不實際啟動 `rpc-helper.exe` |
+| O1 | **接受**二稿 O1 的取捨：`MAIN_APP_READY_KEYS`、`app-ready` 的解構、`start-main` 的回傳物件仍各自明確列出欄位；加實際 App Ready 接線測試，已覆蓋的消費端漂移由測試發現，生產端缺欄位由啟動斷言發現 | 不是字面上的零重複宣告，也不宣稱任意鍵名漂移都會被發現。保留理由：明確可讀的輸入／輸出、可獨立測試的 `runMainAppReady`，比動態映射或合併模組更符合目前的成本效益。日後有實際維護錯誤，可依新證據重新挑戰 |
+| Q9 | 撤回（P4：移除 N6 的 `catch` 不能讓漏接錯誤浮出）；N6 維持 Q5 的 future-work | — |
+| Q11 | 維持 A11／D3：`game-closed-dialog` 的 `getMainWindow` 繼續選填，不修改 | — |
+
+**仍未裁**：Q4、Q7，不提前處理。
+**施工順序（同意的方向，未授權）**：6b-3a（M-OTHER 接線測試＋Discord RPC 經 bridge）→ N8（獨立 commit）→ 6b-3b（M-DI 必要依賴與單一注入契約，保留 Q6 已准的預設）。
+**授權**：本輪只授權文件回填。三批都**未獲施工授權**；Q6／Q8／Q10／Q12 已裁不等於可以開始改程式或建立施工 commit。
 
 ## 審查（2026-10-25，ChatGPT，二稿）
 
@@ -155,9 +173,9 @@ main 沒有任何 `process.on(...)`〔CC：rg `process\.on\(` main.js、main/、
 | M-SEND | 見 §M-SEND／M-LAUNCH 的責任 七處 | — | 成立；依 Q3 收斂成一個有常駐出口的隔離點 | W19、N24 三案 | **6b-1** | CC 讀碼＋實測 |
 | M-LAUNCH | `minecraft-launch.js:68-101` | 同上 | 外層死碼、內層同 M-SEND | 無 | **6b-1** | CC 讀碼〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`minecraft-launch.js:68-101` 改寫（後 `:69-91`）〕 |
 | M-WIN | `ipc-bridge.js:20,39,49,57,62-64,68`；`ipc/window-ipc.js:6,9`；`ipc/dialog-ipc.js:10`；`ui-dialogs.js:4,6`；`game-closed-dialog.js:30-32`；`microsoft-auth.js:536-550`；`main-window.js:111` | 五種寫法並存：`getMainWindow?.()`、方法上的 `?.()`、`typeof isDestroyed === "function"`、只看 `win.isDestroyed()`、什麼都不看 | 成立的部分：getter 上的 `?.()`、`typeof isDestroyed === "function"`、方法上的 `?.()`（防內部函式）。**不成立的部分**：「視窗存在且沒銷毀才掛上去」是既有契約 A11（`plans/instance-sync-v3-commit3b2a.md:46`，明文引用 `ui-dialogs.js:6-10` 為同一條規則），D3（`test/game-closed-dialog.test.cjs:55-`）以 destroyed 假視窗釘住——留（留-1：時序） | `test/ipc-bridge.test.cjs:42`、D3 | **6b-1** | CC 讀碼〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`ipc-bridge.js:20,39,49,57,62-64,68` 改寫（全部改呼叫 `send`，在 `:41,58,68,73,78,82`）；`ipc/window-ipc.js:6,9` 改寫，後 `:6,8`；`ipc/dialog-ipc.js:10`、`ui-dialogs.js:4,6` 原地改寫；`game-closed-dialog.js:30-32` 後 `:30-31`；`microsoft-auth.js:536-550` 後 `:536-546`；`main-window.js:111` 改寫，後 `:113`；`ui-dialogs.js:6-10` 未移動（`:6` 原地改寫）；`test/ipc-bridge.test.cjs:42` 改寫，後 `:47-48`；`test/game-closed-dialog.test.cjs`、`instance-sync-v3-commit3b2a.md` 不在本 commit〕〔對齊 2026-10-25：→ `4362d28`（plans/cross-review-2026-10-phase6b.md 6b-2）：`ipc/dialog-ipc.js:10` 後 `:9`；`ipc/window-ipc.js:6,8`（上次對齊）、`microsoft-auth.js:536-546`（上次對齊）、`main-window.js:113`（上次對齊）未移動；其他行號指的檔不在本 commit〕 |
-| M-DI | `microsoft-auth.js:20-34`、`net-fetch.js:15-27`、`minecraft-launch.js:36-49`（＋`:166` 第二條注入路）、`discord-rpc.js:16-27,50-53`、`main-window.js:8,16,23-31`、`server-status.js:4,12-19`、`sync/apply.js:81-82`、`sync/index.js:158-168`、`sync/notice-feed.js:38-39`；`game-closed-dialog.js:26` | configure＋空函式／預設依賴 | 成立；`sync/index.js:161-164` 是「正式也走的真實作預設＋測試縫」，算不算違規待裁（Q6）；`server-status` 的空字串 URL 是合法的「沒設定」 | **依賴預設值的測試**：net-fetch 系 6 檔不呼叫 configure、`server-status-config.test.cjs` 4 案、`sync-index.test.cjs:607-614` minimalDeps、`sync-notice-feed.test.cjs:135`、`microsoft-auth-refresh.test.cjs:14`、`game-closed-dialog.test.cjs:44,51` | 6b-3 | 子 agent（抽查 `:161-164`、`:166`）〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`minecraft-launch.js:36-49` 未移動、`:166` 後 `:156`；`main-window.js:8,16,23-31`、`microsoft-auth.js:20-34`、`game-closed-dialog.js:26` 未移動；`server-status.js:4` 未移動、`:12-19` 後 `:14-22`（多一行 `gglError`）；`sync/index.js:158-168` 後 `:159-169`、`:161-164` 後 `:162-165`；`sync-index.test.cjs:607-614` 後 `:609-616`；來源欄的「抽查 `:161-164`、`:166`」同上；其他行號指的檔不在本 commit〕〔對齊 2026-10-25：→ `4362d28`（plans/cross-review-2026-10-phase6b.md 6b-2）：`microsoft-auth.js:20-34`、`main-window.js:8,16,23-31` 未移動；`sync/index.js` 與其他行號指的檔不在本 commit〕 |
-| M-OTHER | `app-ready.js:11-38`、`:79-106`、`start-main.js:170-197` 鍵名三遍；`app-ready.js:3,10` 與 `ARCHITECTURE.md:88` 指向不存在的 `getMainAppReadyContext` | — | 成立 | 無（`runMainAppReady` 沒有測試） | 6b-3 | 子 agent〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`app-ready.js:3,10`、`:11-38`、`:79-106` 未移動；`start-main.js`、`ARCHITECTURE.md` 不在本 commit〕〔對齊 2026-10-25：→ `4362d28`（plans/cross-review-2026-10-phase6b.md 6b-2）：`start-main.js:170-197` 後 `:188-215`；`ARCHITECTURE.md:88` 後 `:87`；`app-ready.js` 不在本 commit〕 |
-| M-OTHER | `discord-rpc.js:31` 寫死 `"rpc:notice"`、繞過 bridge | `IPC.on.RPC_NOTICE` 已存在（`lib/ipc-channels.js:57`） | 成立 | 無 | 6b-3 | 子 agent（CC 抽查 rg） |
+| M-DI | `microsoft-auth.js:20-34`、`net-fetch.js:15-27`、`minecraft-launch.js:36-49`（＋`:166` 第二條注入路）、`discord-rpc.js:16-27,50-53`、`main-window.js:8,16,23-31`、`server-status.js:4,12-19`、`sync/apply.js:81-82`、`sync/index.js:158-168`、`sync/notice-feed.js:38-39`；`game-closed-dialog.js:26` | configure＋空函式／預設依賴 | 〔2026-10-25 現讀重分 → §6b-3 細部初稿〕成立；`sync/index.js:161-164` 是「正式也走的真實作預設＋測試縫」，算不算違規待裁（Q6）；`server-status` 的空字串 URL 是合法的「沒設定」 | **依賴預設值的測試**：net-fetch 系 6 檔不呼叫 configure、`server-status-config.test.cjs` 4 案、`sync-index.test.cjs:607-614` minimalDeps、`sync-notice-feed.test.cjs:135`、`microsoft-auth-refresh.test.cjs:14`、`game-closed-dialog.test.cjs:44,51` | 6b-3 | 子 agent（抽查 `:161-164`、`:166`）〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`minecraft-launch.js:36-49` 未移動、`:166` 後 `:156`；`main-window.js:8,16,23-31`、`microsoft-auth.js:20-34`、`game-closed-dialog.js:26` 未移動；`server-status.js:4` 未移動、`:12-19` 後 `:14-22`（多一行 `gglError`）；`sync/index.js:158-168` 後 `:159-169`、`:161-164` 後 `:162-165`；`sync-index.test.cjs:607-614` 後 `:609-616`；來源欄的「抽查 `:161-164`、`:166`」同上；其他行號指的檔不在本 commit〕〔對齊 2026-10-25：→ `4362d28`（plans/cross-review-2026-10-phase6b.md 6b-2）：`microsoft-auth.js:20-34`、`main-window.js:8,16,23-31` 未移動；`sync/index.js` 與其他行號指的檔不在本 commit〕 |
+| M-OTHER | `app-ready.js:11-38`、`:79-106`、`start-main.js:170-197` 鍵名三遍；`app-ready.js:3,10` 與 `ARCHITECTURE.md:88` 指向不存在的 `getMainAppReadyContext` | — | 成立〔2026-10-25 → §6b-3 細部初稿 §M-OTHER〕 | 無（`runMainAppReady` 沒有測試） | 6b-3 | 子 agent〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`app-ready.js:3,10`、`:11-38`、`:79-106` 未移動；`start-main.js`、`ARCHITECTURE.md` 不在本 commit〕〔對齊 2026-10-25：→ `4362d28`（plans/cross-review-2026-10-phase6b.md 6b-2）：`start-main.js:170-197` 後 `:188-215`；`ARCHITECTURE.md:88` 後 `:87`；`app-ready.js` 不在本 commit〕 |
+| M-OTHER | `discord-rpc.js:31` 寫死 `"rpc:notice"`、繞過 bridge | `IPC.on.RPC_NOTICE` 已存在（`lib/ipc-channels.js:57`） | 成立〔2026-10-25 → §6b-3 細部初稿 §Discord RPC 與 bridge〕 | 無 | 6b-3 | 子 agent（CC 抽查 rg） |
 | M-OTHER | piston-meta 網址、「切換鏡像」字面 | — | 已處理（`4f1f777`；只剩 `runtime/minecraft.js:37-38` 一份；「下載中止」5 處） | — | 結案 | 子 agent |
 | M-STREAM | `net-fetch.js:223`（`typeof body.getReader`）＋`:268-305`；`runtime/download.js:230,239-253` | 兩處 body 都來自 fetch（undici 8／全域）＝Web stream〔推論〕 | 成立（§6） | 無測試餵 Node stream（rg `Readable\|PassThrough` test/ 0；對照組 `getReader` 命中） | 6b-4 | 子 agent |
 | M-RE | `paths.js:10-14,32-35`、`launcher-log.js:5-7,100` | 原樣轉出 lib；`INSTANCE_ID` 經 main/paths 的使用者 0 | 成立 | 測試直接載 lib | 6b-4 | 子 agent |
@@ -302,15 +320,205 @@ N24 三案（注入會丟的假 `sendInstanceStatus`）改寫成 B5a–c：它�
 - **啟動**（`electron.exe .`、拿掉 `ELECTRON_RUN_AS_NODE`；**沒有**隔離 `--user-data-dir`）：常駐日誌 `start_main_begin` → `app_ready_begin` → `main_window_created` → `app_ready_wired` → `start_main_done`，無錯誤；之後比對行程建立時間與 log 寫入時間，以 `taskkill /T` 關掉本輪開的行程樹。這只證明註冊沒丟錯；閉包傳的 `shell`／`dialog`／`showInfoDialog` 要點到才會用到，交 owner GUI 驗收。
 - **沒跑**：打包；freeze（本批沒改計時或網路程式）；登入流程實際走一次。
 
+## 6b-3 細部初稿（2026-10-25，基準 `7ec45af`；二稿，owner 已裁 → §裁決 6b-3；未授權施工）
+
+**授權出處**：〔轉述〕owner 2026-10-25 在與 CC 的對話中貼入「GGL_Launcher — Phase 6b-3 細部 Plan」：「本輪授權細部設計與證據調查，不授權正式程式修改、Commit 或 Push。」
+**審查**：〔轉述〕owner 2026-10-25 在與 CC 的對話中貼入「Phase 6b-3 初稿 — ChatGPT 審查回覆」（不是 owner 裁決）：支持 3a／3b 分批與 Discord R-a；要求六項修訂——(1) N6 併入（初稿 S1）的理由重驗 → 撤回（§探針 P4）；(2) Q6 縮小範圍 → §Q6；(3) 初稿 S2 拆兩項 → §交 owner 裁；(4) O1 寫清取捨 → §M-OTHER；(5) N8 最小修正 → §N8；(6) 文件落差列待補 → §新發現。本節是依此修訂的二稿。
+**代號**：初稿的 S0、S1、S2 與本檔 6b-1 探針情境 S1–S5 撞名，二稿改接 Q 編號：S0→Q8、S1→Q9（撤回）、S2 拆成 Q10（`notice-feed.log`）與 Q11（`game-closed-dialog.getMainWindow`，撤回）、N8 授權＝Q12。
+本節的 M-DI、M-OTHER 分類以本節為準（判準檔 §判準 第 1 條：現讀重分）；§候選總表那兩列是盤點時的舊分類。
+**裁決**：owner 實際怎麼裁只看 §裁決 6b-3；本節保留二稿的論證、反例與撤回紀錄，標「CC 建議」的段落是提案原文，與裁決不同處以裁決為準。
+
+### 探針〔實測，2026-10-25；腳本在 session scratchpad，不進 repo〕
+
+- **P1 預設值實際被誰用**：`git archive 7ec45af` 匯出到 scratchpad、`node_modules` 以 junction 指回 repo；把 8 個檔的每個預設值包成「被用到就記一筆、行為不變」（每處替換命中恰好 1 次），跑全套 `node --require ./test/helpers/forbid-electron.cjs --test`：**1261／1261 過**。記到的次數（測試檔）：
+  - `sync/index`：預設 `applyPlan` **0**、`prepareRuntime` **0**、`makeRuntimeProbe` 300（sync-index 275、site-format-doc 16、minecraft-ipc-launch 9）、空函式 `onProgress` 171（sync-index）、`serverConfig`／`siteClient` 各 1（sync-index）、沒給 `runPowerShell` 10。
+  - `sync/apply`：IO 預設 `markInProgress` 100、`hashFile` 88、`writeRecord` 68、`clearInProgress` 68、`download` 43、`now` 40（sync-apply、sync-index）；`fetchReleaseFiles`、`sendSyncProgress` 預設 **0**。
+  - `minecraft-launch`：逐次 `deps` 33；模組層預設 `sendMcRunning` 10（都在 minecraft-launch.test：`launch` 走逐次 `deps`，`cleanupStaleMcProcessIfNeeded` 走模組層、落到空函式）；`spawn`、`log`、`sendMcStatus`、`tryStartDiscordRpcHelper` 預設 0。
+  - `net-fetch`：`appendLauncherLog` 預設 5（net-fetch-download 2、runtime-java 1、runtime-minecraft 2）、`onRetryNotify` 預設 3（main-http-compat-client）。
+  - `microsoft-auth` 四個函式預設 0。`server-status`：configure 沒給 `gglError` 10（server-status-config 4、main-http-compat-client 6）。`game-closed-dialog` 預設 `getMainWindow` 8（都在它自己的測試）。`notice-feed`：`log` 被選用 2、被呼叫 0；`timers` 6、`pollMs`／`firstDelayMs` 各 26、`now` 2、`serverConfig` 1。
+  - 沒包：`discord-rpc`、`main-window`（沒有測試載入）；值型預設（`msClientId`、`loopbackPort`、server-status 的 host／port／url）。P1 只量測試行程；正式路徑用了哪些預設是讀碼（`start-main.js:100-123,161-185`、`app-ready.js:128-157`）。
+- **P2 `runMainAppReady` 能不能在測試行程跑**：`forbid-electron` 下直接載入 repo 的 `main/app-ready.js`，26 個假值組 ctx 跑完：五個 `configure*` 都在 `setupMainIpc` 之前、350 ms 後呼叫 `getInstanceStatus`；少給 `sendMcRunning` ⇒ reject `missing or null ctx keys: sendMcRunning`。`gglEvent` 寫檔時 `paths.js` 取 electron 被擋，`lib/ggl-structured-log.js:139-144` 接住只印一行。
+- **P3**：`discord-rpc.js` 在 `forbid-electron` 下直接載入會丟（檔頂 `require("electron")`）；先 `installFakeElectron()` 就載得動。`main-window.js` 同條件載得動，`configureMainWindow` 跑得完。
+- **鍵名三份**：`app-ready.js:12-37`、`:80-105`、`start-main.js:189-214` 各 26 鍵，`diff` 比對三份相同（對照組：刪一行 `diff` 會報）。
+- **P4 重試路徑上的通知錯誤（二稿補，Q9 反例）**：本機假伺服器每支檔第一次回 500、第二次回正常，跑正式的 `fetchJson` 與 `downloadToFile`，三個變體（scratchpad 副本）：(i) 現況、configure 一份會丟的 `onRetryNotify` 與 `appendLauncherLog`；(ii) 同上但拿掉 N6 的 `catch {}`；(iii) 拿掉 N6、`netDeps` 初值改 `null`、從不 configure。三者結果相同：兩個請求各 2 次、`fetchJson` 回正確 JSON、下載 10 bytes 成功、沒有任何錯誤浮出。原因：`withRetries`（`net-fetch.js:150-152`）自己把 `onRetry` 包在 `try {} catch {}`。(ii) 另多一個副作用：`onRetryNotify` 丟錯後 `:315` 那行重試 log 也不寫了（`log` 呼叫 1 → 0 次）。
+- **P5 ChildProcess 的 `error` 事件（二稿補，N8）**：純 Node（不是 Electron）`spawn` 一個不存在的執行檔（`detached`、`stdio: "ignore"`，同 `discord-rpc.js:93-97` 的選項）＋`unref()`：同步不丟、`pid` 是 `undefined`，接著 `Unhandled 'error' event`、行程 exit 1；同一段先掛 `p.once("error", …)` ⇒ 收到 `ENOENT`、行程照常活著。Electron main 裡同樣情況的後果沒測（同 U-4）。
+
+### 分類的尺
+
+不按語法（`??`、空函式、`configure*`）分，按「漏接時會怎樣」分：
+- **A 空函式／假值預設**：漏接 ⇒ 功能靜默消失或做錯。R14（`plans/instance-sync-v3-commit3b1.md`，owner 2026-10-03「把忘接的地方改成必填」）是這一類的既有裁決 ⇒ **改**。
+- **B 真實作預設＋測試縫**：正式路徑**不注入**，預設就是正式實作；漏接得到正式實作＝正確 ⇒ **Q6**。正式路徑**有注入**、預設只是退路的（二稿：`sync/index` 與 `notice-feed` 的 `serverConfig`、`minecraft-launch` 的 `log`）不算 B——漏給＝接線錯，照 A 判（→ §Q6 範圍）。
+- **C 值型、可合法為空**（server-config 的值）：空＝合法「沒設定」，現在就會叫（登入時的明確錯誤、`unknown`、「Discord 狀態未啟用」）。值的正規化與型別防護屬 U4，本批**不動**；「鍵有傳」由 §M-OTHER 的測試釘。
+- **D 既有契約明文規定了「沒給」時的行為**（owner 原話寫「選填」，或測試釘住沒給時的結果）：性質屬 A，但改它＝改裁決或契約 ⇒ **交 owner**，逐項裁、不合併。只是在介面表列了預設值、沒有規定沒給時該怎樣的（如 `plans/instance-sync-v3-commit3b1b.md:126-132` 的「選填（預設）」清單）不算 D，照判準檔第 2 條預設改（conventions §2 在其後定，owner 2026-10-13）。
+- **E 第二條注入路**：正式不走、只有測試走 ⇒ **改**，測試改走正式入口。
+
+**模組層單例的「建立時」**：`configure*` 模組沒有建立這一刻。本節的做法＝`configure*` 被呼叫時檢查函式型依賴，缺 ⇒ `TypeError`（訊息含鍵名，照 `sync/index.js:78-90`）；模組變數初值改 `null`（不再是空函式），沒 configure 就用到 ⇒ 用到那一刻 `TypeError`。「正式一定呼叫、參數給齊」由 §M-OTHER 的新測試釘。錯誤經 `runMainAppReady` 丟到 `startMain` 的 `catch`（`start-main.js:231-236`）⇒ `start_main_failed`＋錯誤框，與現有開機錯誤同一條路。
+
+### M-DI 逐項
+
+| # | 候選（`7ec45af`） | 誰建、何時注入 | 漏掉時的現況 | 類 | 測試現況（P1） | 判定；修後報錯點 |
+|---|---|---|---|---|---|---|
+| 1 | `microsoft-auth.js:20-34` | bridge senders（`start-main.js:161`）、main-window 的 getter；`app-ready.js:136-143` | `{ ...defaultDeps, ...next }`：漏鍵 ⇒ 空函式（登入沒狀態字、沒「登入完成」、視窗沒 parent／icon）；鍵在但值 `undefined` ⇒ 蓋掉預設，登入時才 TypeError | 四個函式 A；`msClientId`、`loopbackPort` C | `microsoft-auth-refresh.test.cjs:14` 只給 `msClientId`；函式預設 0 次 | **改**：configure 檢查四個函式；值型照舊（U4）。U-7 |
+| 2 | `net-fetch.js:15-27`（＋`:29-33` N6） | `app-ready.js:128-135` | 重試提示與重試的 debug log 靜默消失 | A×2 | 4 檔靠預設；`net-fetch-download.test.cjs:296,336,666`、`sync-apply.test.cjs:1163` 用 `configureNetFetch({})` 還原預設 | **改**：configure 檢查兩個函式，報錯點＝開機時的 configure。**「從沒 configure」在 net-fetch 用到時仍然無聲**（二稿更正，P4）：`notifyRetryToUi` 的 N6、`withRetries` 的 `:150-152`、`logToLauncher` 的 `:39-41` 三層都會吞；初稿說「`:315` 會打斷重試」是錯的（被 `:150-152` 吞）。這條只靠 §M-OTHER 測試釘住「一定呼叫且給齊」。N6 不是本項前提，維持 Q5 的 future-work（初稿的 Q9 撤回）；`:150-152` 守的是 Q3（重試通知失敗不改下載結果），不動 |
+| 3 | `minecraft-launch.js:36-49`、`:156` | bridge senders、discord-rpc；`app-ready.js:144-149` | 狀態字、執行中旗標、Discord 啟動靜默消失 | 三個函式 A；`log`：正式有注入（`app-ready.js:148`）、預設 0 次 ⇒ 照 A（二稿）；`spawn` B（R#27，`plans/instance-sync-v3-commit4c.md:148`；正式不注入）；`launchMinecraft` 的 `deps` 參數 E（正式唯一呼叫 `ipc/minecraft-ipc.js:44-50` 不傳） | P1：同一個測試檔裡送 `true` 走逐次 `deps`、清過期行程送 `false` 走模組層空函式——測試替身與正式依賴不是同一個契約 | **改**：拿掉 `deps` 參數；configure 檢查四個函式（含 `log`；R#27 擔心的「忘了接就靜默」改由必填擋）；`spawn` 依 Q6（留 ⇒ configure 合併 `{ spawn, ...next }` 後檢查它是函式） |
+| 4 | `discord-rpc.js:13-35`、`:51-54` | → §Discord RPC 與 bridge | | | | |
+| 5 | `main-window.js:8,16,23-41` | `appRoot`＝`main.js` 的 `__dirname`、`sendWindowPower`＝bridge；`start-main.js:171` | `window:power` 永不送；`appRoot` 型別錯退回 `path.join(__dirname, "..")` | `sendWindowPower` A；`appRoot` 的 `typeof`／`trim`／退回＝防內部值；圖示 `accessSync` 的 `catch`＝磁碟（留-1） | 沒有測試載入 | **改**：要求 `sendWindowPower` 函式、`appRoot` 非空字串，拿掉退回與 `trim`；報錯點在 `createMainAppReadyContext`（同一條 `start_main_failed`）。P3 ⇒ 加一支 fake-electron 小測試 |
+| 6 | `server-status.js:4-9,14-22` | bridge、ggl-log、serverConfig；`app-ready.js:150-156` | 沒 `sendServerStatus` ⇒ 第一次輪詢 TypeError 落到 `:98-99` 的 `gglError`；`gglError` 也沒有 ⇒ `catch` 裡再 TypeError ⇒ 沒人接的 rejection（S5）＝無聲 | 兩函式 A；host／port／url C（`:59-61` 未設定 ⇒ `unknown`，合法狀態，**不**改成初始化失敗） | 5 處沒給 `gglError` | **改**：configure 檢查兩個函式；值的正規化不動。`server-status-config` 4 案的斷言不變（合法未設定的回歸） |
+| 7 | `sync/apply.js:75-86` | 唯一正式呼叫 `sync/index.js:355-396`，每次都給 `prepareRuntime`、`fetchReleaseFiles`、`sendSyncProgress`、`log` | `fetchReleaseFiles` 回 `null` ⇒ blob 404 時判不出站台換版、報原本的 404（原因錯）；`sendSyncProgress` 空 ⇒ 進度不動；`prepareRuntime` 本來沒預設 ⇒ `:114` 才 TypeError，此時中斷標記已建（`:112`） | `:81-82` A；`:76-80,83-84` IO＝B；`log` 選填是 N6 計畫的既有設計（不在盤點） | `:81-82` 預設 0 次 | **改 `:81-82`**：拿掉預設；`applyPlan` 進門（`refuseLinks` 之前）檢查三個函式，缺 ⇒ TypeError、什麼都沒動。IO 依 Q6 |
+| 8 | `sync/index.js:159-171` | `start-main.js:100-117`：給 `serverConfig`、`siteClient`、`onProgress`；不給 `applyPlan`、`prepareRuntime`、`makeRuntimeProbe`、`cleanupFs`、`runPowerShell` | `onProgress` 空 ⇒ 進度靜默消失；`siteClient` 自建 ⇒ 不與公告共用（`start-main.js:96` 的意圖），兩份索引快取〔後果是推論，U-8〕 | `onProgress`、`siteClient` A；`serverConfig`：正式有注入（`start-main.js:111`）⇒ 照 A（二稿；漏給在正式拿到同一個 require 快取物件、結果正確，危害只在測試會落到真站台）；其餘五項 B | `onProgress` 預設 171 次（`setup` 沒給）；`siteClient`、`serverConfig` 各 1 次（N21 對照列） | **改** `onProgress`、`siteClient`、`serverConfig`：進必填（兩個物件照 `notice-feed.js:30-34` 用 `== null`）；`serverConfig` 收益小、成本也小（`minimalDeps` 補一鍵），審查可改判留；B 依 Q6 |
+| 9 | `sync/notice-feed.js:35-44` | `start-main.js:118-123`：給 `siteClient`、`serverConfig`、`onChange`、`log` | `log` 空 ⇒ A8（`plans/instance-sync-v3-commit3b2a.md:43`）的程式錯誤出口靜默消失 | `log` D：R7（`plans/instance-sync-v3-commit3b2.md:26`，owner 2026-10-06）原話「模組收選填的 `log(err)`」；`serverConfig` 正式有注入 ⇒ 照 A（同 #8）；`timers`、`now`、`pollMs`、`firstDelayMs` B | `log` 被選用 2（F1 的 `base`、site-format-doc 一處）、被呼叫 0；`serverConfig` 1 | `log` → Q10（owner 裁改必填，只保證接上 logger，不保證常駐留痕，U-11）；`serverConfig` 同 #8 改必填；B 依 Q6（已裁留） |
+| 10 | `game-closed-dialog.js:26` | `start-main.js:105-108` | 對話框不掛主視窗、照樣跳出、照樣回答 | D：A13 只列 `dialog` 必填；D3（`plans/instance-sync-v3-commit3b2a.md:207`）明文「沒給 `getMainWindow` ⇒ 以 `(options)` 呼叫」；A11 本來就接受無 parent 的對話框（視窗未開或已關） | 預設 8 次，全在自己的測試（D1、D2、D3 的 `{}` 列） | **留**（二稿改判，D 的契約成立、沒有反例）：初稿唯一的「會錯」是 U-9「可能被擋在主視窗後面」，那是沒驗過的推論，撐不起推翻 A11／D3；沒給 getter 的結果與「視窗已關」相同，是契約已接受的狀態。不交 owner |
+
+### Q6：雙向舉證（退回；2026-10-25 owner 裁 A 保留 → §裁決 6b-3）
+
+**退回理由**（判準檔 §退回 1）：判不出「算不算違規」。conventions §2 字面禁「`||`／`??` 預設……空函式預設去防」、範本是同一檔的 `assertRequiredDeps`；同一檔的介面（`plans/instance-sync-v3-commit3b1b.md:126-132`，owner 放行）把這幾項明列為「選填（預設）」。追到 R14 為止：R14 改必填的理由是「忘了接不會報錯」，這幾項忘了接得到正式實作。
+**範圍**（二稿收窄：只收正式路徑不注入的；每項的「正式不給」都讀過注入點）：
+
+| 模組 | 項目 | 正式注入點（讀過，都不給這些） | P1 測試使用 |
+|---|---|---|---|
+| `sync/index` | `applyPlan`、`prepareRuntime`、`makeRuntimeProbe` | `start-main.js:100-117` | 0、0、300 |
+| `sync/index`（測試覆寫／向下傳遞的入口，不是一般 `??` 預設；裁決限制） | `cleanupFs`：沒給就不傳，`removeStaleRuntime` 用它自己的 fs（`sync/index.js:168,402`）；`runPowerShell`：給了才放進 `gameDeps`，交給 `checkGameRunning` 自己的預設（`:170-171`、`game-running.js:44`） | `start-main.js:100-117` | `cleanupFs` 未量；沒給 `runPowerShell` 10 |
+| `sync/apply` | `markInProgress`、`clearInProgress`、`writeRecord`、`download`、`hashFile`、`now`、`fsp` | `sync/index.js:367-395` 只給 `prepareRuntime`、`fetchReleaseFiles`、`sendSyncProgress`、`log` | 68–116 次，全在 `mkdtemp` 底下 |
+| `notice-feed` | `timers`、`now`、`pollMs`、`firstDelayMs` | `start-main.js:118-123` | 2–26 次 |
+| `minecraft-launch` | `spawn` | `app-ready.js:144-149` | 0（測試都注入） |
+| `discord-rpc`（N8 新增的縫；owner 裁「只批准這一個」） | `spawn`（預設 `child_process.spawn`，`configureDiscordRpc` 驗證最終值是函式） | `app-ready.js:157`（施工前現況：只給 `getMainWindow`、`discord`） | 現在沒有測試載入 |
+
+**不在 Q6**：正式有注入的 `serverConfig`（`sync/index`、`notice-feed`）、`minecraft-launch` 的 `log`——照 A 判（§M-DI #3、#8、#9）。原本合理的測試縫（上表）不為了分類一致而改。
+
+| | 留（現況） | 改（必填注入） |
+|---|---|---|
+| 維持／消除 | 正式用哪個實作只有一處、貼著使用處；`makeRuntimeProbe` 的預設行被測試走了 300 次＝正式那一行有綠燈；漏接也不會錯；預設每次開機都執行，不是死防線。R#27（`spawn`）是本 repo 對空函式預設的既有解法 | 測試漏給 ⇒ 建立時丟錯，不會跑真實作；§2 字面在這四檔沒有例外 |
+| 成本／例外 | §2 字面多一個要被承認的例外；測試漏給時會跑真實作——`prepareRuntime` 是真的網路安裝，P1 是 0 次；`test/sync-index.test.cjs:176-180` 的斷言只擋根目錄、不擋網路（潛在、未發生，U-10） | `start-main` 多 require `apply.js`、`runtime/prepare.js`、`sync/runtime-probe.js` 並傳入（B 類全改則更多，`sync/index` 還要逐項轉交 apply 的 IO）；`sync-index.test` 的 `REQUIRED_KEYS`／`minimalDeps`／`setup`、`minecraft-ipc-launch`、`site-format-doc` 各補。正式接線從「有測試走過的預設行」搬到「測試載不動的 `start-main`」（檔頂載 `ui-dialogs`／`main-window`，6b-2 已實測） |
+| E1 | 不適用（沒有謊） | 不適用 |
+| E2 | 成立（`makeRuntimeProbe`） | **變差**（`makeRuntimeProbe`）；其餘中性 |
+| E3 | 成立（一處） | 不適用（一處搬到另一處） |
+| E4 | 不適用 | 不適用 |
+| E5 | 失去：在這四檔看到 `deps.x ?? 實作` 不能推定「跨了邊界」 | 取回上一格，範圍限這四檔的 deps 宣告 |
+| C1 | 0 | 只改三項約 5 檔；B 類全改約 9 檔〔估計，未逐檔數〕 |
+| C2／C3／C4 | 0／—／已付（P1） | 0／變差（見上）／已付 |
+
+**推翻用的最小測試**：
+- 推翻「留」：任何測試靠 B 類預設碰到外部（網路、真 userData）。P1 已跑：`applyPlan`、`prepareRuntime` 0 次，其餘只碰 `mkdtemp` 底下的本機檔 ⇒ 不推翻。
+- 推翻「改」：改後正式接線仍有測試走得到。`start-main` 在測試行程載不動，除非新增假 Electron（大型 harness）⇒ 不推翻。
+
+**CC 建議（提案原文；owner 已裁 A，正式文字與限制 → §裁決 6b-3 Q6）**，建議裁決文字：
+
+> Q6：上表所列的依賴（正式路徑不注入、預設就是正式實作、選用預設時不呼叫任何外部）是測試縫，不算 conventions §2 的違規，保留。正式路徑有注入的依賴不適用本條：漏給就是接線錯，照 §2 在建立時丟錯。日後新增的預設要歸本條，須逐項證明「正式不注入」。
+
+不改 conventions 字面；若 owner 認為 §2 要明寫這個例外，那是規則文字的修訂，另交 owner。
+
+### M-OTHER：一個鍵名權威
+
+- **重複程度**：三份各 26 鍵、內容相同（→ §探針）：`MAIN_APP_READY_KEYS`（`app-ready.js:11-38`）、解構（`:79-106`）、`createMainAppReadyContext` 的回傳（`start-main.js:188-215`）；另有 `MAIN_APP_READY_NON_FN_KEYS`（`:41`）。
+- **型別保證在哪**：`assertMainAppReadyContext`（`:43-70`）：KEYS 的鍵都在且非 `null`；`app` 是物件；除 `app`、`serverConfig` 外都是函式。它只擋**生產端**（`start-main` 漏給 ⇒ 開機即失敗，P2）。**消費端沒人擋**：解構了 KEYS 沒有的鍵 ⇒ 拿到 `undefined`，傳進 `configure*` 後被 spread 蓋掉預設，到用的時候才壞。
+- **過期地址**：`app-ready.js:3`「依賴全部由 `main.js` 注入」、`:10`「`main.js` 的 `getMainAppReadyContext()`」、`ARCHITECTURE.md:87` 兩處同樣說法；實際是 `main/start-main.js` 的 `createMainAppReadyContext`（`:95`）。
+- **建議 O1（最小）**：KEYS 當唯一的鍵名權威，`app-ready.js` 多匯出它；新測試 `test/app-ready.test.cjs` 只用 KEYS 組 ctx（每個鍵是記錄呼叫的替身；`app`、`serverConfig` 給最小假物件；計時器用 `useMockClock`），斷言 (a) 五個 `configure*` 各一次、每個參數值都不是 `undefined`，來自 ctx 的就是 ctx 給的那個（`gglError` 是 `app-ready` 自己從 `./ggl-log` 取的、server-config 的值取自 `ctx.serverConfig`，這兩種照來源斷言）；(b) `configure*` 都在 `setupMainIpc` 之前（`:127` 的既有順序）；(c) 350 ms 後呼叫 `getInstanceStatus`；(d) KEYS 逐一拿掉 ⇒ reject、訊息含鍵名。消費端漂移 ⇒ (a) 紅；生產端漂移 ⇒ 開機 assert。另外兩份變成會叫的鏡像，不再各自是權威。改 `:3`、`:10` 的註解與 `ARCHITECTURE.md:87` 那一列的兩處說法，同表其他列不動。成本：`app-ready.js` 約 3 行、新測試約 70 行〔估計〕；P2 證實不需要假 Electron。
+- **不選 O2**（解構改成 `ctx.x`，少一份）：多約 30 處改寫，保證與 O1 相同。
+- **不選 O3**（`app-ready` 併回 `start-main`，鍵名歸零）：唯一能在測試行程跑的接線點就沒了，「正式 App Ready 接線不變」從此沒有測試；是搬家，不是減法。
+- **O1 的取捨（二稿寫清）**：O1 **沒有**消除三份鍵名，`MAIN_APP_READY_KEYS`、解構、`start-main` 的回傳照樣各寫一遍，增刪一個鍵仍要改三處。它換到的是「三份不一致時一定有人叫」：生產端少給 ⇒ 開機 assert；消費端多用 ⇒ 新測試紅。代價是多一支要維護的測試（約 70 行）、`app-ready.js` 多一個只給測試用的匯出；收益是把目前沒人擋的消費端漂移變成會被發現的錯。真正讓鍵名只剩一份的 O3 會失去唯一的接線測試點，所以不選。不新增 DI container、schema 或大型 harness。
+- **偏離方向**：§6b-2～6b-4 方向寫「鍵名只留一份」；O1 沒做到，理由如上，ChatGPT 初稿審查接受 O1。
+
+### Discord RPC 與 bridge
+
+- **現讀**：`discord-rpc.js:29-35` 自己 `getMainWindow()?.webContents?.send("rpc:notice", …)`＋`catch {}`——無聲、繞過 6b-1 的 `deliver`；`getMainWindow` 預設接 `main-window`（`:13,16`）；`configureDiscordRpc`（`:20-27`）用 `typeof` 挑著收；三處 `sendRpcNotice`（`:73`、`:85`、`:110`）都是字面字串。`tryStartDiscordRpcHelper` 每個分支都回 `undefined`，呼叫端 `minecraft-launch.js:244` 用 `void`——它若 reject 只會是沒人接的 rejection（S5）。
+- **合法未啟用（產品狀態，不變）**：clientId 空且沒有 `GGL_DISCORD_CLIENT_ID`（`:69-75`，送「未設定 Client ID」）；helper 不在（`:79-87`）。
+- **漏接**：沒給 `sendRpcNotice` ⇒ configure 丟 `TypeError`。從沒 configure ⇒ `discordConfig` 為 `null` ⇒ `:51-54` 只寫 debug 診斷就跳過——現在把「漏接」裝成「未啟用」；修後由 §M-OTHER 測試釘住「一定呼叫且給齊」。`:51-54` 同時是「server-config 沒有 discord 區塊」的出口（C／U4），本批不動。
+- **接線比較**：
+  - **R-a（建議）**：bridge 加 `sendRpcNotice(text)`＝`send(IPC.on.RPC_NOTICE, { text })`（一次性事件，不進 `STATE_CHANNELS`、不記住）；`start-main` 從 bridge 解構放進 ctx；KEYS 加 `sendRpcNotice`；`app-ready` 改成 `configureDiscordRpc({ sendRpcNotice, discord: serverConfig.discord })`。成本：三份各 +1 鍵；換到接線有測試。
+  - **R-b**：比照 `configureMainWindow`，在 `start-main` 建好 bridge 後直接 configure。三份各 −1 鍵，但接線落在測試載不動的 `start-main`。
+  - 兩案共同：`discord-rpc` 拿掉 `getMainWindow`、`require("./main-window")`、自己的 `try`／`catch`、`String(text || "")`（三處都傳字面字串）；不新增快取、不新增隔離點——唯一的隔離仍是 `deliver`，通知失敗不改變 `tryStartDiscordRpcHelper` 的結果。
+- **檔頂 `require("electron")`**：P3 ⇒ 不必改成用到時才取；測試用現有 `installFakeElectron()`（`app.getPath`、`isPackaged` 夠用，helper 不改）。目前沒有測試載入 `discord-rpc`，`start-main` 的正式載入不變。
+- **新測試 `test/discord-rpc.test.cjs`**（fake-electron；userData 指 `mkdtemp`；測試期間刪掉 `GGL_DISCORD_CLIENT_ID`、結束還原）：(a) 缺 `sendRpcNotice` ⇒ TypeError；(b) clientId 空＋真 bridge（`test/helpers/real-bridge.cjs`）送出正常 ⇒ resolve `undefined`、`rpc:notice` 送 1 次、文字是「Discord 狀態未啟用（未設定 Client ID）」；(c) 同上但 `send` 丟錯 ⇒ 照樣 resolve、`gglError` 1 筆 `renderer_send_failed`、`channel: "rpc:notice"`。**只走 clientId 空的分支**：`assets/rpc-helper.exe` 在工作目錄裡真的存在（41 MB，2026-10-25 `ls`），走 helper 分支會真的 spawn。
+- **bridge 測試**：`test/ipc-bridge.test.cjs` 的 B1、B1w、B3、B4 迴圈加 `sendRpcNotice`（九個 → 十個）。
+
+### N8：helper 非同步啟動失敗（二稿補；owner 裁 Q12 納入 6b-3、方案見 §裁決 6b-3；施工未授權）
+
+**依裁決對齊後的施工方案**（下方二稿原文保留作論證；與此不同處以此為準）：
+- `configureDiscordRpc` 收選填 `spawn`（預設 `child_process.spawn`）與 `gglError`；合併後驗證 `spawn`、`gglError` 是函式（Q8）。`gglError` 由 `app-ready` 從 `./ggl-log` 取來傳入，比照 6b-1 D5 的 `configureServerStatus`，不加 ctx 鍵〔CC 設計，裁決只定事件與 detail，接法交施工審查〕。
+- 一個 `reportStartFailed(err)`：已報告就返回；否則 launcher log、診斷 log、通知「Discord 狀態啟動失敗（helper 無法啟動）」、`gglError("main", "discord_rpc_spawn_failed", err)`（不帶 detail）。同步 `catch` 與常駐的 `p.on("error", reportStartFailed)` 共用。
+- `started` 兩行移到 `p.once("spawn", …)` 裡。`tryStartDiscordRpcHelper` 的回傳不變。
+- 施工時查 console 那一側（`gglError` 印到 stdout 的內容）會不會帶出原始錯誤的路徑或參數；只照 D-LOG-PRIVACY 處理這一處，不新增通用脫敏。
+- 測試（`test/discord-rpc.test.cjs`）：假 `spawn` 回受控的 `EventEmitter`：(n1) 非同步 `error` ⇒ 不出現 uncaught、通知 1 次、`gglError` 1 筆 `discord_rpc_spawn_failed` 且沒有 detail、launcher log 沒有 `DISCORD_RPC started`；(n2) 連送兩次 `error` ⇒ 仍只報告 1 次、行程不掛；(n3) 先 `spawn` 事件 ⇒ 有 `started`、沒有失敗報告；(n4) 假 `spawn` 同步丟 ⇒ 同 (n1) 的報告、只 1 次；(n5) `spawn` 或 `gglError` 不是函式 ⇒ configure 丟 TypeError。看 launcher log 要開 debug、fake-electron 的 `desktop` 指 `mkdtemp`〔設計，施工時先跑確認寫得進去〕。真的 `rpc-helper.exe` 只被 `fsp.access` 看存在，不會被執行。
+
+- **現讀**（`discord-rpc.js:92-111`）：`spawn` 包在 `try` 裡，只接得到**同步**丟錯（`:105-111`：launcher log、診斷 log、通知「Discord 狀態啟動失敗（helper 無法啟動）」）。`spawn` 回來就 `p.unref()`，馬上寫「started pid=…」——還不知道是否真的起來。沒有 `error` listener：P5 顯示非同步的啟動失敗會變成沒人接的 `error` 事件。走到這裡之前，clientId 已確認有值、helper 檔已確認存在（`:79-87`），所以 ENOENT 已被濾掉；剩下的是權限、被防毒擋之類〔推論，沒有實機重現〕。在 Electron main 裡的後果同 U-4，沒測。
+- **最小修正**〔二稿原文；`once`、「不新增事件 ID」已被上方對齊方案取代：常駐 listener＋報告旗標、`discord_rpc_spawn_failed`〕：把 `:106-110` 那三個輸出收成一個 `reportStartFailed(err)`，同步 `catch` 與新加的 `p.once("error", reportStartFailed)` 共用（listener 掛在 `spawn` 之後、`unref` 之前）。`tryStartDiscordRpcHelper` 的回傳不變（照樣 resolve，呼叫端 `minecraft-launch.js:244` 照樣 `void`），遊戲照常啟動。不新增事件 ID、不新增隔離點；通知照樣經 §Discord 的 `sendRpcNotice`。
+- **選配（不在最小修正）**：(a)「started」那兩行改到 `p.once("spawn", …)` 才寫（現在失敗時會寫 `pid=undefined`）；(b) 失敗多寫一筆 `gglError`（要新事件 ID，比照 Q2 交 owner）。
+- **測試縫**：`spawn` 現在是檔頂 `require("child_process")` 取的，測不到。建議 `configureDiscordRpc` 收選填的 `spawn`、預設 `child_process.spawn`——與 `minecraft-launch` 的 `spawn` 同一類（正式不注入，歸 Q6 那條）。不選「測試裡攔 `require("child_process")`」：要動到整個測試行程的模組載入。
+- **測試**（併進 `test/discord-rpc.test.cjs`）：假 `spawn` 回一個 `EventEmitter`（`pid` 為 `undefined`、有 `unref()`），`setImmediate` 後送 `error`（`code: "EACCES"`）；discord 給非空 clientId；helper 檔用 repo 裡的 `assets/rpc-helper.exe`（`git ls-files` 有追蹤，只被 `fsp.access` 看存在，假 `spawn` 不執行它）。修前：測試行程收到沒人接的 `error` ⇒ 該檔紅；修後：resolve `undefined`、通知送 1 次、行程沒有 uncaught。另一案：假 `spawn` 同步丟 ⇒ 結果與修前相同（回歸）。`appendLauncherLog` 在 fake-electron 下取不到路徑時自己吞錯〔讀碼推論，施工時先跑確認〕。
+- **歸屬**：若 owner 授權，建議跟在 3a 之後**單獨一個 commit**（同一個檔、不同根因），可單獨 revert；不授權 ⇒ 進 future-work。〔2026-10-25 owner 裁 Q12：納入、3a 之後獨立 commit；上面「選配」(a)(b) 兩項都已裁為必做 → §裁決 6b-3〕
+
+### 修前／修後的可觀察差異
+
+| 情境 | 修前 | 修後 |
+|---|---|---|
+| `app-ready` 傳給 `configure*` 的函式依賴漏一個 | 開機正常；該功能靜默消失，或用到時才 TypeError | 開機時 configure 丟 TypeError ⇒ `start_main_failed`＋錯誤框；§M-OTHER 測試在 `npm test` 就紅 |
+| 從沒呼叫某個 `configure*` | 空函式：功能靜默消失 | 用到那一刻 TypeError（net-fetch 例外：被 N6、`withRetries`、`logToLauncher` 吞，照樣無聲，P4）；§M-OTHER 測試釘住一定呼叫 |
+| 合法未設定（server-status 沒 host／url、Discord 沒 clientId、MS clientId 空） | `unknown`／「未啟用」通知／登入時的明確錯誤 | **不變** |
+| `rpc:notice` 送出丟錯 | `discord-rpc` 自己 `catch {}`，無聲 | `deliver` 接住、`gglError` `renderer_send_failed`（`channel: "rpc:notice"`）；`tryStartDiscordRpcHelper` 照樣 resolve |
+| `rpc:notice` 時視窗已關 | `?.` 不送 | `send`／`deliver` 的時序判斷不送、不記 |
+| 測試替身 | 逐次 `deps`、省略鍵靠預設、`configure({})` 還原預設 | 全部經同一個 `configure*`／`create*` 給齊；還原改成再 configure 一份完整的安靜替身 |
+| 正式 App Ready 接線 | 沒有測試 | 不變，且有 `test/app-ready.test.cjs` 釘住 |
+| helper 非同步啟動失敗（N8） | 沒人接的 `error` 事件（純 Node：行程 exit 1；Electron 未測）；`started` 在確認前就寫 | 報告一次（launcher log、診斷 log、通知、`gglError` `discord_rpc_spawn_failed` 無 detail）；`started` 只在 `spawn` 事件後寫；Minecraft 啟動結果不變 |
+| `notice-feed` 沒給 `log`（Q10） | 用空函式，程式錯誤無聲 | 建立時 TypeError。正式接上的 `appendLauncherLog` 在 debug 關閉時照樣不寫（U-11，不變） |
+
+### 分批（二稿建議兩個 commit；owner 裁後為三個：3a → N8 → 3b，→ §裁決 6b-3，均未授權施工）
+
+- **N8（獨立 commit，在 3a 之後）**：正式檔 `main/discord-rpc.js`、`main/app-ready.js`（`configureDiscordRpc` 多傳 `gglError`）；測試 `test/discord-rpc.test.cjs`（n1–n5）。根因：helper 的非同步啟動失敗沒人接、`started` 早報。與 3a 共用兩個正式檔，但不同根因、可單獨 revert（revert 後回到 3a 的狀態）。
+
+- **6b-3a：M-OTHER＋Discord RPC（R-a）**。正式檔：`main/app-ready.js`、`main/start-main.js`、`main/discord-rpc.js`、`main/ipc-bridge.js`、`ARCHITECTURE.md`（`:85`、`:87` 兩列）。測試：新 `test/app-ready.test.cjs`、新 `test/discord-rpc.test.cjs`、`test/ipc-bridge.test.cjs`。根因：App Ready 接線沒有會叫的保證；`rpc:notice` 繞過唯一的送出點。
+- **6b-3b：M-DI 的 A、E 類**（表 1、2、3、5、6、7、8，與 #9 的 `serverConfig`；Q10 若准一起；Q6 若裁改一起）。正式檔：`microsoft-auth.js`、`net-fetch.js`、`minecraft-launch.js`、`server-status.js`、`main-window.js`、`sync/apply.js`、`sync/index.js`、`sync/notice-feed.js`、`ARCHITECTURE.md` 受影響的列。測試：`microsoft-auth-refresh`、`net-fetch-download`、`runtime-java`、`runtime-minecraft`、`helpers/main-http-compat-client.cjs`、`server-status-config`、`minecraft-launch`、`sync-apply`、`sync-index`、`sync-notice-feed`、`minecraft-ipc-launch`、`site-format-doc`，新 main-window 小測試〔檔數依 P1 推得，施工時以實跑為準〕。`game-closed-dialog` 不動（#10 留）；N6 不動（Q9 撤回）。
+- **為什麼不是一個**：兩個獨立根因；3b 的測試改動面遠大於 3a，3b 出事只回滾 3b，3a 的接線測試照留。3b 要靠 3a 的測試釘「正式接線給齊」⇒ 3a 在前。兩批只共用 `ARCHITECTURE.md`（不同列）。Q6 已裁留 ⇒ 3b 只做 A、E，§Q6 範圍表的項目一字不動；Q10 已裁 ⇒ `notice-feed` 的 `log` 在 3b 改必填（`sync-notice-feed` F1 的 `base`、`site-format-doc` 一處補 `log`）。
+
+### 驗收（兩批共同）
+
+- **修前先跑**：3a 的 (a)「`configureDiscordRpc` 收到 `sendRpcNotice`」與 discord (c) 應紅；N8 的 n1、n2 應紅（沒人接的 `error`）、n3 應紅（現在 `started` 在 `spawn` 事件前就寫）；3b 每個「缺 X ⇒ TypeError」應紅（含 Q10 的 `log`）。修前結果與預期不同 ⇒ 停、更正本節。
+- **N8 反向驗證**：拿掉 `error` listener ⇒ n1 紅；拿掉報告旗標 ⇒ n2、n4 報兩次而紅；`started` 移回 `spawn` 之前 ⇒ n1 紅。
+- **反向驗證**：3a 把 `discord-rpc` 改回自己送＋`catch {}` ⇒ (c) 紅；解構多一個 KEYS 沒有的鍵並傳進某個 `configure*` ⇒ (a) 紅。3b 每個 configure 放回一個空函式預設 ⇒ 對應缺鍵案紅。`cmp` 還原。
+- **共同**：照 6b-1（`npm test` Node 24 與 22.23.4、`lint`、`check:ui-css` 一般／strict、`git diff --check`、prettier、conventions 自審 rg）；`docs:ipc` 後 `ARCHITECTURE.md` 自動段無 diff（channel 不增刪）；3b 改到計時／網路測試（`net-fetch-download` 等）⇒ 改到的檔跑 freeze 0–7 × 兩個 Node 版本。
+- **啟動**：開機到 `start_main_done`、常駐日誌無新事件。開機若因新的必填檢查失敗＝發現真的漏接 ⇒ 停。
+- **owner 畫面**：3a 開機、啟動遊戲一次；3b 開機、更新或修復一次（進度、狀態字）、登入一次（狀態字、登入完成）、啟動遊戲一次。
+
+### 交 owner 裁（二稿原文；2026-10-25 已裁：Q6 A、Q8 A、Q10 A、Q12 准、O1 接受、Q9 撤回、Q11 維持 → §裁決 6b-3）
+
+- **Q8（產品語意）**：內部接線漏接 ⇒ 開機即失敗（錯誤框），連選用功能（Discord）的接線也一樣。只影響接線寫錯的版本（程式碼錯，不是設定）；合法未設定照舊不擋開機。CC 建議接受（§2 本來就這樣要求）。
+- **Q9（撤回，二稿）**：初稿提議把 N6 併入 3b，前提是「拿掉 N6 後漏接會大聲失敗」。P4 證明不成立（`withRetries` 的 `:150-152` 照樣吞），N6 維持 Q5 的 future-work 裁決。
+- **Q10（改 owner 的 R7「選填」）**：`notice-feed` 的 `log` 改必填。它是 A8 程式錯誤唯一的報告出口；正式一定給（`start-main.js:122`）；漏給 ⇒ 程式錯誤無聲。成本：F1 的 `base` 與 site-format-doc 一處補 `log`。CC、ChatGPT 都建議改。
+- **Q11（撤回，二稿）**：`game-closed-dialog` 的 `getMainWindow` 留選填（§M-DI #10），不交裁。
+- **Q6**：→ §Q6 的建議裁決文字。CC 建議留；ChatGPT 支持保留已證明的部分。
+- **Q12（N8 授權）**：要不要做 §N8 的最小修正（建議跟在 3a 後單獨一個 commit）；選配 (b) 要不要加 `gglError` 事件。
+- 不必 owner 裁：C 類留給 U4；`serverConfig` 必填與否（審查可改判）；各項施工細節。
+
+### 未驗、停止條件、回滾
+
+**未驗**：
+- **U-7** `microsoft-auth` 的 `deps` 初值改 `null` 後，有沒有測試在沒 configure 時讀值型鍵（P1 沒包值型）——3b 施工第一步先跑該檔。
+- **U-8** `siteClient` 不共用的實際後果〔推論〕。
+- **U-9** 確認框不掛主視窗時會不會被擋在主視窗後面〔推論，未實機〕。二稿：#10 已改判留，這題不再影響任何判定。
+- **U-10** B 類若測試漏給，真的 `prepareRuntime` 在測試裡會不會真的連網（故意沒跑）。Q6 裁決明文保留這個已知風險。
+- **U-11（未結，Q10 的限制）** R7「公告的程式錯誤應留下紀錄」與正式 logger `appendLauncherLog` 只在 debug 開啟時寫（`main/launcher-log.js:24-25`）之間的落差；Q10 只保證 logger 接上。出口：owner 另裁公告程式錯誤要不要進常駐日誌（與 N9 同一題）；在那之前不新增 `gglError` 接線。
+- **U-12** N8：console 那一側會印出原始錯誤的哪些欄位（路徑、參數）；施工第一步先查。檔案那一側只留白名單欄位（`lib/ggl-structured-log.js:80-99`）。
+- 3b 的測試檔數依 P1 推得；正式路徑的預設用量是讀碼，沒在 Electron 裡跑探針。
+
+**停止**：`test/app-ready.test.cjs` 需要假 Electron 物件才跑得動（＝要長 harness）；開機因新的必填檢查失敗；拿掉預設後本節清單外的測試檔紅（先更新清單）；`discord-rpc` 測試會走到 helper 的真 spawn；N8 需要 ChildProcess manager、重試或第二個隔離層才做得到；需要改 `STATE_CHANNELS`、preload 或畫面；修前紅燈與預期不同。
+
+**回滾**：3a、N8、3b 各一個 commit、各自可 revert。revert 3a ⇒ `discord-rpc` 回到自己送、`app-ready` 沒有測試；revert N8 ⇒ 回到沒有 `error` listener、`started` 早報；revert 3b ⇒ 回到空函式預設與兩條注入路。3a 與 3b 不共用正式程式檔；N8 與 3a 共用 `discord-rpc.js`、`app-ready.js`，要先 revert N8 才能乾淨 revert 3a。
+
+### 新發現（盤點外，預設進 future-work，owner 可改）
+
+- **N7** `app-ready.js:73-75` `if (!ctx || typeof ctx !== "object")`：防唯一的內部呼叫者（`start-main` 一定傳）。〔CC 讀碼〕
+- **N8** `discord-rpc.js:93-98` spawn helper 後沒聽 `error` 事件：非同步啟動失敗沒人接。機制在純 Node 實測（P5）、ChatGPT 獨立重現；Electron main 的後果未測（U-4）。正確性類 → 最小修正見 §N8，併不併由 owner 授權。
+- **N9** `notice-feed.js:92-96` 包住 `onChange` 的 `try`：6b-1 之後 `onChange`（`bridge.sendNotice`）不丟錯，只剩吞 bug，而且交給的 `log` 寫的是 debug 的 launcher log、不是 `gglError`。〔CC 讀碼〕
+- **文件落差（待補的文件一致性問題）**：Q5 裁「N1、N6 留 future-work」，`future-work.md` 目前沒有這兩條（rg `N6|notifyRetryToUi|showMessageBox` 0 命中；對照組 rg `Discord RPC` 命中 `:8`）。出口：下一次動 `future-work.md` 的 docs 輪補上 N1、N6 兩條（N6 那條可附 P4：`withRetries` 外層也有一個 `catch {}`）。不構成修改正式程式的授權。
+
 ## 6b-2～6b-4 方向（細節開工前另補）
 
 - **6b-2**：照 U15 裁決刪三層；帳號 handler 的註冊與 `plainErrorIpcMain` 包裝收進 `registerAllMainIpc`，`scripts/lib/ipc-registry.js` 與 `test/ipc-plain-errors.test.cjs` 改呼叫它；拿掉 `setupOnce` 旗標與 `removeHandler`；`register*` 的 `ctx || {}`／`ctx?.` 拿掉。要一起改：`ARCHITECTURE.md:38,73-75,154`、`package.json` `format:ui` 清單裡的 `main/ipc-handlers.js`。**IPC 索引**：channel 不增刪、註冊檔理應不變，但 `ipc-registry` 換了入口，`docs:ipc` 要跑且比對 diff；重複註冊由 Electron 丟錯（上層 §5.5 實測）加 `ipc-registry` 的 `duplicated` 守。待裁：Q1（2026-10-25 已裁修正版 B → §裁決）。〔對齊 2026-10-25：→ `4362d28`（plans/cross-review-2026-10-phase6b.md 6b-2）：`ARCHITECTURE.md:38` 原地改寫、`:73-75` 改寫後 `:73-74`、`:154` 改寫後 `:153`（→ §6b-2 施工紀錄）〕
-- **6b-3**：每個 `configure*` 模組改成建立時檢查必要依賴（範本：`sync/index.js` 的 `assertRequiredDeps`），依賴預設值的測試改成給齊；`launchMinecraft` 只留一條注入路；`discord-rpc` 的送出收進 bridge（用 `IPC.on.RPC_NOTICE`，走 D2 的 `send`）；`app-ready`／`start-main` 的鍵名只留一份，修過期地址。測試改動面最大。待裁：Q6。
+- **6b-3**：每個 `configure*` 模組改成建立時檢查必要依賴（範本：`sync/index.js` 的 `assertRequiredDeps`），依賴預設值的測試改成給齊；`launchMinecraft` 只留一條注入路；`discord-rpc` 的送出收進 bridge（用 `IPC.on.RPC_NOTICE`，走 D2 的 `send`）；`app-ready`／`start-main` 的鍵名只留一份，修過期地址。測試改動面最大。待裁：Q6。〔2026-10-25 細部初稿 → §6b-3 細部初稿：分兩批、鍵名一節偏離「只留一份」〕〔2026-10-25 owner 裁 Q6、Q8、Q10、Q12、O1 → §裁決 6b-3：三批 3a → N8 → 3b，鍵名維持三份明確宣告（O1）〕
 - **6b-4**：M-STREAM 刪 Node stream 分支（兩檔）；M-RE 呼叫者改直接載 lib；兩個「第二道」刪除（C8、S4 改寫）；M-MISC、M-SILENT 照總表；`site-client` 退路加 `gglError`、`microsoft-auth.js:621` 缺 refresh_token 要出聲（這兩處碰網路回應與 token，各加假 token 案例，照 D-LOG-PRIVACY）。待裁：Q4、Q7。〔對齊 2026-10-25：→ `48452a9`（plans/cross-review-2026-10-phase6b.md 6b-1）：`microsoft-auth.js:621` 後 `:617`〕〔對齊 2026-10-25：→ `4362d28`（plans/cross-review-2026-10-phase6b.md 6b-2）：`microsoft-auth.js:617`（上次對齊）未移動〕
 
 ## 待 owner 裁決
 
-以下是 CC 當時的提案與理由，原樣保留；owner 實際怎麼裁只看 §裁決（Q2、Q3-impl、W19、B7、Q5 於 6b-1 授權時裁，Q1 於 6b-2 授權時裁，Q1 裁的是修正版 B、不是本表的 B）。
+以下是 CC 當時的提案與理由，原樣保留；owner 實際怎麼裁只看 §裁決（Q2、Q3-impl、W19、B7、Q5 於 6b-1 授權時裁，Q1 於 6b-2 授權時裁，Q1 裁的是修正版 B、不是本表的 B；Q6 於 2026-10-25 6b-3 裁決時裁 A 保留，範圍是 §6b-3 細部初稿 §Q6 收窄後的清單、不是本表的 `sync/index.js:161-164` 三項全文）。
 
 | # | 問題 | 選項 | CC 傾向與理由 |
 |---|---|---|---|
