@@ -226,30 +226,16 @@ async function rankSourcesByQuickProbe(sources) {
       const body = res.body;
       if (!body) return { ok: false, ms: 1e9, src };
 
+      // 全域 fetch 交的 body 是 Web ReadableStream；Node stream 的備用分支沒人走過、已刪
+      // （→ _notes/plans/cross-review-2026-10-phase6b4.md #2）。讀到上限就停，連線由 finally 的 abort 收掉
       let got = 0;
-      if (typeof body.getReader === "function") {
-        const reader = body.getReader();
-        while (got < MAX_BYTES) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          if (!value) continue;
-          got += value.byteLength || value.length || 0;
-          if (got >= MAX_BYTES) break;
-        }
-      } else {
-        await new Promise((resolve, reject) => {
-          body.on("data", (chunk) => {
-            got += chunk.length;
-            if (got >= MAX_BYTES) {
-              try {
-                body.destroy();
-              } catch {}
-              resolve();
-            }
-          });
-          body.on("error", reject);
-          body.on("end", resolve);
-        });
+      const reader = body.getReader();
+      while (got < MAX_BYTES) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (!value) continue;
+        got += value.byteLength || value.length || 0;
+        if (got >= MAX_BYTES) break;
       }
       const ms = Math.max(1, Date.now() - started);
       return { ok: true, ms, src };
