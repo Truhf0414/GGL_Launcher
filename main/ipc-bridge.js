@@ -82,6 +82,11 @@ function createIpcBridgeSenders(deps) {
     send(IPC.on.MINECRAFT_RUNNING, { isRunning: Boolean(isRunning) });
   }
 
+  // Discord RPC 的提示（main/discord-rpc.js）：一次性，不記住、不重播
+  function sendRpcNotice(text) {
+    send(IPC.on.RPC_NOTICE, { text });
+  }
+
   // describeStatus 丟錯＝bug（未知 kind／原因）；照樣送出，不然中樞吞錯、畫面停在上一筆
   function textOf(status) {
     try {
@@ -128,6 +133,7 @@ function createIpcBridgeSenders(deps) {
     sendSyncDone,
     sendMcStatus,
     sendMcRunning,
+    sendRpcNotice,
     sendInstanceStatus,
     sendNotice,
     sendServerStatus,

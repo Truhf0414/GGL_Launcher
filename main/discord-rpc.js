@@ -10,28 +10,25 @@ const {
   appendLauncherLog,
   appendRpcDiagLog,
 } = require("./launcher-log");
-const mainWindowModule = require("./main-window");
 
-/** @type {() => import("electron").BrowserWindow | null} */
-let getMainWindow = () => mainWindowModule.getMainWindow();
+/**
+ * 畫面提示，來自 ipc-bridge：送畫面失敗由 bridge 的 deliver 接住並記常駐日誌，不丟錯（Q3），
+ * 所以提示失敗不改變這裡任何一條路的結果
+ * @type {((text: string) => void) | null}
+ */
+let sendRpcNotice = null;
 /** server-config 的 discord 區塊；未注入時為 null，此時不啟動 helper */
 let discordConfig = null;
 
-function configureDiscordRpc(deps = {}) {
-  if (typeof deps.getMainWindow === "function") {
-    getMainWindow = deps.getMainWindow;
+function configureDiscordRpc(deps) {
+  // 必要接線缺了在 configure 時丟（6b-3 Q8）；Client ID 沒設是合法未啟用，不在這裡擋
+  if (typeof deps.sendRpcNotice !== "function") {
+    throw new TypeError("configureDiscordRpc: 缺少必填的 sendRpcNotice");
   }
+  sendRpcNotice = deps.sendRpcNotice;
   if (deps.discord && typeof deps.discord === "object") {
     discordConfig = deps.discord;
   }
-}
-
-function sendRpcNotice(text) {
-  try {
-    getMainWindow()?.webContents?.send("rpc:notice", {
-      text: String(text || ""),
-    });
-  } catch {}
 }
 
 function resolveDiscordRpcHelperExePath() {
