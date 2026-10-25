@@ -608,7 +608,8 @@ def cmd_align(a):
         plans = [p for p in plans if p.name not in ALIGN_SKIP]
     else:
         plans = sorted(p for p in (NOTES / "plans").glob("*.md") if p.name not in ALIGN_SKIP)
-    ref_re = re.compile(r"([\w\-]+\.(?:js|cjs|json|mjs|ts|css|html))`?:(\d+)")
+    # 檔名中間可以有點（`foo.test.cjs`）：只認 `[\w\-]+` 會切成 `test.cjs`，對不上改動檔就漏掉
+    ref_re = re.compile(r"([\w\-]+(?:\.[\w\-]+)*\.(?:js|cjs|json|mjs|ts|css|html))`?:(\d+)")
     bare_re = re.compile(r"`:\d+(?:-\d+)?`")
     total_refs, todo, human = 0, [], []
     for p in plans:
