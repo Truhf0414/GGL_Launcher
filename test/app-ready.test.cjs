@@ -92,6 +92,7 @@ test("R1 五個 configure* 各一次，參數照來源：ctx 的就是 ctx 給�
     },
     configureDiscordRpc: {
       sendRpcNotice: ctx.sendRpcNotice,
+      gglError,
       discord: SERVER_CONFIG.discord,
     },
   };
