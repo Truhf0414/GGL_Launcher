@@ -2,7 +2,7 @@
 
 ## 現在
 
-| 未結案       | 交叉審查後的收斂施工（Phase 0–5 ✅、X1 ✅、N6 ✅、X1b ✅ 技術結案；6 進行中：6a ✅、6b-1 ✅、6b-2 ✅、6b-3a ✅、N8 ✅、6b-3b ✅、6b-4a ✅） | → plans/cross-review-2026-10.md |
-| 接續步驟     | 6b-4 下一批（4b–4g，建議順序 4d 先）待 owner 授權 | → plans/cross-review-2026-10-phase6b4.md §分批 |
+| 未結案       | 交叉審查後的收斂施工（Phase 0–5、X1、N6、X1b ✅；6 進行中：6a、6b-1～3 ✅，6b-4 進行中） | → plans/cross-review-2026-10.md |
+| 接續步驟     | 6b-4b 已授權、施工中；之後 4e、4c、4f、4g 待 owner 授權 | → plans/cross-review-2026-10-phase6b4.md §分批 |
 | 卡住         | 否 | — |
 | 上一輪 retro | 2026-09-11 code review ✅ | → learnings.md |
