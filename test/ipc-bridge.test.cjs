@@ -5,8 +5,12 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
 
 const { createIpcBridgeSenders } = require("../main/ipc-bridge.js");
+const { createGglLog } = require("../lib/ggl-structured-log.js");
 const { registerWindowIpc } = require("../main/ipc/window-ipc.js");
 
 function status(kind, localReady, over = {}) {
@@ -80,7 +84,7 @@ test("W10 instance status payload adds text and logs a fixed summary", () => {
 });
 
 test("W11 unknown kind still sends once with the internal-error headline and logs the text error", () => {
-  const { senders, mainWc, logs } = setup();
+  const { senders, mainWc, logs, errors } = setup();
   const s = status("bogus", false);
   senders.sendInstanceStatus(s);
   assert.equal(mainWc.sent.length, 1);
@@ -93,6 +97,39 @@ test("W11 unknown kind still sends once with the internal-error headline and log
     logs.filter((l) => l.startsWith("INSTANCE_TEXT_ERROR ")).length,
     1,
   );
+  // 常駐日誌一筆；detail 只有白名單過的 kind（不在 KINDS ⇒ "unknown"）
+  // → _notes/plans/cross-review-2026-10-phase6b4.md §Q4
+  assert.equal(errors.length, 1);
+  const [scope, event, err, detail] = errors[0];
+  assert.equal(scope, "main");
+  assert.equal(event, "instance_status_text_failed");
+  assert.ok(err instanceof TypeError);
+  assert.deepEqual(detail, { kind: "unknown" });
+});
+
+test("W11b the persistent log file never carries the kind string from a broken status", (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ggl-bridge-log-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const filePath = path.join(dir, "ggl-launcher.log");
+  t.mock.method(console, "error", () => {});
+  const { gglError } = createGglLog({
+    getFilePath: () => filePath,
+    homedir: os.homedir(),
+    maxBytes: 1024 * 1024,
+  });
+  const senders = createIpcBridgeSenders({
+    getMainWindow: () => null,
+    appendLauncherLog: async () => {},
+    logSyncProgressThrottled: () => {},
+    gglError,
+  });
+  const TOKEN = "eyJhbGciOiJIUzI1NiJ9.FAKE-TOKEN-SHAPED.c2lnbmF0dXJl";
+  senders.sendInstanceStatus(status(TOKEN, false));
+  const raw = fs.readFileSync(filePath, "utf8");
+  assert.equal(raw.split("\n").filter(Boolean).length, 1);
+  assert.match(raw, /"e":"instance_status_text_failed"/);
+  assert.match(raw, /"d":\{"kind":"unknown"\}/);
+  assert.equal(raw.includes("FAKE-TOKEN-SHAPED"), false);
 });
 
 test("W12 sync progress keeps null as null and clamps numbers as before", () => {

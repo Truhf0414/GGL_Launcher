@@ -52,7 +52,7 @@ function baseAccount(overrides = {}) {
 }
 
 function setupIpc(depsOverrides = {}) {
-  const calls = { refresh: 0, write: [], launch: [], dialogs: [], lock: 0 };
+  const calls = { refresh: 0, write: [], launch: [], dialogs: [], lock: 0, errors: [] };
   const deps = {
     // ④c：閘把那次讀到的 settings／paths／record 交給 fn（A1）
     withLaunchLock: async (fn) => {
@@ -71,6 +71,9 @@ function setupIpc(depsOverrides = {}) {
       calls.launch.push(args);
     },
     isMinecraftRunning: () => false,
+    gglError: (...args) => {
+      calls.errors.push(args);
+    },
     ...depsOverrides,
   };
   const ipcMain = makeFakeIpcMain();
@@ -408,6 +411,54 @@ test("W15 gate blocks launching ⇒ 無法啟動 dialog with the status text, no
       channel,
     );
     assert.equal(calls.launch.length, 0, channel);
+  }
+});
+
+// describeStatus 丟錯＝bug：照樣跳框（通用字）、常駐日誌一筆、原本的錯照樣往外丟；
+// detail 只有白名單過的 kind → _notes/plans/cross-review-2026-10-phase6b4.md §Q4
+test("W15i status text fails ⇒ generic 無法啟動 dialog, one gglError with the whitelisted kind, original error still thrown", async () => {
+  const ROWS = [
+    // kind 合法、原因未知（status-text.js 的原因檢查丟）⇒ detail 是那個 kind
+    { kind: "offline", syncReasons: ["bogus-reason"], loggedKind: "offline" },
+    // kind 不在 KINDS ⇒ detail 是 "unknown"
+    { kind: "bogus", syncReasons: [], loggedKind: "unknown" },
+  ];
+  for (const row of ROWS) {
+    for (const channel of LAUNCH_HANDLERS) {
+      const label = `${row.kind} ${channel}`;
+      const original = new SyncStateError(
+        "GGL_SYNC_LAUNCH_BLOCKED",
+        `目前無法啟動（狀態：${row.kind}）。`,
+        {
+          status: {
+            kind: row.kind,
+            localReady: false,
+            syncReasons: row.syncReasons,
+          },
+        },
+      );
+      const { ipcMain, calls } = setupIpc({
+        withLaunchLock: async () => {
+          throw original;
+        },
+      });
+      await rejectsWith(ipcMain.invoke(channel), (e) => {
+        assert.equal(e.constructor, Error, label);
+        assert.equal(e.message, original.message, label);
+      });
+      assert.deepEqual(
+        calls.dialogs,
+        [{ title: "無法啟動", message: `目前無法啟動（狀態：${row.kind}）。` }],
+        label,
+      );
+      assert.equal(calls.errors.length, 1, label);
+      const [scope, event, err, detail] = calls.errors[0];
+      assert.equal(scope, "main", label);
+      assert.equal(event, "launch_blocked_text_failed", label);
+      assert.ok(err instanceof TypeError, label);
+      assert.deepEqual(detail, { kind: row.loggedKind }, label);
+      assert.equal(calls.launch.length, 0, label);
+    }
   }
 });
 
