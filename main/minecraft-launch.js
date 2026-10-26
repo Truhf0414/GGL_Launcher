@@ -7,10 +7,7 @@ const path = require("path");
 const { spawn } = require("child_process");
 const { ensureWritableTree } = require("./fs-utils");
 const { launchIdFor } = require("../lib/runtime-target.js");
-const {
-  recordComplete,
-  assertLaunchBundle,
-} = require("../lib/runtime-needs.js");
+const { assertLaunchBundle } = require("../lib/runtime-needs.js");
 const { javaExeFor } = require("../lib/paths-layout.js");
 const { heapMbFromSettings } = require("../lib/launch-memory.js");
 const {
@@ -149,20 +146,14 @@ function waitSpawned(p) {
 }
 
 /**
- * 連點／兩個 IPC 同時啟動由呼叫端的啟動鎖擋（main/sync 的 withLaunchLock）；
+ * 連點／兩個 IPC 同時啟動由呼叫端的啟動鎖擋（main/sync 的 withLaunchLock）；遊戲已在跑由鎖內的 IPC 那道擋。
  * record、launch 是閘那次計算的那份（④c A1）；launch＝就緒交出的成品，啟動不讀 json、不重算（⑤c P2′）。
+ * 不完整的記錄與沒有成品由閘擋（canLaunch ⇒ 就緒），這裡不再驗（→ _notes/plans/cross-review-2026-10-phase6b4.md #5、#6）。
  * 依賴只經 configureMinecraftLaunch（一條注入路，6b-3b）。
  * @param {{ settings: object, paths: object, record: object, launch: object, auth?: object }} input
  */
 async function launchMinecraft({ settings, paths, record, launch, auth }) {
   const d = launchDeps;
-  // 閘已擋過不就緒；這裡只防記錄不完整、沒有成品（第二道）
-  if (!recordComplete(record) || launch === null || launch === undefined) {
-    throw new LaunchError(
-      "GGL_LAUNCH_NOT_READY",
-      "本機記錄或檔案不完整，請先按更新。",
-    );
-  }
   assertLaunchBundle(launch);
   const gameDir = paths.gameDir;
   const launchId = launchIdFor(record);
@@ -211,10 +202,6 @@ async function launchMinecraft({ settings, paths, record, launch, auth }) {
 
   d.sendMcStatus("正在啟動遊戲…");
 
-  cleanupStaleMcProcessIfNeeded();
-  if (runningMcProcess && runningMcProcess.exitCode === null) {
-    throw new Error("遊戲已在執行中，請先關閉遊戲後再啟動。");
-  }
   // 完整 argv（⑤ 的基準）；時間戳由 appendLauncherLog 加
   await d.log(
     `MC_LAUNCH launchId=${launchId} argv=${JSON.stringify(
