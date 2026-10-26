@@ -1,4 +1,4 @@
-# Phase 6b-4 — 其他 main 組：細部 plan（狀態：**2026-10-26 初稿，基準 `712f445`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄）；同日 owner 裁 Q4、Q7、Q13、Q14（→ §裁決），回寫進本檔（→ §裁決回寫紀錄），文件 `d4eef72`；同日 owner 授權 4a（→ §裁決 4a 施工授權），施工 commit `badebe9`，經 owner 驗收放行（→ §4a 施工紀錄）；同日 owner 授權 4d（→ §裁決 4d 施工授權），施工 commit `6e63202`，經 owner 驗收放行（→ §4d 施工紀錄）；同日 owner 授權 4b（→ §裁決 4b 施工授權），施工 commit `ff177df`，經 owner 驗收放行（→ §4b 施工紀錄）；同日 owner 授權 4e（→ §裁決 4e 施工授權），施工 commit `ddbca30`，經 owner 驗收放行（→ §4e 施工紀錄）；4c、4f、4g 未授權施工**）
+# Phase 6b-4 — 其他 main 組：細部 plan（狀態：**2026-10-26 初稿，基準 `712f445`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄）；同日 owner 裁 Q4、Q7、Q13、Q14（→ §裁決），回寫進本檔（→ §裁決回寫紀錄），文件 `d4eef72`；同日 owner 授權 4a（→ §裁決 4a 施工授權），施工 commit `badebe9`，經 owner 驗收放行（→ §4a 施工紀錄）；同日 owner 授權 4d（→ §裁決 4d 施工授權），施工 commit `6e63202`，經 owner 驗收放行（→ §4d 施工紀錄）；同日 owner 授權 4b（→ §裁決 4b 施工授權），施工 commit `ff177df`，經 owner 驗收放行（→ §4b 施工紀錄）；同日 owner 授權 4e（→ §裁決 4e 施工授權），施工 commit `ddbca30`，經 owner 驗收放行（→ §4e 施工紀錄）；同日 owner 授權 4c（→ §裁決 4c 施工授權），施工 commit `ef4484c`，經 owner 驗收放行（→ §4c 施工紀錄）；同日 owner 授權 4f（→ §裁決 4f 施工授權）；4g 未授權施工**）
 
 **授權出處**：〔轉述〕owner 2026-10-26 在與 CC 的對話中貼入「GGL_Launcher — Phase 6b-4 細部設計調查」：「本輪不修改正式程式、不 Commit、不 Push，也不預先認定全部盤點項目都必須修改。」交付物＝細部初稿與審查問題。
 **上層**：範圍、不做、不變量、驗收下限、回滾 → `plans/cross-review-2026-10.md` §8 Phase 6；改／留判準、退回、留的出口 → `plans/cross-review-2026-10-phase6-criteria.md`（以下「判準」）；候選的定義 → `plans/defense-cleanup.md` §清理清單 main/ 表；6b 的切法與既有裁決（Q3、Q6、Q8、Q10 …）→ `plans/cross-review-2026-10-phase6b.md`（以下「6b 檔」）§裁決、§候選總表 6b-4 列。
@@ -57,11 +57,22 @@
 **授權**：4e（#5、#6）的施工與驗證；權威＝本檔 #5、#6（含責任轉移表）、§分批、§驗收。本機 commit 照 4d 的做法，自動驗證完成後先問 owner。**不授權** push、其他批次。
 **commit 出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「commit，啟動正常，4e 驗收過」。
 
+### 4c 施工授權（2026-10-26）
+
+**出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「早安小瓶，我們來開 4c 吧！」；CC 開工時說明照 4d 的做法解讀（施工＋驗證、commit 前先問），owner 沒有更正。
+**授權**：4c（#8、#11）的施工與驗證；權威＝本檔 #8（Q7＝算那條）、#11、§分批、§驗收。本機 commit 照 4d 的做法，自動驗證完成後先問 owner。**不授權** push、其他批次。
+**commit 出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「commit，設定頁正常，4c 驗收過」。
+
+### 4f 施工授權（2026-10-26）
+
+**出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「收 docs commit，然後開工 4f」。
+**授權**：4f（Q4：#12、#16）的施工與驗證；權威＝本檔 §裁決 Q4、§Q4、§分批、§驗收。本機 commit 照 4d 的做法，自動驗證完成後先問 owner。**不授權** push、其他批次。
+
 ## 探針〔實測，2026-10-26〕
 
 - **P6 Electron main 裡 fetch 回的 body**（`electron.exe` 44.3.0，內建 Node 24.20.0；拿掉 `ELECTRON_RUN_AS_NODE`；本機 http 伺服器）：全域 `fetch`（不是 `net.fetch`、也不是 undici 8 的 `fetch`）與 `require("undici").fetch`＋自建 `Agent`（`net-fetch.js:13,208-214` 的同一種呼叫）回的 `res.body` 都是 `ReadableStream`、`instanceof ReadableStream` 為 true、`typeof getReader === "function"`、**沒有** `pipe`／`on`。204 回應兩者的 body 都是 `null`。同一行程裡實走正式的 `downloadToFile`（300 KiB，3 個 chunk，檔案大小正確）與 `rankSourcesByQuickProbe`（回 1 個來源），都成功。〔對齊 2026-10-26：→ `badebe9`（plans/cross-review-2026-10-phase6b4.md 4a）：`net-fetch.js:13,208-214` 未移動〕
 - **P7 純 Node（測試行程的環境）**：同樣的檢查在 v24.14.1 與 v22.23.4（CI 最近一次的版本）結果與 P6 相同。
-- **P8 `console-message` 的參數**（Electron 44.3.0，`show: false` 的視窗載入一段印 log／warn／error／debug 的頁面）：五次事件的第一個參數都是物件、不是 null；`level` 是字串（`info`／`warning`／`error`／`debug`）、`message` 是字串、`lineNumber` 是數字、`sourceId` 是字串；第二個參數是數字（舊式 level，與 `main-window.js:84-85` 的註解相符）。`webContents.on("console-message", …)` 沒有丟錯。`ready-to-show` 觸發時 `isDestroyed()` 是 false。
+- **P8 `console-message` 的參數**（Electron 44.3.0，`show: false` 的視窗載入一段印 log／warn／error／debug 的頁面）：五次事件的第一個參數都是物件、不是 null；`level` 是字串（`info`／`warning`／`error`／`debug`）、`message` 是字串、`lineNumber` 是數字、`sourceId` 是字串；第二個參數是數字（舊式 level，與 `main-window.js:84-85` 的註解相符）。`webContents.on("console-message", …)` 沒有丟錯。`ready-to-show` 觸發時 `isDestroyed()` 是 false。〔對齊 2026-10-26：→ `ef4484c`（plans/cross-review-2026-10-phase6b4.md 4c）：`main-window.js:84-85` 後 `:83-84`（註解原文未改）〕
 - **Q7 的外部證據**〔查過〕：Node 的 `os.totalmem` 就是 binding `getTotalMem`（`nodejs/node` v22.x `lib/os.js`：`totalmem: getTotalMem`）；binding 只做 `static_cast<double>(uv_get_total_memory())` 再回傳（`src/node_os.cc`），沒有丟錯的路。libuv 文件 `uv_get_total_memory`：「Returns 0 when unknown.」（docs.libuv.org v1.x misc）；Windows 實作在 `GlobalMemoryStatusEx` 失敗時 `return 0`（`libuv` v1.x `src/win/util.c`）。Node 文件 `os.totalmem()` 只寫「Returns: <integer>」，沒提 0。
 
 ## 逐項
@@ -150,10 +161,10 @@
 
 ### M-MISC
 
-**#8 `main/system-memory.js:3-13`（Q7）**
+**#8 `main/system-memory.js:3-13`（Q7）**〔對齊 2026-10-26：→ `ef4484c`（plans/cross-review-2026-10-phase6b4.md 4c）：`main/system-memory.js:3-13` 改寫後 `:3-11`（→ 同檔 §4c 施工紀錄）〕
 - **證據**：`os.totalmem` 是 Node 內建、一定存在；binding 沒有丟錯的路、回的是 `uint64` 轉 `double`（§探針 Q7 的外部證據）。下游：`ipc/settings-ipc.js:9` 把值放進 `settings:get` 的回應 → `lib/settings-logic.js:41-48` 的 `computeMemoryUiModel`：`null` ⇒ 提示「無法偵測系統記憶體，沒有建議值」；測試 `settings-logic.test.cjs:49` 釘住這條。
 - **拆成兩部分**：
-  - `?.`（`:5`）、`?? 0`、`Number(…)`、`!Number.isFinite`、`try`／`catch`（`:4`、`:10-12`）——防的是「內建函式不存在」「回非數字」「丟錯」：Node v22.x 原始碼裡這三種都沒有路徑〔查過：`lib/os.js`、`src/node_os.cc`；Electron 44 內建的 Node 24.20 沒另外讀〕，也沒有任何文件或紀錄寫過會這樣 ⇒ 沒有證據支持這層防禦，照 §2 **改**（不需要等 Q7）。錯了會叫嗎：若 binding 真的丟錯，拿掉 `try` 後 `settings:get` 會 reject、設定頁打不開——會叫。
+  - `?.`（`:5`）、`?? 0`、`Number(…)`、`!Number.isFinite`、`try`／`catch`（`:4`、`:10-12`）——防的是「內建函式不存在」「回非數字」「丟錯」：Node v22.x 原始碼裡這三種都沒有路徑〔查過：`lib/os.js`、`src/node_os.cc`；Electron 44 內建的 Node 24.20 沒另外讀〕，也沒有任何文件或紀錄寫過會這樣 ⇒ 沒有證據支持這層防禦，照 §2 **改**（不需要等 Q7）。錯了會叫嗎：若 binding 真的丟錯，拿掉 `try` 後 `settings:get` 會 reject、設定頁打不開——會叫。〔對齊 2026-10-26：→ `ef4484c`（plans/cross-review-2026-10-phase6b4.md 4c）：`system-memory.js` 的 `:4`、`:10-12`（`try`／`catch`）刪除、`:5` 改寫後 `:4`（→ 同檔 §4c 施工紀錄）；其他行號指的檔不在本 commit〕
   - `bytes <= 0 ⇒ null`——**交 owner（Q7）**。
 - **Q7 兩邊的證據**：
   - 算 OS 邊界（留）：libuv 明文「0＝不知道」，Windows 在 `GlobalMemoryStatusEx` 失敗時回 0 ⇒ 這是 OS API 的失敗值，conventions §防禦與相容 邊界清單的「會失敗的 Electron／OS API」。若刪掉，0 會變成 `Math.max(1, Math.round(0))`＝1，提示變成「建議：最小 2、最大 4（依系統記憶體 1 GB）」——把「不知道」報成一個具體的錯數字（E1 反向：刪了反而多一句謊）。
@@ -177,10 +188,10 @@
 - **驗證**：修後——`diagnostics-export` 測試；匯出診斷一次。
 - **建議**：**改**；與 #9 同一個 commit。盤點外的 `:52-55`（`String(record?.version || "")`、`Array.isArray(record?.files)`）列 §新發現。
 
-**#11 `main/main-window.js:82-94`（`console-message` 的 `try`＋`details?.`／`??`）、`:99-104`（`ready-to-show` 的 `try`）——退回**
+**#11 `main/main-window.js:82-94`（`console-message` 的 `try`＋`details?.`／`??`）、`:99-104`（`ready-to-show` 的 `try`）——退回**〔對齊 2026-10-26：→ `ef4484c`（plans/cross-review-2026-10-phase6b4.md 4c）：`main/main-window.js:82-94` 改寫後 `:82-90`、`:99-104` 改寫後 `:95-99`（→ 同檔 §4c 施工紀錄）〕
 - **退回理由**：6b 檔 §候選總表把這兩段判成「改分類（留-1：時序／外部 API）、只補理由」。現讀推翻「只補理由」：理由寫不出來——找不到任何具體的錯誤契約需要這兩層**無聲**隔離。
-  - `:82-94`：`try` 包的是 `webContents.on("console-message", …)` 掛監聽。P8 在 44.3.0 實測掛監聽沒有丟錯、payload 的四個欄位都在且型別對（與 `:84-85` 註解引的 `electron.d.ts` 相符）。這只證明這個版本實測正常，**不證明** Electron 的這個 API 永遠不會丟錯；但本專案的紀錄沒有任何一處描述過「掛這個監聽可能失敗、失敗時應忽略」〔查過：rg `console-message|ready-to-show` 在 `_notes/`、`docs/`、`ARCHITECTURE.md`，命中的 `plans/cross-review-2026-10-phase2.md:183`、`plans/cross-review-2026-10.md:354` 只談哪些事件要掛、debug 才掛〕；Electron 文件對這個 API 會不會丟錯沒查〔未查〕。所以目前沒有可描述的契約讓這層 `catch {}` 守。`details?.`、`??`、`Number(…)` 同理：防的是型別定義與實測都沒出現過的形狀。〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`ARCHITECTURE.md`（這處沒有行號）〕
-  - `:99-104`：`w.show()` 是 Electron API 呼叫，**仍然是 Electron 邊界**（不重新分類為內部值）。拿掉 `try` 的理由不是「它不會丟」，而是：(1) 視窗已銷毀這個已知的時序，已由 `w && !w.isDestroyed()`（`:101-102`，A11 的規則，6b-1 D1 保留）處理，不靠 `catch`；(2) 除此之外的失敗沒有任何已知形狀，而 `catch {}` 會讓它變成「視窗永遠不出現、沒有任何紀錄」——照 conventions §4，吞錯只限清理與探測、要寫得出理由，這裡寫不出來。
+  - `:82-94`：`try` 包的是 `webContents.on("console-message", …)` 掛監聽。P8 在 44.3.0 實測掛監聽沒有丟錯、payload 的四個欄位都在且型別對（與 `:84-85` 註解引的 `electron.d.ts` 相符）。這只證明這個版本實測正常，**不證明** Electron 的這個 API 永遠不會丟錯；但本專案的紀錄沒有任何一處描述過「掛這個監聽可能失敗、失敗時應忽略」〔查過：rg `console-message|ready-to-show` 在 `_notes/`、`docs/`、`ARCHITECTURE.md`，命中的 `plans/cross-review-2026-10-phase2.md:183`、`plans/cross-review-2026-10.md:354` 只談哪些事件要掛、debug 才掛〕；Electron 文件對這個 API 會不會丟錯沒查〔未查〕。所以目前沒有可描述的契約讓這層 `catch {}` 守。`details?.`、`??`、`Number(…)` 同理：防的是型別定義與實測都沒出現過的形狀。〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`ARCHITECTURE.md`（這處沒有行號）〕〔對齊 2026-10-26：→ `ef4484c`（plans/cross-review-2026-10-phase6b4.md 4c）：`main-window.js` 的 `:82-94` 改寫（`try` 拿掉）後 `:82-90`、`:84-85` 後 `:83-84`；其他行號指的檔不在本 commit〕
+  - `:99-104`：`w.show()` 是 Electron API 呼叫，**仍然是 Electron 邊界**（不重新分類為內部值）。拿掉 `try` 的理由不是「它不會丟」，而是：(1) 視窗已銷毀這個已知的時序，已由 `w && !w.isDestroyed()`（`:101-102`，A11 的規則，6b-1 D1 保留）處理，不靠 `catch`；(2) 除此之外的失敗沒有任何已知形狀，而 `catch {}` 會讓它變成「視窗永遠不出現、沒有任何紀錄」——照 conventions §4，吞錯只限清理與探測、要寫得出理由，這裡寫不出來。〔對齊 2026-10-26：→ `ef4484c`（plans/cross-review-2026-10-phase6b4.md 4c）：`main-window.js` 的 `:99-104` 改寫（`try` 拿掉）後 `:95-99`、`:101-102` 後 `:97-98`〕
 - **雙向舉證**：
   - 改的收益：E4（兩個空 `catch` 與四個預設看起來在防守、實際只在沒人描述過的情況下作用）；E1（若真有未知的失敗，從「視窗無聲地不出現／debug 輸出無聲消失」變成看得到的錯）；E5（`main-window.js` 是 6b-3b 剛整理過的檔）。
   - 改的成本：C1＝1 個正式檔；C3＝這兩段沒有測試（`test/main-window.test.cjs` 只測 configure，`fake-electron` 沒有 `BrowserWindow`），審查明示不要求為此加 Electron harness ⇒ 驗證靠 Electron 開機（debug 開、看 `[RENDERER:…]` 有印；debug 關、視窗正常出現）——CC 可在隔離的 user-data-dir 自己跑。風險：若 Electron 換版後在這兩處丟錯，修後的結果是事件 handler 裡的例外（main 的 uncaught exception，後果未測，U-4）或 `createMainWindow` 往外丟（開機的 `start_main_failed`）——會叫；修前是無聲。
@@ -341,10 +352,10 @@
 |---|---|---|---|---|---|---|---|
 | **4a** | #1、#2 | 防一個 fetch 不會交出的 body 形狀 | `net-fetch.js`、`runtime/download.js` | 不改；freeze 5 檔（#1） | 不變／不變（刪掉的分支在實測環境都不執行） | 更新或修復一次 | — |
 | **4b** | #3、#4、#9、#10、#14 的理由註解 | 同一函式兩個地址（§6）；邊界內的值再正規化一次（§2） | `paths.js`、`launcher-log.js`、`settings.js`、`start-main.js`、`lib/paths-layout.js`、`diagnostics-export.js`、`sync/site-client.js`（只加註解）、`ARCHITECTURE.md:55` | 不改 | 不變／`package.json` 版本號有空白或缺 ⇒ 從「被修掉」變成開機 `start_main_failed` | 開機、匯出診斷一次 | — |
-| **4c** | #8（Q7＝算）、#11 | OS／Electron API 呼叫外面的無聲防禦，現有證據撐不起 | `system-memory.js`、`main-window.js` | 視 U-14 加 1 個小測試（`os.totalmem` 回 0 ⇒ `null`）；`settings-logic.test.cjs:49` 照留 | 不變（含 `totalmem` 回 0 ⇒ 「無法偵測系統記憶體」）／這些 API 若真的丟錯（沒證據會發生），從無聲變成看得到的錯（設定頁讀不到、開機失敗、事件裡的例外） | 開機、設定頁看記憶體提示；debug 開一次（CC 可代跑） | Q7 已裁（→ §裁決）；未授權施工 |
+| **4c** | #8（Q7＝算）、#11 | OS／Electron API 呼叫外面的無聲防禦，現有證據撐不起 | `system-memory.js`、`main-window.js` | 視 U-14 加 1 個小測試（`os.totalmem` 回 0 ⇒ `null`）；`settings-logic.test.cjs:49` 照留 | 不變（含 `totalmem` 回 0 ⇒ 「無法偵測系統記憶體」）／這些 API 若真的丟錯（沒證據會發生），從無聲變成看得到的錯（設定頁讀不到、開機失敗、事件裡的例外） | 開機、設定頁看記憶體提示；debug 開一次（CC 可代跑） | Q7 已裁（→ §裁決）；已施工 `ef4484c`（→ §4c 施工紀錄） |
 | **4d** | #13 | 只接 bug 的 `catch` 把內部錯誤改報成 HTTP 404 | `sync/apply.js` | `sync-apply` 新 1 案（修前紅） | 不變／`fetchReleaseFiles` 內部出 bug 時，更新照樣失敗，但報的是那個錯本身而不是 404 | 無法觸發；正常更新可與 4a 同一次 | — |
 | **4e** | #5、#6 | 閘已保證的事，在呼叫端再驗一次 | `minecraft-launch.js` | `minecraft-launch`（C8 撤 1 案、S4 改 2 列）、`minecraft-ipc-launch`（C10 撤 1 列） | 不變／`GGL_LAUNCH_NOT_READY` 這個碼消失（閘被改壞時改由 `assertLaunchBundle` 或 `GGL_LAUNCH_NO_JAVA` 叫，#6） | 啟動遊戲一次＋開著再按一次 | — |
-| **4f** | Q4（#12、#16） | 內部程式錯誤被接住後沒有常駐出口（§3） | `ipc-bridge.js`、`ipc/minecraft-ipc.js` | `ipc-bridge`（W11 加斷言）、`minecraft-ipc-launch` 新 1 案（`setupIpc` 多給 `gglError` 替身）；細節 → §Q4 裁決後的實作細節 | 不變／`describeStatus` 出 bug 時多一到兩筆常駐日誌（`instance_status_text_failed`、`launch_blocked_text_failed`，`detail` 只有白名單過的 `kind`），畫面文字不變 | 只確認開機（錯誤路徑實機碰不到） | Q4 已裁（→ §裁決）；未授權施工 |
+| **4f** | Q4（#12、#16） | 內部程式錯誤被接住後沒有常駐出口（§3） | `ipc-bridge.js`、`ipc/minecraft-ipc.js` | `ipc-bridge`（W11 加斷言）、`minecraft-ipc-launch` 新 1 案（`setupIpc` 多給 `gglError` 替身）；細節 → §Q4 裁決後的實作細節 | 不變／`describeStatus` 出 bug 時多一到兩筆常駐日誌（`instance_status_text_failed`、`launch_blocked_text_failed`，`detail` 只有白名單過的 `kind`），畫面文字不變 | 只確認開機（錯誤路徑實機碰不到） | Q4 已裁（→ §裁決）；已授權（→ §裁決 4f 施工授權） |
 | **4g** | #15 | 缺換新憑證的登入被存成完整成功，之後誤報成「登入已失效」 | `microsoft-auth.js`、`renderer/account-ui.js` | 新 2 檔：`test/microsoft-auth-login.test.cjs`（局部替身，freeze 0–7 × 兩版本）、`account-ui` 映射的測試（檔名施工時定）；`microsoft-auth-refresh.test.cjs:95` 照綠不改；細節 → #15 裁決後的施工規格 | 不變（有 refresh token 的登入、換新）／互動式登入沒有 refresh token ⇒ 當場以 `MS_REFRESH_TOKEN_MISSING` 失敗、不打 Xbox／Minecraft、不寫帳號 | 登入一次 | Q13、Q14 已裁（→ §裁決；C-1 已了結）；未授權施工 |
 
 - **#13 為什麼獨立（審查建議，CC 同意）**：4b 其他項在正常與異常路徑都不改語意；#13 改的是「異常時往外丟哪個錯」，是唯一需要修前紅燈證明的一項。合在 4b，萬一 #13 的傳播語意要退，就得連路徑轉出一起退。找不到讓它不獨立的反例；成本只是多一個 commit。
@@ -368,7 +379,7 @@
 
 | 項目 | 退回理由 | 判 |
 |---|---|---|
-| #11 `main-window.js:82-94,99-104` | 盤點的「留-1、只補理由」被推翻：理由寫不出來——找不到任何具體的錯誤契約需要這兩層無聲隔離（P8 只證明 44.3.0 實測正常；`w.show()` 仍是 Electron 邊界，已知的時序由 `isDestroyed` 判斷處理） | 改（`isDestroyed` 時序判斷留） |
+| #11 `main-window.js:82-94,99-104` | 盤點的「留-1、只補理由」被推翻：理由寫不出來——找不到任何具體的錯誤契約需要這兩層無聲隔離（P8 只證明 44.3.0 實測正常；`w.show()` 仍是 Electron 邊界，已知的時序由 `isDestroyed` 判斷處理） | 改（`isDestroyed` 時序判斷留）〔對齊 2026-10-26：→ `ef4484c`（plans/cross-review-2026-10-phase6b4.md 4c）：`main-window.js:82-94,99-104` 改寫後 `:82-90,95-99`（→ 同檔 §4c 施工紀錄）〕 |
 | #13 `sync/apply.js:288-299` | 盤點的「§4 探測」被推翻：外部失敗已由 site-client 轉成 `SiteResult`，`catch` 只接 bug | 改〔對齊 2026-10-26：→ `6e63202`（plans/cross-review-2026-10-phase6b4.md 4d）：`sync/apply.js:288-299` 改寫，後 `:292-300`〕 |
 | #14 `sync/site-client.js:121-137` | 盤點的「成立（無聲不是）」被推翻：公告路徑三段都無聲是一致的現況，單加一段會洗版又不一致 | 不改，補理由；公告的常駐痕跡進 future-work〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`sync/site-client.js:121-137` 後 `:121-139`〕 |
 
@@ -378,7 +389,7 @@ E5 入帳：#11、#13 改了之後，`main-window.js`、`sync/apply.js` 兩檔�
 
 **未驗**：
 - **U-13** P6 只在本機 Electron 44.3.0 跑過；打包後的 app 用的是同一個 Electron，但沒在打包產物裡跑。
-- **U-14** #8 留的話，「`os.totalmem` 回 0 ⇒ `null`」目前沒有測試能注入；monkeypatch 的做法施工時才確認可行。
+- **U-14**（2026-10-26 了結：monkeypatch 可行，`system-memory.js` 呼叫時才取 `os.totalmem`，不必重新 `require` → §4c 施工紀錄）#8 留的話，「`os.totalmem` 回 0 ⇒ `null`」目前沒有測試能注入；monkeypatch 的做法施工時才確認可行。
 - **U-15** `login.live.com` 在要了 `offline_access` 時會不會合法地不給 `refresh_token`——Microsoft 文件沒讀（#15 的反例就建在這裡）。
 - **U-16** 4e 與 4f 對 `test/minecraft-ipc-launch.test.cjs` 的 revert 互不干擾（推論，施工時實測）。
 - **U-17** Q13 方案 A：(1) 事先找空埠再交給正式程式之間有極小的搶埠空檔；(2) 正式程式 `listen(port, "localhost")` 與假視窗 `http.get("localhost:…")` 解析到同一個位址（IPv4／IPv6）——都是推論，沒寫原型驗。A 的「約 150 行」是估計。
@@ -460,6 +471,21 @@ E5 入帳：#11、#13 改了之後，`main-window.js`、`sync/apply.js` 兩檔�
 - **啟動**（同 4a 的隔離方式）：開機到 `start_main_done`，沒有其他事件、沒有 TypeError、沒有殘留行程。
 - **owner GUI**：「啟動正常」（驗收出處）。#6 的 GUI 要求是「啟動一次＋開著再按一次（看到『遊戲已在執行中』）」；owner 回覆只寫「啟動正常」，**開著再按一次有沒有試未確認**（CC 在 commit 後問了，owner 未答）。該路徑由 W16e 自動測試守。
 - **撞到**：`sd -F` 改 scratchpad 腳本的輸出目錄沒生效、exit 0（記憶已記的坑），rg 對照發現後改用 Python。
+- **沒跑**：打包。
+
+## 4c 施工紀錄（2026-10-26，基準 `80dccbc`，commit `ef4484c`；本紀錄在之後的 docs commit 補寫）〔實測〕
+
+**驗收出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「commit，設定頁正常，4c 驗收過」。
+**授權出處**：→ §裁決「4c 施工授權」。
+
+- **改動**（numstat +／-）：`main/system-memory.js` 7／9（#8：`try`／`catch`、`?.`、`?? 0`、`Number(…)`、`isFinite` 拿掉，直接 `os.totalmem()`；`<= 0` 改 `=== 0 ⇒ null`，兩行理由指向 #8、Q7）；`main/main-window.js` 10／15（#11：`console-message` 與 `ready-to-show` 外的兩個 `try`／`catch {}` 拿掉，四個欄位直接取；`w && !w.isDestroyed()` 留，補一行理由）；新檔 `test/system-memory.test.cjs` 20／0（U-14：monkeypatch `os.totalmem` 回 0 ⇒ `null`，`t.after` 還原）。合計 3 檔 +37／-24。
+- **偏離**：#11 的最小改動寫 `String(details.level)` 等；實作直接在模板字串裡插值（模板字串本身就轉字串，結果相同）。驗收單已列，owner 未異議。
+- **修前**：新案修前就綠——現行的 `<= 0` 已回 `null`；這案守的是 Q7 的裁決，不是抓 bug。證明它有在守的是反向驗證。
+- **修後**：Node 24.14.1 與 22.23.4 都 **1350／1350**（4e 後 1349＋新的 1 案）。三個檔合 prettier（兩個正式檔在 HEAD 就合）；`lint`、`check:ui-css` 一般／strict、`git diff --check` exit 0；conventions 的 commit 前 rg 0 命中（對照組：同一條 rg 對反向 diff 命中 8 行）。commit 時 pre-commit 通過。
+- **反向驗證**（腳本暫刪 `if (bytes === 0) return null;`、跑該檔、寫回，sha256 相同）：新案紅，拿到 `1`（`Math.max` 墊出來的）。
+- **啟動**（同 4a 的隔離方式）：debug 關——開機到 `start_main_done`，沒有其他事件、沒有 TypeError、沒有殘留行程，輸出的 `[RENDERER:` 0 行（對照組）；debug 開（`GGL_DEBUG_LOG=1`）——同樣五個事件，`[RENDERER:` 3 行，level 是字串（`info`、`warning`）、來源與行號正確（例：`renderer/ggl-log.js:9`）。debug 開時另有一段 Electron 的 CSP 安全警告（Electron 自己標明打包後不出現），沒拿修前版本比對〔推論：與本批無關〕。
+- **freeze**：沒跑——改到的測試只有新檔，不發 HTTP 請求（4e 實測過這種檔 freeze 沒有作用）。
+- **owner GUI**：設定頁正常（驗收出處）。`totalmem` 回 0 的路徑實機碰不到，只有自動測試驗。
 - **沒跑**：打包。
 
 ## 新發現（盤點外，預設進 future-work，owner 可改）
