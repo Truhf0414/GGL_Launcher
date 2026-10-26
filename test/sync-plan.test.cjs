@@ -46,7 +46,7 @@ async function plan({
   next,
   local = {},
   verifyAll = false,
-  onHashProgress,
+  onHashProgress = () => {},
   playerEditable = EDITABLE,
   protectedPaths = PROTECTED,
   gameDir = GAME_DIR,
@@ -397,6 +397,7 @@ test("拒絕時一次 probe 都不呼叫", async () => {
       playerEditable: EDITABLE,
       protectedPaths: PROTECTED,
       verifyAll: false,
+      onHashProgress: () => {},
     }),
     SyncRejectedError,
   );

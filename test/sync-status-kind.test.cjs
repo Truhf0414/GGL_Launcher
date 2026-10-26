@@ -17,15 +17,16 @@ const B = "b".repeat(64);
 const U = "無法確認是否為最新版";
 
 const ok = (value) => ({ side: "ok", value });
-const unreachable = (reason = "network", detail) => ({
+// 正式的 SiteResult 一律帶 detail（main/sync/site-client.js 的 miss()）；沒指定就拿 reason 當 detail 的字面值
+const unreachable = (reason = "network", detail = reason) => ({
   side: "unreachable",
   reason,
-  ...(detail !== undefined && { detail }),
+  detail,
 });
-const invalid = (reason = "invalid", detail) => ({
+const invalid = (reason = "invalid", detail = reason) => ({
   side: "invalid",
   reason,
-  ...(detail !== undefined && { detail }),
+  detail,
 });
 const gateOk = ({ maintenance = null, min = null } = {}) =>
   ok({ maintenance, minLauncherVersion: min });
@@ -337,7 +338,8 @@ test("errorTexts：索引 invalid ⇒ invalid 且只有索引的", () => {
   assert.deepEqual(r.errorTexts, ["manifest.json：index.format: 必須是 3"]);
 });
 
-test("errorTexts：release invalid＋gate unreachable ⇒ offline、gate 的排第一、兩筆都在；缺 detail 用 reason", () => {
+// 原本還釘「缺 detail 用 reason」：正式的 SiteResult 一定有 detail，那條退路已刪（→ _notes/plans/cross-review-2026-10-phase6c.md §L-CONTRACT）
+test("errorTexts：release invalid＋gate unreachable ⇒ offline、gate 的排第一、兩筆都在", () => {
   const r = computeStatusKind(
     input({ site: { gate: unreachable("http"), release: invalid("parse") } }),
   );
