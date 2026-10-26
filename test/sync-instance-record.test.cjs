@@ -21,6 +21,9 @@ const record = (version) => ({
   version,
   appliedAt: "2026-09-29T12:00:00+08:00",
   files: [{ path: "mods/a.jar", sha256: SHA }],
+  minecraft: "1.21.11",
+  loader: { type: "fabric", version: "0.19.3" },
+  javaMajor: 21,
 });
 
 // N6：寫記錄與標記的函式多收 { log }（→ _notes/plans/cross-review-2026-10-n6.md §日誌傳遞與簽名）
@@ -72,6 +75,27 @@ test("readRecord：不存在／不是 JSON／形狀錯 ⇒ null", async (t) => {
     JSON.stringify({ ...record("v1"), format: 2 }),
   );
   assert.equal(await readRecord(paths), null);
+});
+
+// → _notes/plans/cross-review-2026-10-phase6c.md U5：接手 runtime-needs 撤掉的三個 T8，走正式的讀檔入口
+test("U5 readRecord：③ 形狀、缺 javaMajor、loader 不是 fabric、minecraft 會越界 ⇒ null，不丟錯", async (t) => {
+  const paths = await tempPaths(t);
+  await fsp.mkdir(paths.instanceDir, { recursive: true });
+  const put = (rec) => fsp.writeFile(paths.syncRecordPath, JSON.stringify(rec));
+  // 對照：同一條寫檔手段寫合格的記錄讀得回來
+  await put(record("v1"));
+  assert.deepEqual(await readRecord(paths), record("v1"));
+  const { minecraft, loader, javaMajor, ...third } = record("v1");
+  const bad = [
+    third,
+    { ...record("v1"), javaMajor: undefined },
+    { ...record("v1"), loader: { type: "neoforge", version: "1" } },
+    { ...record("v1"), minecraft: ".." },
+  ];
+  for (const rec of bad) {
+    await put(rec);
+    assert.equal(await readRecord(paths), null, JSON.stringify(rec));
+  }
 });
 
 test("writeRecord：形狀錯 ⇒ 丟錯，沒有記錄檔也沒有 .tmp", async (t) => {

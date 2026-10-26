@@ -26,7 +26,7 @@ test("T1 launchIdFor：fabric ⇒ fabric-loader-<loader>-<mc>；非 fabric ⇒ �
   );
 });
 
-test("T2 sameRuntimeTarget：三欄全同才 true；記錄缺欄位 ⇒ false", () => {
+test("T2 sameRuntimeTarget：三欄全同才 true", () => {
   const release = { minecraft: "1.21.11", loader: fabric("0.19.3") };
   const record = (over) => ({
     format: 3,
@@ -54,7 +54,7 @@ test("T2 sameRuntimeTarget：三欄全同才 true；記錄缺欄位 ⇒ false", 
     ),
     false,
   );
-  assert.equal(sameRuntimeTarget(record({ loader: undefined }), release), false);
+  // 「記錄缺欄位 ⇒ false」撤回：缺欄的記錄在讀檔邊界就被拒（→ _notes/plans/cross-review-2026-10-phase6c.md U5）
 });
 
 // → _notes/plans/instance-sync-v3-commit4c.md §設計「版本 id 的路徑邊界」、§同步端（SPR R#19、R#24）

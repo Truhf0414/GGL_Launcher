@@ -52,24 +52,8 @@ test("T7 兩支 fixture＋齊全的記錄 ⇒ 沒有 problem，files 等於獨�
   assert.equal(r.files.length, expected.length);
 });
 
-test("T8 記錄缺 javaMajor ⇒ 只有 record、files 空", () => {
-  assert.deepEqual(needs({ rec: record({ javaMajor: undefined }) }), {
-    problems: ["record"],
-    files: [],
-  });
-});
-
-test("T8 記錄的 loader.type 不是 fabric ⇒ record、不丟錯", () => {
-  const r = needs({ rec: record({ loader: { type: "neoforge", version: "1" } }) });
-  assert.deepEqual(r, { problems: ["record"], files: [] });
-});
-
-test("T8 記錄的 minecraft 會拼出跳出資料夾的路徑 ⇒ record", () => {
-  assert.deepEqual(needs({ rec: record({ minecraft: ".." }) }), {
-    problems: ["record"],
-    files: [],
-  });
-});
+// T8 三案（壞記錄 ⇒ record）撤回：記錄在讀檔邊界驗，壞的讀成 null、到不了這裡；
+// 接手 → sync-record-format、sync-instance-record 的 U5 案（_notes/plans/cross-review-2026-10-phase6c.md U5）
 
 test("T8 目標 json 讀不到、或 inheritsFrom 不是記錄的 minecraft ⇒ version-json", () => {
   assert.deepEqual(needs({ target: BAD }).problems, ["version-json"]);
@@ -131,24 +115,7 @@ test("T14 asset index id 跳出資料夾 ⇒ vanilla-json", () => {
 });
 
 // → _notes/plans/instance-sync-v3-commit4c.md §設計「就緒六項」「版本 id 的路徑邊界」（SPR R#14、R#24）
-const { recordComplete } = require("../lib/runtime-needs.js");
-
-test("C1 recordComplete：三欄齊、fabric、minecraft 與 launchId 各自是單一路徑段才 true", () => {
-  assert.equal(recordComplete(record()), true);
-  const bad = [
-    null,
-    undefined,
-    { format: 3, version: "v", appliedAt: "x", files: [] },
-    record({ javaMajor: undefined }),
-    record({ javaMajor: 0 }),
-    record({ loader: { type: "forge", version: "1" } }),
-    record({ loader: { type: "fabric", version: "" } }),
-    record({ loader: { type: "fabric", version: "0.19.3/../../x" } }),
-    record({ minecraft: ".." }),
-    record({ minecraft: "a/b" }),
-  ];
-  for (const r of bad) assert.equal(recordComplete(r), false, JSON.stringify(r));
-});
+// C1 recordComplete 撤回：函式已刪，規則與壞例搬到 lib/sync/record-format.js（→ sync-record-format 的 U5 案）
 
 test("C1 兩份 json 改用安裝期的驗證：Fabric 少 mainClass ⇒ version-json；原版 id 不是記錄的 ⇒ vanilla-json", () => {
   const { mainClass, ...noMain } = fx.fabric();
@@ -213,8 +180,9 @@ test("N1 兩份都過 ⇒ launch：合併結果、過濾後的 library（＝file
   assert.equal(needs({ vanilla: ok(v) }).launch.logConfigRel, null);
 });
 
-test("N1 json 壞、記錄不完整 ⇒ 沒有 launch；試組 argv 不過 ⇒ 記在 version-json、files 空、沒有 launch", () => {
-  for (const r of [needs({ target: BAD }), needs({ vanilla: BAD }), needs({ rec: record({ javaMajor: undefined }) })]) {
+// 「記錄不完整 ⇒ 沒有 launch」那一項撤回，理由同 T8（→ _notes/plans/cross-review-2026-10-phase6c.md U5）
+test("N1 json 壞 ⇒ 沒有 launch；試組 argv 不過 ⇒ 記在 version-json、files 空、沒有 launch", () => {
+  for (const r of [needs({ target: BAD }), needs({ vanilla: BAD })]) {
     assert.equal("launch" in r, false, JSON.stringify(r.problems));
   }
   const f = fx.fabric();

@@ -16,6 +16,9 @@ function goodRecord(overrides = {}) {
     version: "GGL3.1.02",
     appliedAt: "2026-09-29T12:00:00+08:00",
     files: [{ path: "mods/sodium.jar", sha256: SHA }],
+    minecraft: "1.21.11",
+    loader: { type: "fabric", version: "0.19.3" },
+    javaMajor: 21,
     ...overrides,
   };
 }
@@ -33,24 +36,43 @@ test("RECORD_FORMAT is 3", () => {
   assert.equal(RECORD_FORMAT, 3);
 });
 
-test("validateRecord: ③ 形狀（只有 files）原樣通過", () => {
+test("validateRecord: ④ 三欄齊全原樣通過", () => {
   const rec = goodRecord();
   assert.deepEqual(validateRecord(rec), { ok: true, value: rec });
 });
 
-test("validateRecord: ④ 三欄齊全通過；三欄都缺也通過", () => {
-  const full = goodRecord({
-    minecraft: "1.21.11",
-    loader: { type: "fabric", version: "0.19.3" },
-    javaMajor: 21,
-  });
-  assert.deepEqual(validateRecord(full), { ok: true, value: full });
-  assert.equal(
-    validateRecord(
-      goodRecord({ minecraft: undefined, loader: undefined, javaMajor: undefined }),
-    ).ok,
-    true,
+// → _notes/plans/cross-review-2026-10-phase6c.md U5：三欄必填，③ 形狀不接
+test("U5 validateRecord: 缺任一欄（含 ③ 形狀三欄都缺）⇒ 不過，錯在那一欄", () => {
+  assertRejected(goodRecord({ minecraft: undefined }), "record.minecraft");
+  assertRejected(goodRecord({ loader: undefined }), "record.loader");
+  assertRejected(goodRecord({ javaMajor: undefined }), "record.javaMajor");
+  assertRejected(
+    goodRecord({ minecraft: undefined, loader: undefined, javaMajor: undefined }),
+    "record.minecraft",
   );
+});
+
+// 接手 runtime-needs 撤掉的 C1 recordComplete 與三個 T8：規則搬到邊界，壞例跟著搬
+test("U5 validateRecord: 不是 fabric、版本空、會拼出越界或多層的路徑 ⇒ 不過", () => {
+  assertRejected(
+    goodRecord({ loader: { type: "forge", version: "1" } }),
+    "record.loader",
+  );
+  assertRejected(
+    goodRecord({ loader: { type: "neoforge", version: "1" } }),
+    "record.loader",
+  );
+  assertRejected(
+    goodRecord({ loader: { type: "fabric", version: "" } }),
+    "record.loader",
+  );
+  assertRejected(
+    goodRecord({ loader: { type: "fabric", version: "0.19.3/../../x" } }),
+    "record.loader.version",
+  );
+  assertRejected(goodRecord({ minecraft: ".." }), "record.minecraft");
+  assertRejected(goodRecord({ minecraft: "a/b" }), "record.minecraft");
+  assertRejected(goodRecord({ minecraft: "" }), "record.minecraft");
 });
 
 test("validateRecord: 必填欄位錯", () => {

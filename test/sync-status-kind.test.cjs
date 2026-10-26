@@ -604,7 +604,7 @@ test("N28 gate 同時維護中與版本過舊 ⇒ maintenance", () => {
 });
 
 // → _notes/plans/instance-sync-v3-commit4c.md §測試 C3
-test("C3 只改 loader／只改 minecraft ⇒ update-available 且含 release-differs；③ 的記錄（沒三欄）同", () => {
+test("C3 只改 loader／只改 minecraft ⇒ update-available 且含 release-differs", () => {
   const cases = [
     releaseOk(REL_FILES, "GGL3.1.02", { ...RUNTIME, loader: { type: "fabric", version: "0.19.4" } }),
     releaseOk(REL_FILES, "GGL3.1.02", { ...RUNTIME, minecraft: "1.21.12" }),
@@ -614,10 +614,7 @@ test("C3 只改 loader／只改 minecraft ⇒ update-available 且含 release-di
     assert.equal(r.kind, "update-available");
     assert.deepEqual(r.syncReasons, ["release-differs"]);
   }
-  const old = recordOf(REL_FILES, "GGL3.1.01", {});
-  const r = computeStatusKind(input({ record: old }));
-  assert.equal(r.kind, "update-available");
-  assert.ok(r.syncReasons.includes("release-differs"));
+  // 「③ 的記錄（沒三欄）同」撤回：讀檔邊界已把它讀成 null，到不了這裡（→ _notes/plans/cross-review-2026-10-phase6c.md U5）
 });
 
 // ── gate invalid（→ _notes/plans/cross-review-2026-10.md D-GATE 群；_notes/plans/cross-review-2026-10-phase3.md K1–K7）──
