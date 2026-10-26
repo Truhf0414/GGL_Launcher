@@ -1,4 +1,4 @@
-# Phase 6c — lib 組：細部 plan（狀態：**2026-10-26 初稿，基準 `f26f9a9`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄），基準不變；2026-10-27 ChatGPT 審二稿後擬裁決稿，owner 裁 U3、U4、U5、Q-DUP／N16、Q-SCOPE 與 L-SILENT 入口檢查（→ §Owner 裁決），回寫進本檔（→ §裁決回寫紀錄）；未授權施工**）
+# Phase 6c — lib 組：細部 plan（狀態：**2026-10-26 初稿，基準 `f26f9a9`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄），基準不變；2026-10-27 ChatGPT 審二稿後擬裁決稿，owner 裁 U3、U4、U5、Q-DUP／N16、Q-SCOPE 與 L-SILENT 入口檢查（→ §Owner 裁決），回寫進本檔（→ §裁決回寫紀錄），文件 `d9d1456`；同日 owner 授權 6c-1（→ §Owner 裁決 §6c-1 施工授權），施工 commit `8989833`，經 owner 驗收放行（→ §6c-1 施工紀錄）；同日 owner 授權 6c-2（→ §Owner 裁決 §6c-2 施工授權）；6c-3 起未授權施工**）
 
 上層＝`plans/cross-review-2026-10.md` §8 Phase 6（範圍、不做、不變量、驗收下限、回滾；6c 的切法在同節子 Phase 表）與 §4.2 U3、U4、U5（題目與 CC 當時的建議）；候選的定義＝`plans/defense-cleanup.md` §清理清單 lib/ 表與 §Bug B6；改／留判準＝`plans/cross-review-2026-10-phase6-criteria.md`（本檔不重述；§判例 5 是 U3 的起點）；規則本體＝`conventions.md` §防禦與相容（以條號 §1–§6 引用）。
 
@@ -16,7 +16,7 @@
 | U3-b | **B3**：刪 `assertLaunchBundle` | 理由＝成品來源唯一、同一次計算的原物件交接、會變的資料已在邊界驗過；不是「因為有測試」。不新增成品驗證器 |
 | U3-c | `lib/launch-args.js:127,328,357,387` 四處都刪 | 非法 json 的驗證責任留在 `checkLaunchSpec` 等既有資料入口 |
 | U3-d | **B**：只拿掉 `mergeLibraries` 的兩個 `Array.isArray`（`lib/library-filter.js:21-22`） | 上一層不加新檢查；`mergeVersionChain` 的 `:194-196` 照留，不順手擴張清理 |
-| U3-e | 保留解析後越界的保證（`lib/sync/rel-path.js:16`）與正式呼叫（`lib/sync/plan.js:38`）；只刪 `:12`、`:15` | — |
+| U3-e | 保留解析後越界的保證（`lib/sync/rel-path.js:16`）與正式呼叫（`lib/sync/plan.js:38`）；只刪 `:12`、`:15` | —〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`rel-path.js:16` 後 `:14`、`:12`／`:15` 刪除；`plan.js:38` 後 `:39`〕 |
 | U4 | **A**：`lib/server-config.js` 是跟著程式出貨的可信 JS 部署配置；以測試固定配置形狀，刪消費端不必要的型別防禦 | 必須保留：IPC 的 http(s) 檢查（`main/ipc/external-ipc.js:7`）、環境變數 `clientId` 的邊界處理（`lib/discord-helper-args.js:29-30`）、站台資料自己的格式與 URL 驗證、Discord 按鈕的既有網址限制語意。不擴張到 Discord RPC 去留 |
 | U5 | **A**：`minecraft`、`loader`、`javaMajor` 必填，fabric 類型、非空版本、單一路徑段規則集中到 `lib/sync/record-format.js` 邊界；**接受舊記錄的處置**（→ §U5 舊記錄的產品契約） | 施工前重新唯讀確認 owner 的正式 Instance Record；與 §基準與探針 P3 不同 ⇒ 停、回報，不代為改動安裝資料 |
 | Q-DUP／N16 | **D2**：不完整的正版身分視為無效，禁止無聲改成 `Player001` 或離線身分。N16 作為 L-DUP 的直接前提，**納入 6c 的已裁施工範圍**；另立 **6c-7a**（身分邊界）排在 6c-7 之前 | 要求 → §D2 的要求；不新增第二套身分驗證器，不擴張到帳號系統重構，不新增玩家錯誤文案 |
@@ -64,6 +64,17 @@
 7. `account-store` 的正式接線確實提供兩個回呼；缺回呼由入口檢查擋（上表「L-SILENT 入口檢查」），best-effort helper 不承擔、也不被稱為必填驗證。
 8. 不建通用 Logger、重試機制、限流器或新的跨層抽象。
 
+### 6c-1 施工授權（2026-10-27）
+
+**出處**：owner 2026-10-27（與 CC 對話）「太好了，動工 6c-1 吧！」——緊接在文件 commit `d9d1456` 之後。
+**授權**：6c-1 的施工與驗證；權威＝本節裁決表（U3-e）、§分批 6c-1 列、§L-CONTRACT、§L-SET、§U3-e、§驗收。照 6b 各批的做法，自動驗證完成後先問 owner 才 commit。**不授權** push、其他批次。
+**commit 出處**：owner 2026-10-27（與 CC 對話）「commit，6c-1 驗收過」。
+
+### 6c-2 施工授權（2026-10-27）
+
+**出處**：owner 2026-10-27（與 CC 對話）「收 docs commit，然後開工 6c-2」。
+**授權**：6c-2（L-NOTICE）的施工與驗證；權威＝§L-NOTICE、§分批 6c-2 列、§驗收。自動驗證完成後先問 owner 才 commit。**不授權** push、其他批次。
+
 ### CC 的施工限制（非 owner 裁；CC 回覆的第 3 點，owner 未逐條回應，可改）
 
 - **6c-3 必須先於 6c-7a**：兩批都改 `main/account-store.js` 的 `readAccount`——6c-3 在讀 token 的兩行（`:66-67`）接上回呼，6c-7a 在它們之前插身分檢查、壞身分時跳過解密。revert 時反序（先退 6c-7a）。
@@ -99,7 +110,7 @@
 
 | 候選 | 盤點的位置 | 現況 | 證據 |
 |---|---|---|---|
-| L-SET | `lib/settings-logic.js:39,44-45,61` | 消失 | `a4d4eb9`（Phase 4b）；現檔 62 行，沒有 `settingsMeta`、物件防與 legacy 後備〔讀碼〕 |
+| L-SET | `lib/settings-logic.js:39,44-45,61` | 消失 | `a4d4eb9`（Phase 4b）；現檔 62 行，沒有 `settingsMeta`、物件防與 legacy 後備〔讀碼〕〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`settings-logic.js:39,44-45,61` 不適用（`a4d4eb9` 之前的行號）；本 commit 整檔重排縮排，現檔 59 行〕 |
 | L-DUP | `main/settings.js:23,74`、`renderer/settings-modal.js:199,247` 的 `"Player001"` | 預設值只剩 `main/settings.js:29` 一份；畫面不再把清空換成 `Player001`（`test/renderer-settings-modal.test.cjs:168` 釘住） | `a4d4eb9`；`rg Player001` 其餘命中只剩提示文字（`index.html:389`、`lib/settings-format.js:74`）與 `lib/launch-args.js:467` |
 | L-REVAL 的「第二道」相鄰項 | （6b-4 #6）`main/minecraft-launch.js` 的 `GGL_LAUNCH_NOT_READY` | 刪除；`assertLaunchBundle` 留給本批（→ §U3-b） | `ddbca30`（→ `plans/cross-review-2026-10-phase6b4.md` §4e 施工紀錄） |
 
@@ -114,9 +125,9 @@
 **現讀**〔讀碼〕
 - `lib/sync/record-format.js:13-35` `validateRuntimeFields`：`minecraft`／`loader`／`javaMajor` 各自 `=== undefined` 就算合法（③ 寫的記錄沒有）；存在才驗型別（`loader` 只驗 `{type, version}` 是字串，不驗是不是 fabric、是不是空字串）。⇒ **三欄任意缺幾個（8 種組合）都合法**。
 - 讀：`main/sync/instance-record.js:11-27` `readRecord` 是唯一的讀檔入口——不存在、不是 JSON、`validateRecord` 不過 ⇒ 一律回 `null`（＝沒有記錄），**不出聲**（C12 設計，→ 該檔 `:4`）。寫：`writeRecord`（`:30-39`）寫前也過 `validateRecord`；正式唯一的寫入點 `main/sync/apply.js:170-175` 寫的是 `{ ...record, ...pickRuntimeFields(prepareRuntime()) }`（`:129`）——**④c 之後 GGL 自己寫出的記錄一定帶三欄**，而且 `pickRuntimeFields`（`lib/runtime-target.js:42-51`）要求 fabric、非空版本、單一路徑段、正整數。
-- 消費端為了「三欄可缺」各自補防：`lib/runtime-needs.js:21-32` `recordComplete`（三欄齊＋fabric＋非空版本＋`minecraft`／launchId 是單一路徑段）；`lib/runtime-target.js:21-29` `sameRuntimeTarget` 的 `typeof record?.minecraft === "string"`、`record.loader?.`；註解 `lib/sync/status-kind.js:173`、`lib/runtime-readiness.js:31`。
+- 消費端為了「三欄可缺」各自補防：`lib/runtime-needs.js:21-32` `recordComplete`（三欄齊＋fabric＋非空版本＋`minecraft`／launchId 是單一路徑段）；`lib/runtime-target.js:21-29` `sameRuntimeTarget` 的 `typeof record?.minecraft === "string"`、`record.loader?.`；註解 `lib/sync/status-kind.js:173`、`lib/runtime-readiness.js:31`。〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`status-kind.js:173` 未移動；其他行號指的檔不在本 commit〕
 
-**缺欄記錄現在走到哪**〔讀碼，鏈：`runtime-readiness.js:32` → `status-kind.js:164-180,235-256` → `KIND_UI`〕
+**缺欄記錄現在走到哪**〔讀碼，鏈：`runtime-readiness.js:32` → `status-kind.js:164-180,235-256` → `KIND_UI`〕〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`status-kind.js:164-180,235-256` 未移動；其他行號指的檔不在本 commit〕
 | 情境 | 就緒 | syncReasons | kind（站台正常） | 可啟動 | 可更新／修復 |
 |---|---|---|---|---|---|
 | 缺任一欄 | `{ ready:false, missing:["record"] }`，一個檔都不碰 | 缺 `minecraft` 或 `loader` ⇒ `release-differs`＋`runtime-missing`；只缺 `javaMajor` ⇒ 只有 `runtime-missing` | `update-available`（按鈕「更新」） | 否（`localReady` 假） | 更新、修復都准 |
@@ -126,7 +137,7 @@
 
 **收緊後**（三欄必填；採 U5-A 時連 fabric／非空／單一路徑段也在邊界驗）〔讀碼＋P2〕
 - 這種記錄在 `readRecord` 就被當成 `null` ⇒ `no-record` ⇒ `not-installed`（按鈕「安裝」）。可啟動與否**不變**（之前就不能啟動）；站台壞時同樣不能更新。
-- 「安裝」走修復流程（`renderer/launch-ui.js:151` → `startRepairFlow({ entry: "install" })`），`who: "repair"`：`verifyAll` 真、**重裝 Java**（`main/sync/index.js:380`，④b E3）；`planSync` 沒有 previous ⇒ 每個已存在的受管檔都 hash 一次、相同就 keep（`lib/sync/plan.js:80`），**mod 不會重新下載**；玩家可改檔沒有記錄時一律 keep（同行）；保護名單照舊不碰（`:45`）；**沒有 previous ⇒ 不刪舊 release 裡有、新 release 裡沒有的檔**（`:153-160` 只在有記錄時算 remove），留在 `mods/` 的會出現在清單外 jar 的確認畫面（`listStrayJars`，`:175-184`）。runtime 在 `verifyAll` 下逐檔驗 sha1，不符才重下。
+- 「安裝」走修復流程（`renderer/launch-ui.js:151` → `startRepairFlow({ entry: "install" })`），`who: "repair"`：`verifyAll` 真、**重裝 Java**（`main/sync/index.js:380`，④b E3）；`planSync` 沒有 previous ⇒ 每個已存在的受管檔都 hash 一次、相同就 keep（`lib/sync/plan.js:80`），**mod 不會重新下載**；玩家可改檔沒有記錄時一律 keep（同行）；保護名單照舊不碰（`:45`）；**沒有 previous ⇒ 不刪舊 release 裡有、新 release 裡沒有的檔**（`:153-160` 只在有記錄時算 remove），留在 `mods/` 的會出現在清單外 jar 的確認畫面（`listStrayJars`，`:175-184`）。runtime 在 `verifyAll` 下逐檔驗 sha1，不符才重下。〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`plan.js:80` 後 `:81`、`:45` 後 `:46`、`:153-160` 後 `:154-161`、`:175-184` 後 `:176-185`；其他行號指的檔不在本 commit〕
 - 被丟掉的舊記錄**不出聲**（`readRecord` 現狀；→ §新發現 N15）。
 - **owner 本機**：現在那份記錄三欄都在（P3）⇒ 收緊對它**零影響**、不會觸發重裝；`.bak` 程式不讀。repo 自己的 fixture：P2 的 8 案。
 
@@ -142,7 +153,7 @@
 | `sync-instance-record` 5 案 | 讀寫 roundtrip、N6 的連結案 | fixture 補三欄，斷言不動 | 它們測的是寫檔與連結，不是格式 |
 | `runtime-needs.test.cjs:136` C1 `recordComplete` | 不完整記錄 ⇒ false | 隨 `recordComplete` 刪除撤回；壞例搬到 record-format | 函式不在了；保證改由邊界給 |
 | `runtime-readiness.test.cjs:75` C1 五種不完整 | 只有 `record`、probe 0 次 | 縮成「`record: null` ⇒ 只有 `record`、probe 0 次」 | 其餘四種到不了就緒（邊界已拒） |
-| `sync-status-kind.test.cjs:605` C3 後半「③ 的記錄同」 | 缺欄 ⇒ release-differs | 撤回後半 | 到不了 status-kind；前半（只改 loader／minecraft）留 |
+| `sync-status-kind.test.cjs:605` C3 後半「③ 的記錄同」 | 缺欄 ⇒ release-differs | 撤回後半 | 到不了 status-kind；前半（只改 loader／minecraft）留〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`sync-status-kind.test.cjs:605` 後 `:607`〕 |
 | `runtime-target.test.cjs:29` T2 最後一個 assert（`loader: undefined` ⇒ false） | 缺欄 ⇒ false | 撤回該 assert | 同上 |
 
 **反向驗證**（施工時）：把收緊暫時拿掉 ⇒ 改寫後的 record-format 案與 C12 紅；把 fabric 檢查從邊界拿掉 ⇒ 搬過去的 forge 案紅。
@@ -250,12 +261,12 @@ U3 拆成五個子題，各自的值來源、生命週期不同，**不當成一
 
 B 之後，直接拿沒有 `libraries` 的層呼叫 `mergeVersionChain` 會丟 `childLibs is not iterable`（TypeError，會叫）；正式路徑到不了。
 
-#### U3-e `rel-path` 的路徑保險（`lib/sync/rel-path.js:11-17`）
+#### U3-e `rel-path` 的路徑保險（`lib/sync/rel-path.js:11-17`）〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`rel-path.js:11-17` 後 `:11-15`（`:12`、`:15` 刪除）〕
 
-**現讀**：`isResolvedPathUnderGameDir` 唯一的正式呼叫者是 `lib/sync/plan.js:38` `assertSafePath`，緊接在 `checkStrictRelPath`（`:29-37`）之後；三個呼叫點：release 的檔（`:105`）、記錄的檔（`:107`）、**畫面送來要刪的清單外 jar（`:191`，IPC 邊界）**。函式本身：`:12` 空字串 ⇒ false、`:15` 等於 gameDir ⇒ false、`:16` 解析後必須在 gameDir 底下。
+**現讀**：`isResolvedPathUnderGameDir` 唯一的正式呼叫者是 `lib/sync/plan.js:38` `assertSafePath`，緊接在 `checkStrictRelPath`（`:29-37`）之後；三個呼叫點：release 的檔（`:105`）、記錄的檔（`:107`）、**畫面送來要刪的清單外 jar（`:191`，IPC 邊界）**。函式本身：`:12` 空字串 ⇒ false、`:15` 等於 gameDir ⇒ false、`:16` 解析後必須在 gameDir 底下。〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`plan.js:38` 後 `:39`、`:29-37` 未移動、`:105` 後 `:106`、`:107` 後 `:108`、`:191` 後 `:192`；`rel-path.js` 的 `:12`、`:15` 刪除、`:16` 後 `:14`〕
 **守的是什麼**：`:16` 守「同步的刪、寫不跑出 gameDir」，跟 `checkStrictRelPath` 的字面規則是兩種不同的性質（解析後的位置 vs 字面）；P1 證明在正常 gameDir 下前者過了、後者永遠過，但它是路徑安全的第二層，`:191` 那條還直接面對畫面送來的值。**這份越界保證不撤**。
 `:12`、`:15`：P1 實測 39 組輸入拿掉前後結果相同——兩者都被 `:16` 蓋過（空字串解析成 gameDir 本身，`startsWith(root + sep)` 一樣是 false）；唯一的差別是非字串的 falsy 值（`null`）會從回 false 變成 `split` 的 TypeError，而 JSDoc 前提是「已過 `checkStrictRelPath` 的字串」。
-**建議**：`:16`（與函式、`plan.js:38` 的呼叫）**留**，在 `assertSafePath` 補一行理由（「`checkStrictRelPath` 管字面、這裡管解析後的位置；路徑安全的第二層，刻意重疊」）；`:12`、`:15` **刪**（被同函式的 `:16` 蓋過，E4）。成本：1 個正式檔；`test/sync-rel-path.test.cjs:18-24` 照綠（`""` 那列改由 `:16` 判 false）。
+**建議**：`:16`（與函式、`plan.js:38` 的呼叫）**留**，在 `assertSafePath` 補一行理由（「`checkStrictRelPath` 管字面、這裡管解析後的位置；路徑安全的第二層，刻意重疊」）；`:12`、`:15` **刪**（被同函式的 `:16` 蓋過，E4）。成本：1 個正式檔；`test/sync-rel-path.test.cjs:18-24` 照綠（`""` 那列改由 `:16` 判 false）。〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`rel-path.js` 的 `:16` 後 `:14`、`:12`／`:15` 刪除；`plan.js:38` 後 `:39`（其上一行即補的理由註解）〕
 
 ### L-SERVERCFG（＝U4）`lib/server-config.js` 的信任邊界
 
@@ -308,12 +319,12 @@ B 之後，直接拿沒有 `libraries` 的層呼叫 `mergeVersionChain` 會丟 `
 
 | 位置（`f26f9a9`） | 現讀 | 值的來源與保證 | 建議 |
 |---|---|---|---|
-| `lib/sync/status-text.js:33` `syncReasons = []`、`:100` `status.gateMessages ?? []`、`status.errorTexts ?? []` | `describeStatus` 的輸入 | 正式的 status 只有三個生產者，三欄都一定給：`derive`（`main/sync/index.js:239-255`）、`internalErrorStatus`／`settingsErrorStatus`（`:129-155`）。呼叫者 `main/ipc-bridge.js:95`、`main/ipc/minecraft-ipc.js:27` 都拿中樞的 status | **改**（§2、E4）。`test/sync-status-text.test.cjs:15` 的 `status()` helper 已給齊三欄；直接餵殘缺 status 的列施工前 rg |
-| `status-text.js:180` `JAVA_STAGE_TEXT[p.stage] ?? "準備 Java…"`、`:193` `RUNTIME_GROUP_LABEL[p.group] ?? "下載檔案"` | 進度文字 | 生產者的字面值：Java `download`／`extract`／`verify`／`install`（`main/runtime/java.js:271-401`），全有對應；檔案組 `version-jar`／`libraries`／`asset-index`／`log-config`／`assets`（`main/runtime/minecraft.js:456-517`），全有對應。沒有共用常數，靠兩邊各寫字面值 | **退回雙向舉證**，CC 傾向**留**（留-4）：拿掉 `??` 而不補機制，將來新增一個階段沒加文字 ⇒ 畫面顯示 `undefined`；改成丟錯 ⇒ 進度回呼丟錯會打斷安裝（文字問題升級成操作失敗，違反 6b Q3「操作結果與畫面通知分離」的精神）；要真正補機制得把階段名收成共用常數再加測試，C1 是 3 個檔、換到的只是兩個 `??`。補一行理由 |
-| `lib/sync/status-kind.js:136` `r.detail ?? r.reason` | 站台錯誤文字 | 正式 SiteResult 一律帶 `detail`（`main/sync/site-client.js:28-31` `miss()` 的六個呼叫點都給字串；`:98` 的 `newer` 也給） | **改**（§2）。成本：`test/sync-status-kind.test.cjs:20-28` 的 `unreachable()`／`invalid()` helper 預設不給 `detail`，要補預設字串、受影響斷言的期望文字一起改（施工前列出） |
-| `lib/sync/notice.js:13` `doc?.notice && typeof doc.notice === "object" ? doc.notice : {}` | 公告欄位解析 | 唯一呼叫者 `main/sync/site-client.js:145` 拿的是 `validateNotice` 的結果（`lib/sync/site-format.js` `validateNotice`：`doc` 是物件、`notice` 是物件或 `null`） | **改一半**：`doc?.` 與 `typeof` 刪、寫成 `doc.notice ?? {}`（`null` 是合法的「沒有公告」）。`:14-23` 逐欄的 `typeof` **留**（留-1：欄位內容是網路資料，`site-format.js:107` 明寫欄位交給這裡寬鬆解析） |
-| `lib/ipc-channels.js:64-65` `Object.values(obj \|\| {}).map((x) => String(x))` | 白名單 | 兩個呼叫都傳本檔的凍結字面物件（`:68-69`），值全是字串 | **改**（§2） |
-| `lib/sync/plan.js:136` `onHashProgress?.(…)` | hash 進度 | 唯一正式呼叫者 `main/sync/index.js:331` 一定給 | **改**：改必填（同 6b-3 Q10 的取向）。成本：`test/sync-plan.test.cjs:44-63` 的 `plan()` helper 與 `:392` 的直接呼叫補 no-op、`test/sync-apply.test.cjs` 的那一處同 |
+| `lib/sync/status-text.js:33` `syncReasons = []`、`:100` `status.gateMessages ?? []`、`status.errorTexts ?? []` | `describeStatus` 的輸入 | 正式的 status 只有三個生產者，三欄都一定給：`derive`（`main/sync/index.js:239-255`）、`internalErrorStatus`／`settingsErrorStatus`（`:129-155`）。呼叫者 `main/ipc-bridge.js:95`、`main/ipc/minecraft-ipc.js:27` 都拿中樞的 status | **改**（§2、E4）。`test/sync-status-text.test.cjs:15` 的 `status()` helper 已給齊三欄；直接餵殘缺 status 的列施工前 rg〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`status-text.js:33`、`:100` 原地改寫（拿掉預設）；`:129-155` 指的檔不在本 commit〕 |
+| `status-text.js:180` `JAVA_STAGE_TEXT[p.stage] ?? "準備 Java…"`、`:193` `RUNTIME_GROUP_LABEL[p.group] ?? "下載檔案"` | 進度文字 | 生產者的字面值：Java `download`／`extract`／`verify`／`install`（`main/runtime/java.js:271-401`），全有對應；檔案組 `version-jar`／`libraries`／`asset-index`／`log-config`／`assets`（`main/runtime/minecraft.js:456-517`），全有對應。沒有共用常數，靠兩邊各寫字面值 | **退回雙向舉證**，CC 傾向**留**（留-4）：拿掉 `??` 而不補機制，將來新增一個階段沒加文字 ⇒ 畫面顯示 `undefined`；改成丟錯 ⇒ 進度回呼丟錯會打斷安裝（文字問題升級成操作失敗，違反 6b Q3「操作結果與畫面通知分離」的精神）；要真正補機制得把階段名收成共用常數再加測試，C1 是 3 個檔、換到的只是兩個 `??`。補一行理由〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`status-text.js:180` 後 `:183`、`:193` 後 `:196`（理由註解補在函式 JSDoc）〕 |
+| `lib/sync/status-kind.js:136` `r.detail ?? r.reason` | 站台錯誤文字 | 正式 SiteResult 一律帶 `detail`（`main/sync/site-client.js:28-31` `miss()` 的六個呼叫點都給字串；`:98` 的 `newer` 也給） | **改**（§2）。成本：`test/sync-status-kind.test.cjs:20-28` 的 `unreachable()`／`invalid()` helper 預設不給 `detail`，要補預設字串、受影響斷言的期望文字一起改（施工前列出）〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`status-kind.js:136` 原地改寫（只剩 `r.detail`）；`sync-status-kind.test.cjs:20-28` 改寫後 `:20-30`；`:98` 指的檔不在本 commit〕 |
+| `lib/sync/notice.js:13` `doc?.notice && typeof doc.notice === "object" ? doc.notice : {}` | 公告欄位解析 | 唯一呼叫者 `main/sync/site-client.js:145` 拿的是 `validateNotice` 的結果（`lib/sync/site-format.js` `validateNotice`：`doc` 是物件、`notice` 是物件或 `null`） | **改一半**：`doc?.` 與 `typeof` 刪、寫成 `doc.notice ?? {}`（`null` 是合法的「沒有公告」）。`:14-23` 逐欄的 `typeof` **留**（留-1：欄位內容是網路資料，`site-format.js:107` 明寫欄位交給這裡寬鬆解析）〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`notice.js:13` 改寫後 `:13-14`（加一行註解）、`:14-23` 後 `:15-24`〕 |
+| `lib/ipc-channels.js:64-65` `Object.values(obj \|\| {}).map((x) => String(x))` | 白名單 | 兩個呼叫都傳本檔的凍結字面物件（`:68-69`），值全是字串 | **改**（§2）〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`ipc-channels.js:64-65` 原地改寫（`:65`）、`:68-69` 未移動〕 |
+| `lib/sync/plan.js:136` `onHashProgress?.(…)` | hash 進度 | 唯一正式呼叫者 `main/sync/index.js:331` 一定給 | **改**：改必填（同 6b-3 Q10 的取向）。成本：`test/sync-plan.test.cjs:44-63` 的 `plan()` helper 與 `:392` 的直接呼叫補 no-op、`test/sync-apply.test.cjs` 的那一處同〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`plan.js:136` 改寫後 `:137`；`sync-plan.test.cjs:44-63` 未移動（`:49` 原地改寫）、`:392` 未移動（補的參數在其後 `:400`）；`sync-apply.test.cjs`（這處沒有行號）〕 |
 | `lib/library-filter.js:21-22` | — | — | 併入 U3-d |
 | `lib/account-secret.js:71,113` | — | — | 併入 L-SILENT |
 
@@ -323,7 +334,7 @@ B 之後，直接拿沒有 `libraries` 的層呼叫 `mergeVersionChain` 會丟 `
 **守的是什麼**：v2 站台的 manifest 自帶 `notifications`（§5 舊形狀）；呼叫端為了配合而包一層（§6 一個函式一種輸入形狀）。`:37-55` 逐項的 `typeof`、`Number.isFinite` 是網路欄位的寬鬆解析（留-1，同上 `site-format.js:107`）。
 **建議**：**改**——改成 `normalizeBroadcastNotifications(list, nowMs)`，拿掉 `Array.isArray`、`?.` 與 `nowMs` 的預設；`snapshotOf` 直接傳陣列。成本：1 個正式檔＋`notice-feed.js` 1 行；測試 `test/notifications-broadcast.test.cjs:35,63`、`test/site-format-doc.test.cjs:229` 改呼叫形狀；`test/sync-notice-feed.test.cjs:45` 是寫死的輸出、不受影響〔讀碼〕。
 
-### L-SET `lib/settings-logic.js:18`（盤點時 `:12`）
+### L-SET `lib/settings-logic.js:18`（盤點時 `:12`）〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`settings-logic.js:18` 改寫後 `:17`（整檔重排縮排）〕
 
 **現讀**：`typeof globalThis !== "undefined" ? globalThis : this`。兩個執行環境（Electron 畫面、Node 測試）都有 `globalThis`；**同一套雙載入寫法的兩個兄弟檔已經直接寫 `globalThis`**（`lib/settings-format.js:13`、`lib/launch-memory.js:13`，Phase 4 寫的），而畫面照 `index.html:541-544` 的順序先載它們——`globalThis` 在畫面可用已由正式產品證明。
 **建議**：**改**成 `globalThis`（§2）。成本：1 行；`check:renderer-scripts` 與開機即驗。
@@ -348,16 +359,16 @@ B 之後，直接拿沒有 `libraries` 的層呼叫 `mergeVersionChain` 會丟 `
 
 | 選項 | 內容 | 成本 | 未改／保留 |
 |---|---|---|---|
-| **U5-A（CC 建議）** | 三欄必填，**連同 `recordComplete` 現在驗的 fabric、非空版本、`minecraft`／launchId 單一路徑段，一起搬到 `lib/sync/record-format.js`**；`pickRuntimeFields` 改用同一支規則函式（三處規則收成一處，E3）；刪 `recordComplete`（就緒改成 `record === null` 才回 `["record"]`）、`sameRuntimeTarget` 的 `typeof`／`?.`、`status-kind.js:173` 與 `runtime-readiness.js:31` 的註解 | 正式檔 4–5 個（`record-format`、`runtime-target`、`runtime-needs`、`runtime-readiness`、`status-kind` 註解）；測試照 §L-REC 測試帳（2 改寫、5 補 fixture、4 撤回或縮小、1 搬入） | `readRecord` 照舊無聲（→ N15）；`pickRuntimeFields` 的「只取三欄、不合法就丟」照舊 |
+| **U5-A（CC 建議）** | 三欄必填，**連同 `recordComplete` 現在驗的 fabric、非空版本、`minecraft`／launchId 單一路徑段，一起搬到 `lib/sync/record-format.js`**；`pickRuntimeFields` 改用同一支規則函式（三處規則收成一處，E3）；刪 `recordComplete`（就緒改成 `record === null` 才回 `["record"]`）、`sameRuntimeTarget` 的 `typeof`／`?.`、`status-kind.js:173` 與 `runtime-readiness.js:31` 的註解 | 正式檔 4–5 個（`record-format`、`runtime-target`、`runtime-needs`、`runtime-readiness`、`status-kind` 註解）；測試照 §L-REC 測試帳（2 改寫、5 補 fixture、4 撤回或縮小、1 搬入） | `readRecord` 照舊無聲（→ N15）；`pickRuntimeFields` 的「只取三欄、不合法就丟」照舊〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`status-kind.js:173` 未移動〕 |
 | U5-B | 只把三欄改必填，fabric／路徑段規則留在 `recordComplete` | 正式檔 2 個；測試同 A 的前兩列＋fixture | 規則仍在兩三處；`recordComplete` 留著當第二道 |
 | U5-C | 不收緊 | 0 | L-REC 走留-3 結案；註解照舊 |
 
 **舊本機資料的處置（要 owner 逐字批准的部分）**：收緊後，③ 形狀或不合新規則的 `sync-record.json` ⇒ 讀成「沒有記錄」⇒ 狀態 `not-installed`、按鈕「安裝」⇒ 修復流程：每個受管檔 hash 一次（相同不重下）、runtime 逐檔驗 sha1、**Java 重裝**、玩家可改檔與保護名單不動、**舊 release 有而新 release 沒有的受管檔不會被刪**（`mods/` 裡的會出現在清單外 jar 的確認畫面）；舊記錄檔本身會在安裝成功時被新記錄覆蓋。**現查 owner 本機的記錄三欄都在**（§基準 P3）⇒ 今天收緊不會讓 owner 重裝；`sync-record.json.bak` 程式不讀、不受影響。
 **恢復契約（二稿補，審查第 7 項；裁 U5-A／U5-B 時一併批准的就是這幾條）**〔2026-10-27 裁決取代：owner 批准的是 §Owner 裁決「U5 舊記錄的產品契約」七條；它多了「沒有 previous 時不得推導舊清單自行刪除」與「不新增第二套解析器、遷移器或靜默備援」兩條，下列六條是二稿草案，內容與之不衝突〕
 1. 缺任一欄、或（U5-A）不符合 fabric／非空版本／單一路徑段規則的 runtime 記錄，**視為無效**。
-2. 無效記錄**不得宣告本機就緒**：讀成「沒有記錄」⇒ `no-record` ⇒ `localReady` 為假 ⇒ 任何 kind 下都不能經 Launcher 啟動（`status-kind.js:157-161,235-236`）。這與今天相同（今天缺欄記錄也不就緒），差別只在狀態從 `update-available` 變成 `not-installed`。
+2. 無效記錄**不得宣告本機就緒**：讀成「沒有記錄」⇒ `no-record` ⇒ `localReady` 為假 ⇒ 任何 kind 下都不能經 Launcher 啟動（`status-kind.js:157-161,235-236`）。這與今天相同（今天缺欄記錄也不就緒），差別只在狀態從 `update-available` 變成 `not-installed`。〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`status-kind.js:157-161,235-236` 未移動〕
 3. 安裝沿用既有的修復／驗證流程，**不新增恢復程式**：`not-installed` 的「安裝」按鈕就是修復流程（`verifyAll`、重裝 Java），沒有記錄時已存在的受管檔先 hash、相同就留。
-4. 不擅自刪資料：沒有記錄時同步不刪任何檔（`plan.js:153-160` 只在有記錄時算刪除）；玩家可改檔一律留（`:80`）；保護名單不動（`:45`）；管理範圍之外的檔不碰；`mods/` 裡不在清單上的 jar 只在玩家於確認畫面勾選後才刪（`assertRemovableStrayJars`，`:187-207`）。舊記錄檔本身在安裝成功時被新記錄覆蓋（`main/sync/apply.js:170-175`）。
+4. 不擅自刪資料：沒有記錄時同步不刪任何檔（`plan.js:153-160` 只在有記錄時算刪除）；玩家可改檔一律留（`:80`）；保護名單不動（`:45`）；管理範圍之外的檔不碰；`mods/` 裡不在清單上的 jar 只在玩家於確認畫面勾選後才刪（`assertRemovableStrayJars`，`:187-207`）。舊記錄檔本身在安裝成功時被新記錄覆蓋（`main/sync/apply.js:170-175`）。〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`plan.js:153-160` 後 `:154-161`、`:80` 後 `:81`、`:45` 後 `:46`、`:187-207` 後 `:188-208`；其他行號指的檔不在本 commit〕
 5. **owner 那份記錄完整，不等於所有可能存在的記錄都完整**：P3 只證明 `E:\Game2\GGL` 那一份；別的根目錄、別台機器上若有 ③ 形狀的記錄，會照第 1–4 條處理。依據 conventions §防禦與相容 的前提（從未發行、只有 owner 一台），CC 預期沒有，但沒查證（→ §CC 自己可能錯的地方 1）。
 6. 被當成無效的記錄**不出聲**——這是既有 C12「無效記錄＝沒有記錄」的路（`main/sync/instance-record.js:25-26`）。要不要延續它是 Q-SCOPE，本批不新增日誌。
 
@@ -417,7 +428,7 @@ B 之後，直接拿沒有 `libraries` 的層呼叫 `mergeVersionChain` 會丟 `
 
 | 批 | 範圍 | 根因 | 正式檔 | 受影響的測試 | 行為差異（正常／異常） | owner GUI | 前置 |
 |---|---|---|---|---|---|---|---|
-| **6c-1** | L-CONTRACT（status-text `:33,100`、status-kind `:136`、notice `:13`、ipc-channels `:64-65`、plan `:136`）、L-SET、U3-e 的 `:12`、`:15` | 邊界內的值在消費端再防一次（§2） | `status-text`、`status-kind`、`notice`、`ipc-channels`、`plan`、`settings-logic`、`rel-path` | `sync-status-kind` helper、`sync-plan` helper、`sync-apply` 一處、`sync-status-text` 中殘缺 status 的列（施工前列） | 不變／不變 | 開機一次（CC 可代跑） | U3-e 的那兩行等 U3 裁（不裁就先不含）〔2026-10-27 U3-e 已裁刪 `:12`、`:15`，兩行併入本批〕 |
+| **6c-1** | L-CONTRACT（status-text `:33,100`、status-kind `:136`、notice `:13`、ipc-channels `:64-65`、plan `:136`）、L-SET、U3-e 的 `:12`、`:15` | 邊界內的值在消費端再防一次（§2） | `status-text`、`status-kind`、`notice`、`ipc-channels`、`plan`、`settings-logic`、`rel-path` | `sync-status-kind` helper、`sync-plan` helper、`sync-apply` 一處、`sync-status-text` 中殘缺 status 的列（施工前列） | 不變／不變 | 開機一次（CC 可代跑） | U3-e 的那兩行等 U3 裁（不裁就先不含）〔2026-10-27 U3-e 已裁刪 `:12`、`:15`，兩行併入本批〕；已施工 `8989833`（→ §6c-1 施工紀錄） |
 | **6c-2** | L-NOTICE | 函式簽名仍是 v2 形狀，呼叫端包一層配合（§5、§6） | `notifications-broadcast`、`main/sync/notice-feed.js` | `notifications-broadcast`、`site-format-doc:229` | 不變／不變 | 開機看到公告一次 | — |
 | **6c-3** | L-SILENT＋`account-secret:71,113` | 外部失敗無聲（§3） | `account-secret`、`main/account-store.js` | 新 7 案（§L-SILENT；二稿加回呼失敗與 console 負向，2026-10-27 裁決加入口檢查）；既有 `account-secret` 案照綠 | 不變／加密、解密失敗多一筆常駐日誌（console 同內容，不含原始錯誤）；記錄失敗不改變登入或讀帳號的結果 | 登入一次（加密成功路徑不出事件） | U-20、U-24 |
 | **6c-4** | U4 | server-config 的值是程式碼，執行期再防型別（§2） | `manifest-url-configured`、`discord-button-url` | 新 `server-config.test.cjs`；三檔改寫（§U4） | 不變／不變（值被測試釘住；異常值改由測試抓） | 開機一次 | U4 |
@@ -429,7 +440,7 @@ B 之後，直接拿沒有 `libraries` 的層呼叫 `mergeVersionChain` 會丟 `
 - **二稿的調整**：七批不重切。只有兩處動到表：6c-6 的測試帳由「見各子題」改成 P4 確定的清單；6c-7 的行為差異依 Q-DUP／N16 分兩種寫。另**視 owner 裁決**可能多一批 6c-7a（N16 身分邊界，選 D2 才有；→ §交 owner 裁 Q-DUP／N16），**未併入、未排程**。
 - **為什麼不是八組八刀**：L-CONTRACT 散在三個根因裡（再防、`account-secret` 跟著無聲那批、`library-filter` 跟著 U3）；L-SET 與 rel-path 兩行是同一個根因的一行改動，併進 6c-1；U3 的五個子題裡 U3-e 的刪行併進 6c-1，其餘同一條鏈、同一個檔，放 6c-6（裁決若只放行一部分，就只做那部分）。
 - **能不能更少**：6c-6 與 6c-7 同檔、同函式附近，但 6c-7 有獨立的行為差異（Q-DUP），分開才能單獨退。6c-2 可以併進 6c-1（都不改行為），代價是公告的形狀改動與再防清理一起退；CC 傾向分開，審查可改。
-- **檔案重疊與 revert 順序**：`runtime-needs.js` 被 6c-5（`recordComplete`）與 6c-6（`:44`、`assertLaunchBundle`）碰；`launch-args.js` 被 6c-6 與 6c-7 碰；`status-kind.js` 被 6c-1（`:136`）與 6c-5（`:173` 註解）碰——區塊不相鄰，任意順序 revert 應該乾淨〔推論，U-21：施工時 `git revert --no-commit` 實測〕。〔2026-10-27 補：`main/account-store.js` 的 `readAccount` 被 6c-3（`:66-67` 接回呼）與 6c-7a（在其前插身分檢查）碰，**區塊相鄰**——施工 6c-3 先、revert 6c-7a 先，不保證任意順序乾淨〕
+- **檔案重疊與 revert 順序**：`runtime-needs.js` 被 6c-5（`recordComplete`）與 6c-6（`:44`、`assertLaunchBundle`）碰；`launch-args.js` 被 6c-6 與 6c-7 碰；`status-kind.js` 被 6c-1（`:136`）與 6c-5（`:173` 註解）碰——區塊不相鄰，任意順序 revert 應該乾淨〔推論，U-21：施工時 `git revert --no-commit` 實測〕。〔2026-10-27 補：`main/account-store.js` 的 `readAccount` 被 6c-3（`:66-67` 接回呼）與 6c-7a（在其前插身分檢查）碰，**區塊相鄰**——施工 6c-3 先、revert 6c-7a 先，不保證任意順序乾淨〕〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`status-kind.js:136` 原地改寫、`:173` 未移動；其他行號指的檔不在本 commit〕
 - **建議施工順序**：不等 U 裁決的先做——6c-1（不含 U3-e 兩行）→ 6c-2 → 6c-3；裁決後 6c-4、6c-5 → 6c-6 → 6c-7。每批施工前另行授權。〔2026-10-27 裁決後改為：6c-1（含 U3-e 兩行）→ 6c-2 → 6c-3 → 6c-4 → 6c-5 → 6c-6 → 6c-7a → 6c-7。硬性的只有三條：6c-3 先於 6c-7a、6c-5 先於 6c-6、6c-6 與 6c-7a 先於 6c-7；其餘是建議。每批施工前另行授權〕
 
 ## 驗收（各批共同）
@@ -450,9 +461,9 @@ B 之後，直接拿沒有 `libraries` 的層呼叫 `mergeVersionChain` 會丟 `
 |---|---|---|
 | U3-b `assertLaunchBundle` | 初稿：判不出值不值得改（生產端已有相等斷言 vs 模組交接處唯一在 spawn 前指名的檢查）。二稿重查來源、交接、資料決定的欄位後，判出是成立的 §2 違規、找不到留的出口 ⇒ 回到預設「改」 | 改（owner 2026-10-27 裁 B3 → §Owner 裁決） |
 | U3-c `launch-args.js:127,328` | 初稿：判不出算不算違規（以為它們定義了合併結果的錯誤分類）。二稿查證那個分類只對直接呼叫的未驗輸入有作用、正式路徑永遠不擋（P4）⇒ 判出是違規、回到預設「改」 | 改（owner 2026-10-27 裁四處都刪 → §Owner 裁決；初稿的「留」已撤回） |
-| L-CONTRACT `status-text.js:180,193` | 判不出值不值得改：拿掉而不補機制會變成畫面 `undefined`，補機制的成本大於兩個 `??` | 留＋一行理由（CC 判；owner 裁決未另行改動，→ §不必 owner 裁、但請審查看的判斷） |
+| L-CONTRACT `status-text.js:180,193` | 判不出值不值得改：拿掉而不補機制會變成畫面 `undefined`，補機制的成本大於兩個 `??` | 留＋一行理由（CC 判；owner 裁決未另行改動，→ §不必 owner 裁、但請審查看的判斷）〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`status-text.js:180,193` 後 `:183,196`〕 |
 
-E5 入帳（二稿）：U3-b、U3-c 改判刪之後，退回後留下的只剩 `status-text.js:180,193` 一項，補一行寫明理由的註解；`launch-args.js` 的重驗全部清掉後，「這個檔裡的檢查都在驗呼叫端給的參數、不在驗已過邊界的 json」這段推論在該檔成立。（初稿寫的是「留下三項」）
+E5 入帳（二稿）：U3-b、U3-c 改判刪之後，退回後留下的只剩 `status-text.js:180,193` 一項，補一行寫明理由的註解；`launch-args.js` 的重驗全部清掉後，「這個檔裡的檢查都在驗呼叫端給的參數、不在驗已過邊界的 json」這段推論在該檔成立。（初稿寫的是「留下三項」）〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`status-text.js:180,193` 後 `:183,196`〕
 
 ## 被現讀推翻或修正的舊盤點
 
@@ -465,7 +476,7 @@ E5 入帳（二稿）：U3-b、U3-c 改判刪之後，退回後留下的只剩 `
 
 ## 新發現（盤點外，預設進 future-work，owner 可改）
 
-- **N14** `lib/sync/rel-path.js:16`：gameDir 是磁碟機根（`C:\`）時 `root + path.sep` 變成 `C:\\`，所有路徑都判「不在底下」（P1）。gameDir 由 `getPaths` 固定接三層（`lib/paths-layout.js:24-25`），正式產品到不了；而且是多擋、不是漏擋。只記錄，不建議做。
+- **N14** `lib/sync/rel-path.js:16`：gameDir 是磁碟機根（`C:\`）時 `root + path.sep` 變成 `C:\\`，所有路徑都判「不在底下」（P1）。gameDir 由 `getPaths` 固定接三層（`lib/paths-layout.js:24-25`），正式產品到不了；而且是多擋、不是漏擋。只記錄，不建議做。〔2026-10-27 更正：**不是新發現**——`test/sync-plan.test.cjs` 已有一案「拒絕：gameDir 是磁碟根 ⇒ OUTSIDE_GAMEDIR」刻意釘住這個行為（6c-1 反向驗證 R1 打紅的就是它，→ §6c-1 施工紀錄），是既有設計。本條離開「新發現」，不進 future-work〕〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`rel-path.js:16` 後 `:14`〕
 - **N15** `main/sync/instance-record.js:25-26`：不合格的記錄無聲當成「沒有記錄」（§1 要出聲）。U5 會讓這條路用得更多；要出聲得先處理「每次算狀態都讀到同一份壞檔」的頻率（→ §交 owner 裁 Q-SCOPE）。〔2026-10-27 依裁決改寫定位：「無效記錄＝沒有記錄」是既有 C12 的設計（`plans/instance-sync-v3-commit3a1.md` C12，該檔 `:4` 的註解），owner 已裁 6c 延續它（→ §Owner 裁決 Q-SCOPE）；這一條**不是新發現的漏洞**，只是一個觀測性的候選。**原因**：記錄被當成無效時沒有任何痕跡，事後分不出「從沒裝過」與「記錄壞了被丟掉」。**代價**：要加痕跡就得處理頻率——`gather()` 每次算狀態都讀同一份檔，壞檔會每次都記——需要「同一份壞檔只記一次」之類的狀態，或接受重複；那是另一個設計題。**恢復契約不變**：照 §Owner 裁決「U5 舊記錄的產品契約」。6c 收尾時移進 `future-work.md`（同 6b 新發現的做法）〕
 - **N16** `lib/launch-args.js:465`：正版帳號的 `uuid` 是空字串時，`online` 判成假，無聲改用零 uuid 與假 token 啟動。根在 `main/account-store.js:61-62` 讀帳號檔時把不合格的 `name`／`uuid` 換成 `""` 而不是判帳號壞掉，以及互動式登入不驗 profile（`main/microsoft-auth.js:630-632`）。〔二稿：不再只列候選；是 L-DUP 的直接前提，交 owner 裁 → §交 owner 裁 Q-DUP／N16〕〔2026-10-27 已裁 D2，納入 6c 範圍、由 6c-7a 施工 → §Owner 裁決；離開「新發現」〕
 - **N20**（二稿）L-SILENT 的回呼隔離會在 lib 寫第二份與 `main/runtime/download.js:19-24` `safeLog` 同形的 4 行（lib 不能 `require` main）。把 `safeLog` 搬進 lib 讓兩處共用，是 M-RE 類的搬家，不在本批；記成候選。
@@ -506,6 +517,21 @@ E5 入帳（二稿）：U3-b、U3-c 改判刪之後，退回後留下的只剩 `
 3. **L-SILENT 的事件名、scope 名**是 CC 取的；常駐日誌的 scope 慣例沒有逐一比對既有事件（施工時 rg 既有 `gglError("` 的 scope 對齊）。
 4. 本輪全部是 CC 一個人讀碼，沒有第二個讀者；判準檔 §判準 第 1 條提醒「現讀本身也會讀錯」。〔二稿：ChatGPT 的審查抓到初稿兩處誤判（U3-c 的分類理由、L-SILENT 的 console 外洩），正是這一條〕
 
+## 6c-1 施工紀錄（2026-10-27，基準 `d9d1456`，commit `8989833`；本紀錄在之後的 docs commit 補寫）〔實測〕
+
+**驗收出處**：owner 2026-10-27（與 CC 對話）「commit，6c-1 驗收過」。**授權出處**：→ §Owner 裁決 §6c-1 施工授權。
+
+- **改動**（numstat +／-）：`lib/sync/status-text.js` 6／3（`syncReasons = []`、兩個 `?? []` 拿掉；進度文字的兩個 `??` 照退回結論留，理由寫進 `describeRuntimeProgress` 的 JSDoc）；`lib/sync/status-kind.js` 1／1（`r.detail ?? r.reason` → `r.detail`）；`lib/sync/notice.js` 2／1（`doc.notice ?? {}`＋一行註解，欄位的寬鬆解析不動）；`lib/ipc-channels.js` 1／1（`Object.values(obj)`）；`lib/sync/plan.js` 2／1（`onHashProgress` 直接呼叫；`assertSafePath` 補 U3-e 的理由一行）；`lib/sync/rel-path.js` 0／2（`:12`、`:15`）；`lib/settings-logic.js` 38／41，不計空白 2／5（`globalThis`；prettier 因此把整段少縮一層，與兩個兄弟檔同形）；測試 `sync-apply` 1／0、`sync-plan` 2／1（helper 與直接呼叫補 `onHashProgress: () => {}`）、`sync-status-kind` 7／5（`unreachable()`／`invalid()` 一律給 `detail`，預設＝`reason` 的字面值；原本釘「缺 detail 用 reason」的那案名稱拿掉該半句、留一行註解）。合計 10 檔 +60／-56。
+- **修前**：全套 Node 24.14.1 1357／1357（HEAD `d9d1456`；`git diff f26f9a9 d9d1456 -- lib main test scripts renderer` 為空）。
+- **只改正式程式時**：紅 18 案——`sync-plan` 9、`sync-apply` 7（沒給 `onHashProgress`）、`sync-status-kind` 2（假的站台結果沒帶 `detail`；其中 `:340` 那案名稱就是「缺 detail 用 reason」）。`status-text`、`notice`、`ipc-channels`、`settings-logic`、`rel-path` 0 紅。三類都是測試沒照正式形狀餵值，改的是 helper，不是斷言的意思。
+- **修後**：Node 24.14.1 與 22.23.4（CI 最近一次 run `40311015470` 的版本）都 **1357／1357**。`lint`、`check:ui-css` 一般／strict、`git diff --check` exit 0。prettier：改到的 7 個正式檔合格；三個測試檔在 HEAD 就不合 prettier，照檔內原本的寫法改、不整份重排。conventions 的 commit 前 rg 命中 1 處（`notice.js` 的 `doc.notice ?? {}`：網路回應，`validateNotice` 保證物件或 `null`，`null`＝沒有公告）。commit 時 pre-commit 通過。
+- **探針**（scratchpad）：`settings-logic` 的瀏覽器分支——`vm` 裡沒有 `module`，照 `index.html` 的順序載三檔 ⇒ `GglSettingsLogic.computeMemoryUiModel` 可用；IPC 白名單——工作樹與 HEAD 版逐項相同（22、10 個）、全是字串、凍結。
+- **反向驗證**（暫改 → 跑該檔 → 寫回）：R1 `rel-path.js:14`（原 `:16`）改成永遠 `true` ⇒ `sync-rel-path`、`sync-plan` 共紅 2 案（含 `sync-plan` 的「gameDir 是磁碟根 ⇒ OUTSIDE_GAMEDIR」，→ §新發現 N14 更正）；R2 `main/sync/index.js` 不給 `onHashProgress` ⇒ `sync-index` 紅 37 案（缺回呼會叫，不是無聲少進度）。
+- **freeze**：改到的測試檔裡只有 `sync-apply` 起本機 HTTP——× `FREEZE_OFFSET` 0–7 × 兩版本＝16 跑全綠，每跑的測試行程收到 143 個請求、卡 17–18 次（另一行 0 請求的是外層 `--test` 行程）。
+- **啟動**：隔離的 `--user-data-dir`、debug 關，開機到 `start_main_done`，沒有錯誤；常駐日誌最後的 `render_process_gone`（exitCode 143）是 30 秒 `timeout` 強制結束時記的；結束後沒有殘留的 electron 行程。
+- **撞到**：反向驗證腳本用 Python `read_text`／`write_text` 寫回，Windows 上把 LF 寫成 CRLF——寫回後 sha 不符，連不打算改的 `main/sync/index.js` 也整檔變 CRLF，exit 0、沒有錯誤。腳本自己比 sha 才發現；改用 `write_bytes` 把兩檔轉回 LF 後，`index.js` 的 `git hash-object` 等於 `HEAD:main/sync/index.js`、`rel-path.js` 只剩預定的兩行刪除，並重跑全套 1357／1357 才提交。反向驗證的結論不受影響（JS 不看行尾）。
+- **沒做**：沒加 `onHashProgress` 的入口檢查（本批範圍沒有；缺回呼在這裡會直接 TypeError，不像 L-SILENT 會被 `catch` 吞掉，R2 已證明會叫）。沒跑打包。owner 端沒有要看的畫面（§分批：開機一次，CC 代跑）。
+
 ## 二稿修訂紀錄（2026-10-26，依 §審查）
 
 修訂前現查：`git status --short --branch` ＝ `main...origin/main`，未提交的只有本檔（未追蹤）與 `STATUS.md`；`git log -1` ＝ `f26f9a9`——基準沒動。新增的探針 P4、P5 在 §基準與探針；腳本都在 session scratchpad，不進 repo。
@@ -517,7 +543,7 @@ E5 入帳（二稿）：U3-b、U3-c 改判刪之後，退回後留下的只剩 `
 | 3 | U3-d 初稿（上一層加必填、再刪備援）可能只是搬家；比較 A／B／C，B 成立就優先 B | `mergeVersionChain` 沒有不經邊界的正式呼叫；備援在正式路徑掩蓋不了任何東西；P4 只拿掉 `Array.isArray` 只紅 L4（直接呼叫）；`:194-196` 要留（拿掉會讓字串被展開成字元而無聲） | **接受**；**撤回**初稿 A | §U3-d 二稿重查、P4 | B；1 個正式檔、L4 三個 fixture 補 `libraries: []` | U3-d |
 | 4 | L-SILENT：console 會輸出原始 `err.message`；要固定分類、白名單 `field`、不交原始例外、Console 與常駐檔都測、記錄失敗不得改變退明文 | 屬實：`:168` 印 message、`:171-174` 印 stack 前 4 行；P5 實測 console 含假 token、檔案不含；`err` 給 `undefined` 時兩邊都乾淨。回呼同步丟錯會讓登入失敗、回傳 rejected Promise 會變成沒人接的 rejection | **接受**；**撤回**初稿「console 不落盤，可接受」 | §L-SILENT 二稿、P5 | lib 只交 `{ cause }`；`gglError` 的 `err` 給 `undefined`；lib 以 `safeLog` 同形的 helper 隔離回呼；測試 5 案 → 6 案（加回呼失敗與 console 負向＋對照組）；N20 | — |
 | 5 | Q-DUP 方向同意；N16（uuid 空 ⇒ 落入離線分支）要現查並列成 owner 能決定的事項，不只一句 future-work；不自動併入 6c-7 | 身分兩個入口（登入不驗 profile、讀檔把壞值換成 `""`）都沒驗非空；離線 handler 不讀帳號；L-DUP 拿掉 `\|\| "Player001"` 的前提就是正版名字非空 ⇒ 判準檔的「直接前提」例外 | **接受**；初稿把 N16 只列候選，**更正** | §L-DUP 二稿段 | 合題 Q-DUP／N16，D0–D3 四案，CC 建議 D2（擴張範圍：2 個 main 檔，另立 6c-7a，未併入） | Q-DUP／N16 |
-| 6 | U5：補恢復契約（無效記錄、不得宣告就緒、沿用修復流程、不擅刪、owner 完整≠所有完整）；Q-SCOPE 交 owner；不新增日誌 | 逐條對到程式（`status-kind.js:157-161,235-236`、`plan.js:45,80,153-160,187-207`、`apply.js:170-175`） | **接受** | §交 owner 裁 U5 恢復契約 | U5-A 照舊建議；Q-SCOPE 改寫成「是否延續 C12」 | U5、Q-SCOPE |
+| 6 | U5：補恢復契約（無效記錄、不得宣告就緒、沿用修復流程、不擅刪、owner 完整≠所有完整）；Q-SCOPE 交 owner；不新增日誌 | 逐條對到程式（`status-kind.js:157-161,235-236`、`plan.js:45,80,153-160,187-207`、`apply.js:170-175`） | **接受** | §交 owner 裁 U5 恢復契約 | U5-A 照舊建議；Q-SCOPE 改寫成「是否延續 C12」 | U5、Q-SCOPE〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`status-kind.js:157-161,235-236` 未移動；`plan.js:45,80,153-160,187-207` 後 `:46,81,154-161,188-208`〕 |
 | 7 | 其他（U3-a、U3-e、U4-A、L-NOTICE、L-SET、進度文字 fallback、七批）無新證據不重審；fallback 確認沒有擴張產品行為 | 進度文字留＝不改程式、只補註解 | **接受** | §不必 owner 裁 | 七批不重切；6c-6 的測試帳改成確定清單；6c-7 依 Q-DUP／N16 分寫；可能多 6c-7a | — |
 
 **CC 反駁 ChatGPT 的地方**：沒有。七項的主張查證後都成立或部分成立；其中第 1 項只改理由、不改結論。

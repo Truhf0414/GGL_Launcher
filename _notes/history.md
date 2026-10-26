@@ -143,6 +143,8 @@
 - 2026-10-26 cross-review Phase 6b-4g commit `602c1b9`（4 檔，+341／-1）：#15——互動式登入的 token 回應沒有 `refresh_token` ⇒ 當場以 `MS_REFRESH_TOKEN_MISSING` 失敗，不打 Xbox／Minecraft、不寫帳號；畫面加一句 owner 定的文案；換新的「保留舊值」不動。登入入口的第一個自動測試（本檔內的假 `BrowserWindow`、真的 loopback、只認 6 個端點的假 fetch、暫存帳號檔）；修前 L1 與新文案紅；全套 Node 24.14.1、22.23.4 都 1357／1357；三個突變各紅對應那案；freeze 16 跑全綠；owner 登入驗收過。6b-4 七批至此全部完成 → plans/cross-review-2026-10-phase6b4.md §4g 施工紀錄
 - 2026-10-26 future-work「核心流程補測試」離箱：最後一項（microsoft-auth 的登入主流程）已由 6b-4g 的 `test/microsoft-auth-login.test.cjs` 走正式入口補上（成功、缺 refresh_token 兩路）；外部審查（ChatGPT，owner 轉貼）指出原句已不準確 → plans/cross-review-2026-10-phase6b4.md §4g 施工紀錄
 - 2026-10-26 cross-review Phase 6b 結案：6b-4 七批完成後交 ChatGPT 審查一輪，只指出 future-work 一行過期（已離箱）；push 到 `63d2c97`（`712f445..63d2c97`）；owner「6b 收尾算完了」。下一步 6c → plans/cross-review-2026-10-phase6b.md 狀態列
+- 2026-10-26～27 cross-review Phase 6c 細部 plan 與裁決（文件 `d9d1456`）：初稿現讀 lib 組八組候選；ChatGPT 審初稿，二稿撤回 CC 三處誤判（U3-c 留 `:127`／`:328` 的理由、U3-d 的 A 案、L-SILENT 把原始錯誤交給 `gglError`——console 會印出 message，探針實測含假 token）；ChatGPT 審二稿後擬裁決稿，owner「五項照這份裁，第 2 點補一行入口檢查」：U3 照二稿、U4 A、U5 A（含舊記錄處置）、Q-DUP／N16 D2（另立 6c-7a）、Q-SCOPE 延續 C12。撞到：探針六份副本平行跑全套時連對照組都逾時，改逐份跑 → plans/cross-review-2026-10-phase6c.md §Owner 裁決、§二稿修訂紀錄
+- 2026-10-27 cross-review Phase 6c-1 commit `8989833`（10 檔，+60／-56）：L-CONTRACT 五處、L-SET、U3-e 兩行——消費端對產出端已保證的值不再再防；越界檢查與進度文字的退路留並寫理由。只改正式程式時紅 18 案（全是測試沒照正式形狀餵值，改 helper）；全套 Node 24.14.1、22.23.4 都 1357／1357；兩個反向驗證都紅；freeze 16 跑綠；owner 驗收過。撞到：反向驗證腳本用 Python `write_text` 寫回，Windows 上 LF 變 CRLF、exit 0，連 `main/sync/index.js` 也被整檔改行尾，比 sha 才發現 → plans/cross-review-2026-10-phase6c.md §6c-1 施工紀錄
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
