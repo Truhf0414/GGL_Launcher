@@ -350,6 +350,8 @@
         case "MS_TOKEN_EXCHANGE_FAILED":
         case "MS_TOKEN_EMPTY":
           return "Microsoft 登入失敗（Token 交換失敗）";
+        case "MS_REFRESH_TOKEN_MISSING":
+          return "Microsoft 未提供維持登入的憑證，請重新登入。";
         case "XBL_FAILED":
           return "Xbox 登入失敗（XBL）";
         case "MC_LOGIN_FAILED":
