@@ -1,4 +1,4 @@
-# Phase 6c — lib 組：細部 plan（狀態：**2026-10-26 初稿，基準 `f26f9a9`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄），基準不變；2026-10-27 ChatGPT 審二稿後擬裁決稿，owner 裁 U3、U4、U5、Q-DUP／N16、Q-SCOPE 與 L-SILENT 入口檢查（→ §Owner 裁決），回寫進本檔（→ §裁決回寫紀錄），文件 `d9d1456`；同日 owner 授權 6c-1（→ §Owner 裁決 §6c-1 施工授權），施工 commit `8989833`，經 owner 驗收放行（→ §6c-1 施工紀錄）；同日 owner 授權 6c-2（→ §Owner 裁決 §6c-2 施工授權）；6c-3 起未授權施工**）
+# Phase 6c — lib 組：細部 plan（狀態：**2026-10-26 初稿，基準 `f26f9a9`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄），基準不變；2026-10-27 ChatGPT 審二稿後擬裁決稿，owner 裁 U3、U4、U5、Q-DUP／N16、Q-SCOPE 與 L-SILENT 入口檢查（→ §Owner 裁決），回寫進本檔（→ §裁決回寫紀錄），文件 `d9d1456`；同日 owner 授權 6c-1（→ §Owner 裁決 §6c-1 施工授權），施工 commit `8989833`，經 owner 驗收放行（→ §6c-1 施工紀錄）；同日 owner 授權 6c-2（→ §Owner 裁決 §6c-2 施工授權），施工 commit `55e0560`，經 owner 驗收放行（→ §6c-2 施工紀錄）；同日 owner 授權 6c-3（→ §Owner 裁決 §6c-3 施工授權）；6c-4 起未授權施工**）
 
 上層＝`plans/cross-review-2026-10.md` §8 Phase 6（範圍、不做、不變量、驗收下限、回滾；6c 的切法在同節子 Phase 表）與 §4.2 U3、U4、U5（題目與 CC 當時的建議）；候選的定義＝`plans/defense-cleanup.md` §清理清單 lib/ 表與 §Bug B6；改／留判準＝`plans/cross-review-2026-10-phase6-criteria.md`（本檔不重述；§判例 5 是 U3 的起點）；規則本體＝`conventions.md` §防禦與相容（以條號 §1–§6 引用）。
 
@@ -74,6 +74,12 @@
 
 **出處**：owner 2026-10-27（與 CC 對話）「收 docs commit，然後開工 6c-2」。
 **授權**：6c-2（L-NOTICE）的施工與驗證；權威＝§L-NOTICE、§分批 6c-2 列、§驗收。自動驗證完成後先問 owner 才 commit。**不授權** push、其他批次。
+**commit 出處**：owner 2026-10-27（與 CC 對話）「commit，6c-2 驗收過」。
+
+### 6c-3 施工授權（2026-10-27）
+
+**出處**：owner 2026-10-27（與 CC 對話）「收 docs commit，然後開工 6c-3」。
+**授權**：6c-3（L-SILENT＋`account-secret.js:71,113`）的施工與驗證；權威＝本節裁決表「L-SILENT 入口檢查」、§6c-3 L-SILENT 的附加驗收限制、§L-SILENT、§分批 6c-3 列、§驗收。自動驗證完成後先問 owner 才 commit。**不授權** push、其他批次。
 
 ### CC 的施工限制（非 owner 裁；CC 回覆的第 3 點，owner 未逐條回應，可改）
 
@@ -272,7 +278,7 @@ B 之後，直接拿沒有 `libraries` 的層呼叫 `mergeVersionChain` 會丟 `
 
 **現讀**〔讀碼〕
 - `lib/server-config.js`：凍結的 JS 字面物件（`deepFreeze`，`:6-13`），跟著安裝包出貨，換伺服器要改檔、重打包（`docs/new-server-checklist.md`「值」節）。載入者：`main/start-main.js:64`、`lib/paths-layout.js:11`、`scripts/publish-config.js:41`。
-- `lib/manifest-url-configured.js:4-8` `isRemoteManifestUrlConfigured`：`String(rawUrl ?? "").trim()`、空 ⇒ 未設定、`example.com/manifest.json` ⇒ 未設定。呼叫者：`main/sync/index.js:191`（算狀態）、`main/sync/notice-feed.js:79`（公告輪詢）、`main/start-main.js:97-98`；三處的參數都是 `serverConfig.manifestUrl`（測試注入假的 `serverConfig`）。
+- `lib/manifest-url-configured.js:4-8` `isRemoteManifestUrlConfigured`：`String(rawUrl ?? "").trim()`、空 ⇒ 未設定、`example.com/manifest.json` ⇒ 未設定。呼叫者：`main/sync/index.js:191`（算狀態）、`main/sync/notice-feed.js:79`（公告輪詢）、`main/start-main.js:97-98`；三處的參數都是 `serverConfig.manifestUrl`（測試注入假的 `serverConfig`）。〔對齊 2026-10-27：→ `55e0560`（plans/cross-review-2026-10-phase6c.md 6c-2）：`main/sync/notice-feed.js:79` 後 `:76`；其他行號指的檔不在本 commit〕
 - `lib/discord-button-url.js`：`normalizeAllowedHosts`（`:3-13`，`Array.isArray`、`String(h ?? "")`）、`filterButtonUrl`（`:15-26`，`String(url || "").trim()`、非 http(s) ⇒ `""`、清單空 ⇒ 放行、`new URL` 的 `try/catch`）。
 - **`filterButtonUrl` 有沒有收到站台或其他外部資料**：唯一呼叫者 `lib/discord-helper-args.js:33-40`，參數是 `discord.inviteUrl`、`discord.downloadLauncherUrl`、`discord.allowedButtonHosts`；`discord` 來自 `main/discord-rpc.js:36-37` 的注入，正式＝`main/app-ready.js:165` 的 `serverConfig.discord`。環境變數只進 `clientId`（`discord-helper-args.js:29-30`，`GGL_DISCORD_CLIENT_ID`），不進網址。站台資料（索引、公告、changelog）都不經這支函式〔讀碼：`rg filterButtonUrl` 只命中這兩檔與測試〕。⇒ **沒有**外部資料經過它。
 - 同一個 `inviteUrl` 還有第二條出口：`main/ipc/server-config-ipc.js:8` 送給畫面 → `renderer/window-controls.js:37` → `openExternal` IPC → `main/ipc/external-ipc.js:5-13` 再驗一次 http(s) 才 `shell.openExternal`。**這道驗證屬於「畫面送給 main 的 IPC 參數」邊界，不管 U4 怎麼裁都留**（它守的是畫面可能被注入，不是 server-config 的型別）。
@@ -330,9 +336,9 @@ B 之後，直接拿沒有 `libraries` 的層呼叫 `mergeVersionChain` 會丟 `
 
 ### L-NOTICE 參數仍是 v2 manifest 形狀
 
-**現讀**〔讀碼〕：`lib/notifications-broadcast.js:31-34` `normalizeBroadcastNotifications(manifest, nowMs = Date.now())` 收 `{ notifications }`，`Array.isArray(manifest?.notifications)`；唯一正式呼叫者 `main/sync/notice-feed.js:59-67` `snapshotOf` 特地包成 `{ notifications: r.notifications }`，`nowMs` 一定給。`r.notifications` 來自 `validateNotice` 的結果（一定是陣列）。
+**現讀**〔讀碼〕：`lib/notifications-broadcast.js:31-34` `normalizeBroadcastNotifications(manifest, nowMs = Date.now())` 收 `{ notifications }`，`Array.isArray(manifest?.notifications)`；唯一正式呼叫者 `main/sync/notice-feed.js:59-67` `snapshotOf` 特地包成 `{ notifications: r.notifications }`，`nowMs` 一定給。`r.notifications` 來自 `validateNotice` 的結果（一定是陣列）。〔對齊 2026-10-27：→ `55e0560`（plans/cross-review-2026-10-phase6c.md 6c-2）：`lib/notifications-broadcast.js:31-34` 改寫後 `:30-34`（JSDoc＋簽名，`Array.isArray` 拿掉）；`main/sync/notice-feed.js:59-67` 改寫後 `:59-64`〕
 **守的是什麼**：v2 站台的 manifest 自帶 `notifications`（§5 舊形狀）；呼叫端為了配合而包一層（§6 一個函式一種輸入形狀）。`:37-55` 逐項的 `typeof`、`Number.isFinite` 是網路欄位的寬鬆解析（留-1，同上 `site-format.js:107`）。
-**建議**：**改**——改成 `normalizeBroadcastNotifications(list, nowMs)`，拿掉 `Array.isArray`、`?.` 與 `nowMs` 的預設；`snapshotOf` 直接傳陣列。成本：1 個正式檔＋`notice-feed.js` 1 行；測試 `test/notifications-broadcast.test.cjs:35,63`、`test/site-format-doc.test.cjs:229` 改呼叫形狀；`test/sync-notice-feed.test.cjs:45` 是寫死的輸出、不受影響〔讀碼〕。
+**建議**：**改**——改成 `normalizeBroadcastNotifications(list, nowMs)`，拿掉 `Array.isArray`、`?.` 與 `nowMs` 的預設；`snapshotOf` 直接傳陣列。成本：1 個正式檔＋`notice-feed.js` 1 行；測試 `test/notifications-broadcast.test.cjs:35,63`、`test/site-format-doc.test.cjs:229` 改呼叫形狀；`test/sync-notice-feed.test.cjs:45` 是寫死的輸出、不受影響〔讀碼〕。〔對齊 2026-10-27：→ `55e0560`（plans/cross-review-2026-10-phase6c.md 6c-2）：`test/notifications-broadcast.test.cjs:35,63` 後 `:35,61`（改成直接傳陣列）；`test/site-format-doc.test.cjs:229` 原地改寫〕
 
 ### L-SET `lib/settings-logic.js:18`（盤點時 `:12`）〔對齊 2026-10-27：→ `8989833`（plans/cross-review-2026-10-phase6c.md 6c-1）：`settings-logic.js:18` 改寫後 `:17`（整檔重排縮排）〕
 
@@ -429,7 +435,7 @@ B 之後，直接拿沒有 `libraries` 的層呼叫 `mergeVersionChain` 會丟 `
 | 批 | 範圍 | 根因 | 正式檔 | 受影響的測試 | 行為差異（正常／異常） | owner GUI | 前置 |
 |---|---|---|---|---|---|---|---|
 | **6c-1** | L-CONTRACT（status-text `:33,100`、status-kind `:136`、notice `:13`、ipc-channels `:64-65`、plan `:136`）、L-SET、U3-e 的 `:12`、`:15` | 邊界內的值在消費端再防一次（§2） | `status-text`、`status-kind`、`notice`、`ipc-channels`、`plan`、`settings-logic`、`rel-path` | `sync-status-kind` helper、`sync-plan` helper、`sync-apply` 一處、`sync-status-text` 中殘缺 status 的列（施工前列） | 不變／不變 | 開機一次（CC 可代跑） | U3-e 的那兩行等 U3 裁（不裁就先不含）〔2026-10-27 U3-e 已裁刪 `:12`、`:15`，兩行併入本批〕；已施工 `8989833`（→ §6c-1 施工紀錄） |
-| **6c-2** | L-NOTICE | 函式簽名仍是 v2 形狀，呼叫端包一層配合（§5、§6） | `notifications-broadcast`、`main/sync/notice-feed.js` | `notifications-broadcast`、`site-format-doc:229` | 不變／不變 | 開機看到公告一次 | — |
+| **6c-2** | L-NOTICE | 函式簽名仍是 v2 形狀，呼叫端包一層配合（§5、§6） | `notifications-broadcast`、`main/sync/notice-feed.js` | `notifications-broadcast`、`site-format-doc:229` | 不變／不變 | 開機看到公告一次 | —；已施工 `55e0560`（→ §6c-2 施工紀錄） |
 | **6c-3** | L-SILENT＋`account-secret:71,113` | 外部失敗無聲（§3） | `account-secret`、`main/account-store.js` | 新 7 案（§L-SILENT；二稿加回呼失敗與 console 負向，2026-10-27 裁決加入口檢查）；既有 `account-secret` 案照綠 | 不變／加密、解密失敗多一筆常駐日誌（console 同內容，不含原始錯誤）；記錄失敗不改變登入或讀帳號的結果 | 登入一次（加密成功路徑不出事件） | U-20、U-24 |
 | **6c-4** | U4 | server-config 的值是程式碼，執行期再防型別（§2） | `manifest-url-configured`、`discord-button-url` | 新 `server-config.test.cjs`；三檔改寫（§U4） | 不變／不變（值被測試釘住；異常值改由測試抓） | 開機一次 | U4 |
 | **6c-5** | U5（L-REC） | 舊格式相容＋下游補邊界該驗的東西（§5、§1） | 見 U5-A | 見 §L-REC 測試帳 | 不變（owner 那份記錄齊）／③ 形狀的記錄改成「沒有記錄」 | 開機看狀態＋啟動一次 | U5 的逐字批准 |
@@ -481,7 +487,7 @@ E5 入帳（二稿）：U3-b、U3-c 改判刪之後，退回後留下的只剩 `
 - **N16** `lib/launch-args.js:465`：正版帳號的 `uuid` 是空字串時，`online` 判成假，無聲改用零 uuid 與假 token 啟動。根在 `main/account-store.js:61-62` 讀帳號檔時把不合格的 `name`／`uuid` 換成 `""` 而不是判帳號壞掉，以及互動式登入不驗 profile（`main/microsoft-auth.js:630-632`）。〔二稿：不再只列候選；是 L-DUP 的直接前提，交 owner 裁 → §交 owner 裁 Q-DUP／N16〕〔2026-10-27 已裁 D2，納入 6c 範圍、由 6c-7a 施工 → §Owner 裁決；離開「新發現」〕
 - **N20**（二稿）L-SILENT 的回呼隔離會在 lib 寫第二份與 `main/runtime/download.js:19-24` `safeLog` 同形的 4 行（lib 不能 `require` main）。把 `safeLog` 搬進 lib 讓兩處共用，是 M-RE 類的搬家，不在本批；記成候選。
 - **N17** `lib/launch-args.js:190`：`mergeVersionChain` 自己的 `argumentsOf` 也是對邊界已驗資料的再驗（它同時負責取出參數陣列）。U3-c 刪 `:357`、`:387` 之後，參數項形狀在邊界與合併各驗一次。
-- **N18** `main/sync/notice-feed.js:83,91-92` 的 `index?.side`、`got.notice ?? null`、`got.notifications ?? []`：`siteClient` 的回傳一定是物件、`fetchNotice` 回的兩欄一定在〔讀碼，`main/sync/site-client.js:142-150`〕。main 的檔、不在 lib/ 表。
+- **N18** `main/sync/notice-feed.js:83,91-92` 的 `index?.side`、`got.notice ?? null`、`got.notifications ?? []`：`siteClient` 的回傳一定是物件、`fetchNotice` 回的兩欄一定在〔讀碼，`main/sync/site-client.js:142-150`〕。main 的檔、不在 lib/ 表。〔對齊 2026-10-27：→ `55e0560`（plans/cross-review-2026-10-phase6c.md 6c-2）：`main/sync/notice-feed.js:83,91-92` 後 `:80,88-89`〕
 - **N19** `lib/discord-helper-args.js:30` `String(discord.clientId || "").trim()`：server-config 的值，與 U4 同一個根，但不在 L-SERVERCFG 列；U4 裁 A 時順理成章，但照母體凍結先列在這裡，要併入需 owner 一句話。
 
 ## 未驗、停止條件、回滾
@@ -531,6 +537,19 @@ E5 入帳（二稿）：U3-b、U3-c 改判刪之後，退回後留下的只剩 `
 - **啟動**：隔離的 `--user-data-dir`、debug 關，開機到 `start_main_done`，沒有錯誤；常駐日誌最後的 `render_process_gone`（exitCode 143）是 30 秒 `timeout` 強制結束時記的；結束後沒有殘留的 electron 行程。
 - **撞到**：反向驗證腳本用 Python `read_text`／`write_text` 寫回，Windows 上把 LF 寫成 CRLF——寫回後 sha 不符，連不打算改的 `main/sync/index.js` 也整檔變 CRLF，exit 0、沒有錯誤。腳本自己比 sha 才發現；改用 `write_bytes` 把兩檔轉回 LF 後，`index.js` 的 `git hash-object` 等於 `HEAD:main/sync/index.js`、`rel-path.js` 只剩預定的兩行刪除，並重跑全套 1357／1357 才提交。反向驗證的結論不受影響（JS 不看行尾）。
 - **沒做**：沒加 `onHashProgress` 的入口檢查（本批範圍沒有；缺回呼在這裡會直接 TypeError，不像 L-SILENT 會被 `catch` 吞掉，R2 已證明會叫）。沒跑打包。owner 端沒有要看的畫面（§分批：開機一次，CC 代跑）。
+
+## 6c-2 施工紀錄（2026-10-27，基準 `e403b4a`，commit `55e0560`；本紀錄在之後的 docs commit 補寫）〔實測〕
+
+**驗收出處**：owner 2026-10-27（與 CC 對話）「commit，6c-2 驗收過」。**授權出處**：→ §Owner 裁決 §6c-2 施工授權。
+
+- **改動**（numstat +／-）：`lib/notifications-broadcast.js` 5／5（`normalizeBroadcastNotifications(list, nowMs)`：收陣列，拿掉 `Array.isArray(manifest?.notifications)` 與 `nowMs = Date.now()` 的預設；JSDoc 寫明「validateNotice 已保證是陣列，每一項的欄位才是寬鬆解析的對象」；逐項的 `typeof`／`Number.isFinite` 照留）；`main/sync/notice-feed.js` 1／4（`snapshotOf` 直接傳 `r.notifications`）；測試 `notifications-broadcast` 24／28（兩案改成直接傳陣列，內容不變、縮排少一層）、`site-format-doc` 1／1（`notifs` helper）。合計 4 檔 +31／-38。
+- **修前**：三個受影響的測試檔（`notifications-broadcast`、`site-format-doc`、`sync-notice-feed`）75／75；程式碼自 `8989833` 起沒變（`git diff 8989833 e403b4a -- lib main test` 為空）。
+- **只改正式程式時**：紅 14 案——`notifications-broadcast` 2、`site-format-doc` 12（SF-T1～T14 經 `:229` 的 helper）；`sync-notice-feed` 走真的 `notice-feed`，照綠。全是照舊形狀呼叫。
+- **修後**：Node 24.14.1 與 22.23.4 都 **1357／1357**。`lint`、`check:ui-css` 一般／strict、`git diff --check` exit 0；prettier：三檔合格，`site-format-doc` 在 HEAD 就不合，照原寫法、不重排；commit 前 rg 0 命中；改到的檔沒有 CR。commit 時 pre-commit 通過。
+- **反向驗證**（二進位暫改 → 跑 → 寫回，sha 相同）：`notice-feed` 改回 `{ notifications: r.notifications }` ⇒ `sync-notice-feed` 16／16 紅（建 feed 時 `snapshotOf` 就丟錯）。
+- **freeze**：`site-format-doc` × 0–7 × 兩版本＝16 跑全綠，但**每跑 0 個請求**——這個檔不起 HTTP 伺服器，freeze 沒有作用，不算數。`notifications-broadcast` 不等計時器也不發請求，沒跑。
+- **啟動**：隔離的 `--user-data-dir`、debug 關，跑 20 秒，開機到 `start_main_done`、沒有錯誤；`render_process_gone`（143）是 `timeout` 強制結束；沒有殘留行程。公告的畫面由 owner 看（debug 關著時常駐日誌不記公告內容）。
+- **撞到**：無。反向驗證腳本改用二進位讀寫（6c-1 的教訓）。
 
 ## 二稿修訂紀錄（2026-10-26，依 §審查）
 
