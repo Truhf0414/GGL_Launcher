@@ -1,4 +1,4 @@
-# Phase 6c — lib 組：細部 plan（狀態：**2026-10-26 初稿，基準 `f26f9a9`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄），基準不變；2026-10-27 ChatGPT 審二稿後擬裁決稿，owner 裁 U3、U4、U5、Q-DUP／N16、Q-SCOPE 與 L-SILENT 入口檢查（→ §Owner 裁決），回寫進本檔（→ §裁決回寫紀錄），文件 `d9d1456`；同日 owner 授權 6c-1（→ §Owner 裁決 §6c-1 施工授權），施工 commit `8989833`，經 owner 驗收放行（→ §6c-1 施工紀錄）；同日 owner 授權 6c-2（→ §Owner 裁決 §6c-2 施工授權），施工 commit `55e0560`，經 owner 驗收放行（→ §6c-2 施工紀錄）；同日 owner 授權 6c-3（→ §Owner 裁決 §6c-3 施工授權），施工 commit `1d22050`，經 owner 驗收放行（→ §6c-3 施工紀錄）；同日 owner 授權 6c-4（→ §Owner 裁決 §6c-4 施工授權）；6c-5 起未授權施工**）
+# Phase 6c — lib 組：細部 plan（狀態：**2026-10-26 初稿，基準 `f26f9a9`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄），基準不變；2026-10-27 ChatGPT 審二稿後擬裁決稿，owner 裁 U3、U4、U5、Q-DUP／N16、Q-SCOPE 與 L-SILENT 入口檢查（→ §Owner 裁決），回寫進本檔（→ §裁決回寫紀錄），文件 `d9d1456`；同日 owner 授權 6c-1（→ §Owner 裁決 §6c-1 施工授權），施工 commit `8989833`，經 owner 驗收放行（→ §6c-1 施工紀錄）；同日 owner 授權 6c-2（→ §Owner 裁決 §6c-2 施工授權），施工 commit `55e0560`，經 owner 驗收放行（→ §6c-2 施工紀錄）；同日 owner 授權 6c-3（→ §Owner 裁決 §6c-3 施工授權），施工 commit `1d22050`，經 owner 驗收放行（→ §6c-3 施工紀錄）；同日 owner 授權 6c-4（→ §Owner 裁決 §6c-4 施工授權），施工 commit `588d80e`，經 owner 驗收放行（→ §6c-4 施工紀錄）；6c-5 起未授權施工**）
 
 上層＝`plans/cross-review-2026-10.md` §8 Phase 6（範圍、不做、不變量、驗收下限、回滾；6c 的切法在同節子 Phase 表）與 §4.2 U3、U4、U5（題目與 CC 當時的建議）；候選的定義＝`plans/defense-cleanup.md` §清理清單 lib/ 表與 §Bug B6；改／留判準＝`plans/cross-review-2026-10-phase6-criteria.md`（本檔不重述；§判例 5 是 U3 的起點）；規則本體＝`conventions.md` §防禦與相容（以條號 §1–§6 引用）。
 
@@ -86,6 +86,7 @@
 
 **出處**：owner 2026-10-27（與 CC 對話）「收 docs commit，然後開工 6c-4」。
 **授權**：6c-4（U4）的施工與驗證；權威＝本節裁決表 U4、§L-SERVERCFG、§交 owner 裁 U4（U4-A 列）、§分批 6c-4 列、§驗收。自動驗證完成後先問 owner 才 commit。**不授權** push、其他批次；不擴張到 Discord RPC 去留、不碰 N19（`discord-helper-args.js:30`）。
+**commit 出處**：owner 2026-10-27（與 CC 對話）「commit，6c-4 驗收過」。
 
 ### CC 的施工限制（非 owner 裁；CC 回覆的第 3 點，owner 未逐條回應，可改）
 
@@ -161,7 +162,7 @@
 | 測試 | 現在釘的事 | 收緊後 | 理由／接手 |
 |---|---|---|---|
 | `sync-record-format.test.cjs:36` ③ 形狀通過、`:41` 三欄都缺也通過 | 可缺 | **改寫**成「缺任一欄 ⇒ 拒絕、錯誤以 `record.<欄>` 開頭」＋把 `recordComplete` 現有的壞例（`runtime-needs.test.cjs:136` C1 的 forge、空版本、`..`、`a/b`、`javaMajor: 0`）搬進來 | 規則搬到邊界，壞例跟著搬 |
-| `sync-index.test.cjs:2173` C12 第一案 | ③ 記錄 ⇒ `update-available` | **改寫**：③ 記錄 ⇒ `not-installed`、`syncReasons` ＝ `["no-record", …]`、不是 `internal-error` | 釘「舊記錄＝沒有記錄」這條正式路徑（走真的 `readRecord`） |
+| `sync-index.test.cjs:2173` C12 第一案 | ③ 記錄 ⇒ `update-available` | **改寫**：③ 記錄 ⇒ `not-installed`、`syncReasons` ＝ `["no-record", …]`、不是 `internal-error` | 釘「舊記錄＝沒有記錄」這條正式路徑（走真的 `readRecord`）〔對齊 2026-10-27：→ `588d80e`（plans/cross-review-2026-10-phase6c.md 6c-4）：`sync-index.test.cjs:2173` 後 `:2174`〕 |
 | `sync-instance-record` 5 案 | 讀寫 roundtrip、N6 的連結案 | fixture 補三欄，斷言不動 | 它們測的是寫檔與連結，不是格式 |
 | `runtime-needs.test.cjs:136` C1 `recordComplete` | 不完整記錄 ⇒ false | 隨 `recordComplete` 刪除撤回；壞例搬到 record-format | 函式不在了；保證改由邊界給 |
 | `runtime-readiness.test.cjs:75` C1 五種不完整 | 只有 `record`、probe 0 次 | 縮成「`record: null` ⇒ 只有 `record`、probe 0 次」 | 其餘四種到不了就緒（邊界已拒） |
@@ -283,12 +284,12 @@ B 之後，直接拿沒有 `libraries` 的層呼叫 `mergeVersionChain` 會丟 `
 ### L-SERVERCFG（＝U4）`lib/server-config.js` 的信任邊界
 
 **現讀**〔讀碼〕
-- `lib/server-config.js`：凍結的 JS 字面物件（`deepFreeze`，`:6-13`），跟著安裝包出貨，換伺服器要改檔、重打包（`docs/new-server-checklist.md`「值」節）。載入者：`main/start-main.js:64`、`lib/paths-layout.js:11`、`scripts/publish-config.js:41`。
-- `lib/manifest-url-configured.js:4-8` `isRemoteManifestUrlConfigured`：`String(rawUrl ?? "").trim()`、空 ⇒ 未設定、`example.com/manifest.json` ⇒ 未設定。呼叫者：`main/sync/index.js:191`（算狀態）、`main/sync/notice-feed.js:79`（公告輪詢）、`main/start-main.js:97-98`；三處的參數都是 `serverConfig.manifestUrl`（測試注入假的 `serverConfig`）。〔對齊 2026-10-27：→ `55e0560`（plans/cross-review-2026-10-phase6c.md 6c-2）：`main/sync/notice-feed.js:79` 後 `:76`；其他行號指的檔不在本 commit〕
-- `lib/discord-button-url.js`：`normalizeAllowedHosts`（`:3-13`，`Array.isArray`、`String(h ?? "")`）、`filterButtonUrl`（`:15-26`，`String(url || "").trim()`、非 http(s) ⇒ `""`、清單空 ⇒ 放行、`new URL` 的 `try/catch`）。
+- `lib/server-config.js`：凍結的 JS 字面物件（`deepFreeze`，`:6-13`），跟著安裝包出貨，換伺服器要改檔、重打包（`docs/new-server-checklist.md`「值」節）。載入者：`main/start-main.js:64`、`lib/paths-layout.js:11`、`scripts/publish-config.js:41`。〔對齊 2026-10-27：→ `588d80e`（plans/cross-review-2026-10-phase6c.md 6c-4）：`lib/server-config.js:6-13` 未移動（`:14` 的註解原地改寫）〕
+- `lib/manifest-url-configured.js:4-8` `isRemoteManifestUrlConfigured`：`String(rawUrl ?? "").trim()`、空 ⇒ 未設定、`example.com/manifest.json` ⇒ 未設定。呼叫者：`main/sync/index.js:191`（算狀態）、`main/sync/notice-feed.js:79`（公告輪詢）、`main/start-main.js:97-98`；三處的參數都是 `serverConfig.manifestUrl`（測試注入假的 `serverConfig`）。〔對齊 2026-10-27：→ `55e0560`（plans/cross-review-2026-10-phase6c.md 6c-2）：`main/sync/notice-feed.js:79` 後 `:76`；其他行號指的檔不在本 commit〕〔對齊 2026-10-27：→ `588d80e`（plans/cross-review-2026-10-phase6c.md 6c-4）：`lib/manifest-url-configured.js:4-8` 改寫後 `:7-9`（只剩 `url !== ""`）；其他行號指的檔不在本 commit〕
+- `lib/discord-button-url.js`：`normalizeAllowedHosts`（`:3-13`，`Array.isArray`、`String(h ?? "")`）、`filterButtonUrl`（`:15-26`，`String(url || "").trim()`、非 http(s) ⇒ `""`、清單空 ⇒ 放行、`new URL` 的 `try/catch`）。〔對齊 2026-10-27：→ `588d80e`（plans/cross-review-2026-10-phase6c.md 6c-4）：`lib/discord-button-url.js` 的 `:3-13` 後 `:6-13`、`:15-26` 改寫後 `:15-22`〕
 - **`filterButtonUrl` 有沒有收到站台或其他外部資料**：唯一呼叫者 `lib/discord-helper-args.js:33-40`，參數是 `discord.inviteUrl`、`discord.downloadLauncherUrl`、`discord.allowedButtonHosts`；`discord` 來自 `main/discord-rpc.js:36-37` 的注入，正式＝`main/app-ready.js:165` 的 `serverConfig.discord`。環境變數只進 `clientId`（`discord-helper-args.js:29-30`，`GGL_DISCORD_CLIENT_ID`），不進網址。站台資料（索引、公告、changelog）都不經這支函式〔讀碼：`rg filterButtonUrl` 只命中這兩檔與測試〕。⇒ **沒有**外部資料經過它。
 - 同一個 `inviteUrl` 還有第二條出口：`main/ipc/server-config-ipc.js:8` 送給畫面 → `renderer/window-controls.js:37` → `openExternal` IPC → `main/ipc/external-ipc.js:5-13` 再驗一次 http(s) 才 `shell.openExternal`。**這道驗證屬於「畫面送給 main 的 IPC 參數」邊界，不管 U4 怎麼裁都留**（它守的是畫面可能被注入，不是 server-config 的型別）。
-- `example.com` 佔位：repo 現在沒有任何 `example.com/manifest.json` 的範本（`rg` 只剩測試與這支函式自己的註解，`lib/server-config.js:14`）⇒ 舊範本殘留（§5）。
+- `example.com` 佔位：repo 現在沒有任何 `example.com/manifest.json` 的範本（`rg` 只剩測試與這支函式自己的註解，`lib/server-config.js:14`）⇒ 舊範本殘留（§5）。〔對齊 2026-10-27：→ `588d80e`（plans/cross-review-2026-10-phase6c.md 6c-4）：`lib/server-config.js:14` 原地改寫（拿掉 example.com 的說法）〕
 
 **型別信任 vs 外部 URL 驗證要分開**：U4 裁的是「server-config 自己的值要不要在執行期防」。不管選哪個，(1) `external-ipc.js` 的 http(s) 檢查留；(2) 環境變數的 `clientId` 處理留（環境變數是邊界）；(3) 公告的網址（`main/sync/site-client.js:124` 的 `logUrl` http(s) 檢查）是站台資料，不在 U4 範圍。
 **既有裁決的參照**：6b-3 Q8 已把「Discord Client ID 沒設定」「server-status 網址合法未設定」裁為**合法的未啟用狀態**（`plans/cross-review-2026-10-phase6b.md` §裁決 6b-3 Q8）——server-config 的值是空字串＝該功能沒開，不是接線錯誤。`manifestUrl: ""` ⇒ `unconfigured` 屬同一類。
@@ -402,7 +403,7 @@ B 之後，直接拿沒有 `libraries` 的層呼叫 `mergeVersionChain` 會丟 `
 
 | 選項 | 內容 | 成本 |
 |---|---|---|
-| **U4-A（CC 建議）程式碼，最小改動** | 新增 `test/server-config.test.cjs` 釘住值的形狀（`manifestUrl` 是 `https://` 開頭或 `""`；`discord.inviteUrl`／`downloadLauncherUrl` 是 `""` 或 `new URL` 解析得了的 http(s)；`allowedButtonHosts` 是小寫非空字串的陣列；其他欄位的型別）。之後：`isRemoteManifestUrlConfigured` 只剩 `url !== ""`（`??`、`trim`、`example.com` 分支刪）；`normalizeAllowedHosts` 的 `Array.isArray`、`String(h ?? "")` 與 `filterButtonUrl` 的 `String(url \|\| "")`、`try/catch` 刪；**http(s) 判斷與按鈕網域白名單的語意保留**（「`""`＝沒有按鈕」也照舊） | 正式檔 2 個、新測試 1 檔；`test/manifest-url-configured.test.cjs` 的空白與 example.com 列、`test/sync-index.test.cjs:425` 的 example.com 那輪、`test/discord-button-url.test.cjs:29`（`null` 清單）撤回或改寫 |
+| **U4-A（CC 建議）程式碼，最小改動** | 新增 `test/server-config.test.cjs` 釘住值的形狀（`manifestUrl` 是 `https://` 開頭或 `""`；`discord.inviteUrl`／`downloadLauncherUrl` 是 `""` 或 `new URL` 解析得了的 http(s)；`allowedButtonHosts` 是小寫非空字串的陣列；其他欄位的型別）。之後：`isRemoteManifestUrlConfigured` 只剩 `url !== ""`（`??`、`trim`、`example.com` 分支刪）；`normalizeAllowedHosts` 的 `Array.isArray`、`String(h ?? "")` 與 `filterButtonUrl` 的 `String(url \|\| "")`、`try/catch` 刪；**http(s) 判斷與按鈕網域白名單的語意保留**（「`""`＝沒有按鈕」也照舊） | 正式檔 2 個、新測試 1 檔；`test/manifest-url-configured.test.cjs` 的空白與 example.com 列、`test/sync-index.test.cjs:425` 的 example.com 那輪、`test/discord-button-url.test.cjs:29`（`null` 清單）撤回或改寫〔對齊 2026-10-27：→ `588d80e`（plans/cross-review-2026-10-phase6c.md 6c-4）：`test/sync-index.test.cjs:425` 改寫後 `:426`（只剩 `""` 那一輪）；`test/discord-button-url.test.cjs:29` 原地改成註解〕〔2026-10-27 更正：「新增 `test/server-config.test.cjs`」不對——這支檔早已存在（凍結、https、頂層鍵 K3、loopbackPort），6c-4 改為在其中加一案 → §6c-4 施工紀錄〕 |
 | U4-A′ 程式碼，連功能一起收 | 同 A，另把 `filterButtonUrl` 與 `allowedButtonHosts` 整個拿掉（值由寫 server-config 的同一個人控制，白名單擋不到任何人） | 多動 `discord-helper-args`、`server-config`、相關測試與 `docs/new-server-checklist.md`；**而 Discord RPC 本身的去留未裁**（`future-work.md`「Discord RPC 去留」、上層 U10），在這一區砍功能可能白做——CC 不建議現在做 |
 | U4-B 設定（邊界） | server-config 當外部設定：開機時驗整份、不合法就 `start_main_failed`（現在多數是無聲當成「未設定」或空按鈕） | 新增載入期驗證與錯誤框文字；與 D-GGL3「部署設定要解耦」相容，但它是改產品行為 |
 
@@ -443,7 +444,7 @@ B 之後，直接拿沒有 `libraries` 的層呼叫 `mergeVersionChain` 會丟 `
 | **6c-1** | L-CONTRACT（status-text `:33,100`、status-kind `:136`、notice `:13`、ipc-channels `:64-65`、plan `:136`）、L-SET、U3-e 的 `:12`、`:15` | 邊界內的值在消費端再防一次（§2） | `status-text`、`status-kind`、`notice`、`ipc-channels`、`plan`、`settings-logic`、`rel-path` | `sync-status-kind` helper、`sync-plan` helper、`sync-apply` 一處、`sync-status-text` 中殘缺 status 的列（施工前列） | 不變／不變 | 開機一次（CC 可代跑） | U3-e 的那兩行等 U3 裁（不裁就先不含）〔2026-10-27 U3-e 已裁刪 `:12`、`:15`，兩行併入本批〕；已施工 `8989833`（→ §6c-1 施工紀錄） |
 | **6c-2** | L-NOTICE | 函式簽名仍是 v2 形狀，呼叫端包一層配合（§5、§6） | `notifications-broadcast`、`main/sync/notice-feed.js` | `notifications-broadcast`、`site-format-doc:229` | 不變／不變 | 開機看到公告一次 | —；已施工 `55e0560`（→ §6c-2 施工紀錄） |
 | **6c-3** | L-SILENT＋`account-secret:71,113` | 外部失敗無聲（§3） | `account-secret`、`main/account-store.js` | 新 7 案（§L-SILENT；二稿加回呼失敗與 console 負向，2026-10-27 裁決加入口檢查）；既有 `account-secret` 案照綠 | 不變／加密、解密失敗多一筆常駐日誌（console 同內容，不含原始錯誤）；記錄失敗不改變登入或讀帳號的結果 | 登入一次（加密成功路徑不出事件） | U-20、U-24；已施工 `1d22050`（→ §6c-3 施工紀錄） |
-| **6c-4** | U4 | server-config 的值是程式碼，執行期再防型別（§2） | `manifest-url-configured`、`discord-button-url` | 新 `server-config.test.cjs`；三檔改寫（§U4） | 不變／不變（值被測試釘住；異常值改由測試抓） | 開機一次 | U4 |
+| **6c-4** | U4 | server-config 的值是程式碼，執行期再防型別（§2） | `manifest-url-configured`、`discord-button-url` | 新 `server-config.test.cjs`；三檔改寫（§U4） | 不變／不變（值被測試釘住；異常值改由測試抓） | 開機一次 | U4；已施工 `588d80e`（→ §6c-4 施工紀錄） |
 | **6c-5** | U5（L-REC） | 舊格式相容＋下游補邊界該驗的東西（§5、§1） | 見 U5-A | 見 §L-REC 測試帳 | 不變（owner 那份記錄齊）／③ 形狀的記錄改成「沒有記錄」 | 開機看狀態＋啟動一次 | U5 的逐字批准 |
 | **6c-6** | U3-a、U3-b、U3-c、U3-d | 同一條 runtime 鏈上同一個值被每層重驗（§2、§6） | `launch-args`、`runtime-needs`、`library-filter`、（B3 時）`main/minecraft-launch.js` | 二稿確定的：L2 五列 json 壞案＋兩列 env、L8 一列撤回；L4 三個 fixture 補 `libraries: []`；`runtime-needs` K8、N5 撤回；`minecraft-launch` S4 撤回（B3） | 不變／內部函式被直接拿未驗輸入呼叫時，錯誤變得較晚、較籠統（正式路徑到不了） | 啟動一次 | U3；6c-5 先（同檔 `runtime-needs`） |
 | **6c-7a**（2026-10-27 新增，D2） | N16＋Q-DUP 的身分邊界 | 正版身分沒有在進來的地方驗（§1） | `main/account-store.js`（`readAccount`）、`main/microsoft-auth.js`（profile 檢查） | `account-store`、`microsoft-auth-login`、`minecraft-ipc-launch` 新案，清單 → §Owner 裁決 §施工前釘清 1 | 不變／壞帳號檔 ⇒ 正版啟動跳既有的重新登入訊息、不 spawn；profile 不完整 ⇒ 登入以 `MC_PROFILE_FAILED` 失敗、不存帳號；離線不變 | 登入一次＋正版啟動一次（壞身分的路實機不造，靠測試） | 6c-3 先（同一支 `readAccount`，→ §Owner 裁決 §CC 的施工限制） |
@@ -572,6 +573,21 @@ E5 入帳（二稿）：U3-b、U3-c 改判刪之後，退回後留下的只剩 `
 - **owner 實機**：驗收出處只寫「6c-3 驗收過」。CC 事後唯讀查（沒讀帳號檔內容）：真實常駐日誌 `%APPDATA%\GGL_launcher\ggl-launcher.log` 最後一次開機 2026-10-27 02:30:48（台北），之後沒有 `token_` 開頭的事件；`account.json` 的 mtime 02:31:36——**推論**是一次登入寫檔、加密成功沒退明文；「那次是登入」沒有直接證據。
 - **撞到**：無新的；`log file write failed` 的雜訊見上（測試沒注入替身，不是程式錯）。
 - **沒做**：沒有 6c-7a 的身分檢查（另一批）；沒加「每個行程只記一次」；Electron 真的 reject 時是不是 `Error`（⇒ `rejected`）沒實測。
+
+## 6c-4 施工紀錄（2026-10-27，基準 `e355078`，commit `588d80e`；本紀錄在之後的 docs commit 補寫）〔實測〕
+
+**驗收出處**：owner 2026-10-27（與 CC 對話）「commit，6c-4 驗收過」。**授權出處**：→ §Owner 裁決 §6c-4 施工授權。
+
+- **改動**（numstat +／-）：`lib/manifest-url-configured.js` 6／6（只剩 `url !== ""`；`String(rawUrl ?? "").trim()` 與 `example.com` 佔位判斷拿掉，JSDoc 寫明值的來源與 `""`＝沒開同步）；`lib/discord-button-url.js` 7／11（拿掉 `Array.isArray`、`String(h ?? "")`、`String(url || "")`、`new URL` 外的 `try/catch`；保留 `""`／非 http(s) ⇒ 沒有按鈕、白名單的去空白／小寫／去重；檔頭兩行說明）；`lib/server-config.js` 1／1（註解）。測試：`server-config` 22／0（新一案：`manifestUrl` 是字串、兩個按鈕網址是 `""` 或解析得了的 http(s)、白名單是小寫去過空白的非空字串陣列）；`manifest-url-configured` 3／10（撤「只有空白」「example.com」兩列）；`discord-button-url` 1／1（撤白名單 `null` 那列）；`sync-index` 2／1（N12 撤 example.com 那一輪）；`discord-rpc` 4／2（`SET`／`UNSET` 改成正式的 `discord` 區塊只換 `clientId`）。撤掉的列原位都留一行註解指回 U4。合計 8 檔 +46／-32。
+- **plan 的錯**：U4-A 寫「新增 `test/server-config.test.cjs`」，那支檔早已存在（凍結、https、頂層鍵 K3、loopbackPort），改為在其中加一案。
+- **修前**：7 個相關測試檔 205／205；程式碼自 `1d22050` 起沒變。
+- **只改正式程式時**：紅 7 案——預期的 `manifest-url-configured` 1、`discord-button-url` 1（`null` 白名單）、`sync-index` N12 1；**另有預期外的 `discord-rpc` N8-1～N8-4**：測試注入的 `discord` 只有 `{ clientId }`，按鈕網址是 `undefined`，以前被 `String(url || "")` 蓋過去；照 U4 的原則（測試餵正式形狀）改 fixture，不改正式程式。
+- **修後**：Node 24.14.1 與 22.23.4 都 **1364／1364**（＋U4 一案）。`lint`、`check:ui-css` 一般／strict、`git diff --check` exit 0；lib 的 commit 前 rg 0 命中；改到的檔沒有 CR；prettier：`manifest-url-configured`、`server-config` 兩個測試檔格式化後合格，`discord-button-url`、`sync-index` 在 HEAD 就不合、照原寫法。commit 時 pre-commit 通過。
+- **反向驗證**（二進位暫改 `lib/server-config.js` → 跑 `server-config` 測試 → 寫回，sha 相同）：`inviteUrl` 拿掉 `https://`、白名單改成 `[" Discord.GG"]`、`downloadLauncherUrl` 改成 `"https://"` ⇒ 三次都只紅新加的 U4 案。
+- **freeze**：改到的測試檔裡只有 `sync-index` 起 HTTP／用計時器——× 0–7 × 兩版本＝16 跑全綠，每跑的測試行程收到 739 個請求、卡 92–93 次。為避免 6c 二稿那次搶 CPU 的假逾時，Node 22 全套跑完才開 freeze。
+- **啟動**：隔離的 `--user-data-dir`、debug 關，開機到 `start_main_done`、沒有錯誤；`timeout` 後 3 秒查無殘留行程。
+- **保留的邊界**（裁決表 U4 列）：`main/ipc/external-ipc.js:7` 的 http(s)、`lib/discord-helper-args.js:29-30` 的環境變數 `clientId`、站台資料自己的驗證都沒動；N19 與 Discord RPC 去留沒碰。
+- **撞到**：預期外的 N8 四案（上述）。
 
 ## 二稿修訂紀錄（2026-10-26，依 §審查）
 
