@@ -1,4 +1,4 @@
-# Phase 6b-4 — 其他 main 組：細部 plan（狀態：**2026-10-26 初稿，基準 `712f445`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄）；同日 owner 裁 Q4、Q7、Q13、Q14（→ §裁決），回寫進本檔（→ §裁決回寫紀錄），文件 `d4eef72`；同日 owner 授權 4a（→ §裁決 4a 施工授權），施工 commit `badebe9`，經 owner 驗收放行（→ §4a 施工紀錄）；同日 owner 授權 4d（→ §裁決 4d 施工授權），施工 commit `6e63202`，經 owner 驗收放行（→ §4d 施工紀錄）；同日 owner 授權 4b（→ §裁決 4b 施工授權），施工 commit `ff177df`，經 owner 驗收放行（→ §4b 施工紀錄）；同日 owner 授權 4e（→ §裁決 4e 施工授權）；4c、4f、4g 未授權施工**）
+# Phase 6b-4 — 其他 main 組：細部 plan（狀態：**2026-10-26 初稿，基準 `712f445`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄）；同日 owner 裁 Q4、Q7、Q13、Q14（→ §裁決），回寫進本檔（→ §裁決回寫紀錄），文件 `d4eef72`；同日 owner 授權 4a（→ §裁決 4a 施工授權），施工 commit `badebe9`，經 owner 驗收放行（→ §4a 施工紀錄）；同日 owner 授權 4d（→ §裁決 4d 施工授權），施工 commit `6e63202`，經 owner 驗收放行（→ §4d 施工紀錄）；同日 owner 授權 4b（→ §裁決 4b 施工授權），施工 commit `ff177df`，經 owner 驗收放行（→ §4b 施工紀錄）；同日 owner 授權 4e（→ §裁決 4e 施工授權），施工 commit `ddbca30`，經 owner 驗收放行（→ §4e 施工紀錄）；4c、4f、4g 未授權施工**）
 
 **授權出處**：〔轉述〕owner 2026-10-26 在與 CC 的對話中貼入「GGL_Launcher — Phase 6b-4 細部設計調查」：「本輪不修改正式程式、不 Commit、不 Push，也不預先認定全部盤點項目都必須修改。」交付物＝細部初稿與審查問題。
 **上層**：範圍、不做、不變量、驗收下限、回滾 → `plans/cross-review-2026-10.md` §8 Phase 6；改／留判準、退回、留的出口 → `plans/cross-review-2026-10-phase6-criteria.md`（以下「判準」）；候選的定義 → `plans/defense-cleanup.md` §清理清單 main/ 表；6b 的切法與既有裁決（Q3、Q6、Q8、Q10 …）→ `plans/cross-review-2026-10-phase6b.md`（以下「6b 檔」）§裁決、§候選總表 6b-4 列。
@@ -55,6 +55,7 @@
 
 **出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「收 docs commit，然後開工 4e」。
 **授權**：4e（#5、#6）的施工與驗證；權威＝本檔 #5、#6（含責任轉移表）、§分批、§驗收。本機 commit 照 4d 的做法，自動驗證完成後先問 owner。**不授權** push、其他批次。
+**commit 出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「commit，啟動正常，4e 驗收過」。
 
 ## 探針〔實測，2026-10-26〕
 
@@ -110,27 +111,27 @@
 1. 啟動只有一條正式路：`ipc/minecraft-ipc.js:115-129` 兩個 handler → `launchThroughGate`（`:36-61`）→ `deps.withLaunchLock`（＝`main/sync/index.js:459-482`）→ 鎖內的 `fn` 先問 `isMinecraftRunning`（`:41-43`）再呼叫 `deps.launchMinecraft`（`:44-50`）。`launchMinecraft` 的正式使用者只有這一處（rg `launchMinecraft` main/：定義、`start-main.js:33,137` 的接線、`minecraft-ipc.js:44`）。〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`start-main.js:33,137` 後 `:38,143`；其他行號指的檔不在本 commit〕
 2. `withLaunchLock` 先 `acquire`（鎖被任何人持有就丟 busy，`:183-186`），在鎖內當場算狀態（`:462`），`!status.ui.canLaunch` ⇒ 丟 `GGL_SYNC_LAUNCH_BLOCKED`、不呼叫 `fn`（`:463-469`）；否則把**同一次計算**讀到的 `record` 與 `local.runtime.launch` 交給 `fn`（`:472-477`）。
 3. `canLaunch` 為真 ⇒ `localReady` 為真（`lib/sync/status-kind.js:92-99`：`always` 只有 `up-to-date`（`:84-87`），`ifLocalReady` 要 `localReady`；`up-to-date` 只在 `syncReasons` 為空時成立，`:255-256`）⇒ 沒有 `runtime-missing`（`:157-161,235-236`）⇒ `runtime.ready` 為真（`:178`）⇒ `checkRuntimeReady` 過了 `recordComplete`（`lib/runtime-readiness.js:32`）且帶 `launch`（`:53`，`launch` 就是 `runtimeNeeds` 剛組好的成品）。
-4. 會叫的測試：`runtime-readiness.test.cjs:75` C1（記錄不完整五種 ⇒ 只有 `record`）、`:161` N2（不就緒沒有 `launch`）；`sync-status-kind.test.cjs:112-113` 起的政策表；`sync-index.test.cjs:2173` C12（③ 的記錄 ⇒ `update-available`、`runtime-missing`）、`:2186` C12（不就緒 ⇒ `GGL_SYNC_LAUNCH_BLOCKED`、`fn` 0 次）、`:1736` N16（放行時 `fn` 拿到那次的輸入）；`minecraft-ipc-launch.test.cjs:469` W16e（遊戲在跑 ⇒ 兩個 handler 在鎖內拒絕、`launch` 0 次）。
+4. 會叫的測試：`runtime-readiness.test.cjs:75` C1（記錄不完整五種 ⇒ 只有 `record`）、`:161` N2（不就緒沒有 `launch`）；`sync-status-kind.test.cjs:112-113` 起的政策表；`sync-index.test.cjs:2173` C12（③ 的記錄 ⇒ `update-available`、`runtime-missing`）、`:2186` C12（不就緒 ⇒ `GGL_SYNC_LAUNCH_BLOCKED`、`fn` 0 次）、`:1736` N16（放行時 `fn` 拿到那次的輸入）；`minecraft-ipc-launch.test.cjs:469` W16e（遊戲在跑 ⇒ 兩個 handler 在鎖內拒絕、`launch` 0 次）。〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-ipc-launch.test.cjs:469` 未移動；其他行號指的檔不在本 commit〕
 - 「第二道」沒有 owner 的獨立裁決：rg `第二道` 在 `_notes/` 的命中是 `plans/instance-sync-v3-commit4c.md:143`、`commit5c.md:23,89` 的設計條目（agent 設計，隨各 plan 放行），`commit5c.md:23` 自己寫「據註解、沒追證明」〔查過：rg〕。
 
-**#5 `main/minecraft-launch.js:214-217` 重複啟動的第二道**
-- **現在誰保證**：鏈的第 1、2 點——唯一的入口在鎖內先問過（`minecraft-ipc.js:41-43`），鎖在 `fn` 回來才放（`sync/index.js:478-480`），而 `runningMcProcess` 只有 `launchMinecraft` 自己會設（`:243`）。所以第一道說「沒在跑」之後、到 `:214` 之間，沒有任何程式能讓它變成「在跑」。`minecraft-launch.js:151-153` 的註解本來就寫「連點／兩個 IPC 同時啟動由呼叫端的啟動鎖擋」。
-- **能推翻「多餘」的反例**：有人不經 `withLaunchLock` 直接呼叫 `launchMinecraft`——現在沒有這種正式呼叫者；新增時 W16e 不會發現。這是「邊界內信任」本來就接受的前提（呼叫契約寫在 `:151-153`）。
+**#5 `main/minecraft-launch.js:214-217` 重複啟動的第二道**〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`main/minecraft-launch.js:214-217` 刪除（→ 同檔 §4e 施工紀錄）〕
+- **現在誰保證**：鏈的第 1、2 點——唯一的入口在鎖內先問過（`minecraft-ipc.js:41-43`），鎖在 `fn` 回來才放（`sync/index.js:478-480`），而 `runningMcProcess` 只有 `launchMinecraft` 自己會設（`:243`）。所以第一道說「沒在跑」之後、到 `:214` 之間，沒有任何程式能讓它變成「在跑」。`minecraft-launch.js:151-153` 的註解本來就寫「連點／兩個 IPC 同時啟動由呼叫端的啟動鎖擋」。〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-launch.js:151-153` 改寫後 `:148-152`、`:243` 後 `:230`；其他行號指的檔不在本 commit〕
+- **能推翻「多餘」的反例**：有人不經 `withLaunchLock` 直接呼叫 `launchMinecraft`——現在沒有這種正式呼叫者；新增時 W16e 不會發現。這是「邊界內信任」本來就接受的前提（呼叫契約寫在 `:151-153`）。〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-launch.js` 的 `:151-153` 改寫後 `:148-152`〕
 - **刪掉後消失的契約**：「`launchMinecraft` 單獨被呼叫也拒絕重複 spawn」。正式路徑不依賴它。
-- **另一條路（不建議）**：留這一道、刪 IPC 那道。IPC 那道在設狀態字（`:169`）與建資料夾（`:171-172`）之前就擋，玩家看到的就是它，W16e 也釘著它；刪它要改 W16e，換來的只是「檢查住在擁有 `runningMcProcess` 的模組」。
-- **測試**：沒有測試打到 `:214-217`（rg `請先關閉遊戲後再啟動` test/ 0 命中；對照：`遊戲已在執行中` 命中 `minecraft-ipc-launch.test.cjs:474`）⇒ 不改測試。
-- **最小改動**：刪 `:214-217`。成本：1 個正式檔。
+- **另一條路（不建議）**：留這一道、刪 IPC 那道。IPC 那道在設狀態字（`:169`）與建資料夾（`:171-172`）之前就擋，玩家看到的就是它，W16e 也釘著它；刪它要改 W16e，換來的只是「檢查住在擁有 `runningMcProcess` 的模組」。〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-launch.js` 的 `:169`、`:171-172` 後 `:160`、`:162-163`〕
+- **測試**：沒有測試打到 `:214-217`（rg `請先關閉遊戲後再啟動` test/ 0 命中；對照：`遊戲已在執行中` 命中 `minecraft-ipc-launch.test.cjs:474`）⇒ 不改測試。〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-launch.js` 的 `:214-217` 刪除；`minecraft-ipc-launch.test.cjs:474` 未移動〕
+- **最小改動**：刪 `:214-217`。成本：1 個正式檔。〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-launch.js` 的 `:214-217` 刪除〕
 - **驗證**：修前——scratchpad 插「到這裡就記一筆」跑全套，預期 0 筆。修後——全套；owner 啟動遊戲一次，遊戲開著再按一次（看到「遊戲已在執行中」）。反向——把 IPC 的 `:41-43` 拿掉 ⇒ W16e 紅（證明保證在那道）。
 - **建議**：**改**。
 
-**#6 `main/minecraft-launch.js:159-165` 記錄／成品的第二道（`GGL_LAUNCH_NOT_READY`）**
+**#6 `main/minecraft-launch.js:159-165` 記錄／成品的第二道（`GGL_LAUNCH_NOT_READY`）**〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`main/minecraft-launch.js:159-165` 刪除（→ 同檔 §4e 施工紀錄）〕
 - **現在誰保證**：鏈的第 2、3 點——`fn` 拿到的 `record`、`launch` 是同一次就緒檢查的結果，`canLaunch` 為真時 `recordComplete(record)` 已成立、`launch` 一定有。中間只有 `minecraft-ipc.js:39-50` 原樣轉交，沒人改這兩個物件。
-- **能推翻的反例**：(a) 有人把 `KIND_UI` 改成某個 kind 不看 `localReady` 也能啟動——會先撞 `sync-status-kind.test.cjs:112` 起的政策表（要同時改測試才會出事）；就算出事，`launch` 是 `undefined`，`:166` 的 `assertLaunchBundle` 照樣丟 `TypeError`（會叫，但訊息變成內部錯誤、不再是「請先按更新」）。(b) 記錄不完整而成品有效——`checkRuntimeReady` 在記錄不完整時根本不產成品（`runtime-readiness.js:32`），組不出這個狀態。若真的發生（閘被改壞），缺 `javaMajor` 會變成找 `java-undefined`、走 `GGL_LAUNCH_NO_JAVA`「找不到 Java」——會叫但原因錯〔推論〕。
-- **刪掉後消失的契約**：`GGL_LAUNCH_NOT_READY` 這個碼與它的訊息「本機記錄或檔案不完整，請先按更新。」。rg 全 repo：只有 `minecraft-launch.js:162` 與三個測試用到，畫面沒有對應的處理（`commit4c.md:253` I9：這個碼本來就不跳框）。
+- **能推翻的反例**：(a) 有人把 `KIND_UI` 改成某個 kind 不看 `localReady` 也能啟動——會先撞 `sync-status-kind.test.cjs:112` 起的政策表（要同時改測試才會出事）；就算出事，`launch` 是 `undefined`，`:166` 的 `assertLaunchBundle` 照樣丟 `TypeError`（會叫，但訊息變成內部錯誤、不再是「請先按更新」）。(b) 記錄不完整而成品有效——`checkRuntimeReady` 在記錄不完整時根本不產成品（`runtime-readiness.js:32`），組不出這個狀態。若真的發生（閘被改壞），缺 `javaMajor` 會變成找 `java-undefined`、走 `GGL_LAUNCH_NO_JAVA`「找不到 Java」——會叫但原因錯〔推論〕。〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-launch.js` 的 `:166` 後 `:157`；其他行號指的檔不在本 commit〕
+- **刪掉後消失的契約**：`GGL_LAUNCH_NOT_READY` 這個碼與它的訊息「本機記錄或檔案不完整，請先按更新。」。rg 全 repo：只有 `minecraft-launch.js:162` 與三個測試用到，畫面沒有對應的處理（`commit4c.md:253` I9：這個碼本來就不跳框）。〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-launch.js:162` 刪除（碼與訊息一起拿掉）；其他行號指的檔不在本 commit〕
 - **既有測試**（逐案理由）：
-  - `minecraft-launch.test.cjs:111` C8 第一案（有效成品＋缺 `javaMajor` 的記錄 ⇒ `GGL_LAUNCH_NOT_READY`）——**撤回**：它釘的是一個閘產不出的輸入組合；「不完整的記錄不會走到啟動」由鏈第 4 點的 C1、C12 守，那才是正式路徑。不是為了改綠而撤：保留它就得保留一道正式路徑打不到的程式（E2、E4）。
-  - `:357` S4 的 `launch` 為 `null`／`undefined` 兩列——**修改**：預期改成 `assertLaunchBundle` 的 `TypeError`、spawn 0 次，併進同一案的形狀不對迴圈。理由：S4 要守的是「沒有可用的成品就不 spawn」；這件事在刪掉第二道之後由 `:166` 負責，而 `assertLaunchBundle` 本來就把 `null`、非物件當成形狀不對（`runtime-needs.js:96-97`；`runtime-needs.test.cjs:228` N5 已有 `null` 列）。`launchMinecraft` 這層的整合案證明「啟動確實先過 `assertLaunchBundle`」，不是重複 N5。
-  - `minecraft-ipc-launch.test.cjs:630` C10 的 `GGL_LAUNCH_NOT_READY` 那列——**撤回該列**：碼不存在了；C10 要證的「其他 code 不跳框」由同案的 `GGL_LAUNCH_SPAWN_FAILED` 列繼續證。
+  - `minecraft-launch.test.cjs:111` C8 第一案（有效成品＋缺 `javaMajor` 的記錄 ⇒ `GGL_LAUNCH_NOT_READY`）——**撤回**：它釘的是一個閘產不出的輸入組合；「不完整的記錄不會走到啟動」由鏈第 4 點的 C1、C12 守，那才是正式路徑。不是為了改綠而撤：保留它就得保留一道正式路徑打不到的程式（E2、E4）。〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-launch.test.cjs:111` 撤回（原位置 `:110-111` 留註解）；其他行號指的檔不在本 commit〕
+  - `:357` S4 的 `launch` 為 `null`／`undefined` 兩列——**修改**：預期改成 `assertLaunchBundle` 的 `TypeError`、spawn 0 次，併進同一案的形狀不對迴圈。理由：S4 要守的是「沒有可用的成品就不 spawn」；這件事在刪掉第二道之後由 `:166` 負責，而 `assertLaunchBundle` 本來就把 `null`、非物件當成形狀不對（`runtime-needs.js:96-97`；`runtime-needs.test.cjs:228` N5 已有 `null` 列）。`launchMinecraft` 這層的整合案證明「啟動確實先過 `assertLaunchBundle`」，不是重複 N5。〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-launch.test.cjs` 的 `:357`（S4）改寫後 `:353`（`:351-352` 加註解）〕
+  - `minecraft-ipc-launch.test.cjs:630` C10 的 `GGL_LAUNCH_NOT_READY` 那列——**撤回該列**：碼不存在了；C10 要證的「其他 code 不跳框」由同案的 `GGL_LAUNCH_SPAWN_FAILED` 列繼續證。〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-ipc-launch.test.cjs:630` 未移動、C10 的 `GGL_LAUNCH_NOT_READY` 列 `:633` 撤回（原位置留註解）〕
 - **責任轉移**（二稿補，審查的接受條件）：
 
 | 撤回／改寫的案 | 原本釘的事 | 刪掉第二道後由誰保證 | 接手的測試（正式路徑） |
@@ -139,11 +140,11 @@
 | S4 `null`／`undefined` 兩列（改寫） | 沒有成品不 spawn | 閘只在就緒時交成品（`runtime-readiness.js:53`、`sync/index.js:472-477`）；萬一沒交，`assertLaunchBundle` 擋（`runtime-needs.js:96-97`） | `runtime-readiness.test.cjs:161` N2（不就緒沒有 `launch`）；`sync-index.test.cjs:1736` N16（放行時 `fn` 拿到那次的輸入）；S4 改寫後的兩列（`launchMinecraft` 確實先過 `assertLaunchBundle`）；`runtime-needs.test.cjs:228` N5 |
 | C10 `GGL_LAUNCH_NOT_READY` 列（撤回） | 這個碼不跳框 | 碼不存在了 | C10 的 `GGL_LAUNCH_SPAWN_FAILED` 列繼續證「其他碼不跳框」 |
 
-- **最小改動**：刪 `:159-165`；`:11` 的 `recordComplete` import 變孤兒、刪；`:153` 的註解（「record、launch 是閘那次計算的那份」）照留、補一句「不完整的記錄與沒有成品由閘擋（`canLaunch` ⇒ 就緒），這裡不再驗」。成本：1 個正式檔、2 個測試檔（3 案）。
-- **驗證**：修前——插記錄跑全套，預期只有 C8 第一案與 S4 的兩列打到 `:160`（不是 ⇒ 停，代表有別的路徑）。修後——全套；owner 啟動遊戲一次。反向——在 `status-kind.js` 把 `offline` 的政策改成 `always` ⇒ 政策表的測試紅（證明 (a) 會被發現）；`runtime-readiness.js:32` 改成不就緒也帶 `launch` ⇒ N2 紅。
+- **最小改動**：刪 `:159-165`；`:11` 的 `recordComplete` import 變孤兒、刪；`:153` 的註解（「record、launch 是閘那次計算的那份」）照留、補一句「不完整的記錄與沒有成品由閘擋（`canLaunch` ⇒ 就緒），這裡不再驗」。成本：1 個正式檔、2 個測試檔（3 案）。〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-launch.js` 的 `:159-165` 刪除、`:11` 刪除（import 收成 `:10` 一行）、`:153` 改寫（加一句後 `:148-152`）〕
+- **驗證**：修前——插記錄跑全套，預期只有 C8 第一案與 S4 的兩列打到 `:160`（不是 ⇒ 停，代表有別的路徑）。修後——全套；owner 啟動遊戲一次。反向——在 `status-kind.js` 把 `offline` 的政策改成 `always` ⇒ 政策表的測試紅（證明 (a) 會被發現）；`runtime-readiness.js:32` 改成不就緒也帶 `launch` ⇒ N2 紅。〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-launch.js` 的 `:160` 刪除〕
 - **建議**：**改**。
 
-**#7 `main/minecraft-launch.js:166` `assertLaunchBundle`**
+**#7 `main/minecraft-launch.js:166` `assertLaunchBundle`**〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-launch.js:166` 後 `:157`；其他行號指的檔不在本 commit〕
 - **證據與責任**：它驗的是 `runtimeNeeds` 在同一行程剛組好的成品（邊界內），照 §2 屬重驗；但它內含 `assertEnv(launch.env)`（`runtime-needs.js:108-112`），正是 U3「同一值一路重驗（`assertEnv` 每層…）」的對象，U3 是 owner 逐項裁、歸 6c（上層 §4.2 U3、§8 Phase 6 子表）。另外 ⑤c 審查第 6 項實測過：`versionJarRel: ""` 會讓 `path.win32.join(gameDir, "")` 回 gameDir、照樣 spawn，只有它擋得住（`_notes/reviews/instance-sync-v3-commit5c-v85ec90ed-20261013.md:25`）——對壞掉的內部值，它是唯一會叫的地方。
 - **建議**：**移出本批**（留-3：U3）。#6 刪掉之後它是啟動前唯一的成品檢查，6c 裁 U3 時要把這一點一起看。
 
@@ -163,7 +164,7 @@
 - **建議**：前半**改**；`<= 0` **待裁（Q7）**。〔2026-10-26 Q7 已裁「算」→ §裁決：只走上面「Q7＝算」那條（改成 `=== 0 ⇒ null` 並寫理由）；「Q7＝不算」那條與 `lib/settings-logic.js`、`settings-logic.test.cjs:49` 的改動**作廢**，下游「無法偵測系統記憶體」照留〕
 
 **#9 版本號的正規化：`main/start-main.js:109` `String(require("../package.json").version || "").trim()`、`main/diagnostics-export.js:74` `String(…version || "")`**〔對齊 2026-10-26：→ `ff177df`（plans/cross-review-2026-10-phase6b4.md 4b）：`main/start-main.js:109` 改寫，後 `:114-115`；`main/diagnostics-export.js:74` 原地改寫〕
-- **證據**：`package.json` 跟程式同一包出貨（conventions §防禦與相容「`main` 送給畫面的資料（同一包出貨）」同類）⇒ 邊界內。`start-main` 這份交給 `createInstanceSync`，它在建立時驗 `x.y.z`（`main/sync/index.js:90-96`，`compareVersionCore` 用 `String(a)` 配 `^(\d+)\.(\d+)\.(\d+)`，`lib/sync/site-format.js:18,210-214`）：`undefined` ⇒ `"undefined"` 不符 ⇒ TypeError；前面多空白 ⇒ 不符 ⇒ TypeError。`minecraft-launch.js:22-25` 讀同一個欄位就沒有正規化。
+- **證據**：`package.json` 跟程式同一包出貨（conventions §防禦與相容「`main` 送給畫面的資料（同一包出貨）」同類）⇒ 邊界內。`start-main` 這份交給 `createInstanceSync`，它在建立時驗 `x.y.z`（`main/sync/index.js:90-96`，`compareVersionCore` 用 `String(a)` 配 `^(\d+)\.(\d+)\.(\d+)`，`lib/sync/site-format.js:18,210-214`）：`undefined` ⇒ `"undefined"` 不符 ⇒ TypeError；前面多空白 ⇒ 不符 ⇒ TypeError。`minecraft-launch.js:22-25` 讀同一個欄位就沒有正規化。〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-launch.js:22-25` 後 `:19-22`；其他行號指的檔不在本 commit〕
 - **改的理由**：`|| ""`、`.trim()` 防的值不存在；而且 `.trim()` 會把「`package.json` 版本前面有空白」這種真錯靜默修掉，拿掉後改由 `createInstanceSync` 的檢查在開機時叫（E1、E5）。**反例**：沒找到——錯的版本號拿掉正規化之後仍然會叫，叫的位置相同（開機的 `start_main_failed`）。
 - **最小改動**：兩處都寫成 `require("../package.json").version`。成本：2 個正式檔，0 個測試檔（`diagnostics-export` 的測試不比對版本；施工時確認）。
 - **驗證**：修後——全套；開機；匯出診斷一次看 `report.json` 的 `app.version`。反向——暫時把 `package.json` 的 version 改成 ` 1.0.0`（前面加空白）⇒ 修前開機正常、修後開機 `start_main_failed`（`cmp` 還原 `package.json`）。
@@ -263,7 +264,7 @@
 
 **背景**：`describeStatus`（`lib/sync/status-text.js:32-41`）只在 kind 或原因不在清單時丟 `TypeError`——那是我們自己的程式壞了（內部程式錯誤）。現在有兩處接它：
 - `ipc-bridge.js:91-101` `textOf`：每一筆狀態送畫面前都經過它（`sendInstanceStatus`，`:103-116`）。接到後照樣送出一句「啟動器內部錯誤，請回報（狀態：…）」（W11，`ipc-bridge.test.cjs:82` 釘住），另寫一行 **debug** log（debug 關著就沒有）。
-- `ipc/minecraft-ipc.js:21-30` `explainLaunchBlocked`：啟動被閘擋下時，把那筆狀態翻成「無法啟動」對話框的文字。接到後改用「目前無法啟動（狀態：…）」，**什麼都不寫**。W15（`minecraft-ipc-launch.test.cjs:367`）只走正常路。
+- `ipc/minecraft-ipc.js:21-30` `explainLaunchBlocked`：啟動被閘擋下時，把那筆狀態翻成「無法啟動」對話框的文字。接到後改用「目前無法啟動（狀態：…）」，**什麼都不寫**。W15（`minecraft-ipc-launch.test.cjs:367`）只走正常路。〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-ipc-launch.test.cjs:367` 未移動；其他行號指的檔不在本 commit〕
 兩者的退路本身（照樣給玩家一句話）都有道理：沒有它，畫面會停在上一筆狀態、或「無法啟動」的框跳不出來。問題只在無聲。
 
 **會不會重複記錄**〔CC 讀碼〕：一次被擋下的啟動，`withLaunchLock` 先算狀態並送出（`sync/index.js:462` → `send` → `sendInstanceStatus` → `textOf`），接著 `explainLaunchBlocked` 對**同一筆** status 再翻一次。所以同一個 bug、同一次按鈕：兩處都記 ⇒ 2 筆（事件 ID 不同，分得出來）。例外：`send` 會丟掉比較舊的計算（`sync/index.js` 的 `seq < sentSeq`），那次 `textOf` 不會跑，只剩 `explainLaunchBlocked` 一筆。頻率：狀態只在開機、按重新檢查、更新／修復／啟動前後計算，不是輪詢迴圈〔CC 讀碼：`getInstanceStatus` 的呼叫者只有 `app-ready.js:175` 與 `ipc/instance-ipc.js:48`；`withSyncLock`、`withLaunchLock` 內各一次〕。
@@ -300,7 +301,7 @@
 | loopback 回呼 | 正式程式自己在 `localhost:<loopbackPort>` 起真的 `http.Server`（`:74-100`），`loopbackPort` 必須是正整數（`:76`，不能給 0）；收到 `/callback?code=…` 才往下走（`:476-532`） | `configureMicrosoftAuth` 給一個事先找好的空埠（先 listen 0 拿埠號、關掉、再傳入；中間的空檔有極小機率被搶，U-17）；假視窗的 `loadURL` 從授權網址取出 `redirect_uri`，用 `http.get` 打 `…/callback?code=test-code`（不能用 `fetch`，它被換掉了） |
 | 外部 HTTP | 全部經 `fetchDeadline`（`:47-55`）＝全域 `fetch`：token 交換、XBL、XSTS、`login_with_xbox`、entitlements、profile 共 6 個端點 | `global.fetch` 換成依 URL 分派的假實作（`microsoft-auth-refresh.test.cjs:62-65` 已有同樣的換法），**認不得的 URL 一律丟錯**——保證不會有任何請求連到真的 Microsoft、Xbox、Minecraft。缺 refresh_token 的案只走到第 1 個端點（檢查在 `:586-588` 旁，#15）；正常對照案要 6 個 |
 | 帳號寫檔 | `writeAccount`（`account-store.js:99-107`）預設寫 `userData/account.json`、用真的 `safeStorage` | `configureAccountStore({ getSafeStorage, getAccountPath })`（`account-store.js:27-29`，`account-store.test.cjs:34-47` 已這樣用）指到暫存資料夾＋假 safeStorage——**不碰玩家真的 `account.json`** |
-| 其他依賴 | `configureMicrosoftAuth` 要 4 個函式＋`msClientId`（`:38-44`；空字串會走到跳框的 `:659-668`） | `getMainWindow: () => null`、`getAppIconPath: () => ""`、兩個記錄用的 `send*`、`msClientId: "test-client"`；假 `ipcMain` 三個測試檔各有一份（例：`minecraft-ipc-launch.test.cjs:29`） |
+| 其他依賴 | `configureMicrosoftAuth` 要 4 個函式＋`msClientId`（`:38-44`；空字串會走到跳框的 `:659-668`） | `getMainWindow: () => null`、`getAppIconPath: () => ""`、兩個記錄用的 `send*`、`msClientId: "test-client"`；假 `ipcMain` 三個測試檔各有一份（例：`minecraft-ipc-launch.test.cjs:29`）〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-ipc-launch.test.cjs:29` 未移動；其他行號指的檔不在本 commit〕 |
 
 **清理責任**：還原 `global.fetch`（`t.after`）；暫存資料夾刪除；loopback 伺服器由正式程式的 `cleanupAnd`（`:450-468`）關——測試加一條斷言確認埠已釋放；登入的 5 分鐘逾時計時器由 `cleanupAnd` 清（`:453`），但若測試在回呼之前就失敗，那個計時器會讓行程掛到 `node --test` 的逾時——每案設 `timeout`。`Module._load` 的攔截只活在這個測試檔的行程裡（`fake-electron` 也不還原，依 `node --test` 每檔各一個行程〔據既有做法，`node --test` 的隔離方式沒另外查文件〕）。
 
@@ -348,7 +349,7 @@
 
 - **#13 為什麼獨立（審查建議，CC 同意）**：4b 其他項在正常與異常路徑都不改語意；#13 改的是「異常時往外丟哪個錯」，是唯一需要修前紅燈證明的一項。合在 4b，萬一 #13 的傳播語意要退，就得連路徑轉出一起退。找不到讓它不獨立的反例；成本只是多一個 commit。
 - **#8、#11 為什麼從 4b 分出來**：它們不是「刪重複」，是拿掉 OS／Electron API 外面的無聲隔離——審查對 #11 的修正（`w.show()` 仍是 Electron 邊界）說明這兩項的風險落在外部 API 上，跟 4b 的純內部清理不同；而且 #8 要等 Q7，分開後 4b 不必等〔Q7 已於 2026-10-26 裁決，這個理由已不成立；外部 API 風險那個理由照舊〕。
-- **檔案重疊與 revert 順序**：七批的正式檔不重疊。測試檔只有 `test/minecraft-ipc-launch.test.cjs` 被 4e（C10 一列，約 `:630`）與 4f（`setupIpc` 約 `:54-80`＋新案）同時碰，區塊不相鄰——先後 revert 都乾淨〔推論，U-16：施工時 `git revert --no-commit` 實測〕。其他批之間任意順序 revert。
+- **檔案重疊與 revert 順序**：七批的正式檔不重疊。測試檔只有 `test/minecraft-ipc-launch.test.cjs` 被 4e（C10 一列，約 `:630`）與 4f（`setupIpc` 約 `:54-80`＋新案）同時碰，區塊不相鄰——先後 revert 都乾淨〔推論，U-16：施工時 `git revert --no-commit` 實測〕。其他批之間任意順序 revert。〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-ipc-launch.test.cjs`（這處沒有行號）〕
 - **建議施工順序**：4a → 4d（兩者都碰同步更新的下載路徑，owner 可一次更新驗兩批，但 commit 仍分開）→ 4b → 4e → 4c → 4f → 4g（Q4、Q7、Q13、Q14 已於 2026-10-26 裁決，→ §裁決；C-1 已了結）。每批施工前另行授權。
 - **另一種切法（審查可選）**：4c 併回 4b（省一個 commit；代價是外部 API 的風險與純清理一起退；原寫的「4b 要等 Q7」在 2026-10-26 Q7 裁決後已不成立）。owner 裁決回寫保留七批（→ §裁決 的出處文件「原則上保留二稿的 4a～4g 分批」），此選項不採用。
 
@@ -443,6 +444,22 @@ E5 入帳：#11、#13 改了之後，`main-window.js`、`sync/apply.js` 兩檔�
 - **反向驗證**（暫改、跑完寫回，sha256／`cmp` 相同）：A `settings.js` 改回從 `./paths` 拿 `DEFAULT_LAUNCHER_ROOT_DIR`（已不轉出 ⇒ `undefined`）⇒ 全套 **16 紅**（設定檔建檔、讀寫並行各案）；B 修後 version 帶空白 ⇒ 開機 `start_main_begin` → `start_main_failed`、行程結束；C `start-main` 改回從 `launcher-log` 拿 `computeDebugLoggingEnabled`（已不轉出）⇒ 同樣 `start_main_failed`。
 - **啟動**（同 4a 的隔離方式）：開機到 `start_main_done`，沒有其他事件、沒有 TypeError、沒有殘留行程。
 - **owner GUI**：匯出診斷正常（驗收出處）。
+- **沒跑**：打包。
+
+## 4e 施工紀錄（2026-10-26，基準 `222039b`，commit `ddbca30`；本紀錄在之後的 docs commit 補寫）〔實測〕
+
+**驗收出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「commit，啟動正常，4e 驗收過」。
+**授權出處**：→ §裁決「4e 施工授權」。
+
+- **改動**（numstat +／-）：`main/minecraft-launch.js` 3／16（#6：`recordComplete(record) || launch == null` ⇒ `GGL_LAUNCH_NOT_READY` 那道刪除，`recordComplete` 的 import 成了孤兒、一併刪；#5：`cleanupStaleMcProcessIfNeeded()`＋「遊戲已在執行中，請先關閉遊戲後再啟動。」4 行刪除；函式註解補「遊戲已在跑由鎖內的 IPC 那道擋」「不完整的記錄與沒有成品由閘擋」；`assertLaunchBundle` 照留，U3）；`test/minecraft-launch.test.cjs` 7／18（C8 第一案撤回、原位置留兩行註解指向 #6 責任轉移；S4 的 `null`／`undefined` 兩列改成預期 `assertLaunchBundle` 的 TypeError、併進同一個迴圈，案名改寫；撤回後沒人用的 `LaunchError` import 刪除——lint 抓到）；`test/minecraft-ipc-launch.test.cjs` 1／1（C10 的 `GGL_LAUNCH_NOT_READY` 列換成一行註解）。合計 3 檔 +11／-35。
+- **修前探針**（scratchpad 腳本在兩道「擋下」的分支插記錄、跑全套、寫回，sha256 相同）：全套 1350／1350；#6 那道被打到 3 次，全來自 `minecraft-launch.test.cjs`（C8 第一案＋S4 兩列）；#5 那道 0 次（同一機制打到 #6，0 不是記錄失效）——與 #5、#6 的預測相同。
+- **只改正式程式時**：`minecraft-launch`、`minecraft-ipc-launch` 兩檔只紅 C8 第一案與 S4，與責任轉移表相同。
+- **修後**：Node 24.14.1 與 22.23.4 都 **1349／1349**（少的 1 案＝撤回的 C8 第一案）。`minecraft-launch.js` 合 prettier；兩個測試檔在 HEAD 就不合 prettier，照檔內原本的長行寫法改、不整份重排。`lint`、`check:ui-css` 一般／strict、`git diff --check` exit 0；conventions 的 commit 前 rg 0 命中。commit 時 pre-commit 通過。
+- **反向驗證**（暫改、跑全套、寫回，sha256 相同）：拿掉 IPC 鎖內的「遊戲已在執行中」⇒ W16e 紅；`status-kind` 的 `offline` 政策改成 `always` ⇒ 政策表（`KIND_UI／deriveUi` 22 格）、N22、SF-G9、W17 共 4 紅；`checkRuntimeReady` 記錄不完整也帶 `launch` ⇒ **C1** 紅（#6 原預測 N2；C1 斷言整個回傳值，先抓到）。
+- **freeze**（改到的兩個測試檔 × 0–7 × 兩版本＝32 跑）：全綠，但每跑 0 個 HTTP 請求——這兩檔不發請求，freeze 沒有作用（同一支腳本在 4a、4d 量到的請求數不是 0）。
+- **啟動**（同 4a 的隔離方式）：開機到 `start_main_done`，沒有其他事件、沒有 TypeError、沒有殘留行程。
+- **owner GUI**：「啟動正常」（驗收出處）。#6 的 GUI 要求是「啟動一次＋開著再按一次（看到『遊戲已在執行中』）」；owner 回覆只寫「啟動正常」，**開著再按一次有沒有試未確認**（CC 在 commit 後問了，owner 未答）。該路徑由 W16e 自動測試守。
+- **撞到**：`sd -F` 改 scratchpad 腳本的輸出目錄沒生效、exit 0（記憶已記的坑），rg 對照發現後改用 Python。
 - **沒跑**：打包。
 
 ## 新發現（盤點外，預設進 future-work，owner 可改）
