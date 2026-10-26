@@ -1,4 +1,4 @@
-# Phase 6b-4 — 其他 main 組：細部 plan（狀態：**2026-10-26 初稿，基準 `712f445`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄）；同日 owner 裁 Q4、Q7、Q13、Q14（→ §裁決），回寫進本檔（→ §裁決回寫紀錄），文件 `d4eef72`；同日 owner 授權 4a（→ §裁決 4a 施工授權），施工 commit `badebe9`，經 owner 驗收放行（→ §4a 施工紀錄）；同日 owner 授權 4d（→ §裁決 4d 施工授權），施工 commit `6e63202`，經 owner 驗收放行（→ §4d 施工紀錄）；同日 owner 授權 4b（→ §裁決 4b 施工授權），施工 commit `ff177df`，經 owner 驗收放行（→ §4b 施工紀錄）；同日 owner 授權 4e（→ §裁決 4e 施工授權），施工 commit `ddbca30`，經 owner 驗收放行（→ §4e 施工紀錄）；同日 owner 授權 4c（→ §裁決 4c 施工授權），施工 commit `ef4484c`，經 owner 驗收放行（→ §4c 施工紀錄）；同日 owner 授權 4f（→ §裁決 4f 施工授權），施工 commit `0f705a1`，經 owner 驗收放行（→ §4f 施工紀錄）；同日 owner 授權 4g（→ §裁決 4g 施工授權）**）
+# Phase 6b-4 — 其他 main 組：細部 plan（狀態：**2026-10-26 初稿，基準 `712f445`；同日 ChatGPT 審初稿（→ §審查），修訂為二稿（→ §二稿修訂紀錄）；同日 owner 裁 Q4、Q7、Q13、Q14（→ §裁決），回寫進本檔（→ §裁決回寫紀錄），文件 `d4eef72`；同日 owner 授權 4a（→ §裁決 4a 施工授權），施工 commit `badebe9`，經 owner 驗收放行（→ §4a 施工紀錄）；同日 owner 授權 4d（→ §裁決 4d 施工授權），施工 commit `6e63202`，經 owner 驗收放行（→ §4d 施工紀錄）；同日 owner 授權 4b（→ §裁決 4b 施工授權），施工 commit `ff177df`，經 owner 驗收放行（→ §4b 施工紀錄）；同日 owner 授權 4e（→ §裁決 4e 施工授權），施工 commit `ddbca30`，經 owner 驗收放行（→ §4e 施工紀錄）；同日 owner 授權 4c（→ §裁決 4c 施工授權），施工 commit `ef4484c`，經 owner 驗收放行（→ §4c 施工紀錄）；同日 owner 授權 4f（→ §裁決 4f 施工授權），施工 commit `0f705a1`，經 owner 驗收放行（→ §4f 施工紀錄）；同日 owner 授權 4g（→ §裁決 4g 施工授權），施工 commit `602c1b9`，經 owner 驗收放行（→ §4g 施工紀錄）；七批全部完成**）
 
 **授權出處**：〔轉述〕owner 2026-10-26 在與 CC 的對話中貼入「GGL_Launcher — Phase 6b-4 細部設計調查」：「本輪不修改正式程式、不 Commit、不 Push，也不預先認定全部盤點項目都必須修改。」交付物＝細部初稿與審查問題。
 **上層**：範圍、不做、不變量、驗收下限、回滾 → `plans/cross-review-2026-10.md` §8 Phase 6；改／留判準、退回、留的出口 → `plans/cross-review-2026-10-phase6-criteria.md`（以下「判準」）；候選的定義 → `plans/defense-cleanup.md` §清理清單 main/ 表；6b 的切法與既有裁決（Q3、Q6、Q8、Q10 …）→ `plans/cross-review-2026-10-phase6b.md`（以下「6b 檔」）§裁決、§候選總表 6b-4 列。
@@ -24,7 +24,7 @@
 | Q4 | **A＋安全的 `{ kind }`**：`ipc-bridge` 的 `textOf` 與 `ipc/minecraft-ipc.js` 的 `explainLaunchBlocked` 都用既有常駐 `gglError` 記錄狀態文字轉換的故障 | 保留玩家看得到的退路文字；兩處用可區分的事件 ID；`detail` 只放安全、最小的 `{ kind }`；不記完整狀態物件、token、敏感參數或任意錯誤訊息；不新增 logger、去重狀態或包裝層；同一個故障在兩個出口各一筆可以接受。實作前要確認 `kind` 的來源與結構化日誌的安全契約，不因欄位叫 `kind` 就假設任意輸入都安全（→ §Q4 的來源查證） |
 | Q7 | **算 OS 邊界，保留 `0 ⇒ null`** | 系統 RAM 偵測只給設定頁建議用；玩家的記憶體設定與系統建議分開；沒手動設定時 Minecraft 維持既有 `-Xms1024M`／`-Xmx4096M`；`os.totalmem()` 回 0 時偵測結果維持 `null`，不改寫玩家設定、不擋 Minecraft 啟動。其餘沒有具體錯誤契約支持的防禦照二稿簡化（#8）。**不擴大成記憶體自動配置** |
 | Q13 | **A：測試檔內的局部 `BrowserWindow` 替身，走正式的 Microsoft 登入入口** | 驗收重點：(1) 缺 refresh token ⇒ 正式登入失敗、回新錯誤碼；(2) 帳號不寫入；(3) 後續 Xbox／Minecraft 請求不發生；(4) 有 refresh token 的登入照常可用；(5) 後續換新「沒帶新的就保留舊的」不受影響。隔離：不呼叫真實 Microsoft、Xbox、Minecraft API；假 `fetch` 遇到清單外的 URL 必須失敗；帳號存在測試暫存目錄；loopback listener、視窗與其他資源確實清理；不碰玩家真的帳號檔或憑證。「約 150 行」只是 CC 的估計，不是目標，也不是可無限擴張的授權。**停止條件**：要擴充共用 Electron harness、要改正式登入架構來配合測試、或要建明顯超出本案的通用 OAuth 模擬框架 ⇒ 停 4g，回報阻塞與方案成本；**不自行改選 B、C、D** |
-| Q14(1) | **A：互動式登入時沒拿到有效的 refresh token 就拒絕** | 明確拒絕登入；不儲存不完整的帳號；不繼續呼叫 Xbox／Minecraft 的後續端點；不自動重試；不建立暫時登入模式。這是 GGL 對持續登入能力的產品契約，**不宣稱 Microsoft 必然違反 OAuth 規範**（U-15 照留）。**後續換新**時回應沒帶新的 refresh token ⇒ 維持既有「保留舊值」（`microsoft-auth.js:358`），不能與登入的契約混為一談 |
+| Q14(1) | **A：互動式登入時沒拿到有效的 refresh token 就拒絕** | 明確拒絕登入；不儲存不完整的帳號；不繼續呼叫 Xbox／Minecraft 的後續端點；不自動重試；不建立暫時登入模式。這是 GGL 對持續登入能力的產品契約，**不宣稱 Microsoft 必然違反 OAuth 規範**（U-15 照留）。**後續換新**時回應沒帶新的 refresh token ⇒ 維持既有「保留舊值」（`microsoft-auth.js:358`），不能與登入的契約混為一談〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`microsoft-auth.js:358` 未移動〕 |
 | Q14(2) | **新錯誤碼 `MS_REFRESH_TOKEN_MISSING`＋獨立文案** | 玩家文案（owner 原文，兩行）：「Microsoft 未提供維持登入所需的憑證，請重新登入。」／「若持續發生，請稍後再試。」Plan 要列錯誤碼、renderer 映射與對應測試。不共用代表 access token 缺失的 `MS_TOKEN_EMPTY`；錯誤訊息不放原始 token 或敏感回應。**回寫時發現的呈現衝突** → §回寫時發現的衝突 C-1。〔2026-10-26 owner 改：C-1 選 (b)，文案改成一行 「Microsoft 未提供維持登入的憑證，請重新登入。」，取代上面的兩行；出處：〔轉述〕owner 2026-10-26（與 CC 對話）「我選 b，文案是「Microsoft 未提供維持登入的憑證，請重新登入。」」〕 |
 
 **授權**：本輪只授權把裁決回寫進文件。**不授權**修改正式程式或測試、施工 commit、push，也不因裁決完成而開始 4a–4g；各批另行授權。
@@ -32,7 +32,7 @@
 
 ### 回寫時發現的衝突
 
-- **C-1 Q14(2) 的兩行文案在現有狀態列顯示不成兩行**〔CC 讀碼，未看實際畫面〕。登入失敗的文字走 `renderer/account-ui.js:401` 的 `setStatus(formatLoginError(msg), 0)` → `renderer/ui-status.js:83-190` 的 `setStatus`：它只在「正在檢查／安裝／下載／套用／同步…」與進度百分比這幾種格式才拆成兩行（`:94-143`），不看換行字元；整段放進一個 `.launch-subtext-line`，CSS 是 `white-space: nowrap`＋`overflow: hidden`＋`text-overflow: ellipsis`（`styles.css:975-983`）⇒ 換行會被當成空白、兩句擠成一行，寬度不夠時尾端變成「…」；全文只在滑鼠移上去的 `title` 看得到（`ui-status.js:179`）。實際會截在哪裡沒看〔推論〕。可能的處理（**都沒做，交 owner**）：(a) 照原文送，接受一行顯示＋滑鼠移上去看全文；(b) owner 把文案改成一行；(c) 讓 `setStatus` 認換行、拆成兩行——這是盤點外的畫面改動，動到所有狀態文字共用的函式，要另外授權並看畫面。在 owner 回覆前，4g 的 renderer 映射照原文寫進 Plan，施工前先確認 C-1。
+- **C-1 Q14(2) 的兩行文案在現有狀態列顯示不成兩行**〔CC 讀碼，未看實際畫面〕。登入失敗的文字走 `renderer/account-ui.js:401` 的 `setStatus(formatLoginError(msg), 0)` → `renderer/ui-status.js:83-190` 的 `setStatus`：它只在「正在檢查／安裝／下載／套用／同步…」與進度百分比這幾種格式才拆成兩行（`:94-143`），不看換行字元；整段放進一個 `.launch-subtext-line`，CSS 是 `white-space: nowrap`＋`overflow: hidden`＋`text-overflow: ellipsis`（`styles.css:975-983`）⇒ 換行會被當成空白、兩句擠成一行，寬度不夠時尾端變成「…」；全文只在滑鼠移上去的 `title` 看得到（`ui-status.js:179`）。實際會截在哪裡沒看〔推論〕。可能的處理（**都沒做，交 owner**）：(a) 照原文送，接受一行顯示＋滑鼠移上去看全文；(b) owner 把文案改成一行；(c) 讓 `setStatus` 認換行、拆成兩行——這是盤點外的畫面改動，動到所有狀態文字共用的函式，要另外授權並看畫面。在 owner 回覆前，4g 的 renderer 映射照原文寫進 Plan，施工前先確認 C-1。〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`renderer/account-ui.js:401` 後 `:403`；其他行號指的檔不在本 commit〕
   - **了結（2026-10-26）**：owner 選 (b)，文案 「Microsoft 未提供維持登入的憑證，請重新登入。」（→ §裁決 Q14(2) 的註記）。CC 粗算這句的顯示寬度約 44 格（全形 2、半形 1），現有最長的登入錯誤約 36 格，仍可能被截；狀態列實際寬度沒量。owner 不量、接受最壞情況（截斷＋滑鼠移上去看全文），原話「其實我覺得沒差，因為被截斷的東東已經有超多了XD」。(c) 不做。
 
 ### 4a 施工授權（2026-10-26）
@@ -73,6 +73,7 @@
 
 **出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「收 docs commit，然後開 4g 吧！」。
 **授權**：4g（#15）的施工與驗證；權威＝本檔 §裁決 Q13、Q14、#15「裁決後的施工規格」、§分批、§驗收、§未驗、停止條件、回滾。本機 commit 照 4d 的做法，自動驗證完成後先問 owner。**不授權** push、其他批次；碰到 §裁決 Q13 的停止條件就停、回報，不自行改選 B、C、D。
+**commit 出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「commit，登入正常，4g 驗收過」。
 
 ## 探針〔實測，2026-10-26〕
 
@@ -238,27 +239,27 @@
   - 判斷：**不改**（留-1：網路回應＋R6 的恢復路徑）；`:134` 的 `catch` 補一行理由（§4：寫明「網路回應；抓不到沿用上一次成功的（R6）」）。公告路徑要不要有常駐痕跡是另一題，三段一起看，**進 future-work**，不在本批。
 - **建議**：**不改**行為；只補理由註解（退回項，列進驗收單）。owner 可改判。
 
-**#15 `main/microsoft-auth.js:627` `msRefreshToken: msToken.refresh_token || ""`**
-- **現況**〔CC 讀碼〕：token 回應沒有 `refresh_token` 時，`:627` 存成空字串，登入照樣寫入帳號、回「登入完成」（`:680-697`）。遊戲 token 第一次到期後，`refreshMicrosoftAndMinecraftTokens` 看到空字串直接回 `INVALID_GRANT`、detail「沒有 refresh token 可用」（`:336-343`）→ 啟動時帳號被轉成 `reauth-required`、跳「登入狀態已失效，請重新登入」（`ipc/minecraft-ipc.js:99-106`）。同一函式對 `access_token` 缺失已在登入當下拒絕（`:586-588` `MS_TOKEN_EMPTY`）。〔對齊 2026-10-26：→ `0f705a1`（plans/cross-review-2026-10-phase6b4.md 4f）：`ipc/minecraft-ipc.js:99-106` 後 `:105-112`；其他行號指的檔不在本 commit〕
+**#15 `main/microsoft-auth.js:627` `msRefreshToken: msToken.refresh_token || ""`**〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`main/microsoft-auth.js:627` 改寫後 `:634`（→ 同檔 §4g 施工紀錄）〕
+- **現況**〔CC 讀碼〕：token 回應沒有 `refresh_token` 時，`:627` 存成空字串，登入照樣寫入帳號、回「登入完成」（`:680-697`）。遊戲 token 第一次到期後，`refreshMicrosoftAndMinecraftTokens` 看到空字串直接回 `INVALID_GRANT`、detail「沒有 refresh token 可用」（`:336-343`）→ 啟動時帳號被轉成 `reauth-required`、跳「登入狀態已失效，請重新登入」（`ipc/minecraft-ipc.js:99-106`）。同一函式對 `access_token` 缺失已在登入當下拒絕（`:586-588` `MS_TOKEN_EMPTY`）。〔對齊 2026-10-26：→ `0f705a1`（plans/cross-review-2026-10-phase6b4.md 4f）：`ipc/minecraft-ipc.js:99-106` 後 `:105-112`；其他行號指的檔不在本 commit〕〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`microsoft-auth.js` 的 `:627` 改寫後 `:634`、`:680-697` 後 `:687-704`、`:336-343` 未移動、`:586-588` 未移動（新檢查在 `:589-595`）；其他行號指的檔不在本 commit〕
 - **三件事分開看**（二稿改寫；初稿把它歸成「違反 Microsoft 回應約定」，證據不足，撤回該分類）：
-  1. **Microsoft OAuth 的外部協定保證——不知道。** 授權請求要了 `offline_access`（`:413`），但「`login.live.com` 在所有要了 `offline_access` 的成功回應裡都一定給 `refresh_token`」沒有官方出處（U-15，未讀文件）。已知的只有實績：owner 的帳號 2026-09-12 真機登入並走過真換新鏈（`history.md:20`）、09-15 token 過期後自動換新成功（`history.md:28`）——證明那時那個帳號拿得到，不證明所有情況都拿得到。
+  1. **Microsoft OAuth 的外部協定保證——不知道。** 授權請求要了 `offline_access`（`:413`），但「`login.live.com` 在所有要了 `offline_access` 的成功回應裡都一定給 `refresh_token`」沒有官方出處（U-15，未讀文件）。已知的只有實績：owner 的帳號 2026-09-12 真機登入並走過真換新鏈（`history.md:20`）、09-15 token 過期後自動換新成功（`history.md:28`）——證明那時那個帳號拿得到，不證明所有情況都拿得到。〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`microsoft-auth.js:413` 未移動〕
   2. **GGL 對長期登入能力的產品需求——有出處。** `plans/token-refresh-and-encryption.md` 的目標「登入一次之後不必每天重登」（檔頭，owner 驗收放行 2026-09-12）；換新流程整個建立在存下來的 refresh token 上（同檔 `:14`「refresh_token 存不存｜存」）。沒有 refresh token 的帳號滿足不了這個目標：撐到遊戲 token 第一次到期就得重登。所以**不管 Microsoft 在某些情境是否合法地不給**，GGL 都可以依自己的產品契約說：這次登入不算完整成功，不把它存成 `active`。
   3. **現行程式的錯誤歸因——確定錯。** 缺的東西在登入當下就知道了，現在卻存成空字串、宣告成功，等到下一次到期才以 `INVALID_GRANT`「登入狀態已失效」呈現——玩家看到的原因（登入過期）不是真正的原因（當初就沒拿到換新憑證），而且登入當下沒有任何紀錄。
 - **改的理由**：E1（「登入完成」不是真的完整登入）；第 3 點的錯誤歸因。依據是第 2 點的產品契約，不是第 1 點。
 - **不改的反例**：若第 1 點的答案是「某些帳號合法地拿不到 refresh token」，改了之後那些帳號完全登不進去；現在至少能玩到遊戲 token 第一次到期。這是真的取捨：拒絕登入是**新的產品行為**（原本那種帳號能短暫使用），由第 2 點推得〔推論〕，**交 owner 確認（Q14）**。錯了會叫（登入當場失敗、畫面有字）。
-- **最小改動**：在 `:586-588`（`access_token` 的檢查）旁邊驗 `msToken.refresh_token`——值進來的那一處（§1），缺 ⇒ 丟 `LoginError`，之後的 Xbox／Minecraft 請求都不發、不呼叫 `writeAccount`、不回成功；`:627` 改成直接取值。detail 只放固定字串（例：「Microsoft 沒有提供 refresh_token」），不含任何 token。**不加 `gglError`**：登入失敗是玩家按了登入當場看到（§3），其他登入失敗也都不進常駐日誌，只替這一種加不一致；`makeLoginError` 的訊息只到畫面，不落盤〔CC 讀碼：rg `LOGIN_ERR` 只在 `microsoft-auth.js` 與 `renderer/account-ui.js`〕。
+- **最小改動**：在 `:586-588`（`access_token` 的檢查）旁邊驗 `msToken.refresh_token`——值進來的那一處（§1），缺 ⇒ 丟 `LoginError`，之後的 Xbox／Minecraft 請求都不發、不呼叫 `writeAccount`、不回成功；`:627` 改成直接取值。detail 只放固定字串（例：「Microsoft 沒有提供 refresh_token」），不含任何 token。**不加 `gglError`**：登入失敗是玩家按了登入當場看到（§3），其他登入失敗也都不進常駐日誌，只替這一種加不一致；`makeLoginError` 的訊息只到畫面，不落盤〔CC 讀碼：rg `LOGIN_ERR` 只在 `microsoft-auth.js` 與 `renderer/account-ui.js`〕。〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`microsoft-auth.js` 的 `:586-588` 未移動（新檢查在 `:589-595`）、`:627` 改寫後 `:634`；`renderer/account-ui.js`（這處沒有行號）〕
 - **錯誤碼與畫面文案（Q14 的子題）**：
-  - 沿用 `MS_TOKEN_EMPTY`：畫面不必改，玩家看到「Microsoft 登入失敗（Token 交換失敗）」（`renderer/account-ui.js:350-352`）。這句沒說缺的是 access token，對玩家不算誤導；但碼名 `MS_TOKEN_EMPTY` 在除錯時會讓人先想到 access token（`:586-588` 是同一個碼），只能靠 detail 分辨——而這個碼的畫面文案不顯示 detail。
-  - 新碼（例：`MS_REFRESH_TOKEN_MISSING`）：`renderer/account-ui.js` 的 `formatLoginError` 多一個 case（約 2 行）；不加 case 會落到 `default`「登入失敗（請稍後重試）」——「稍後重試」對這種情況可能是錯的建議〔推論：同一帳號重試大概還是拿不到〕。文案要 owner 定（產品文字）。成本：多碰 1 個 renderer 檔（`format:ui`、`check:ui-css`、`lint` 照跑）；`formatLoginError` 沒有測試（rg 0 命中於 `test/`；對照：同一 rg 在 `renderer/` 命中 `:316`），新 case 不另建 renderer 測試（不擴大施工），只靠讀碼與 owner 畫面。
+  - 沿用 `MS_TOKEN_EMPTY`：畫面不必改，玩家看到「Microsoft 登入失敗（Token 交換失敗）」（`renderer/account-ui.js:350-352`）。這句沒說缺的是 access token，對玩家不算誤導；但碼名 `MS_TOKEN_EMPTY` 在除錯時會讓人先想到 access token（`:586-588` 是同一個碼），只能靠 detail 分辨——而這個碼的畫面文案不顯示 detail。〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`renderer/account-ui.js:350-352` 未移動（新 case 在 `:353-354`）；`microsoft-auth.js` 的 `:586-588` 未移動〕
+  - 新碼（例：`MS_REFRESH_TOKEN_MISSING`）：`renderer/account-ui.js` 的 `formatLoginError` 多一個 case（約 2 行）；不加 case 會落到 `default`「登入失敗（請稍後重試）」——「稍後重試」對這種情況可能是錯的建議〔推論：同一帳號重試大概還是拿不到〕。文案要 owner 定（產品文字）。成本：多碰 1 個 renderer 檔（`format:ui`、`check:ui-css`、`lint` 照跑）；`formatLoginError` 沒有測試（rg 0 命中於 `test/`；對照：同一 rg 在 `renderer/` 命中 `:316`），新 case 不另建 renderer 測試（不擴大施工），只靠讀碼與 owner 畫面。〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`renderer/account-ui.js:316` 未移動〕
   - CC 傾向新碼＋一句不叫人「稍後重試」的文案——理由是碼名在除錯時不誤導、玩家不會被叫去重試一件重試沒用的事；但這多碰一個畫面檔，**交 owner 裁**。〔2026-10-26 owner 裁新碼，文案用 owner 的原文（含「若持續發生，請稍後再試」）→ §裁決 Q14(2)；本條「不叫人稍後重試」的傾向不採用〕
 - **測試**：→ §Q13（可行性與成本比較）。
 - **驗證**（二稿原文）：修前——新案（token 回應沒有 `refresh_token`）應紅：現在會寫入帳號、回成功。修後——新案綠：reject `LOGIN_ERR|<碼>|…`、帳號檔沒有被建立或改動（暫存帳號路徑的雜湊比對）、錯誤字串與帳號檔都不含任何假 token 字串（Phase 6 驗收要求的假 token 案例）；正常案（有 `refresh_token`）寫入的欄位與修前相同。反向——拿掉新加的檢查 ⇒ 新案紅。owner 登入一次（正常路徑）。全程不連 Microsoft、Xbox、Minecraft，不碰真的 `account.json`（→ §Q13 的隔離）。
 - **建議**：**改**；拒絕登入這個產品行為與錯誤碼 **待裁（Q14）**；測試形式與是否留在本批 **待裁（Q13）**。
 
 **裁決後的施工規格（2026-10-26 回寫；Q13 A、Q14(1) A、Q14(2) 新碼 → §裁決；設計已收斂、未施工）**：
-- **範圍**：只管互動式登入——`loginMicrosoftAndMinecraft` 的 authorization_code 交換（`:576-588`），含帳號 `reauth-required` 之後的重新登入（走的是同一個函式）〔此處假設：§裁決 Q14(1) 寫「首次登入」，指的是互動式登入、相對於「後續換新」〕。`refreshMicrosoftAndMinecraftTokens` 的「沒帶新的就保留舊值」（`:358`）**一字不動**。
-- **正式程式**：`microsoft-auth.js` 在 `:586-588` 旁加 `if (!msToken.refresh_token) throw makeLoginError("MS_REFRESH_TOKEN_MISSING", "<固定字串>")`——之後的 XBL、XSTS、`login_with_xbox`、entitlements、profile 都不呼叫，不 `writeAccount`，不送「登入完成」；沒有重試、沒有暫時登入模式。detail 是固定字串，不含 token 或回應內容。`:627` 改成直接取值。
-- **renderer**：`renderer/account-ui.js` 的 `formatLoginError`（`:316-362`）加 `case "MS_REFRESH_TOKEN_MISSING":`，回 owner 的文案 「Microsoft 未提供維持登入的憑證，請重新登入。」（一行，C-1 已了結；二稿回寫時寫的「兩句中間用換行」作廢）。`MS_TOKEN_EMPTY` 的 case 不動。改完跑 `npm run format:file -- renderer/account-ui.js`、`check:ui-css`、`lint`。
+- **範圍**：只管互動式登入——`loginMicrosoftAndMinecraft` 的 authorization_code 交換（`:576-588`），含帳號 `reauth-required` 之後的重新登入（走的是同一個函式）〔此處假設：§裁決 Q14(1) 寫「首次登入」，指的是互動式登入、相對於「後續換新」〕。`refreshMicrosoftAndMinecraftTokens` 的「沒帶新的就保留舊值」（`:358`）**一字不動**。〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`microsoft-auth.js` 的 `:576-588`、`:358` 未移動〕
+- **正式程式**：`microsoft-auth.js` 在 `:586-588` 旁加 `if (!msToken.refresh_token) throw makeLoginError("MS_REFRESH_TOKEN_MISSING", "<固定字串>")`——之後的 XBL、XSTS、`login_with_xbox`、entitlements、profile 都不呼叫，不 `writeAccount`，不送「登入完成」；沒有重試、沒有暫時登入模式。detail 是固定字串，不含 token 或回應內容。`:627` 改成直接取值。〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`microsoft-auth.js` 的 `:586-588` 未移動（新檢查在 `:589-595`）、`:627` 改寫後 `:634`〕
+- **renderer**：`renderer/account-ui.js` 的 `formatLoginError`（`:316-362`）加 `case "MS_REFRESH_TOKEN_MISSING":`，回 owner 的文案 「Microsoft 未提供維持登入的憑證，請重新登入。」（一行，C-1 已了結；二稿回寫時寫的「兩句中間用換行」作廢）。`MS_TOKEN_EMPTY` 的 case 不動。改完跑 `npm run format:file -- renderer/account-ui.js`、`check:ui-css`、`lint`。〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`renderer/account-ui.js:316-362` 後 `:316-364`（新 case 在 `:353-354`）〕
 - **測試**（新檔 `test/microsoft-auth-login.test.cjs`，局部替身照 §Q13 表）：
   1. 缺 refresh token ⇒ `ACCOUNT_LOGIN` handler reject、訊息含 `LOGIN_ERR|MS_REFRESH_TOKEN_MISSING|`（Q13 驗收 1）。
   2. 同一案：暫存帳號路徑不存在／雜湊不變（驗收 2）。
@@ -268,7 +269,7 @@
   6. 隔離：假 `fetch` 遇到清單外的 URL 丟錯（另一案故意讓它打到清單外，確認真的會丟）；暫存目錄、`global.fetch`、loopback 埠在 `t.after` 清掉／還原，案後確認埠已釋放；錯誤字串與暫存帳號檔都不含假 token 字串。
   7. renderer 映射：`account-ui` 目前沒有測試。用 `test/helpers/fake-dom.cjs` 的 `loadRendererModule` 載 `renderer/account-ui.js`、`global.document` 設成 `fakeDocument`、注入記錄用的 `onDom`／`setStatus` 與會 reject 的 `safeInvoke`，觸發登入鈕的 click，斷言 `setStatus` 收到 owner 的文案；對照列：`MS_TOKEN_EMPTY` 仍得到原本的「Microsoft 登入失敗（Token 交換失敗）」。可行性是讀碼推論（U-19）；若要改 `fake-dom` 這個共用 helper 才跑得動 ⇒ 照 Q13 的停止條件停。
 - **修前紅燈**：1–3、7 應紅（現在會寫入帳號、會打完 6 個端點、碼不存在、文案不存在）；4、5 修前就綠（對照）。結果不同 ⇒ 停。
-- **反向**：拿掉 `:586-588` 旁的新檢查 ⇒ 1–3 紅；renderer 的 case 拿掉 ⇒ 7 紅；把換新的 `|| refreshToken` 拿掉 ⇒ 5 紅（證明 5 真的在守換新契約）。每輪 `cmp` 還原。
+- **反向**：拿掉 `:586-588` 旁的新檢查 ⇒ 1–3 紅；renderer 的 case 拿掉 ⇒ 7 紅；把換新的 `|| refreshToken` 拿掉 ⇒ 5 紅（證明 5 真的在守換新契約）。每輪 `cmp` 還原。〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`microsoft-auth.js:586-588` 未移動〕
 - **freeze**：新檔有真的 `http.Server`（正式程式的 loopback）收請求 ⇒ 0–7 × 兩個 Node 版本，`FREEZE_MARK` 記實際卡頓次數（每個行程只有 1–2 個請求，多數 offset 不會卡到，紀錄照實寫）。
 - **owner GUI**：登入一次（正常路徑，應與修前相同）。缺 refresh token 的路徑實機碰不到，只有自動測試驗。
 - **停止**：§裁決 Q13 的三種停止條件；測試出現任何連到 `localhost` 以外的請求、或碰到暫存目錄以外的帳號檔 ⇒ 立刻停。
@@ -311,14 +312,14 @@
 
 ### Q13（新）缺 `refresh_token` 的測試形式與歸屬（二稿：可行性與成本調查；2026-10-26 已裁 A → §裁決）
 
-**走正式入口要模擬什麼**〔CC 讀碼，`712f445`〕。正式入口＝`registerAccountIpcHandlers(ipcMain)`（`microsoft-auth.js:632-`）註冊的 `ACCOUNT_LOGIN` handler → `loginMicrosoftAndMinecraft`（`:397-630`）：
+**走正式入口要模擬什麼**〔CC 讀碼，`712f445`〕。正式入口＝`registerAccountIpcHandlers(ipcMain)`（`microsoft-auth.js:632-`）註冊的 `ACCOUNT_LOGIN` handler → `loginMicrosoftAndMinecraft`（`:397-630`）：〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`microsoft-auth.js` 的 `:632-` 後 `:639-`、`:397-630` 後 `:397-637`（區間內 `:589-595` 新增）〕
 | 東西 | 正式程式怎麼用 | 測試要給什麼 |
 |---|---|---|
-| Electron | `:398` 在函式裡才 `require("electron")` 取 `{ BrowserWindow, dialog }`。用到：`new BrowserWindow(opts)`（`:421`）、`setMenuBarVisibility`（`:442`，外面有 `try`）、`once("closed")`／`removeListener("closed")`（`:474`、`:455`）、`isDestroyed`／`close`（`:464`）、`webContents.once("did-fail-load")`（`:543-559`）、`loadURL` 回 Promise、`.then` 裡 `show`（`:560-572`）。`dialog` 只在載入失敗與沒設 client id 時用 | 一個約 30 行的假視窗類別（EventEmitter＋上述 7 個方法）；`dialog` 給一個一呼叫就丟錯的替身（fail-closed） |
-| loopback 回呼 | 正式程式自己在 `localhost:<loopbackPort>` 起真的 `http.Server`（`:74-100`），`loopbackPort` 必須是正整數（`:76`，不能給 0）；收到 `/callback?code=…` 才往下走（`:476-532`） | `configureMicrosoftAuth` 給一個事先找好的空埠（先 listen 0 拿埠號、關掉、再傳入；中間的空檔有極小機率被搶，U-17）；假視窗的 `loadURL` 從授權網址取出 `redirect_uri`，用 `http.get` 打 `…/callback?code=test-code`（不能用 `fetch`，它被換掉了） |
-| 外部 HTTP | 全部經 `fetchDeadline`（`:47-55`）＝全域 `fetch`：token 交換、XBL、XSTS、`login_with_xbox`、entitlements、profile 共 6 個端點 | `global.fetch` 換成依 URL 分派的假實作（`microsoft-auth-refresh.test.cjs:62-65` 已有同樣的換法），**認不得的 URL 一律丟錯**——保證不會有任何請求連到真的 Microsoft、Xbox、Minecraft。缺 refresh_token 的案只走到第 1 個端點（檢查在 `:586-588` 旁，#15）；正常對照案要 6 個 |
+| Electron | `:398` 在函式裡才 `require("electron")` 取 `{ BrowserWindow, dialog }`。用到：`new BrowserWindow(opts)`（`:421`）、`setMenuBarVisibility`（`:442`，外面有 `try`）、`once("closed")`／`removeListener("closed")`（`:474`、`:455`）、`isDestroyed`／`close`（`:464`）、`webContents.once("did-fail-load")`（`:543-559`）、`loadURL` 回 Promise、`.then` 裡 `show`（`:560-572`）。`dialog` 只在載入失敗與沒設 client id 時用 | 一個約 30 行的假視窗類別（EventEmitter＋上述 7 個方法）；`dialog` 給一個一呼叫就丟錯的替身（fail-closed）〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`microsoft-auth.js` 的 `:398`、`:421`、`:442`、`:474`、`:455`、`:464`、`:543-559`、`:560-572` 未移動〕 |
+| loopback 回呼 | 正式程式自己在 `localhost:<loopbackPort>` 起真的 `http.Server`（`:74-100`），`loopbackPort` 必須是正整數（`:76`，不能給 0）；收到 `/callback?code=…` 才往下走（`:476-532`） | `configureMicrosoftAuth` 給一個事先找好的空埠（先 listen 0 拿埠號、關掉、再傳入；中間的空檔有極小機率被搶，U-17）；假視窗的 `loadURL` 從授權網址取出 `redirect_uri`，用 `http.get` 打 `…/callback?code=test-code`（不能用 `fetch`，它被換掉了）〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`microsoft-auth.js` 的 `:74-100`、`:76`、`:476-532` 未移動〕 |
+| 外部 HTTP | 全部經 `fetchDeadline`（`:47-55`）＝全域 `fetch`：token 交換、XBL、XSTS、`login_with_xbox`、entitlements、profile 共 6 個端點 | `global.fetch` 換成依 URL 分派的假實作（`microsoft-auth-refresh.test.cjs:62-65` 已有同樣的換法），**認不得的 URL 一律丟錯**——保證不會有任何請求連到真的 Microsoft、Xbox、Minecraft。缺 refresh_token 的案只走到第 1 個端點（檢查在 `:586-588` 旁，#15）；正常對照案要 6 個〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`microsoft-auth.js` 的 `:47-55`、`:586-588` 未移動；其他行號指的檔不在本 commit〕 |
 | 帳號寫檔 | `writeAccount`（`account-store.js:99-107`）預設寫 `userData/account.json`、用真的 `safeStorage` | `configureAccountStore({ getSafeStorage, getAccountPath })`（`account-store.js:27-29`，`account-store.test.cjs:34-47` 已這樣用）指到暫存資料夾＋假 safeStorage——**不碰玩家真的 `account.json`** |
-| 其他依賴 | `configureMicrosoftAuth` 要 4 個函式＋`msClientId`（`:38-44`；空字串會走到跳框的 `:659-668`） | `getMainWindow: () => null`、`getAppIconPath: () => ""`、兩個記錄用的 `send*`、`msClientId: "test-client"`；假 `ipcMain` 三個測試檔各有一份（例：`minecraft-ipc-launch.test.cjs:29`）〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-ipc-launch.test.cjs:29` 未移動；其他行號指的檔不在本 commit〕〔對齊 2026-10-26：→ `0f705a1`（plans/cross-review-2026-10-phase6b4.md 4f）：`minecraft-ipc-launch.test.cjs:29` 未移動；其他行號指的檔不在本 commit〕 |
+| 其他依賴 | `configureMicrosoftAuth` 要 4 個函式＋`msClientId`（`:38-44`；空字串會走到跳框的 `:659-668`） | `getMainWindow: () => null`、`getAppIconPath: () => ""`、兩個記錄用的 `send*`、`msClientId: "test-client"`；假 `ipcMain` 三個測試檔各有一份（例：`minecraft-ipc-launch.test.cjs:29`）〔對齊 2026-10-26：→ `ddbca30`（plans/cross-review-2026-10-phase6b4.md 4e）：`minecraft-ipc-launch.test.cjs:29` 未移動；其他行號指的檔不在本 commit〕〔對齊 2026-10-26：→ `0f705a1`（plans/cross-review-2026-10-phase6b4.md 4f）：`minecraft-ipc-launch.test.cjs:29` 未移動；其他行號指的檔不在本 commit〕〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`microsoft-auth.js` 的 `:38-44` 未移動、`:659-668` 後 `:666-675`；其他行號指的檔不在本 commit〕 |
 
 **清理責任**：還原 `global.fetch`（`t.after`）；暫存資料夾刪除；loopback 伺服器由正式程式的 `cleanupAnd`（`:450-468`）關——測試加一條斷言確認埠已釋放；登入的 5 分鐘逾時計時器由 `cleanupAnd` 清（`:453`），但若測試在回呼之前就失敗，那個計時器會讓行程掛到 `node --test` 的逾時——每案設 `timeout`。`Module._load` 的攔截只活在這個測試檔的行程裡（`fake-electron` 也不還原，依 `node --test` 每檔各一個行程〔據既有做法，`node --test` 的隔離方式沒另外查文件〕）。
 
@@ -362,7 +363,7 @@
 | **4d** | #13 | 只接 bug 的 `catch` 把內部錯誤改報成 HTTP 404 | `sync/apply.js` | `sync-apply` 新 1 案（修前紅） | 不變／`fetchReleaseFiles` 內部出 bug 時，更新照樣失敗，但報的是那個錯本身而不是 404 | 無法觸發；正常更新可與 4a 同一次 | — |
 | **4e** | #5、#6 | 閘已保證的事，在呼叫端再驗一次 | `minecraft-launch.js` | `minecraft-launch`（C8 撤 1 案、S4 改 2 列）、`minecraft-ipc-launch`（C10 撤 1 列） | 不變／`GGL_LAUNCH_NOT_READY` 這個碼消失（閘被改壞時改由 `assertLaunchBundle` 或 `GGL_LAUNCH_NO_JAVA` 叫，#6） | 啟動遊戲一次＋開著再按一次 | — |
 | **4f** | Q4（#12、#16） | 內部程式錯誤被接住後沒有常駐出口（§3） | `ipc-bridge.js`、`ipc/minecraft-ipc.js` | `ipc-bridge`（W11 加斷言）、`minecraft-ipc-launch` 新 1 案（`setupIpc` 多給 `gglError` 替身）；細節 → §Q4 裁決後的實作細節 | 不變／`describeStatus` 出 bug 時多一到兩筆常駐日誌（`instance_status_text_failed`、`launch_blocked_text_failed`，`detail` 只有白名單過的 `kind`），畫面文字不變 | 只確認開機（錯誤路徑實機碰不到） | Q4 已裁（→ §裁決）；已施工 `0f705a1`（→ §4f 施工紀錄） |
-| **4g** | #15 | 缺換新憑證的登入被存成完整成功，之後誤報成「登入已失效」 | `microsoft-auth.js`、`renderer/account-ui.js` | 新 2 檔：`test/microsoft-auth-login.test.cjs`（局部替身，freeze 0–7 × 兩版本）、`account-ui` 映射的測試（檔名施工時定）；`microsoft-auth-refresh.test.cjs:95` 照綠不改；細節 → #15 裁決後的施工規格 | 不變（有 refresh token 的登入、換新）／互動式登入沒有 refresh token ⇒ 當場以 `MS_REFRESH_TOKEN_MISSING` 失敗、不打 Xbox／Minecraft、不寫帳號 | 登入一次 | Q13、Q14 已裁（→ §裁決；C-1 已了結）；已授權（→ §裁決 4g 施工授權） |
+| **4g** | #15 | 缺換新憑證的登入被存成完整成功，之後誤報成「登入已失效」 | `microsoft-auth.js`、`renderer/account-ui.js` | 新 2 檔：`test/microsoft-auth-login.test.cjs`（局部替身，freeze 0–7 × 兩版本）、`account-ui` 映射的測試（檔名施工時定）；`microsoft-auth-refresh.test.cjs:95` 照綠不改；細節 → #15 裁決後的施工規格 | 不變（有 refresh token 的登入、換新）／互動式登入沒有 refresh token ⇒ 當場以 `MS_REFRESH_TOKEN_MISSING` 失敗、不打 Xbox／Minecraft、不寫帳號 | 登入一次 | Q13、Q14 已裁（→ §裁決；C-1 已了結）；已施工 `602c1b9`（→ §4g 施工紀錄） |
 
 - **#13 為什麼獨立（審查建議，CC 同意）**：4b 其他項在正常與異常路徑都不改語意；#13 改的是「異常時往外丟哪個錯」，是唯一需要修前紅燈證明的一項。合在 4b，萬一 #13 的傳播語意要退，就得連路徑轉出一起退。找不到讓它不獨立的反例；成本只是多一個 commit。
 - **#8、#11 為什麼從 4b 分出來**：它們不是「刪重複」，是拿掉 OS／Electron API 外面的無聲隔離——審查對 #11 的修正（`w.show()` 仍是 Electron 邊界）說明這兩項的風險落在外部 API 上，跟 4b 的純內部清理不同；而且 #8 要等 Q7，分開後 4b 不必等〔Q7 已於 2026-10-26 裁決，這個理由已不成立；外部 API 風險那個理由照舊〕。
@@ -398,9 +399,9 @@ E5 入帳：#11、#13 改了之後，`main-window.js`、`sync/apply.js` 兩檔�
 - **U-14**（2026-10-26 了結：monkeypatch 可行，`system-memory.js` 呼叫時才取 `os.totalmem`，不必重新 `require` → §4c 施工紀錄）#8 留的話，「`os.totalmem` 回 0 ⇒ `null`」目前沒有測試能注入；monkeypatch 的做法施工時才確認可行。
 - **U-15** `login.live.com` 在要了 `offline_access` 時會不會合法地不給 `refresh_token`——Microsoft 文件沒讀（#15 的反例就建在這裡）。
 - **U-16**（2026-10-26 了結：臨時 worktree 裡兩種順序 `git revert --no-commit` 都無衝突、結果相同 → §4f 施工紀錄）4e 與 4f 對 `test/minecraft-ipc-launch.test.cjs` 的 revert 互不干擾（推論，施工時實測）。
-- **U-17** Q13 方案 A：(1) 事先找空埠再交給正式程式之間有極小的搶埠空檔；(2) 正式程式 `listen(port, "localhost")` 與假視窗 `http.get("localhost:…")` 解析到同一個位址（IPv4／IPv6）——都是推論，沒寫原型驗。A 的「約 150 行」是估計。
+- **U-17**（2026-10-26 了結：本機實跑通——正式程式的 loopback 與假視窗的 `http.get("localhost")` 接得上，兩個 Node 版本、freeze 16 跑都綠 → §4g 施工紀錄）Q13 方案 A：(1) 事先找空埠再交給正式程式之間有極小的搶埠空檔；(2) 正式程式 `listen(port, "localhost")` 與假視窗 `http.get("localhost:…")` 解析到同一個位址（IPv4／IPv6）——都是推論，沒寫原型驗。A 的「約 150 行」是估計。
 - **U-18**（2026-10-26 了結）#15 的 GGL 產品契約原本是由 token-refresh plan 的目標推得；owner 已以 Q14(1) 正式決定（→ §裁決）。了結的只是產品契約，**Microsoft 外部協定照舊未驗（U-15）**。
-- **U-19** #15 測試 7（`account-ui` 映射）的可行性是讀碼推論：`init` 會以 `document`、`window` 為目標綁事件（`renderer/account-ui.js:407-437`），測試要設 `global.document` 並注入 `onDom`；`fake-dom` 是否不必改就跑得動，施工時驗。
+- **U-19**（2026-10-26 了結：`fake-dom` 不用改就跑得動 → §4g 施工紀錄）#15 測試 7（`account-ui` 映射）的可行性是讀碼推論：`init` 會以 `document`、`window` 為目標綁事件（`renderer/account-ui.js:407-437`），測試要設 `global.document` 並注入 `onDom`；`fake-dom` 是否不必改就跑得動，施工時驗。〔對齊 2026-10-26：→ `602c1b9`（plans/cross-review-2026-10-phase6b4.md 4g）：`renderer/account-ui.js:407-437` 後 `:409-439`〕
 - **C-1**（2026-10-26 了結：owner 選 (b) 一行文案 → §裁決）。剩下的未驗：新文案在狀態列會不會被截斷沒量，owner 接受。
 - Web 分支在非續傳下載失敗後刪 `.tmp` 的那一行（`net-fetch.js:272`）沒有測試斷言（→ §新發現 N10）；本批不改它。〔對齊 2026-10-26：→ `badebe9`（plans/cross-review-2026-10-phase6b4.md 4a）：`net-fetch.js:272` 未移動〕
 
@@ -510,6 +511,23 @@ E5 入帳：#11、#13 改了之後，`main-window.js`、`sync/apply.js` 兩檔�
 - **啟動**（同 4a 的隔離方式，debug 關）：開機到 `start_main_done`，沒有新的兩個事件、沒有 TypeError、沒有殘留行程。這 15 秒內有沒有算過一次狀態沒確認，所以不證明正常路徑一定不會觸發。
 - **owner GUI**：「啟動正常」（驗收出處）。CC 建議的「按一次重新檢查、看常駐日誌有沒有新事件」有沒有做**未確認**。錯誤路徑實機碰不到，只有自動測試驗。
 - **沒跑**：打包。
+
+## 4g 施工紀錄（2026-10-26，基準 `702f7b6`，commit `602c1b9`；本紀錄在之後的 docs commit 補寫）〔實測〕
+
+**驗收出處**：〔轉述〕owner 2026-10-26（與 CC 對話）「commit，登入正常，4g 驗收過」。
+**授權出處**：→ §裁決「4g 施工授權」。
+
+- **改動**（numstat +／-）：`main/microsoft-auth.js` 8／1（`MS_TOKEN_EMPTY` 檢查後加：沒有 `refresh_token` ⇒ `makeLoginError("MS_REFRESH_TOKEN_MISSING", "Microsoft 沒有提供 refresh_token")`，兩行理由指向 #15、Q14；回傳的 `msRefreshToken` 改直接取值；換新的「沒帶新的保留舊值」沒動）；`renderer/account-ui.js` 2／0（`formatLoginError` 加 case，文案照 §裁決 Q14(2)）；新檔 `test/microsoft-auth-login.test.cjs` 256／0（本檔內的假 `BrowserWindow`＋`Module._load` 只換 `electron`；假 fetch 只認 6 個端點、清單外丟；帳號寫暫存資料夾；事先找好的空埠）；新檔 `test/renderer-account-ui.test.cjs` 75／0。合計 4 檔 +341／-1。
+- **測試對應**（→ #15「裁決後的施工規格」）：L1＝測試 1–3（同一次登入：reject 的訊息是 `LOGIN_ERR|MS_REFRESH_TOKEN_MISSING|…` 且不含假 token、fetch 只打 token 端點、暫存帳號檔不存在、沒送「登入完成」、視窗已關、埠已釋放）；L2＝測試 4（6 個端點各一次、帳號寫入、讀回的 `msRefreshToken` 對、「登入完成」一次、埠已釋放）；測試 5＝既有 `microsoft-auth-refresh` 照綠；L3＋L1／L2 的埠與帳號檔斷言＝測試 6；A1 兩列＝測試 7（`MS_TOKEN_EMPTY` 對照列沿用原文案）。
+- **偏離**：(1) 測試 1–3 合成 L1 一案。(2) 測試檔 256 行（Q13 估約 150 行，§裁決 寫明估計不是目標）：多出來的主要是 prettier 折行與隔離斷言；停止條件都沒踩到——沒改共用的 `fake-electron`／`fake-dom`、沒改正式登入的架構、假視窗只用到 Q13 表列的成員。(3) 畫面測試檔名定為 `renderer-account-ui.test.cjs`（照 `renderer-*-ui` 命名）。驗收單已列，owner 未異議。
+- **修前紅燈**（先寫測試、未動正式程式）：L1 紅（登入照樣成功、沒有 reject）、A1 新碼那列紅（拿到「登入失敗（請稍後重試）」）；L2、L3、A1 的 `MS_TOKEN_EMPTY` 列綠——與規格預測相同。同一次跑也了結 U-17（真的 loopback＋假視窗在本機接得上）與 U-19（`fake-dom` 不用改）。
+- **修後**：三個檔（含 `microsoft-auth-refresh`）26／26；全套 Node 24.14.1 與 22.23.4 都 **1357／1357**（1352＋L1–L3＋A1 兩列）。
+- **反向驗證**（腳本暫改、跑三個檔、寫回，sha256 相同）：A 拿掉登入的檢查 ⇒ 只有 L1 紅；B 拿掉 renderer 的 case ⇒ 只有 A1 新碼那列紅；C 換新拿掉 `|| refreshToken` ⇒ 只有既有的「換新回應沒帶新的 refresh_token → 保留舊值」紅。
+- **freeze**（`microsoft-auth-login` × 0–7 × 兩個 Node 版本＝16 跑）：全綠。每跑收到 2 個請求（L1、L2 各一個回呼）；offset 0、1 各卡 1 次，offset 2–7 卡 0 次（不算數）——兩個請求在兩個版本都至少被卡過一次。
+- **靜態**：兩個正式檔在 HEAD 就合 prettier、改後照舊；兩個新檔經 prettier。`lint`、`check:ui-css` 一般／strict、`git diff --check` exit 0。conventions 的 commit 前 rg 命中 1 行：測試檔接 reject 用的 `catch (e)`，不是正式程式；對照組（main／renderer 的反向 diff）命中 1。commit 時 pre-commit 通過。
+- **啟動**（同 4a 的隔離方式，debug 關）：開機到 `start_main_done`，沒有其他事件、沒有 TypeError、沒有殘留行程。
+- **owner GUI**：登入正常（驗收出處）。缺 refresh token 的路徑實機碰不到，只有自動測試驗。
+- **沒跑**：打包；U-15（Microsoft 會不會合法地不給 refresh token）照舊未查。
 
 ## 新發現（盤點外，預設進 future-work，owner 可改）
 
