@@ -5,6 +5,6 @@
 - [審查文件要附脈絡](review-docs-with-context.md) — 要 owner 裁決的文件：附為什麼、列 CC 偏好與可能錯處、不壓縮問題
 - [Claude 桌面版關 Cowork](claude-desktop-cowork-off.md) — HKCU 政策關 Cowork 防 10GB vhdx；資料在 %LOCALAPPDATA%\Claude-Data
 - [驗證要省時](verification-time-budget.md) — 長驗證先講預估、平行跑（freeze 一開始就並行）、小改只跑該檔；但 Node 22 那輪不能省
-- [Git Bash 無聲陷阱](git-bash-silent-traps.md) — TZ=Asia/Taipei 印的是 UTC、sd -F 不吃跨行字面；都不報錯
+- [Git Bash 無聲陷阱](git-bash-silent-traps.md) — TZ=Asia/Taipei 印的是 UTC、sd -F 不吃跨行字面、Python write_text 寫成 CRLF；都不報錯
 - [Node 22 在哪](node22-binary-location.md) — CI 的 22 會浮動（10-23 起 22.23.4）；OpenChatX 那顆 22.18 的 undici 不同、不算 CI 等價；TAP 看 `# tests`
 - [Claude 的 MSIX AppData 轉存](claude-msix-appdata-redirect.md) — 從 Bash 開的程式寫 %APPDATA% 會落到 Claude 套件快取；看真實檔用 es
