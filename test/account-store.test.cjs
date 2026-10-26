@@ -31,7 +31,10 @@ async function sha256OfFile(filePath) {
     .digest("hex");
 }
 
-async function withTempAccountFile(t, { safeStorage } = {}) {
+async function withTempAccountFile(
+  t,
+  { safeStorage, gglError = () => {} } = {},
+) {
   const root = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-account-"));
   t.after(async () => {
     try {
@@ -43,6 +46,7 @@ async function withTempAccountFile(t, { safeStorage } = {}) {
   configureAccountStore({
     getSafeStorage: () => fakeSafeStorage,
     getAccountPath: () => filePath,
+    gglError,
   });
   return filePath;
 }
@@ -275,4 +279,120 @@ test("寫檔用暫存檔＋rename：完成後目錄底下不會留下 .tmp 檔�
   });
   const files = await fsp.readdir(path.dirname(filePath));
   assert.deepEqual(files, [path.basename(filePath)]);
+});
+
+// ── L-SILENT 5：console 與常駐檔都不得出現 token／密文／envelope／原始錯誤訊息（→ _notes/plans/cross-review-2026-10-phase6c.md §L-SILENT）──
+
+test("L-SILENT 5 加密退明文、解密失敗各記一筆：console 與常駐檔只有事件名、field、cause；陽性對照抓得到", async (t) => {
+  const { createGglLog } = require("../lib/ggl-structured-log.js");
+  const MC = "FAKE_TOKEN_6c_mc_access";
+  const MS = "FAKE_TOKEN_6c_ms_refresh";
+  const CIPHER = "FAKE_CIPHERTEXT_6c_disk";
+  const leaky = {
+    encryptStringAsync: async (plaintext) => {
+      throw new Error(`encrypt failed for ${plaintext}`);
+    },
+    decryptStringAsync: async (buf) => {
+      throw new Error(`decrypt failed: ${buf.toString("utf8")}`);
+    },
+  };
+  const logDir = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-6c3-log-"));
+  t.after(() => fsp.rm(logDir, { recursive: true, force: true }));
+  const logFile = path.join(logDir, "ggl-launcher.log");
+  const log = createGglLog({
+    getFilePath: () => logFile,
+    homedir: os.homedir(),
+    maxBytes: 1 << 20,
+  });
+  const filePath = await withTempAccountFile(t, {
+    safeStorage: leaky,
+    gglError: log.gglError,
+  });
+
+  const captured = [];
+  const original = {
+    error: console.error,
+    log: console.log,
+    warn: console.warn,
+  };
+  const capture = (...a) => captured.push(a.map(String).join(" "));
+  console.error = console.log = console.warn = capture;
+  try {
+    await writeAccount({
+      state: ACCOUNT_STATE.ACTIVE,
+      name: "Steve",
+      uuid: "uuid-1",
+      avatarUrl: "",
+      mcAccessToken: MC,
+      msRefreshToken: MS,
+      expiresAt: 1,
+    });
+    const cipher = Buffer.from(CIPHER, "utf8").toString("base64");
+    await writeRawAccountFile(filePath, {
+      mcAccessToken: { version: 1, method: "safeStorage", data: cipher },
+      msRefreshToken: { version: 1, method: "safeStorage", data: cipher },
+    });
+    const acct = await readAccount();
+    assert.equal(acct.state, ACCOUNT_STATE.REAUTH_REQUIRED);
+  } finally {
+    Object.assign(console, original);
+  }
+
+  const consoleText = captured.join("\n");
+  const fileText = await fsp.readFile(logFile, "utf8");
+  const b64 = (s) => Buffer.from(s, "utf8").toString("base64");
+  for (const bad of [
+    MC,
+    MS,
+    CIPHER,
+    b64(MC),
+    b64(MS),
+    b64(CIPHER),
+    "FAKE_",
+    "encrypt failed",
+    "decrypt failed",
+    "safeStorage",
+    "envelope",
+    "stack",
+  ]) {
+    assert.ok(!consoleText.includes(bad), `console 含 ${bad}`);
+    assert.ok(!fileText.includes(bad), `常駐檔含 ${bad}`);
+  }
+  const events = fileText
+    .trim()
+    .split("\n")
+    .map((l) => JSON.parse(l.slice(l.indexOf("{"))));
+  assert.deepEqual(
+    events.map((e) => [e.e, e.d]),
+    [
+      [
+        "token_encrypt_fallback_plaintext",
+        { field: "mcAccessToken", cause: "rejected" },
+      ],
+      [
+        "token_encrypt_fallback_plaintext",
+        { field: "msRefreshToken", cause: "rejected" },
+      ],
+      ["token_decrypt_failed", { field: "mcAccessToken", cause: "rejected" }],
+      ["token_decrypt_failed", { field: "msRefreshToken", cause: "rejected" }],
+    ],
+  );
+  assert.ok(
+    events.every((e) => e.s === "account" && !("err" in e) && !("st" in e)),
+  );
+  assert.equal(captured.length, 4);
+
+  // 陽性對照：把原始錯誤直接交給 gglError 時，同一套收集手段確實抓得到敏感字串
+  const probe = [];
+  console.error = (...a) => probe.push(a.map(String).join(" "));
+  try {
+    log.gglError(
+      "account",
+      "probe_raw_err",
+      new Error(`decrypt failed for ${MC}`),
+    );
+  } finally {
+    Object.assign(console, original);
+  }
+  assert.ok(probe.join("\n").includes(MC));
 });
