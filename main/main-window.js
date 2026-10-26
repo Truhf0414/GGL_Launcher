@@ -80,27 +80,22 @@ function createMainWindow() {
   // Debug 用：把 renderer 的 console 印到主程序
   // 平常不掛，避免噪音與 deprecated 警告
   if (getDebugLoggingEnabled()) {
-    try {
-      // 欄位掛在第一個參數（事件本身）上；level 是 info／warning／error／debug 字串
-      // 〔electron.d.ts WebContentsConsoleMessageEventParams〕。讀第二個參數會拿到舊式的數字，訊息全空
-      mainWindow.webContents.on("console-message", (details) => {
-        const lvl = String(details?.level ?? "");
-        const message = String(details?.message ?? "");
-        const line = Number(details?.lineNumber ?? 0);
-        const sourceId = String(details?.sourceId ?? "");
-        console.log(`[RENDERER:${lvl}] ${message} (${sourceId}:${line})`);
-      });
-    } catch {}
+    // 欄位掛在第一個參數（事件本身）上；level 是 info／warning／error／debug 字串
+    // 〔electron.d.ts WebContentsConsoleMessageEventParams〕。讀第二個參數會拿到舊式的數字，訊息全空
+    mainWindow.webContents.on("console-message", (details) => {
+      console.log(
+        `[RENDERER:${details.level}] ${details.message} (${details.sourceId}:${details.lineNumber})`,
+      );
+    });
   }
 
   mainWindow.loadFile(path.join(appRoot, "index.html"));
   // main/single-instance.js 依賴這裡的 show() 取得焦點（視窗顯示前的 second-instance 不另補）；
   // 改成 showInactive 或延後顯示的話，那邊要一起改。
+  // 視窗在 ready-to-show 前被關掉＝時序，跳過；其他失敗不吞（→ _notes/plans/cross-review-2026-10-phase6b4.md #11）
   mainWindow.once("ready-to-show", () => {
-    try {
-      const w = getMainWindow();
-      if (w && !w.isDestroyed()) w.show();
-    } catch {}
+    const w = getMainWindow();
+    if (w && !w.isDestroyed()) w.show();
   });
 
   mainWindow.on("closed", () => {
