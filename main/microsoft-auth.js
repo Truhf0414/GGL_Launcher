@@ -586,6 +586,13 @@ async function loginMicrosoftAndMinecraft() {
   const msAccessToken = msToken.access_token;
   if (!msAccessToken)
     throw makeLoginError("MS_TOKEN_EMPTY", "Microsoft access_token 為空");
+  // 沒有 refresh_token 的帳號撐不過遊戲 token 第一次到期：不算登入成功，後面的 Xbox／Minecraft 都不打
+  // （GGL 的產品契約，不宣稱 Microsoft 必然給；換新時沒帶新的照舊保留舊值 → _notes/plans/cross-review-2026-10-phase6b4.md #15、Q14）
+  if (!msToken.refresh_token)
+    throw makeLoginError(
+      "MS_REFRESH_TOKEN_MISSING",
+      "Microsoft 沒有提供 refresh_token",
+    );
 
   deps.sendSyncStatus("正在取得 Xbox Token…");
   let xbl;
@@ -624,7 +631,7 @@ async function loginMicrosoftAndMinecraft() {
     name: profile.name,
     uuid: profile.id,
     mcAccessToken,
-    msRefreshToken: msToken.refresh_token || "",
+    msRefreshToken: msToken.refresh_token,
     expiresAt,
   };
 }
