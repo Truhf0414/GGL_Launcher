@@ -226,7 +226,7 @@ function bellIpc(getList, dismissed = new Set()) {
 }
 
 const notifs = (list, nowMs = NOW) =>
-  normalizeBroadcastNotifications({ notifications: list }, nowMs);
+  normalizeBroadcastNotifications(list, nowMs);
 
 /** 同步中樞（真的），站台換成可改的假 siteClient；計 gate 被抓了幾次 */
 async function hub(t, { installed }) {

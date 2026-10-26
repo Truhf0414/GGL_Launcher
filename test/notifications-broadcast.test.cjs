@@ -33,24 +33,22 @@ test("notifKeyFor", () => {
 test("normalizeBroadcastNotifications: filters empty and expired", () => {
   const now = new Date("2024-06-01T12:00:00.000Z").getTime();
   const items = normalizeBroadcastNotifications(
-    {
-      notifications: [
-        { title: " ", body: " " },
-        {
-          title: "A",
-          body: "B",
-          priority: 2,
-          createdAt: "2024-05-01T00:00:00.000Z",
-          expiresAt: "2024-05-02T00:00:00.000Z",
-        },
-        {
-          title: "Live",
-          body: "Now",
-          priority: 1,
-          createdAt: "2024-05-01T00:00:00.000Z",
-        },
-      ],
-    },
+    [
+      { title: " ", body: " " },
+      {
+        title: "A",
+        body: "B",
+        priority: 2,
+        createdAt: "2024-05-01T00:00:00.000Z",
+        expiresAt: "2024-05-02T00:00:00.000Z",
+      },
+      {
+        title: "Live",
+        body: "Now",
+        priority: 1,
+        createdAt: "2024-05-01T00:00:00.000Z",
+      },
+    ],
     now,
   );
   assert.equal(items.length, 1);
@@ -61,16 +59,14 @@ test("normalizeBroadcastNotifications: startsAt vs expiresAt tie clears expires"
   const now = new Date("2024-06-01T12:00:00.000Z").getTime();
   const same = "2024-06-01T10:00:00.000Z";
   const items = normalizeBroadcastNotifications(
-    {
-      notifications: [
-        {
-          title: "Edge",
-          body: "Case",
-          startsAt: same,
-          expiresAt: same,
-        },
-      ],
-    },
+    [
+      {
+        title: "Edge",
+        body: "Case",
+        startsAt: same,
+        expiresAt: same,
+      },
+    ],
     now,
   );
   assert.equal(items.length, 1);
