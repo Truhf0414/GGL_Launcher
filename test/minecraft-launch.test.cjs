@@ -12,7 +12,6 @@ const { execFileSync } = require("child_process");
 
 const {
   launchMinecraft,
-  LaunchError,
   configureMinecraftLaunch,
   isMinecraftRunning,
 } = require("../main/minecraft-launch.js");
@@ -108,13 +107,8 @@ async function setup(t, { record = { ...RUNTIME }, fabric, vanilla, settings: ov
 const online = { name: "Steve", uuid: "uuid-1", accessToken: TOKEN };
 const logArgv = (line) => JSON.parse(line.slice(line.indexOf("argv=") + "argv=".length));
 
-test("C8 有效的成品＋缺 javaMajor 的記錄 ⇒ GGL_LAUNCH_NOT_READY、spawn 0 次（記錄那道自己擋得住，⑤c S4）", async (t) => {
-  const { javaMajor, ...rest } = RUNTIME;
-  void javaMajor;
-  const h = await setup(t, { record: rest });
-  await assert.rejects(h.launch(online), (e) => e instanceof LaunchError && e.code === "GGL_LAUNCH_NOT_READY");
-  assert.equal(h.calls.spawn.length, 0);
-});
+// C8 原第一案（有效成品＋缺 javaMajor 的記錄 ⇒ GGL_LAUNCH_NOT_READY）隨啟動的第二道一起撤回：閘不會交出不完整的記錄，
+// 這件事由正式路徑的 runtime-readiness C1、sync-index C12、status-kind 政策表守（→ _notes/plans/cross-review-2026-10-phase6b4.md #6 責任轉移）
 
 test("C8 正常：spawn 收到 javaExeFor 那支、launchId 與真 token；log 那行＝spawn 的 argv 把 token 換成 ***", async (t) => {
   const h = await setup(t);
@@ -354,20 +348,15 @@ test("S4 啟動不讀 json：拿到成品後把兩份 json 刪掉，照樣啟動
   assert.deepEqual(h.calls.spawn[1].args, first);
 });
 
-test("S4 沒有成品 ⇒ GGL_LAUNCH_NOT_READY；成品形狀不對 ⇒ assertLaunchBundle 的 TypeError；都不 spawn", async (t) => {
+// 沒有成品（null／undefined）原本由第二道報 GGL_LAUNCH_NOT_READY；第二道撤掉後同樣由 assertLaunchBundle 擋（它本來就把 null、非物件當形狀不對）
+// （→ _notes/plans/cross-review-2026-10-phase6b4.md #6 責任轉移）
+test("S4 沒有成品或成品形狀不對 ⇒ assertLaunchBundle 的 TypeError；都不 spawn", async (t) => {
   const h = await setup(t);
-  for (const launch of [null, undefined]) {
-    await assert.rejects(
-      h.launch(online, {}, { launch }),
-      (e) => e instanceof LaunchError && e.code === "GGL_LAUNCH_NOT_READY",
-      String(launch),
-    );
-  }
-  for (const launch of [{}, { ...h.bundle, logConfigRel: "" }, { ...h.bundle, versionJarRel: "" }]) {
+  for (const launch of [null, undefined, {}, { ...h.bundle, logConfigRel: "" }, { ...h.bundle, versionJarRel: "" }]) {
     await assert.rejects(
       h.launch(online, {}, { launch }),
       (e) => e instanceof TypeError && /assertLaunchBundle/.test(e.message),
-      JSON.stringify(Object.keys(launch)),
+      launch == null ? String(launch) : JSON.stringify(Object.keys(launch)),
     );
   }
   assert.equal(h.calls.spawn.length, 0);

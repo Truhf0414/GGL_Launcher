@@ -630,7 +630,7 @@ test("W18 real hub: while launching the lock is held and changing the root dir i
 test("C10 啟動丟 LaunchError ⇒ 找不到 Java 跳對應的框，其他 code 不跳；錯誤照丟（⑤c 起啟動不讀 json，沒有「找不到版本」）", async () => {
   const cases = [
     ["GGL_LAUNCH_NO_JAVA", "找不到 Java"],
-    ["GGL_LAUNCH_NOT_READY", null],
+    // GGL_LAUNCH_NOT_READY 那列隨啟動的第二道撤回（碼已不存在；→ _notes/plans/cross-review-2026-10-phase6b4.md #6）
     ["GGL_LAUNCH_SPAWN_FAILED", null],
   ];
   for (const [code, title] of cases) {
