@@ -2171,17 +2171,22 @@ test("C5 runtime 備妥後第 N 個同步檔失敗 ⇒ 記錄不變、舊 launch
   assert.equal(h.calls.prepareRuntime.at(-1).verifyAll, true, "上次沒跑完 ⇒ 這次全驗");
 });
 
-test("C12 就緒走預設 probe：③ 的記錄（沒三欄）⇒ update-available，不是 internal-error", async (t) => {
+// U5（→ _notes/plans/cross-review-2026-10-phase6c.md）：三欄必填後，③ 的記錄＝沒有記錄。
+// writeRecord 寫前就會拒，所以直接寫檔；讀走正式的 readRecord
+test("C12 就緒走預設 probe：③ 的記錄（沒三欄）⇒ not-installed（當成沒有記錄），不是 internal-error", async (t) => {
   const h = await setup(t, { installed: { release: REL_1 } });
-  await writeRecord(h.paths, {
-    format: 3,
-    version: REL_1.version,
-    appliedAt: "2026-10-01T00:00:00.000Z",
-    files: recordFiles(REL_1),
-  }, NO_LOG);
+  await fsp.writeFile(
+    h.paths.syncRecordPath,
+    JSON.stringify({
+      format: 3,
+      version: REL_1.version,
+      appliedAt: "2026-10-01T00:00:00.000Z",
+      files: recordFiles(REL_1),
+    }),
+  );
   const s = await h.sync.getInstanceStatus();
-  assertKind(s, "update-available");
-  assert.deepEqual(s.syncReasons, ["release-differs", "runtime-missing"]);
+  assertKind(s, "not-installed");
+  assert.deepEqual(s.syncReasons, ["no-record", "runtime-missing"]);
 });
 
 test("C12 刪一支 library ⇒ runtime-missing、不能啟動、fn 沒被呼叫", async (t) => {

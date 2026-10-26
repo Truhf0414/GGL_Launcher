@@ -72,7 +72,8 @@ test("C1 全部在 ⇒ ready；java 問的是 root 底下那支", async () => {
   assert.ok(inst.calls.some(([fn, base, rel]) => fn === "isFile" && base === "root" && rel === JAVA_REL));
 });
 
-test("C1 記錄不完整的五種 ⇒ 只有 record、不丟錯、probe 一支都沒被呼叫", async () => {
+// U5：不完整的四種在讀檔邊界就讀成 null，就緒只會收到 null（→ _notes/plans/cross-review-2026-10-phase6c.md U5）
+test("C1 沒有記錄 ⇒ 只有 record、不丟錯、probe 一支都沒被呼叫", async () => {
   const throwing = {
     readJson: async () => {
       throw new Error("readJson 不該被呼叫");
@@ -81,16 +82,7 @@ test("C1 記錄不完整的五種 ⇒ 只有 record、不丟錯、probe 一支�
       throw new Error("isFile 不該被呼叫");
     },
   };
-  const bad = [
-    null,
-    { format: 3, version: "v1", appliedAt: "x", files: [] },
-    record({ loader: { type: "forge", version: "1" } }),
-    record({ loader: { type: "fabric", version: "0.19.3/../../x" } }),
-    record({ minecraft: ".." }),
-  ];
-  for (const r of bad) {
-    assert.deepEqual(await checkRuntimeReady({ record: r, probe: throwing, env: ENV }), { ready: false, missing: ["record"] });
-  }
+  assert.deepEqual(await checkRuntimeReady({ record: null, probe: throwing, env: ENV }), { ready: false, missing: ["record"] });
 });
 
 test("C1 每一個缺項各一案 ⇒ missing 指出那一項", async () => {
