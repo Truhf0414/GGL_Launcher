@@ -26,7 +26,7 @@ test("filterButtonUrl: non-http rejected", () => {
 test("filterButtonUrl: empty allowlist passes any https", () => {
   const u = "https://evil.example/join";
   assert.equal(filterButtonUrl(u, []), u);
-  assert.equal(filterButtonUrl(u, null), u);
+  // 原本還有 allowedHosts 是 null 的一列：清單來自 server-config、一定是陣列（test/server-config.test.cjs 釘住），那條退路已刪（→ _notes/plans/cross-review-2026-10-phase6c.md U4）
 });
 
 test("filterButtonUrl: allowlist blocks other host", () => {
