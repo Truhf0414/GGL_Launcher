@@ -205,6 +205,7 @@ async function setupRealStoreIpc(t, diskOverrides, depsOverrides = {}) {
   accountStore.configureAccountStore({
     getSafeStorage: () => fakeSafeStorage,
     getAccountPath: () => filePath,
+    gglError: () => {}, // 解不開的 token 會記一筆；本檔不驗紀錄，也不碰真的常駐日誌
   });
   const hashBefore = await sha256OfFile(filePath);
   const { ipcMain, calls } = setupIpc({

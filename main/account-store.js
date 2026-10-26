@@ -3,6 +3,7 @@
 // （組 deps、決定存哪個路徑、實際寫檔）。
 const path = require("path");
 const fsp = require("fs/promises");
+const { gglError } = require("./ggl-log");
 const {
   ACCOUNT_STATE,
   TOKEN_READ,
@@ -18,7 +19,27 @@ const defaultDeps = {
   getSafeStorage: () => require("electron").safeStorage,
   getAccountPath: () =>
     path.join(require("electron").app.getPath("userData"), "account.json"),
+  gglError,
 };
+
+/**
+ * token 加解密失敗的常駐紀錄：detail 只有欄位名與 lib 給的固定分類，err 不給
+ * （原始錯誤的 message 會被 console 那行印出，→ _notes/plans/cross-review-2026-10-phase6c.md §L-SILENT）
+ */
+const encryptReport = (field) => ({
+  onEncryptFailed: ({ cause }) =>
+    deps.gglError("account", "token_encrypt_fallback_plaintext", undefined, {
+      field,
+      cause,
+    }),
+});
+const decryptReport = (field) => ({
+  onDecryptFailed: ({ cause }) =>
+    deps.gglError("account", "token_decrypt_failed", undefined, {
+      field,
+      cause,
+    }),
+});
 
 /** @type {typeof defaultDeps} */
 let deps = { ...defaultDeps };
@@ -63,8 +84,16 @@ async function readAccount() {
     avatarUrl: typeof parsed.avatarUrl === "string" ? parsed.avatarUrl : "",
   };
   const safeStorage = deps.getSafeStorage();
-  const mcRead = await readTokenEnvelope(parsed.mcAccessToken, safeStorage);
-  const msRead = await readTokenEnvelope(parsed.msRefreshToken, safeStorage);
+  const mcRead = await readTokenEnvelope(
+    parsed.mcAccessToken,
+    safeStorage,
+    decryptReport("mcAccessToken"),
+  );
+  const msRead = await readTokenEnvelope(
+    parsed.msRefreshToken,
+    safeStorage,
+    decryptReport("msRefreshToken"),
+  );
   const resolved = resolveAccountAfterTokenRead(profile.state, mcRead, msRead);
   if (resolved.temporarilyUnavailable) {
     throw new CredentialsTemporarilyUnavailableError(profile);
@@ -86,10 +115,18 @@ async function serializeAccountForDisk(next) {
     uuid: typeof next.uuid === "string" ? next.uuid : "",
     avatarUrl: typeof next.avatarUrl === "string" ? next.avatarUrl : "",
     mcAccessToken: next.mcAccessToken
-      ? await createTokenEnvelope(next.mcAccessToken, safeStorage)
+      ? await createTokenEnvelope(
+          next.mcAccessToken,
+          safeStorage,
+          encryptReport("mcAccessToken"),
+        )
       : null,
     msRefreshToken: next.msRefreshToken
-      ? await createTokenEnvelope(next.msRefreshToken, safeStorage)
+      ? await createTokenEnvelope(
+          next.msRefreshToken,
+          safeStorage,
+          encryptReport("msRefreshToken"),
+        )
       : null,
     expiresAt: Number.isFinite(next.expiresAt) ? next.expiresAt : null,
   };
