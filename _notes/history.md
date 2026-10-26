@@ -147,6 +147,7 @@
 - 2026-10-27 cross-review Phase 6c-1 commit `8989833`（10 檔，+60／-56）：L-CONTRACT 五處、L-SET、U3-e 兩行——消費端對產出端已保證的值不再再防；越界檢查與進度文字的退路留並寫理由。只改正式程式時紅 18 案（全是測試沒照正式形狀餵值，改 helper）；全套 Node 24.14.1、22.23.4 都 1357／1357；兩個反向驗證都紅；freeze 16 跑綠；owner 驗收過。撞到：反向驗證腳本用 Python `write_text` 寫回，Windows 上 LF 變 CRLF、exit 0，連 `main/sync/index.js` 也被整檔改行尾，比 sha 才發現 → plans/cross-review-2026-10-phase6c.md §6c-1 施工紀錄
 - 2026-10-27 cross-review Phase 6c-2 commit `55e0560`（4 檔，+31／-38）：L-NOTICE——`normalizeBroadcastNotifications` 改收陣列，`notice-feed` 不再包成 v2 的 `{ notifications }`。只改正式程式時紅 14 案（測試照舊形狀呼叫）；全套 Node 24.14.1、22.23.4 都 1357／1357；反向驗證 16／16 紅；freeze 對這個檔沒作用（0 請求）；owner 驗收過 → plans/cross-review-2026-10-phase6c.md §6c-2 施工紀錄
 - 2026-10-27 cross-review Phase 6c-3 commit `1d22050`（5 檔，+384／-39）：L-SILENT（含 B6）——加密退明文、解密失敗各記一筆常駐 `gglError`，`detail` 只有 `field` 與固定的 `cause`，原始錯誤不交出去（console 會印 message）；回呼一進函式就檢查、呼叫時隔離。只改正式程式時紅 10 案；全套 Node 24.14.1、22.23.4 都 1363／1363；假 token 在 console 與常駐檔都 0 次，陽性對照抓得到；五個突變各被抓；owner 驗收過。撞到：測試沒注入 `gglError` 替身時印出 13 行 `log file write failed`，補注入後歸 0 → plans/cross-review-2026-10-phase6c.md §6c-3 施工紀錄
+- 2026-10-27 cross-review Phase 6c-4 commit `588d80e`（8 檔，+46／-32）：U4 照裁決 A——server-config 當出貨的程式碼，按鈕網址與白名單的形狀改由 `test/server-config.test.cjs` 釘住，消費端的型別防護與 example.com 佔位判斷拿掉，http(s)／白名單語意與 IPC、環境變數、站台資料的邊界照留。全套 Node 24.14.1、22.23.4 都 1364／1364；三個改壞的值都被新案抓到；freeze `sync-index` 16 跑綠；owner 驗收過。撞到：`discord-rpc` 的 N8 四案只給 `{ clientId }`，以前被型別防護蓋掉，改成正式形狀 → plans/cross-review-2026-10-phase6c.md §6c-4 施工紀錄
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
