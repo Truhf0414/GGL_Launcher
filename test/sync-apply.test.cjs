@@ -113,6 +113,7 @@ async function plan(paths, { previous = null, next }) {
     playerEditable: [],
     protectedPaths: [],
     verifyAll: false,
+    onHashProgress: () => {},
   });
 }
 
