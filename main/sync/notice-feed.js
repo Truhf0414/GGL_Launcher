@@ -59,10 +59,7 @@ function createNoticeFeed(deps) {
   function snapshotOf(r, nowMs) {
     return {
       notice: r.notice,
-      notifications: normalizeBroadcastNotifications(
-        { notifications: r.notifications },
-        nowMs,
-      ),
+      notifications: normalizeBroadcastNotifications(r.notifications, nowMs),
     };
   }
 
