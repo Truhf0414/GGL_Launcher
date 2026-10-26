@@ -6,6 +6,7 @@ const {
   isRefreshDue,
 } = require("../../lib/account-secret");
 const { describeStatus } = require("../../lib/sync/status-text.js");
+const { KINDS } = require("../../lib/sync/status-kind.js");
 
 function registerMinecraftIpc(ctx) {
   const { ipcMain, deps, showInfoDialog } = ctx;
@@ -18,13 +19,18 @@ function registerMinecraftIpc(ctx) {
     ],
   };
 
+  // describeStatus 丟錯＝bug：照樣跳框（通用字），常駐日誌只記白名單過的 kind
+  // （→ _notes/plans/cross-review-2026-10-phase6b4.md §Q4）
   async function explainLaunchBlocked(status) {
     let text;
     try {
       const { headline, details } = describeStatus(status);
       text = [headline, ...details].join("\n");
-    } catch {
-      text = `目前無法啟動（狀態：${status?.kind}）。`;
+    } catch (err) {
+      deps.gglError("main", "launch_blocked_text_failed", err, {
+        kind: KINDS.includes(status.kind) ? status.kind : "unknown",
+      });
+      text = `目前無法啟動（狀態：${status.kind}）。`;
     }
     await showInfoDialog("無法啟動", text);
   }

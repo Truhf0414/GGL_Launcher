@@ -1,5 +1,6 @@
 const { IPC } = require("../lib/ipc-channels");
 const { describeStatus } = require("../lib/sync/status-text.js");
+const { KINDS } = require("../lib/sync/status-kind.js");
 
 // 狀態類事件講的是「現在的狀態」：送出時記住最後一筆（視窗不存在也記），
 // 畫面喊 renderer:ready 時各重送一筆給它——送出當下畫面還沒在聽也不會漏。
@@ -87,14 +88,18 @@ function createIpcBridgeSenders(deps) {
     send(IPC.on.RPC_NOTICE, { text });
   }
 
-  // describeStatus 丟錯＝bug（未知 kind／原因）；照樣送出，不然中樞吞錯、畫面停在上一筆
+  // describeStatus 丟錯＝bug（未知 kind／原因）；照樣送出，不然中樞吞錯、畫面停在上一筆。
+  // 常駐日誌只記白名單過的 kind，訊息只進 debug log（→ _notes/plans/cross-review-2026-10-phase6b4.md §Q4）
   function textOf(status) {
     try {
       return describeStatus(status);
     } catch (err) {
+      deps.gglError("main", "instance_status_text_failed", err, {
+        kind: KINDS.includes(status.kind) ? status.kind : "unknown",
+      });
       void deps.appendLauncherLog(`INSTANCE_TEXT_ERROR ${err?.stack ?? err}`);
       return {
-        headline: `啟動器內部錯誤，請回報（狀態：${status?.kind}）`,
+        headline: `啟動器內部錯誤，請回報（狀態：${status.kind}）`,
         details: [],
       };
     }
