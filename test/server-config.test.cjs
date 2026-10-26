@@ -47,3 +47,25 @@ test("server-config: loopbackPort 為合法 port", () => {
   const port = serverConfig.microsoftAuth.loopbackPort;
   assert.ok(Number.isInteger(port) && port >= 1 && port <= 65535, String(port));
 });
+
+// → _notes/plans/cross-review-2026-10-phase6c.md U4：lib/manifest-url-configured.js、lib/discord-button-url.js
+// 不再在執行期防這些值的型別，保證改由這裡釘住（值跟程式一起出貨）
+test('U4 server-config：manifestUrl 是字串；Discord 按鈕網址是 "" 或解析得了的 http(s)；白名單是小寫、去過空白的非空字串陣列', () => {
+  assert.equal(typeof serverConfig.manifestUrl, "string");
+  const { inviteUrl, downloadLauncherUrl, allowedButtonHosts } =
+    serverConfig.discord;
+  for (const [name, u] of [
+    ["inviteUrl", inviteUrl],
+    ["downloadLauncherUrl", downloadLauncherUrl],
+  ]) {
+    assert.equal(typeof u, "string", name);
+    if (u === "") continue;
+    assert.match(u, /^https?:\/\//, name);
+    assert.doesNotThrow(() => new URL(u), name);
+  }
+  assert.ok(Array.isArray(allowedButtonHosts));
+  for (const h of allowedButtonHosts) {
+    assert.equal(typeof h, "string");
+    assert.ok(h !== "" && h === h.trim().toLowerCase(), h);
+  }
+});

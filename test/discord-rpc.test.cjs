@@ -49,8 +49,10 @@ const {
   tryStartDiscordRpcHelper,
 } = require("../main/discord-rpc.js");
 
-const UNSET = Object.freeze({ clientId: "" });
-const SET = Object.freeze({ clientId: "test-client" });
+// 正式的 discord 區塊（lib/server-config.js）只換 clientId：按鈕網址等欄位照正式形狀給（→ _notes/plans/cross-review-2026-10-phase6c.md U4）
+const DISCORD = require("../lib/server-config.js").discord;
+const UNSET = Object.freeze({ ...DISCORD, clientId: "" });
+const SET = Object.freeze({ ...DISCORD, clientId: "test-client" });
 const UNSET_TEXT = "Discord 狀態未啟用（未設定 Client ID）";
 const FAILED_TEXT = "Discord 狀態啟動失敗（helper 無法啟動）";
 

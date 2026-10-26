@@ -421,8 +421,9 @@ test(
   },
 );
 
+// 原本還跑 example.com 佔位那一輪：佔位範本早已不存在，那條退路已刪（→ _notes/plans/cross-review-2026-10-phase6c.md U4）
 test("N12 沒設定更新來源 ⇒ unconfigured、站台一次都沒抓", async (t) => {
-  for (const manifestUrl of ["", "https://example.com/manifest.json"]) {
+  for (const manifestUrl of [""]) {
     const h = await setup(t, { installed: { release: REL_1 } });
     h.deps.serverConfig.manifestUrl = manifestUrl;
     const sync = createInstanceSync(h.deps);
