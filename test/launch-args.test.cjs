@@ -553,7 +553,8 @@ test("N3b launchPlaceholders：20 個 key 全給、沒值的 8 個是 null；線
     [off.auth_player_name, off.auth_uuid, off.auth_access_token],
     ["Alex", "00000000-0000-0000-0000-000000000000", "0"],
   );
-  assert.equal(launchPlaceholders(phInput({ auth: undefined })).auth_player_name, "Player001");
+  // 「沒給 auth ⇒ Player001」撤回：假跑改傳 { name: "check" }（N3 照綠），正版名字由帳號邊界保證
+  // （→ _notes/plans/cross-review-2026-10-phase6c.md L-DUP、§D2 的要求）
 
   const m = mergedFixtures();
   for (const type of ["", undefined, 5]) {
