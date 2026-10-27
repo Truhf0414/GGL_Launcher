@@ -1,16 +1,13 @@
 // Renderer UI helpers: "ready" status policy.
 // Loaded before renderer.js via index.html.
 (function () {
-  function createReadyStatus(input) {
-    const ctx = input?.ctx || null;
-    const fx = ctx?.fx || {};
-
-    const setStatus = input?.setStatus || fx.setStatus || (() => {});
-    const statusGuard = input?.statusGuard || {
-      isErrorGuardActive: () => false,
-    };
-    const getBusyState = input?.getBusyState || (() => ({}));
-    const getInstanceStatus = input?.getInstanceStatus || (() => null);
+  function createReadyStatus({
+    ctx,
+    statusGuard,
+    getBusyState,
+    getInstanceStatus,
+  }) {
+    const { setStatus } = ctx.fx;
 
     // 「準備就緒」＝可啟動（離線但本機齊也算；無法確認最新版靠狀態區的 note）
     function isInstanceReady() {
@@ -23,7 +20,7 @@
       const { launcherBusy, gameRunning } = getBusyState();
       if (launcherBusy) return;
       if (gameRunning) return;
-      if (statusGuard?.isErrorGuardActive?.()) return;
+      if (statusGuard.isErrorGuardActive()) return;
       // 還沒收到第一筆狀態＝不知道能不能啟動：留著開啟時的文字
       if (getInstanceStatus() == null) return;
       setStatus(isInstanceReady() ? "準備就緒" : "", 0);

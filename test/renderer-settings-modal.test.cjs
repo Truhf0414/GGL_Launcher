@@ -8,7 +8,12 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("path");
 
-const { makeEl, loadRendererModule, onDom } = require("./helpers/fake-dom.cjs");
+const {
+  makeEl,
+  loadRendererModule,
+  onDom,
+  makeCtx,
+} = require("./helpers/fake-dom.cjs");
 const settingsFormat = require("../lib/settings-format.js");
 const { computeMemoryUiModel } = require("../lib/settings-logic.js");
 
@@ -73,22 +78,26 @@ function setup(t, { settings = SAVED, set = async (p) => p, recheck = async () =
     };
   }
   const modal = win.GglRendererSettingsModal.createSettingsModal({
-    ...refs,
-    safeInvoke: async (channel, arg) => {
-      record.invoked.push([channel, arg]);
-      if (channel === "settings:get") return { ...settings };
-      if (channel === "settings:set") return set(arg);
-      if (channel === "instance:recheck") return recheck();
-      throw new Error(`沒預期的 invoke：${channel}`);
-    },
-    setStatusError: (text) => record.statusErrors.push(text),
-    openOverlay: () => record.opened++,
-    closeOverlay: () => record.closed++,
-    onDom,
-    trackTimeout: (x) => x,
-    ANIM_MS: 0,
-    loadServerDefaults: async () => ({}),
-    computeMemoryUiModel,
+    ctx: makeCtx({
+      fx: {
+        safeInvoke: async (channel, arg) => {
+          record.invoked.push([channel, arg]);
+          if (channel === "settings:get") return { ...settings };
+          if (channel === "settings:set") return set(arg);
+          if (channel === "instance:recheck") return recheck();
+          throw new Error(`沒預期的 invoke：${channel}`);
+        },
+        setStatusError: (text) => record.statusErrors.push(text),
+        openOverlay: () => record.opened++,
+        closeOverlay: () => record.closed++,
+        onDom,
+        trackTimeout: (x) => x,
+        loadServerDefaults: async () => ({}),
+        computeMemoryUiModel,
+      },
+      ui: refs,
+      consts: { ANIM_MS: 0 },
+    }),
   });
   modal.init();
   const channels = () => record.invoked.map(([ch]) => ch);

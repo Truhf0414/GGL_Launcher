@@ -63,54 +63,20 @@
       stage = "ui_refs";
       const uiRefs = BCTX.buildUiRefs(el);
       stage = "ctx";
+      // bootstrap 自己用到的幾個；各模組從 ctx.ui 拿
       const {
-        btnMinimize,
-        btnClose,
-        btnSettings,
-        btnBell,
-        btnLogin,
-        btnDiscord,
-        btnLaunch,
-        btnOfflineLink,
         statusText,
         progressBar,
         progressRoot,
-        accountName,
+        btnLaunch,
         instanceStatusText,
-        instanceStatusNote,
-        btnCopyErrorDetail,
-        noticeTitle,
-        noticeDate,
-        noticeLog,
-        noticeThumb,
-        avatarEl,
-        serverStatusDot,
-        serverStatusText,
-        settingsModal,
-        settingsBackdrop,
-        btnSettingsClose,
-        btnSaveSettings,
-        btnExportDiagnostics,
-        btnRepair,
-        repairModal,
-        repairBackdrop,
-        repairList,
-        repairEmpty,
-        btnRepairConfirm,
-        btnRepairCancel,
-        inputInstallDir,
-        btnPickDir,
-        inputOfflinePlayerId,
-        inputMinMemoryGb,
-        inputMaxMemoryGb,
-        settingsError,
-        memAutoHint,
         notifOverlay,
+        notifList,
+        notifEmpty,
+        notifFooter,
+        btnBell,
         btnNotifClose,
         btnNotifClear,
-        notifFooter,
-        notifEmpty,
-        notifList,
       } = uiRefs;
 
       const UI = mod("GglRendererUiStatus");
@@ -143,55 +109,7 @@
         setStatusError,
         setStatusVisibility,
         computeMemoryUiModel,
-        ui: {
-          btnMinimize,
-          btnClose,
-          btnSettings,
-          btnBell,
-          btnLogin,
-          btnDiscord,
-          btnLaunch,
-          btnOfflineLink,
-          statusText,
-          progressBar,
-          progressRoot,
-          accountName,
-          instanceStatusText,
-          instanceStatusNote,
-          btnCopyErrorDetail,
-          noticeTitle,
-          noticeDate,
-          noticeLog,
-          noticeThumb,
-          avatarEl,
-          serverStatusDot,
-          serverStatusText,
-          notifOverlay,
-          btnNotifClose,
-          btnNotifClear,
-          notifFooter,
-          notifEmpty,
-          notifList,
-          settingsModal,
-          settingsBackdrop,
-          btnSettingsClose,
-          btnSaveSettings,
-          btnExportDiagnostics,
-          btnRepair,
-          repairModal,
-          repairBackdrop,
-          repairList,
-          repairEmpty,
-          btnRepairConfirm,
-          btnRepairCancel,
-          inputInstallDir,
-          btnPickDir,
-          inputOfflinePlayerId,
-          inputMinMemoryGb,
-          inputMaxMemoryGb,
-          settingsError,
-          memAutoHint,
-        },
+        ui: uiRefs,
         ANIM_MS,
         loadServerDefaults,
       });
@@ -210,7 +128,7 @@
       });
 
       function setInstanceStatus(text) {
-        if (instanceStatusText) instanceStatusText.textContent = text;
+        instanceStatusText.textContent = text;
       }
 
       const windowControls = mod(
@@ -328,7 +246,6 @@
         ctx,
         notifUi,
         setInstanceStatus,
-        getAccountState: () => accountState,
         setAccountState: (s) => {
           accountState = s;
         },
@@ -336,7 +253,6 @@
       });
 
       return {
-        el,
         onDom,
         safeInvokeSilent,
         trackDomCleanup,
@@ -365,10 +281,7 @@
 
     function activate(m) {
       stage = "GglRendererBackgroundVideo.init";
-      m.backgroundVideo.initBackgroundVideo({
-        sourceEl: m.el("bgVideoSource"),
-        bgRoot: document.querySelector(".app-bg"),
-      });
+      m.backgroundVideo.initBackgroundVideo();
 
       stage = "GglRendererSettingsModal.init";
       m.settingsModalUi.init();

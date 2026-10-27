@@ -12,11 +12,13 @@ const {
   fakeDocument,
   loadRendererModule,
   onDom,
+  makeCtx,
 } = require("./helpers/fake-dom.cjs");
 
 const REPAIR_UI = path.join(__dirname, "..", "renderer", "repair-ui.js");
 
 function setup({ stray, repair = async () => ({ movedAside: [] }) }) {
+  global.document = fakeDocument;
   const win = loadRendererModule(REPAIR_UI);
   const refs = {
     repairModal: makeEl(),
@@ -32,22 +34,25 @@ function setup({ stray, repair = async () => ({ movedAside: [] }) }) {
   const openedP = new Promise((r) => (opened = r));
   const record = { invoked: [], errors: [], opens: 0 };
   const repairUi = win.GglRendererRepairUi.createRepairUi({
-    ...refs,
-    doc: fakeDocument,
-    onDom,
-    safeInvoke: async (channel, ...args) => {
-      record.invoked.push([channel, ...args]);
-      if (channel === "instance:listStrayJars") return stray();
-      if (channel === "instance:repair") return repair(...args);
-      throw new Error(`沒預期的 invoke：${channel}`);
-    },
-    setStatus: () => {},
-    setStatusError: (text) => record.errors.push(text),
-    openOverlay: () => {
-      record.opens++;
-      opened();
-    },
-    closeOverlay: () => {},
+    ctx: makeCtx({
+      fx: {
+        onDom,
+        safeInvoke: async (channel, ...args) => {
+          record.invoked.push([channel, ...args]);
+          if (channel === "instance:listStrayJars") return stray();
+          if (channel === "instance:repair") return repair(...args);
+          throw new Error(`沒預期的 invoke：${channel}`);
+        },
+        setStatus: () => {},
+        setStatusError: (text) => record.errors.push(text),
+        openOverlay: () => {
+          record.opens++;
+          opened();
+        },
+        closeOverlay: () => {},
+      },
+      ui: refs,
+    }),
     getInstanceStatus: () => ({ allowed: { repair: true } }),
     getBusyState: () => ({ launcherBusy, gameRunning: false }),
     setLauncherBusy: (v) => {

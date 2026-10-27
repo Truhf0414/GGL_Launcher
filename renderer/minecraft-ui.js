@@ -1,23 +1,17 @@
 // Renderer UI helpers: minecraft IPC handlers + watchdog.
 // Loaded before renderer.js via index.html.
 (function () {
-  function createMinecraftUi(input) {
-    const ctx = input?.ctx || null;
-    const fx = ctx?.fx || {};
-
-    const safeInvoke = input?.safeInvoke || fx.safeInvoke;
-    const onIpc = input?.onIpc || fx.onIpc;
-    const trackInterval =
-      input?.trackInterval || fx.trackInterval || ((x) => x);
-    // 遊戲期間的按鈕由 gameRunning 管，不寫 busy（B17）
-    const updateLaunchButtonUi = input?.updateLaunchButtonUi || (() => {});
-    const setStatus = input?.setStatus || fx.setStatus || (() => {});
-    const ensureReadyStatusText = input?.ensureReadyStatusText || (() => {});
-    const isInstanceReady = input?.isInstanceReady || (() => false);
-    const getBusyState = input?.getBusyState || (() => ({}));
-    const setBusyState = input?.setBusyState || (() => {});
-    const setStatusVisibility =
-      input?.setStatusVisibility || fx.setStatusVisibility || (() => {});
+  // 遊戲期間的按鈕由 gameRunning 管，不寫 busy（B17）
+  function createMinecraftUi({
+    ctx,
+    updateLaunchButtonUi,
+    ensureReadyStatusText,
+    isInstanceReady,
+    getBusyState,
+    setBusyState,
+  }) {
+    const { safeInvoke, onIpc, trackInterval, setStatus, setStatusVisibility } =
+      ctx.fx;
 
     let mcWatchdogTimer = null;
 

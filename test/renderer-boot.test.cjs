@@ -514,6 +514,60 @@ test("U7 上線段最後一步才失敗、請求晚回來 ⇒ 故障區的字還
   assert.equal(env.calls.close, 1);
 });
 
+/** 被測函式原始碼裡，解構出來的名字：`function f({ a, b })` 的參數、`const { x, y } = ctx.fx` 的左邊 */
+function destructuredNames(src, pattern) {
+  const out = [];
+  for (const m of src.matchAll(pattern)) {
+    for (const part of m[1].replace(/\/\/[^\n]*/g, "").split(",")) {
+      const name = part.split(":")[0].trim();
+      if (name) out.push(name);
+    }
+  }
+  return out;
+}
+
+test("W1 依賴齊全：bootstrap 交給每個 createX 的參數、ctx.fx／ui／consts，涵蓋每支模組解構的名字（R-B 拆掉空函式預設後的接手機制）", (t) => {
+  const env = setupEnv(t);
+  loadScripts();
+  const inputs = new Map();
+  for (const [g, mod] of Object.entries(env.win)) {
+    if (!g.startsWith("GglRenderer")) continue;
+    for (const [fn, create] of Object.entries(mod)) {
+      if (!/^create[A-Z]/.test(fn) || typeof create !== "function") continue;
+      mod[fn] = (input) => {
+        inputs.set(`${g}.${fn}`, { input, src: create.toString() });
+        return create(input);
+      };
+    }
+  }
+  env.win.GglRendererBootstrap.start();
+
+  let checked = 0;
+  for (const [name, { input, src }] of inputs) {
+    if (name.startsWith("GglRendererUiStatus.")) continue; // createStatusGuard 不收參數
+    const params = destructuredNames(src, /^function \w+\(\{([^}]*)\}\)/g);
+    assert.ok(params.includes("ctx"), `${name} 的參數抽不到：抽取手段壞了`);
+    for (const p of params) {
+      assert.notEqual(input[p], undefined, `${name} 少了 ${p}`);
+      checked += 1;
+    }
+    for (const part of ["fx", "ui", "consts"]) {
+      const re = new RegExp(`const \\{([^}]*)\\} =\\s*ctx\\.${part};`, "g");
+      for (const p of destructuredNames(src, re)) {
+        const key = p.split(" ")[0];
+        assert.notEqual(
+          input.ctx[part][key],
+          undefined,
+          `${name} 的 ctx.${part} 少了 ${key}`,
+        );
+        checked += 1;
+      }
+    }
+  }
+  assert.ok(inputs.size >= 13, `只抓到 ${inputs.size} 個 createX`);
+  assert.ok(checked >= 60, `只驗到 ${checked} 個名字：抽取手段壞了`);
+});
+
 test("G1 每支 renderer/*.js 都恰好定義一個 window global（照 index.html 的順序載入）", (t) => {
   setupEnv(t);
   const rendererScripts = SCRIPTS.filter((s) => s.startsWith("./renderer/"));

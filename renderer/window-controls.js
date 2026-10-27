@@ -1,18 +1,9 @@
 // Renderer UI helpers: window control buttons + external links.
 // Loaded before renderer.js via index.html.
 (function () {
-  function createWindowControls(input) {
-    const ctx = input?.ctx || null;
-    const fx = ctx?.fx || {};
-    const ui = ctx?.ui || {};
-
-    const safeInvokeSilent = input?.safeInvokeSilent || fx.safeInvokeSilent;
-    const onDom = input?.onDom || fx.onDom;
-    const loadServerDefaults =
-      input?.loadServerDefaults || fx.loadServerDefaults;
-    const btnMinimize = input?.btnMinimize || ui.btnMinimize;
-    const btnClose = input?.btnClose || ui.btnClose;
-    const btnDiscord = input?.btnDiscord || ui.btnDiscord;
+  function createWindowControls({ ctx }) {
+    const { safeInvokeSilent, onDom, loadServerDefaults } = ctx.fx;
+    const { btnMinimize, btnClose, btnDiscord } = ctx.ui;
 
     function init() {
       onDom(btnMinimize, "click", () => safeInvokeSilent("window:minimize"));

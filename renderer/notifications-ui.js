@@ -1,15 +1,8 @@
 // Renderer UI helpers: notifications panel + unread indicator.
 // Loaded before renderer.js via index.html.
 (function () {
-  function createNotificationsUi(input) {
-    const ctx = input?.ctx || null;
-    const fx = ctx?.fx || {};
-
-    const safeInvoke = input?.safeInvoke || fx.safeInvoke;
-    const openOverlay = input?.openOverlay || fx.openOverlay || (() => {});
-    const closeOverlay = input?.closeOverlay || fx.closeOverlay || (() => {});
-    const setStatusError =
-      input?.setStatusError || fx.setStatusError || (() => {});
+  function createNotificationsUi({ ctx }) {
+    const { safeInvoke, openOverlay, closeOverlay, setStatusError } = ctx.fx;
 
     const NOTIF_LAST_SEEN_KEY_STORAGE = "ggl:notifLastSeenKey:v1";
 
@@ -30,7 +23,7 @@
     let lastSeenNotifKey = loadLastSeenNotifKey();
 
     function setBellUnreadDot(btnBell, hasUnread) {
-      btnBell?.classList?.toggle("has-unread", Boolean(hasUnread));
+      btnBell.classList.toggle("has-unread", Boolean(hasUnread));
     }
 
     async function fetchNotifications() {
@@ -66,14 +59,14 @@
       if (list.length === 0) {
         notifEmpty.classList.remove("hidden");
         notifList.classList.add("hidden");
-        notifFooter?.classList?.add("hidden");
+        notifFooter.classList.add("hidden");
         setBellUnreadDot(btnBell, false);
         return { items: [], unreadCount };
       }
 
       notifEmpty.classList.add("hidden");
       notifList.classList.remove("hidden");
-      notifFooter?.classList?.remove("hidden");
+      notifFooter.classList.remove("hidden");
 
       for (const n of list) {
         const wrap = document.createElement("div");

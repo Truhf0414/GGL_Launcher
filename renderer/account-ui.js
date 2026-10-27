@@ -3,31 +3,22 @@
 (function () {
   const { ACCOUNT_STATE } = window.GglRendererConstants;
 
-  function createAccountUi(input) {
-    const ctx = input?.ctx || null;
-    const fx = ctx?.fx || {};
-    const ui = ctx?.ui || {};
-    const consts = ctx?.consts || {};
-
-    const safeInvoke = input?.safeInvoke || fx.safeInvoke;
-    const setStatus = input?.setStatus || fx.setStatus;
-    const setStatusError = input?.setStatusError || fx.setStatusError;
-    const onDom = input?.onDom || fx.onDom;
-    const ANIM_MS = input?.ANIM_MS ?? consts.ANIM_MS;
-    const btnLogin = input?.btnLogin || ui.btnLogin;
-    const accountName = input?.accountName || ui.accountName;
-    const avatarEl = input?.avatarEl || ui.avatarEl;
-    const getAccountState = input?.getAccountState || (() => ({}));
-    const setAccountState = input?.setAccountState || (() => {});
-    const updateLaunchButtonUi = input?.updateLaunchButtonUi || (() => {});
-    const ensureReadyStatusText = input?.ensureReadyStatusText || (() => {});
+  function createAccountUi({
+    ctx,
+    getAccountState,
+    setAccountState,
+    updateLaunchButtonUi,
+    ensureReadyStatusText,
+  }) {
+    const { safeInvoke, setStatus, setStatusError, onDom } = ctx.fx;
+    const { btnLogin, accountName, avatarEl } = ctx.ui;
+    const { ANIM_MS } = ctx.consts;
 
     let accountLoginInFlight = false;
 
     // Avatar loading: try multiple providers for robustness.
     let avatarLoadSeq = 0;
     async function setAvatarFromCandidates(urls) {
-      if (!avatarEl) return;
       const seq = ++avatarLoadSeq;
 
       const candidates = (Array.isArray(urls) ? urls : [])
@@ -107,28 +98,26 @@
       "https://www.minecraft.net/msaprofile/mygames/editprofile";
     const MC_SKIN_EDIT_URL =
       "https://www.minecraft.net/msaprofile/mygames/editskin";
-    const topbarPillEl = btnLogin?.closest?.(".topbar-pill") ?? null;
+    const topbarPillEl = btnLogin.closest?.(".topbar-pill") ?? null;
     let accountMenuRafPending = false;
 
     function applyAccountToUi() {
       const accountState = getAccountState();
       if (accountState.state === ACCOUNT_STATE.ACTIVE) {
         accountName.textContent = accountState.name || "已登入";
-        if (avatarEl) {
-          const uuid = String(accountState.uuid || "").trim();
-          const name = String(accountState.name || "").trim();
-          const fromState = String(accountState.avatarUrl || "").trim();
-          // Prefer persisted avatarUrl, then derive from uuid/name with fallbacks.
-          const candidates = [
-            fromState,
-            uuid ? `https://crafatar.com/avatars/${uuid}?size=128&overlay` : "",
-            uuid ? `https://visage.surgeplay.com/face/128/${uuid}` : "",
-            name
-              ? `https://mc-heads.net/avatar/${encodeURIComponent(name)}/128`
-              : "",
-          ];
-          void setAvatarFromCandidates(candidates);
-        }
+        const uuid = String(accountState.uuid || "").trim();
+        const name = String(accountState.name || "").trim();
+        const fromState = String(accountState.avatarUrl || "").trim();
+        // Prefer persisted avatarUrl, then derive from uuid/name with fallbacks.
+        const candidates = [
+          fromState,
+          uuid ? `https://crafatar.com/avatars/${uuid}?size=128&overlay` : "",
+          uuid ? `https://visage.surgeplay.com/face/128/${uuid}` : "",
+          name
+            ? `https://mc-heads.net/avatar/${encodeURIComponent(name)}/128`
+            : "",
+        ];
+        void setAvatarFromCandidates(candidates);
       } else {
         // logged-out 與 reauth-required 都不算「已登入」，但誠實區分文字：
         // reauth-required 是「曾登入、憑證已失效」，不是單純沒登入過。
@@ -136,10 +125,8 @@
           accountState.state === ACCOUNT_STATE.REAUTH_REQUIRED
             ? "需要重新登入"
             : "登入";
-        if (avatarEl) {
-          avatarEl.classList.remove("avatar--has-image");
-          avatarEl.style.backgroundImage = "";
-        }
+        avatarEl.classList.remove("avatar--has-image");
+        avatarEl.style.backgroundImage = "";
       }
       updateLaunchButtonUi();
     }
@@ -251,7 +238,7 @@
     }
 
     function positionAccountMenu() {
-      if (!accountMenuEl || !btnLogin) return;
+      if (!accountMenuEl) return;
       const rect = btnLogin.getBoundingClientRect();
       const pillRect = topbarPillEl?.getBoundingClientRect?.();
 
