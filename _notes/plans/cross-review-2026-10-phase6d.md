@@ -1,4 +1,4 @@
-# Phase 6d — renderer 組：細部 plan（狀態：**2026-10-27 初稿，基準 `a239efa`；同日 owner 初審（含 ChatGPT 初審意見）裁 Q1–Q4，修訂為二稿，基準 `0277061`（程式與 `a239efa` 相同）；同日 owner 二審裁 Q5（B）、N4 進 6d-1、A1（C）、故障訊息改用專用區域、6d-1 採「先組裝、後上線」順序，並以 repo 外的 Electron 探針確定故障時的關窗路徑（→ §Owner 裁決、§探針）；未授權施工，停在 6d-1 owner 授權**）
+# Phase 6d — renderer 組：細部 plan（狀態：**2026-10-27 初稿，基準 `a239efa`；同日 owner 初審（含 ChatGPT 初審意見）裁 Q1–Q4，修訂為二稿，基準 `0277061`（程式與 `a239efa` 相同）；同日 owner 二審裁 Q5（B）、N4 進 6d-1、A1（C）、故障訊息改用專用區域、6d-1 採「先組裝、後上線」順序，並以 repo 外的 Electron 探針確定故障時的關窗路徑（→ §Owner 裁決、§探針），文件 `c1d3d3c`；2026-10-28 owner 轉貼的審查指出兩處 6d-1 測試前提有誤（組裝段的副作用斷言、`mod()` 延後爆錯會把模組缺失記成 `ui_refs_missing`），局部修正（→ §被推翻或更正）；未授權施工，停在 6d-1 owner 授權**）
 
 **範圍**：`defense-cleanup.md` §清理清單「renderer/（含 preload、main.js、index.html）」的 R-A～R-PLATFORM，**R-THUMB 除外（Q3 整件移交 6e，→ §五）**；加 §Bug 的 B1、`cross-review-2026-10.md` §4.2 的 U2、本檔 N4。拆 G2 守住的空值檢查與 R-B 是同一筆測試帳（判準檔 §判例 4）。
 **判準**：`plans/cross-review-2026-10-phase6-criteria.md`（改／留／退回／停止）；規則本體＝conventions §防禦與相容 §1–§6（本檔以條號引用）。
@@ -157,7 +157,7 @@
 2. **上線段**：全部 `init()`、bootstrap 自己綁的通知按鈕（今天 `:419-439`）、背景影片的 `initBackgroundVideo`（今天 `:376-385`）、`startup` 的 init（發出第一批請求），最後 `renderer:ready`。
 
 *換到什麼*：
-- R-A 之後最大的一類失敗（模組沒載到）和 `ui_refs_missing`，都發生在組裝段。那時一個監聽都還沒掛、一個請求都還沒發，沒有東西要拔，也沒有東西會晚回來。
+- R-A 之後最大的一類失敗（模組沒載到）和 `ui_refs_missing`，都發生在組裝段。那時 `start()` 還沒新增任何操作性的監聽、計時器、請求，沒有東西要拔，也沒有東西會晚回來。lifetime 在腳本載入時就掛的 `beforeunload` 清理監聽（`lifetime.js:126`，早於 `start()`）是既有的生命週期清理，不是玩家能操作的入口，不在這個說法之內。
 - 上線段失敗（某個 `init()` 自己丟錯）才需要 cleanup；U-7 只剩「startup 之後才失敗」這一小段。
 
 *前提與停止*：
@@ -191,7 +191,7 @@
    - 元素位置施工時定，owner 看畫面定稿。
 2. **清理**：若 `window.GglRendererLifetime` 在，呼叫既有的 `cleanupRendererLifetime()`，拔掉已登記的 DOM、IPC 監聽與計時器。
    - 這一處 `if` 寫理由：「lifetime 可能正是壞掉的那支」。
-   - 組裝段失敗時這一步本來就沒東西可拔（§1.2）。
+   - 組裝段失敗時，這一步沒有 `start()` 新增的東西可拔（§1.2）；拔掉的只有載入時就掛的 `beforeunload`，視窗正要關，無妨。
 3. **保留關閉**：直接在右上角 `#btnClose` 綁 click → `window.close()`。
    - 不經 lifetime（它可能不在），也不經 IPC（`window.ggl` 可能不在）。
    - 探針證實這條路在 bridge 正常與缺失時都能關窗並結束行程（§探針）。
@@ -207,11 +207,13 @@
 - 出口不會往外丟（第 4 步有 try；第 1–3 步只用 `index.html` 寫死的元素，邊界內），所以 `renderer.js` 不會再接到一次，**原始的 stage 不會被蓋成 `"bootstrap"`**。這是二審四之 1 那個反例打到的洞；二稿只寫「存在才呼叫」不夠，二審補裁指正後改成 try。
 
 **stage 怎麼認**（不加 Module Manager、依賴圖或大量包裝）：
-- 組裝段：`start()` 內一個 `let stage`，一個本地小函式 `const mod = (name) => { stage = name; return window[name]; }`，每個模組經它取。
+- 組裝段：`start()` 內一個 `let stage`，一個本地小函式 `mod(name)`：先 `stage = name`，取 `window[name]`，**取不到就當場丟錯**（`${name} 沒有載入`），每個模組經它取。
+  - 為什麼要當場丟：只回 `undefined` 的話，錯誤要等第一次使用才爆；取得與使用之間 stage 若已換過，模組缺失就會算到後面的階段頭上。例：`BCTX` 取得後到 `"ui_refs"` 階段才用，會被記成 `ui_refs_missing`（2026-10-28 審查指出）。
+  - 這一處判斷是 Q1「保留模組級診斷」要的診斷，寫理由；不是一般防線，不擴散到其他地方。
 - 非模組的步驟各寫一行：`stage = "preload" | "ui_refs" | "ctx"`。
 - 上線段：每個 `init()` 前寫一行 `stage = "<模組名>.init"`。
-- **`"ui_refs"` 只包住 `BCTX.buildUiRefs(el)` 這一個呼叫**，下一行就換 stage。`buildUiRefs` 本體只有 `el(id)`、一個常數選擇器、最後的缺元素丟錯（§基準），所以落在這個 stage 的錯只會是元素缺失。A1-C 的條件因此成立，不必建錯誤類型系統〔讀碼〕。
-- 限制〔推論〕：組裝段兩次 `mod()` 之間的接線碼出錯，會算在前一個模組頭上；完整錯誤在 console（U-9）。
+- **`"ui_refs"` 只包住 `BCTX.buildUiRefs(el)` 這一個呼叫**，下一行就換 stage。進這個 stage 之前，`BCTX` 已由 `mod()` 取得（取不到在 stage＝`GglRendererBootstrapCtx` 時就丟）；`buildUiRefs` 本體只有 `el(id)`、一個常數選擇器、最後的缺元素丟錯（§基準）。所以落在這個 stage 的錯只會是元素缺失，A1-C 的條件成立，不必建錯誤類型系統〔讀碼＋設計〕。
+- 限制〔推論〕：兩次 `mod()` 之間、非模組缺失的接線碼錯誤（例如呼叫錯參數），會算在前一個 `mod()` 的模組頭上；完整錯誤在 console（U-9）。
 - 對照方案：每步手寫 `stage = "…"`，約 16 行、不用 helper。
 
 **preload 不在**：
@@ -224,7 +226,7 @@
 | 保證 | 依據 |
 |---|---|
 | 失敗訊息顯示在專用區域，除出口外沒有任何程式寫它，所以晚回來的請求不會改它的字 | 設計；U-7 測試釘一個情境 |
-| 組裝段失敗：沒有任何監聽、計時器、請求存在 | §1.2 的排序；前提是 create 無副作用（U-10） |
+| 組裝段失敗：`start()` 沒有新增任何操作性的監聽、計時器、請求（載入時就掛的 `beforeunload` 清理監聽不算） | §1.2 的排序；前提是 create 無副作用（U-10） |
 | 上線段失敗：失敗當下已登記的監聽、IPC 監聽、計時器被拔掉 | `lifetime.js:97-123` |
 | 右上角關閉鈕可用 | 第 3 步；探針 |
 
@@ -448,7 +450,8 @@
 
 **6d-1 專屬驗收**〔施工待驗；以下測試都是已設計、未跑〕：
 - **故障出口**（`renderer-bootstrap-ui-refs` 骨架）：
-  - 組裝段某模組 global 不在 ⇒ 專用區域可見、文字含 stage、記 `renderer_boot_failed`、沒有任何 `onIpc`／invoke、沒有 `renderer:ready`；
+  - 組裝段某模組 global 不在 ⇒ 專用區域可見、stage 等於**那個模組的名字**、記 `renderer_boot_failed`、沒有任何 `onIpc`／invoke、沒有 `renderer:ready`；
+  - 拿掉 `bootstrap-ctx.js`（`GglRendererBootstrapCtx` 不在）⇒ 記 `renderer_boot_failed`、stage＝`GglRendererBootstrapCtx`，**不是** `ui_refs_missing`（A1-C 的邊界；2026-10-28 審查的反例）；
   - `buildUiRefs` 缺元素 ⇒ 記 `ui_refs_missing`（A10 改寫）；
   - `window.ggl` 不在 ⇒ stage `preload`、沒有 invoke、畫面照樣顯示；
   - `GglRendererBootstrap` 不在 ⇒ stage `bootstrap`；
@@ -460,7 +463,7 @@
 - **U-7 延遲回應**：
   - 讓失敗發生在 startup 之後（例如上線段最後一步丟錯），`account:get` 與通知查詢延後才完成 ⇒ 專用區域的字還在；`btnLaunch`、`btnLogin`、`btnSettings`、`btnBell` 的 click 不觸發任何 invoke；`#btnClose` 仍關得掉。
   - 通過只代表這個順序與這個延遲情境（二審補裁）。
-- **組裝段無副作用**：組裝段失敗時，lifetime 的登記清單是空的（用真 lifetime 斷言）；對照：把一個 `init()` 搬回組裝段，此案紅。
+- **組裝段沒有新增副作用**：比較 `start()` 期間的**新增**呼叫，不看 lifetime 清單總數——清單在載入時就有 `beforeunload`（`lifetime.js:126`），而且是 lifetime 的私有變數，測試讀不到；也**不為了讓斷言成立刪 `beforeunload` 或公開內部清單**。做法：在既有骨架記錄 `window.ggl.on`／`invoke`、頁面元素的 `addEventListener`、`setInterval`／`setTimeout`，讓組裝段最後一步失敗，斷言 `start()` 期間新增的這些呼叫都是 0。對照：把一個 `init()` 搬回組裝段，此案紅。
 - **B1** 接線一案；「每支定義了 global」一案；`log-ipc.test.cjs` 的 A10／A11 改成 `renderer_boot_failed`／`ui_refs_missing`。
 - **真 Electron**（照探針的做法，在 repo 外的副本）：
   - 正常副本：開機後 N4 的字被正常流程蓋掉；關閉鈕走 IPC 關得掉。
@@ -500,6 +503,9 @@
 | 二稿：N4 只記新發現 | 納入 6d-1 | 二審三 |
 | 二稿：出口保證「拔掉已掛的監聽」，沒寫清楚範圍 | 寫成「保證／不保證」兩張表（§1.3），並加上「先組裝、後上線」把主要失敗移到上線之前 | 二審一；順序 |
 | CC 討論中：「兩條關窗路徑跟一條路原則有拉扯，探針成功就記 future-work」 | **撤回**：兩條路的前提不同（有沒有 `window.ggl`），不是重複負責；不記 future-work | 二審補裁 |
+| `c1d3d3c`：「組裝段失敗時沒有任何監聽、計時器、請求存在」，6d-1 驗收「lifetime 的登記清單是空的」 | **改**：`lifetime.js:126` 在載入時就掛 `beforeunload`，清單不從零開始；而且清單是私有變數，原測試寫不出來。改成「`start()` 沒有新增操作性的副作用」，用前後差異驗（§1.2、§1.3、§七） | 2026-10-28 owner 轉貼的審查；CC 補「私有、讀不到」 |
+| `c1d3d3c`：`mod()` 取不到只回 `undefined`；U-9 寫「接線碼錯誤算在前一個模組頭上」 | **改**：延後到使用時才爆，會把模組缺失記到後面的階段（例：`BCTX` 缺失被記成 `ui_refs_missing`）。`mod()` 改成取不到當場丟；6d-1 加「拿掉 `bootstrap-ctx.js` ⇒ `renderer_boot_failed`」一案；U-9 改寫 | 2026-10-28 審查的反例；CC 補根因在 `mod()` |
+| `c1d3d3c` 的 STATUS：「plan 未 commit」 | commit 後即過期，改成「plan 已入版控」 | 2026-10-28 審查 |
 | CC 討論中：故障出口改用 `<dialog>` `showModal()` | **撤回**：它附帶的 inert 隔離沒有反例支持，而且會讓右上角關閉鈕失效，與 Q5-B 衝突；dialog、inert 都只留作候選 | CC 自己撤回；二審補裁 2 |
 | 行號漂移（`6cf5d4e` → `a239efa`） | `bootstrap.js` R-SILENT `:523-529` → `:512-518`；`settings-modal.js` R-SWALLOW `:229-231` → `:224-226`、R-SILENT `:235-237` → `:230-232`；其餘未移動，施工時逐條再對 | 初稿現讀 |
 
@@ -543,7 +549,7 @@
 - **U-6** ~~preload 檔不存在時 `preload-error` 會不會觸發~~ → **已實測：會**（§探針）。
 - **U-7** 延遲完成的請求：只驗 §七 那一個情境；保證範圍見 §1.3。
 - **U-8** B1 測試的 Proxy 假模組放不放得進 `loadRendererModule`：沒試。
-- **U-9** `mod()` 的 stage 只是「最後取用的模組」，精度夠不夠，由 owner 在 6d-1 故障副本驗收時判。
+- **U-9** stage 的精度：模組缺失一定落在該模組名（`mod()` 當場丟）；非模組缺失的接線碼錯誤只能落在「最後一個 `mod()` 取得的模組」。夠不夠，由 owner 在 6d-1 故障副本驗收時判。
 - **U-10** 每個 `createX` 本體沒有副作用：目前是第一層呼叫的啟發式掃描，施工時逐支現讀。
 - **U-11** `window.close()` 只在探針條件下證實；打包後的 asar、最小化或失焦、多視窗、遊戲或同步進行中都沒測。6d-1 的驗收只在探針條件下宣稱關得掉。
 
@@ -558,7 +564,7 @@
 ## CC 自己可能錯的地方
 
 - **出口第 2 步的 `if (window.GglRendererLifetime)`、第 3 步直接 `addEventListener`、第 4 步的 try**：都可能被看成防線。理由是出口的工作就是處理「保證已破」，它依賴的東西可能正是壞掉的那支；三處都寫理由，且只在出口內。
-- **「先組裝、後上線」的前提**：只是啟發式掃描（U-10）。萬一有 create 偷偷掛了監聽，組裝段失敗時 lifetime 清單不會是空的，§七的「組裝段無副作用」那案會抓到。
+- **「先組裝、後上線」的前提**：只是啟發式掃描（U-10）。萬一有 create 偷偷掛了監聽，組裝段失敗時 `start()` 期間會多出新增呼叫，§七的「組裝段沒有新增副作用」那案會抓到。
 - **帳號讀取失敗顯示在帳號區**：是 CC 從 Q2 原則①③推出來的位置，Q2 原文沒點名這一處。
 - **minimize／close 改成會出聲**：它們實際上只會因接線壞而失敗；依據是 conventions §3「使用者按了東西而失敗，要讓他在畫面上看到」。owner 若認為這是為不會發生的事加程式碼，可以改成不接 catch，讓錯誤落到 console，但這樣就違反 §3 的字面。
 - **R-B 的 `makeCtx`**：施工時若發現測試需要每個模組各一份 ctx 才餵得動，就是界線守不住 ⇒ 停、回報。
