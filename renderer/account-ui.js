@@ -1,12 +1,7 @@
 // Renderer UI helpers: account avatar + account menu + login/logout flow.
 // Loaded before renderer.js via index.html.
 (function () {
-  const K = window.GglRendererConstants || {};
-  const ACCOUNT_STATE = K.ACCOUNT_STATE || {
-    LOGGED_OUT: "logged-out",
-    ACTIVE: "active",
-    REAUTH_REQUIRED: "reauth-required",
-  };
+  const { ACCOUNT_STATE } = window.GglRendererConstants;
 
   function createAccountUi(input) {
     const ctx = input?.ctx || null;
@@ -18,9 +13,7 @@
     const setStatus = input?.setStatus || fx.setStatus;
     const setStatusError = input?.setStatusError || fx.setStatusError;
     const onDom = input?.onDom || fx.onDom;
-    const ANIM_MS =
-      input?.ANIM_MS ??
-      (Number.isFinite(consts.ANIM_MS) ? consts.ANIM_MS : 280);
+    const ANIM_MS = input?.ANIM_MS ?? consts.ANIM_MS;
     const btnLogin = input?.btnLogin || ui.btnLogin;
     const accountName = input?.accountName || ui.accountName;
     const avatarEl = input?.avatarEl || ui.avatarEl;
@@ -364,20 +357,7 @@
     }
 
     function init() {
-      const bind =
-        typeof onDom === "function"
-          ? onDom
-          : (target, type, handler, options) => {
-              if (!target?.addEventListener) return () => {};
-              target.addEventListener(type, handler, options);
-              return () => {
-                try {
-                  target.removeEventListener(type, handler, options);
-                } catch {}
-              };
-            };
-
-      bind(btnLogin, "click", async () => {
+      onDom(btnLogin, "click", async () => {
         try {
           const accountState = getAccountState();
           // 若已登入（active）：先簡單詢問是否登出；logged-out／reauth-required 都直接走登入流程
@@ -407,7 +387,7 @@
       });
 
       // Close menu on outside click / ESC / resize.
-      bind(
+      onDom(
         document,
         "click",
         (ev) => {
@@ -419,15 +399,15 @@
         },
         { capture: true },
       );
-      bind(document, "keydown", (ev) => {
+      onDom(document, "keydown", (ev) => {
         if (!accountMenuOpen) return;
         if (ev.key === "Escape") closeAccountMenu();
       });
-      bind(window, "resize", () => {
+      onDom(window, "resize", () => {
         if (!accountMenuOpen) return;
         scheduleAccountMenuPosition();
       });
-      bind(
+      onDom(
         window,
         "scroll",
         () => {

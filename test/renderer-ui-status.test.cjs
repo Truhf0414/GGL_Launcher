@@ -11,6 +11,7 @@ const {
   makeEl,
   fakeDocument,
   loadRendererModule,
+  rendererConstants,
 } = require("./helpers/fake-dom.cjs");
 
 const UI_STATUS = path.join(__dirname, "..", "renderer", "ui-status.js");
@@ -19,6 +20,7 @@ function setup() {
   global.document = fakeDocument;
   const win = loadRendererModule(UI_STATUS, {
     GglRendererLifetime: { trackTimeout: (x) => x },
+    GglRendererConstants: rendererConstants(),
   });
   const ctx = { statusText: makeEl("div"), btnLaunch: makeEl("button") };
   return { UI: win.GglRendererUiStatus, ctx };

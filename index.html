@@ -35,6 +35,12 @@
     </div>
     <div class="app-bg-overlay"></div>
 
+    <!-- 初始化失敗訊息：平常隱藏，只有 renderer/boot-failure.js 會寫它、打開它 -->
+    <div id="bootFailure" class="boot-failure hidden" role="alert">
+      <div class="boot-failure__title">啟動器初始化失敗</div>
+      <div id="bootFailureDetail" class="boot-failure__detail"></div>
+    </div>
+
     <!-- 主容器：單欄版面（頂欄 + hero + 卡片等皆在此 main 內） -->
     <div class="app-shell">
       <main class="main">
@@ -284,7 +290,7 @@
                   role="status"
                   aria-live="polite"
                 >
-                  <span class="launch-subtext-line">準備就緒</span>
+                  <span class="launch-subtext-line">正在初始化啟動器…</span>
                 </div>
                 <div class="launch-texts">
                   <div class="launch-text">啟動</div>
@@ -545,8 +551,7 @@
 
     <!-- 2) Renderer infrastructure -->
     <script src="./renderer/lifetime.js"></script>
-    <script src="./renderer/module-registry.js"></script>
-    <script src="./renderer/self-check.js"></script>
+    <script src="./renderer/boot-failure.js"></script>
     <script src="./renderer/constants.js"></script>
     <script src="./renderer/ggl-log.js"></script>
 

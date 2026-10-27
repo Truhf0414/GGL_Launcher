@@ -1,12 +1,7 @@
 // Renderer UI helpers: launch button state machine + click actions.
 // Loaded before renderer.js via index.html.
 (function () {
-  const K = window.GglRendererConstants || {};
-  const ACCOUNT_STATE = K.ACCOUNT_STATE || {
-    LOGGED_OUT: "logged-out",
-    ACTIVE: "active",
-    REAUTH_REQUIRED: "reauth-required",
-  };
+  const { ACCOUNT_STATE } = window.GglRendererConstants;
 
   function createLaunchUi(input) {
     const ctx = input?.ctx || null;
@@ -162,25 +157,12 @@
     };
 
     function init() {
-      const bind =
-        typeof onDom === "function"
-          ? onDom
-          : (target, type, handler, options) => {
-              if (!target?.addEventListener) return () => {};
-              target.addEventListener(type, handler, options);
-              return () => {
-                try {
-                  target.removeEventListener(type, handler, options);
-                } catch {}
-              };
-            };
-
-      bind(btnLaunch, "click", async () => {
+      onDom(btnLaunch, "click", async () => {
         const action = getInstanceStatus()?.ui?.button?.action;
         await ACTIONS[action]?.();
       });
 
-      bind(btnOfflineLink, "click", () =>
+      onDom(btnOfflineLink, "click", () =>
         runBusy(() => safeInvoke("minecraft:launchOffline")),
       );
     }

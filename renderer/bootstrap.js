@@ -1,321 +1,69 @@
 // Renderer bootstrap: wires UI modules together.
 // Loaded before renderer.js via index.html.
+// 先組裝、後上線（→ _notes/plans/cross-review-2026-10-phase6d.md §1.2）：assemble() 只建立
+// （buildUiRefs、ctx、各模組的 createX），不掛監聽、不發請求；activate() 才 init、掛監聽、發第一批請求。
+// 任何一步同步丟錯 ⇒ GglRendererBootFailure.report(stage, err)（→ renderer/boot-failure.js）。
 (function () {
   function start() {
-    const ggl = window.ggl;
-    const Mods = window.GglRendererModules;
-    const getModule =
-      Mods?.getModule ||
-      ((name) => {
-        try {
-          return window[name] || null;
-        } catch {
-          return null;
-        }
-      });
+    // 卡在哪一步：畫面與 console 看得到，常駐日誌只記事件 ID
+    let stage = "preload";
 
-    try {
-      window.GglRendererSelfCheck?.runSelfCheck?.();
-    } catch {}
-
-    const MODULES = {
-      BG: {
-        name: "GglRendererBackgroundVideo",
-        requiredFns: ["createBackgroundVideo"],
-      },
-      UI: {
-        name: "GglRendererUiStatus",
-        requiredFns: [
-          "openOverlay",
-          "closeOverlay",
-          "setStatus",
-          "createStatusGuard",
-          "setStatusError",
-          "setStatusVisibility",
-        ],
-      },
-      SM: {
-        name: "GglRendererSettingsModal",
-        requiredFns: ["createSettingsModal"],
-      },
-      Notif: {
-        name: "GglRendererNotificationsUi",
-        requiredFns: ["createNotificationsUi"],
-      },
-      WC: {
-        name: "GglRendererWindowControls",
-        requiredFns: ["createWindowControls"],
-      },
-      AU: { name: "GglRendererAccountUi", requiredFns: ["createAccountUi"] },
-      LU: { name: "GglRendererLaunchUi", requiredFns: ["createLaunchUi"] },
-      RS: {
-        name: "GglRendererReadyStatus",
-        requiredFns: ["createReadyStatus"],
-      },
-      MU: {
-        name: "GglRendererMinecraftUi",
-        requiredFns: ["createMinecraftUi"],
-      },
-      SSU: {
-        name: "GglRendererServerStatusUi",
-        requiredFns: ["createServerStatusUi"],
-      },
-      SU: { name: "GglRendererSyncUi", requiredFns: ["createSyncUi"] },
-      IU: { name: "GglRendererInstanceUi", requiredFns: ["createInstanceUi"] },
-      RU: { name: "GglRendererRepairUi", requiredFns: ["createRepairUi"] },
-      ST: { name: "GglRendererStartup", requiredFns: ["createStartup"] },
+    // 取模組時順便記階段。取不到當場丟：只回 undefined 的話要等第一次使用才爆，
+    // 缺失會記到後面的階段頭上（例：bootstrap-ctx 缺失被記成 ui_refs）——這是 Q1 要的模組級診斷
+    const mod = (name) => {
+      stage = name;
+      const m = window[name];
+      if (!m) throw new Error(`${name} 沒有載入`);
+      return m;
     };
 
-    if (
-      !ggl ||
-      typeof ggl.invoke !== "function" ||
-      typeof ggl.on !== "function"
-    ) {
-      try {
-        window.GglStructuredLog?.gglError?.(
-          "renderer",
-          "ggl_bridge_missing",
-          new Error("GGL bridge not available (preload not loaded)"),
-          {},
-        );
-        console.error("GGL bridge not available (preload not loaded).");
-      } catch {}
-      return;
-    }
-
-    const LT = window.GglRendererLifetime;
-    const hasLifetime =
-      LT &&
-      typeof LT.safeInvoke === "function" &&
-      typeof LT.safeInvokeSilent === "function" &&
-      typeof LT.onIpc === "function" &&
-      typeof LT.onDom === "function" &&
-      typeof LT.trackInterval === "function" &&
-      typeof LT.trackTimeout === "function" &&
-      typeof LT.trackDomCleanup === "function";
-
-    if (!hasLifetime) {
-      try {
-        console.error(
-          "GglRendererLifetime missing: falling back to local wiring. Check that ./renderer/lifetime.js loads before renderer.js.",
-        );
-      } catch {}
-    }
-
-    const safeInvoke =
-      (hasLifetime && LT.safeInvoke) ||
-      (async (channel, ...args) => await ggl.invoke(channel, ...args));
-    const safeInvokeSilent =
-      (hasLifetime && LT.safeInvokeSilent) ||
-      ((channel, ...args) => {
-        try {
-          const p = ggl.invoke(channel, ...args);
-          if (p && typeof p.catch === "function") p.catch(() => {});
-        } catch {}
-      });
-    const onIpc =
-      (hasLifetime && LT.onIpc) ||
-      ((channel, handler) => {
-        try {
-          return ggl.on(channel, handler);
-        } catch {
-          return () => {};
-        }
-      });
-    const onDom =
-      (hasLifetime && LT.onDom) ||
-      ((target, type, handler, options) => {
-        if (!target?.addEventListener) return () => {};
-        target.addEventListener(type, handler, options);
-        return () => {
-          try {
-            target.removeEventListener(type, handler, options);
-          } catch {}
-        };
-      });
-    const trackInterval = (hasLifetime && LT.trackInterval) || ((id) => id);
-    const trackTimeout = (hasLifetime && LT.trackTimeout) || ((id) => id);
-    const trackDomCleanup =
-      (hasLifetime && LT.trackDomCleanup) || ((off) => off || (() => {}));
-
-    const el = (id) => document.getElementById(id);
-    const BCTX = window.GglRendererBootstrapCtx;
-    if (
-      !BCTX ||
-      typeof BCTX.buildUiRefs !== "function" ||
-      typeof BCTX.buildRootCtx !== "function"
-    ) {
-      try {
-        window.GglStructuredLog?.gglError?.(
-          "renderer",
-          "bootstrap_ctx_factory_missing",
-          new Error("GglRendererBootstrapCtx not loaded"),
-          {},
-        );
-        console.error(
-          "GglRendererBootstrapCtx missing: ensure ./renderer/bootstrap-ctx.js loads before ./renderer/bootstrap.js.",
-        );
-      } catch {}
-      return;
-    }
     try {
-      window.GglStructuredLog?.gglEvent?.("renderer", "bootstrap_prelude_ok", {
-        hasLifetime,
-      });
-    } catch {}
-
-    const SL = window.GglSettingsLogic;
-    const computeMemoryUiModel =
-      SL?.computeMemoryUiModel ||
-      (() => ({
-        minInput: "",
-        maxInput: "",
-        hintShow: false,
-        hintText: "",
-      }));
-
-    const K = window.GglRendererConstants || {};
-
-    // 伺服器預設值（安裝路徑、Discord 邀請）從 main 的 lib/server-config.js 來；成功才快取，失敗下次再抓
-    let serverDefaultsPromise = null;
-    const loadServerDefaults = () => {
-      if (!serverDefaultsPromise) {
-        serverDefaultsPromise = safeInvoke("serverConfig:getDefaults").catch(
-          (e) => {
-            serverDefaultsPromise = null;
-            throw e;
-          },
-        );
-      }
-      return serverDefaultsPromise;
-    };
-
-    const BG = getModule(MODULES.BG.name, {
-      requiredFns: MODULES.BG.requiredFns,
-    });
-
-    // 缺元素＝index.html 與 buildUiRefs 對不上：記事件 ID 後停止初始化（缺了哪些鍵只在 console）
-    let uiRefs;
-    try {
-      uiRefs = BCTX.buildUiRefs(el);
+      activate(assemble());
     } catch (err) {
-      window.GglStructuredLog.gglError("renderer", "ui_refs_missing", err);
-      return;
+      window.GglRendererBootFailure.report(stage, err);
     }
-    const {
-      btnMinimize,
-      btnClose,
-      btnSettings,
-      btnBell,
-      btnLogin,
-      btnDiscord,
-      btnLaunch,
-      btnOfflineLink,
-      statusText,
-      progressBar,
-      progressRoot,
-      accountName,
-      instanceStatusText,
-      instanceStatusNote,
-      btnCopyErrorDetail,
-      noticeTitle,
-      noticeDate,
-      noticeLog,
-      noticeThumb,
-      avatarEl,
-      serverStatusDot,
-      serverStatusText,
-      settingsModal,
-      settingsBackdrop,
-      btnSettingsClose,
-      btnSaveSettings,
-      btnExportDiagnostics,
-      btnRepair,
-      repairModal,
-      repairBackdrop,
-      repairList,
-      repairEmpty,
-      btnRepairConfirm,
-      btnRepairCancel,
-      inputInstallDir,
-      btnPickDir,
-      inputOfflinePlayerId,
-      inputMinMemoryGb,
-      inputMaxMemoryGb,
-      settingsError,
-      memAutoHint,
-      notifOverlay,
-      btnNotifClose,
-      btnNotifClear,
-      notifFooter,
-      notifEmpty,
-      notifList,
-    } = uiRefs;
 
-    const UI = getModule(MODULES.UI.name, {
-      requiredFns: [
-        "openOverlay",
-        "closeOverlay",
-        "setStatus",
-        "createStatusGuard",
-        "setStatusError",
-        "setStatusVisibility",
-      ],
-      warn: false,
-    });
+    function assemble() {
+      // preload 不是載入順序保證得了的：它壞掉或不在，畫面就沒有 window.ggl（main 另記 preload_error）
+      const ggl = window.ggl;
+      if (!ggl) throw new Error("window.ggl 不存在（preload 沒有載入）");
 
-    const rawAnim = Number(K?.UI_ANIM_MS);
-    const ANIM_MS =
-      Number.isFinite(rawAnim) && rawAnim >= 0
-        ? rawAnim
-        : Number.isFinite(Number(UI?.ANIM_MS))
-          ? Number(UI.ANIM_MS)
-          : 280;
-    const statusGuard = UI?.createStatusGuard?.() || {
-      isErrorGuardActive: () => false,
-      resetToNormal: () => {},
-      setError: () => {},
-    };
-    const statusCtx = { statusText, progressBar, progressRoot, btnLaunch };
+      const {
+        safeInvoke,
+        safeInvokeSilent,
+        onIpc,
+        onDom,
+        trackInterval,
+        trackTimeout,
+        trackDomCleanup,
+      } = mod("GglRendererLifetime");
+      const { gglEvent } = mod("GglStructuredLog");
+      const BCTX = mod("GglRendererBootstrapCtx");
+      const { computeMemoryUiModel } = mod("GglSettingsLogic");
+      const K = mod("GglRendererConstants");
+      gglEvent("renderer", "bootstrap_prelude_ok");
 
-    const openOverlay = UI?.openOverlay || (() => {});
-    const closeOverlay = UI?.closeOverlay || (() => {});
-    const setStatus = (text, progress01 = null) => {
-      if (UI?.setStatus) return UI.setStatus(statusCtx, text, progress01);
-      try {
-        if (statusText) statusText.textContent = String(text ?? "");
-        if (progressBar && progress01 !== null && !Number.isNaN(progress01)) {
-          const p = Math.max(0, Math.min(1, Number(progress01)));
-          progressBar.style.width = `${Math.round(p * 100)}%`;
+      const el = (id) => document.getElementById(id);
+
+      // 伺服器預設值（安裝路徑、Discord 邀請）從 main 的 lib/server-config.js 來；成功才快取，失敗下次再抓
+      let serverDefaultsPromise = null;
+      const loadServerDefaults = () => {
+        if (!serverDefaultsPromise) {
+          serverDefaultsPromise = safeInvoke("serverConfig:getDefaults").catch(
+            (e) => {
+              serverDefaultsPromise = null;
+              throw e;
+            },
+          );
         }
-      } catch {}
-    };
-    const setStatusError = (text) => {
-      if (UI?.setStatusError)
-        return UI.setStatusError(statusCtx, statusGuard, text);
-      setStatus(text, 0);
-    };
-    const setStatusVisibility = (visible) => {
-      if (UI?.setStatusVisibility)
-        return UI.setStatusVisibility({ statusText, btnLaunch }, visible);
-    };
+        return serverDefaultsPromise;
+      };
 
-    const ctx = BCTX.buildRootCtx({
-      ggl,
-      safeInvoke,
-      safeInvokeSilent,
-      onIpc,
-      onDom,
-      trackInterval,
-      trackTimeout,
-      trackDomCleanup,
-      openOverlay,
-      closeOverlay,
-      setStatus,
-      setStatusError,
-      setStatusVisibility,
-      computeMemoryUiModel,
-      ui: {
+      // 缺元素＝index.html 與 buildUiRefs 對不上（缺了哪些鍵在錯誤訊息裡）；這一步只包這一個呼叫
+      stage = "ui_refs";
+      const uiRefs = BCTX.buildUiRefs(el);
+      stage = "ctx";
+      const {
         btnMinimize,
         btnClose,
         btnSettings,
@@ -338,12 +86,6 @@
         avatarEl,
         serverStatusDot,
         serverStatusText,
-        notifOverlay,
-        btnNotifClose,
-        btnNotifClear,
-        notifFooter,
-        notifEmpty,
-        notifList,
         settingsModal,
         settingsBackdrop,
         btnSettingsClose,
@@ -363,126 +105,141 @@
         inputMaxMemoryGb,
         settingsError,
         memAutoHint,
-      },
-      ANIM_MS,
-      loadServerDefaults,
-    });
-    try {
-      window.GglStructuredLog?.gglEvent?.("renderer", "bootstrap_ctx_ready", {
-        moduleDefs: Object.keys(MODULES).length,
-      });
-    } catch {}
-
-    try {
-      const bgVideoSource = el("bgVideoSource");
-      const bgRoot = document.querySelector(".app-bg");
-      BG?.createBackgroundVideo?.({
-        ctx,
-      })?.initBackgroundVideo?.({
-        sourceEl: bgVideoSource,
-        bgRoot,
-      });
-    } catch {}
-
-    // Settings modal (refs already collected in uiRefs)
-
-    const SM = getModule(MODULES.SM.name, {
-      requiredFns: MODULES.SM.requiredFns,
-    });
-    const settingsModalUi =
-      SM?.createSettingsModal?.({
-        ctx,
-      }) || null;
-    settingsModalUi?.init?.();
-
-    // Notifications (refs already collected in uiRefs)
-    const Notif = getModule(MODULES.Notif.name, {
-      requiredFns: MODULES.Notif.requiredFns,
-    });
-    const notifUi =
-      Notif?.createNotificationsUi?.({
-        ctx,
-      }) || null;
-
-    function setInstanceStatus(text) {
-      if (instanceStatusText) instanceStatusText.textContent = text;
-    }
-
-    const WC = getModule(MODULES.WC.name, {
-      requiredFns: MODULES.WC.requiredFns,
-    });
-    WC?.createWindowControls?.({
-      ctx,
-    })?.init?.();
-
-    // Notif button wiring (still here because it binds raw DOM nodes).
-    onDom(btnBell, "click", () => {
-      notifUi?.toggleNotif?.({
         notifOverlay,
-        notifList,
-        notifEmpty,
+        btnNotifClose,
+        btnNotifClear,
         notifFooter,
-        btnBell,
-      });
-    });
-    onDom(btnNotifClose, "click", () => notifUi?.closeNotif?.(notifOverlay));
-    onDom(notifOverlay, "click", (ev) => {
-      if (ev.target === notifOverlay) notifUi?.closeNotif?.(notifOverlay);
-    });
-    onDom(btnNotifClear, "click", async () => {
-      await notifUi?.clearNotifs?.({
-        notifList,
         notifEmpty,
-        notifFooter,
-        btnBell,
+        notifList,
+      } = uiRefs;
+
+      const UI = mod("GglRendererUiStatus");
+      const ANIM_MS = K.UI_ANIM_MS;
+      const statusGuard = UI.createStatusGuard();
+      const statusCtx = { statusText, progressBar, progressRoot, btnLaunch };
+
+      const openOverlay = UI.openOverlay;
+      const closeOverlay = UI.closeOverlay;
+      const setStatus = (text, progress01 = null) =>
+        UI.setStatus(statusCtx, text, progress01);
+      const setStatusError = (text) =>
+        UI.setStatusError(statusCtx, statusGuard, text);
+      const setStatusVisibility = (visible) =>
+        UI.setStatusVisibility({ statusText, btnLaunch }, visible);
+
+      stage = "ctx";
+      const ctx = BCTX.buildRootCtx({
+        ggl,
+        safeInvoke,
+        safeInvokeSilent,
+        onIpc,
+        onDom,
+        trackInterval,
+        trackTimeout,
+        trackDomCleanup,
+        openOverlay,
+        closeOverlay,
+        setStatus,
+        setStatusError,
+        setStatusVisibility,
+        computeMemoryUiModel,
+        ui: {
+          btnMinimize,
+          btnClose,
+          btnSettings,
+          btnBell,
+          btnLogin,
+          btnDiscord,
+          btnLaunch,
+          btnOfflineLink,
+          statusText,
+          progressBar,
+          progressRoot,
+          accountName,
+          instanceStatusText,
+          instanceStatusNote,
+          btnCopyErrorDetail,
+          noticeTitle,
+          noticeDate,
+          noticeLog,
+          noticeThumb,
+          avatarEl,
+          serverStatusDot,
+          serverStatusText,
+          notifOverlay,
+          btnNotifClose,
+          btnNotifClear,
+          notifFooter,
+          notifEmpty,
+          notifList,
+          settingsModal,
+          settingsBackdrop,
+          btnSettingsClose,
+          btnSaveSettings,
+          btnExportDiagnostics,
+          btnRepair,
+          repairModal,
+          repairBackdrop,
+          repairList,
+          repairEmpty,
+          btnRepairConfirm,
+          btnRepairCancel,
+          inputInstallDir,
+          btnPickDir,
+          inputOfflinePlayerId,
+          inputMinMemoryGb,
+          inputMaxMemoryGb,
+          settingsError,
+          memAutoHint,
+        },
+        ANIM_MS,
+        loadServerDefaults,
       });
-    });
+      gglEvent("renderer", "bootstrap_ctx_ready");
 
-    // Account UI
-    let accountState = {
-      state: K.ACCOUNT_STATE?.LOGGED_OUT || "logged-out",
-      name: "",
-      uuid: "",
-      avatarUrl: "",
-    };
-    let isInstanceReady = () => false;
-    let ensureReadyStatusText = () => {};
+      const backgroundVideo = mod(
+        "GglRendererBackgroundVideo",
+      ).createBackgroundVideo({ ctx });
 
-    // Launch state：中樞送來的最後一筆 instance:status（還沒收到是 null）
-    let currentInstanceStatus = null;
-    let launcherBusy = false;
-    let gameRunning = false;
+      const settingsModalUi = mod(
+        "GglRendererSettingsModal",
+      ).createSettingsModal({ ctx });
 
-    const AU = getModule(MODULES.AU.name, {
-      requiredFns: MODULES.AU.requiredFns,
-    });
-    const LU = getModule(MODULES.LU.name, {
-      requiredFns: MODULES.LU.requiredFns,
-    });
-    const RS = getModule(MODULES.RS.name, {
-      requiredFns: MODULES.RS.requiredFns,
-    });
-    const MU = getModule(MODULES.MU.name, {
-      requiredFns: MODULES.MU.requiredFns,
-    });
-    const SSU = getModule(MODULES.SSU.name, {
-      requiredFns: MODULES.SSU.requiredFns,
-    });
-    const SU = getModule(MODULES.SU.name, {
-      requiredFns: MODULES.SU.requiredFns,
-    });
-    const IU = getModule(MODULES.IU.name, {
-      requiredFns: MODULES.IU.requiredFns,
-    });
-    const RU = getModule(MODULES.RU.name, {
-      requiredFns: MODULES.RU.requiredFns,
-    });
-    const ST = getModule(MODULES.ST.name, {
-      requiredFns: MODULES.ST.requiredFns,
-    });
+      const notifUi = mod("GglRendererNotificationsUi").createNotificationsUi({
+        ctx,
+      });
 
-    const accountUi =
-      AU?.createAccountUi?.({
+      function setInstanceStatus(text) {
+        if (instanceStatusText) instanceStatusText.textContent = text;
+      }
+
+      const windowControls = mod(
+        "GglRendererWindowControls",
+      ).createWindowControls({ ctx });
+
+      // Account state
+      let accountState = {
+        state: K.ACCOUNT_STATE.LOGGED_OUT,
+        name: "",
+        uuid: "",
+        avatarUrl: "",
+      };
+
+      // Launch state：中樞送來的最後一筆 instance:status（還沒收到是 null）
+      let currentInstanceStatus = null;
+      let launcherBusy = false;
+      let gameRunning = false;
+
+      // 就緒文字的規則先建好，帳號、啟動、同步、遊戲、實例各模組拿到的都是同一個真函式（B1）
+      const readyStatus = mod("GglRendererReadyStatus").createReadyStatus({
+        ctx,
+        statusGuard,
+        getBusyState: () => ({ launcherBusy, gameRunning }),
+        getInstanceStatus: () => currentInstanceStatus,
+      });
+      const { isInstanceReady, ensureReadyStatusText } = readyStatus;
+
+      const accountUi = mod("GglRendererAccountUi").createAccountUi({
         ctx,
         getAccountState: () => accountState,
         setAccountState: (s) => {
@@ -490,43 +247,29 @@
         },
         updateLaunchButtonUi,
         ensureReadyStatusText,
-      }) || null;
-    accountUi?.init?.();
+      });
 
-    const readyStatus =
-      RS?.createReadyStatus?.({
-        ctx,
-        statusGuard,
-        getBusyState: () => ({ launcherBusy, gameRunning }),
-        getInstanceStatus: () => currentInstanceStatus,
-      }) || null;
-    isInstanceReady = readyStatus?.isInstanceReady || (() => false);
-    ensureReadyStatusText = readyStatus?.ensureReadyStatusText || (() => {});
+      const serverStatusUi = mod(
+        "GglRendererServerStatusUi",
+      ).createServerStatusUi({ ctx });
 
-    const serverStatusUi =
-      SSU?.createServerStatusUi?.({
-        ctx,
-      }) || null;
-    serverStatusUi?.init?.();
+      async function resyncAccountState() {
+        try {
+          const a = await safeInvoke("account:get");
+          accountState = a;
+          accountUi.applyAccountToUi();
+        } catch {}
+      }
 
-    async function resyncAccountState() {
-      try {
-        const a = await safeInvoke("account:get");
-        accountState = a;
-        accountUi?.applyAccountToUi?.();
-      } catch {}
-    }
+      // 修復流程與啟動鈕互相要用：用函式晚綁定（兩者都在 activate 之前建好）
+      let repairUi = null;
 
-    // 修復流程與啟動鈕互相要用：用函式晚綁定
-    let repairUi = null;
-
-    const launchUi =
-      LU?.createLaunchUi?.({
+      const launchUi = mod("GglRendererLaunchUi").createLaunchUi({
         ctx,
         getAccountState: () => accountState,
         getInstanceStatus: () => currentInstanceStatus,
-        startRepairFlow: (opts) => repairUi?.startRepairFlow?.(opts),
-        onButtonUpdated: () => repairUi?.updateRepairButton?.(),
+        startRepairFlow: (opts) => repairUi.startRepairFlow(opts),
+        onButtonUpdated: () => repairUi.updateRepairButton(),
         getBusyState: () => ({ launcherBusy, gameRunning }),
         setBusyState: (next) => {
           if (Object.prototype.hasOwnProperty.call(next, "launcherBusy"))
@@ -536,42 +279,28 @@
         },
         ensureReadyStatusText,
         resyncAccountState,
-      }) || null;
+      });
 
-    function setLauncherBusy(isBusy) {
-      if (launchUi?.setLauncherBusy) return launchUi.setLauncherBusy(isBusy);
-      launcherBusy = Boolean(isBusy);
-      if (!launcherBusy) ensureReadyStatusText();
-    }
-
-    function updateLaunchButtonUi() {
-      if (launchUi?.updateLaunchButtonUi)
+      function updateLaunchButtonUi() {
         return launchUi.updateLaunchButtonUi();
-    }
+      }
 
-    launchUi?.init?.();
-
-    repairUi =
-      RU?.createRepairUi?.({
+      repairUi = mod("GglRendererRepairUi").createRepairUi({
         ctx,
         getInstanceStatus: () => currentInstanceStatus,
         getBusyState: () => ({ launcherBusy, gameRunning }),
-        setLauncherBusy,
-        closeSettingsModal: () => settingsModalUi?.close?.(),
-      }) || null;
-    repairUi?.init?.();
+        setLauncherBusy: (isBusy) => launchUi.setLauncherBusy(isBusy),
+        closeSettingsModal: () => settingsModalUi.close(),
+      });
 
-    const syncUi =
-      SU?.createSyncUi?.({
+      const syncUi = mod("GglRendererSyncUi").createSyncUi({
         ctx,
         ensureReadyStatusText,
         statusGuard,
         getBusyState: () => ({ gameRunning }),
-      }) || null;
-    syncUi?.init?.();
+      });
 
-    const minecraftUi =
-      MU?.createMinecraftUi?.({
+      const minecraftUi = mod("GglRendererMinecraftUi").createMinecraftUi({
         ctx,
         updateLaunchButtonUi,
         ensureReadyStatusText,
@@ -583,11 +312,9 @@
           if (Object.prototype.hasOwnProperty.call(next, "gameRunning"))
             gameRunning = Boolean(next.gameRunning);
         },
-      }) || null;
-    minecraftUi?.init?.();
+      });
 
-    const instanceUi =
-      IU?.createInstanceUi?.({
+      const instanceUi = mod("GglRendererInstanceUi").createInstanceUi({
         ctx,
         setInstanceStatus,
         updateLaunchButtonUi,
@@ -595,32 +322,127 @@
         setInstanceStatusPayload: (payload) => {
           currentInstanceStatus = payload;
         },
-      }) || null;
-    instanceUi?.init?.();
+      });
 
-    ST?.createStartup?.({
-      ctx,
-      notifUi,
-      setInstanceStatus,
-      getAccountState: () => accountState,
-      setAccountState: (s) => {
-        accountState = s;
-      },
-      accountUi,
-    })?.init?.();
+      const startup = mod("GglRendererStartup").createStartup({
+        ctx,
+        notifUi,
+        setInstanceStatus,
+        getAccountState: () => accountState,
+        setAccountState: (s) => {
+          accountState = s;
+        },
+        accountUi,
+      });
 
-    trackDomCleanup(() => {
-      try {
-        minecraftUi?.teardown?.();
-        settingsModalUi?.teardown?.();
-        accountUi?.teardown?.();
-      } catch {}
-    });
+      return {
+        el,
+        onDom,
+        safeInvokeSilent,
+        trackDomCleanup,
+        updateLaunchButtonUi,
+        notifUi,
+        notifOverlay,
+        notifList,
+        notifEmpty,
+        notifFooter,
+        btnBell,
+        btnNotifClose,
+        btnNotifClear,
+        backgroundVideo,
+        settingsModalUi,
+        windowControls,
+        accountUi,
+        serverStatusUi,
+        launchUi,
+        repairUi,
+        syncUi,
+        minecraftUi,
+        instanceUi,
+        startup,
+      };
+    }
 
-    // 所有 onIpc 都在上面同步掛好了：請 main 把狀態事件的最後一筆重送一次（B10）。
-    // 必須留在 start() 最後；之後若有非同步才掛的監聽，要掛在它之前。
-    safeInvokeSilent("renderer:ready");
-    updateLaunchButtonUi();
+    function activate(m) {
+      stage = "GglRendererBackgroundVideo.init";
+      m.backgroundVideo.initBackgroundVideo({
+        sourceEl: m.el("bgVideoSource"),
+        bgRoot: document.querySelector(".app-bg"),
+      });
+
+      stage = "GglRendererSettingsModal.init";
+      m.settingsModalUi.init();
+
+      stage = "GglRendererWindowControls.init";
+      m.windowControls.init();
+
+      // Notif button wiring (still here because it binds raw DOM nodes).
+      stage = "notif_buttons";
+      const { notifUi, notifOverlay, notifList, notifEmpty, notifFooter } = m;
+      m.onDom(m.btnBell, "click", () => {
+        notifUi.toggleNotif({
+          notifOverlay,
+          notifList,
+          notifEmpty,
+          notifFooter,
+          btnBell: m.btnBell,
+        });
+      });
+      m.onDom(m.btnNotifClose, "click", () => notifUi.closeNotif(notifOverlay));
+      m.onDom(notifOverlay, "click", (ev) => {
+        if (ev.target === notifOverlay) notifUi.closeNotif(notifOverlay);
+      });
+      m.onDom(m.btnNotifClear, "click", async () => {
+        await notifUi.clearNotifs({
+          notifList,
+          notifEmpty,
+          notifFooter,
+          btnBell: m.btnBell,
+        });
+      });
+
+      stage = "GglRendererAccountUi.init";
+      m.accountUi.init();
+
+      stage = "GglRendererServerStatusUi.init";
+      m.serverStatusUi.init();
+
+      stage = "GglRendererLaunchUi.init";
+      m.launchUi.init();
+
+      stage = "GglRendererRepairUi.init";
+      m.repairUi.init();
+
+      stage = "GglRendererSyncUi.init";
+      m.syncUi.init();
+
+      stage = "GglRendererMinecraftUi.init";
+      m.minecraftUi.init();
+
+      stage = "GglRendererInstanceUi.init";
+      m.instanceUi.init();
+
+      // 第一批請求（讀帳號、通知）從這裡發出：之後失敗的話，它們回來時故障訊息仍在專用區域
+      stage = "GglRendererStartup.init";
+      m.startup.init();
+
+      stage = "teardown";
+      m.trackDomCleanup(() => {
+        try {
+          m.minecraftUi.teardown();
+          m.settingsModalUi.teardown();
+          m.accountUi.teardown();
+        } catch {
+          // 清理：視窗正在卸載，模組狀態可能已半毀；丟出來也沒有人能處理
+        }
+      });
+
+      // 所有 onIpc 都在上面同步掛好了：請 main 把狀態事件的最後一筆重送一次（B10）。
+      // 必須留在 activate() 最後；之後若有非同步才掛的監聽，要掛在它之前。
+      stage = "renderer_ready";
+      m.safeInvokeSilent("renderer:ready");
+      m.updateLaunchButtonUi();
+    }
   }
 
   window.GglRendererBootstrap = { start };

@@ -9,11 +9,10 @@ This project uses a plain `<script>`-based renderer (no bundler). Most renderer 
 1. **Pure logic libs** (e.g. `lib/settings-logic.js`)
 2. **Infrastructure**
    - `renderer/lifetime.js`: IPC + DOM listener wrappers, cleanup tracking
-   - `renderer/module-registry.js`: safe access to `window.*` modules
-   - `renderer/self-check.js`: shows missing modules on-screen
+   - `renderer/boot-failure.js`: the one exit when bootstrap cannot finish (shows the stage in `#bootFailure`, cleans up what lifetime tracked, keeps the close button working via `window.close()`, logs a whitelisted event ID)
 3. **UI helper modules** (each exports a `window.GglRenderer*` object)
 4. **Orchestration**
-   - `renderer/bootstrap.js`: wires everything together
+   - `renderer/bootstrap.js`: wires everything together — first assembles (refs, ctx, every `createX`, no listeners or requests), then activates (`init()`, listeners, first requests, `renderer:ready`); a missing module or any synchronous error goes to `boot-failure.js`
    - `renderer.js`: thin shell, calls `GglRendererBootstrap.start()`
 
 ## Modules (responsibilities)

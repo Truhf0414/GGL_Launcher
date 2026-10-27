@@ -1,18 +1,9 @@
 // Renderer infra helpers: lifetime cleanup + IPC/DOM wrappers.
 // Loaded before renderer.js via index.html.
 (function () {
+  // preload 不在時 window.ggl 是 undefined：載入時不碰它，只有函式被呼叫時才用。
+  // 檢查只在 bootstrap 一處（→ renderer/bootstrap.js 的 assemble），這支照樣掛上，故障出口才拿得到 cleanup
   const ggl = window.ggl;
-
-  if (
-    !ggl ||
-    typeof ggl.invoke !== "function" ||
-    typeof ggl.on !== "function"
-  ) {
-    try {
-      console.error("GGL bridge not available (preload not loaded).");
-    } catch {}
-    return;
-  }
 
   // ---- Lifetime cleanup (prevents duplicate listeners on renderer reload) ----
   const ipcUnsubscribers = [];
@@ -136,4 +127,3 @@
     cleanupRendererLifetime,
   };
 })();
-

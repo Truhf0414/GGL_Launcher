@@ -1,13 +1,9 @@
 // Renderer Process entrypoint (thin shell)
 (function () {
-  const Boot = window.GglRendererBootstrap;
-  if (!Boot || typeof Boot.start !== "function") {
-    try {
-      console.error(
-        "GglRendererBootstrap missing: ensure ./renderer/bootstrap.js is loaded before renderer.js.",
-      );
-    } catch {}
-    return;
+  // start() 自己接住並回報初始化失敗；這裡只接 bootstrap.js 本身沒載到的情況
+  try {
+    window.GglRendererBootstrap.start();
+  } catch (err) {
+    window.GglRendererBootFailure.report("bootstrap", err);
   }
-  Boot.start();
 })();

@@ -11,6 +11,7 @@ const {
   makeEl,
   fakeDocument,
   loadRendererModule,
+  rendererConstants,
 } = require("./helpers/fake-dom.cjs");
 
 const ACCOUNT_UI = path.join(__dirname, "..", "renderer", "account-ui.js");
@@ -21,7 +22,9 @@ async function clickLoginAndFail(t, rejectMessage) {
   t.after(() => {
     delete global.document;
   });
-  const win = loadRendererModule(ACCOUNT_UI);
+  const win = loadRendererModule(ACCOUNT_UI, {
+    GglRendererConstants: rendererConstants(),
+  });
   const btnLogin = makeEl("button");
   const bindings = [];
   const statuses = [];

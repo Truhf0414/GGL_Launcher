@@ -5,21 +5,8 @@
   function gglEvent(scope, event, detail) {
     const rec = { v: 1, s: String(scope), e: String(event) };
     if (detail !== undefined) rec.d = detail;
-    try {
-      console.log("[GGL]", JSON.stringify(rec));
-    } catch (err) {
-      try {
-        console.log(
-          "[GGL]",
-          JSON.stringify({
-            v: 1,
-            s: String(scope),
-            e: String(event),
-            d: "log_serialize_failed",
-          }),
-        );
-      } catch {}
-    }
+    // detail 由呼叫者給：序列化丟錯是呼叫者的程式錯，讓它大聲
+    console.log("[GGL]", JSON.stringify(rec));
   }
 
   function gglError(scope, event, err, detail) {
@@ -30,12 +17,16 @@
       err: String(err?.message ?? err),
     };
     if (detail !== undefined) rec.d = detail;
+    // gglError 是故障回報的出口（初始化故障也走這裡）：err 可以是任何被丟出的值，
+    // 讀 stack 或序列化失敗都不能擋住後面送事件 ID，也不能把例外丟回呼叫者的 catch、蓋掉原本的錯
     try {
       if (err?.stack) {
         const lines = String(err.stack).split("\n").slice(0, 4);
         rec.st = lines.map((l) => l.trim()).join(" | ");
       }
-    } catch {}
+    } catch {
+      // 同上：stack 讀不到就不附
+    }
     try {
       console.error("[GGL]", JSON.stringify(rec));
     } catch {
@@ -49,7 +40,9 @@
             err: "log_failed",
           }),
         );
-      } catch {}
+      } catch {
+        // 同上：退路也印不出來就放棄 console，事件 ID 照送
+      }
     }
     // 常駐日誌只收事件 ID（main 對 lib/renderer-error-events.js）；沒有 window.ggl 就沒有管道。
     // 日誌管道本身壞了（invoke 不能用、同步丟錯、被拒）沒地方可報，也不能再叫 gglError（會遞迴）：
@@ -60,7 +53,7 @@
           // 同上：被拒
         });
       } catch {
-        // 同上：bridge 不完整（ggl_bridge_missing 的分支）或 invoke 同步丟錯
+        // 同上：bridge 不完整或 invoke 同步丟錯
       }
     }
   }

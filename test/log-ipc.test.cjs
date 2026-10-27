@@ -41,9 +41,9 @@ function setup(t) {
 
 test("P1: 清單裡的 ID ⇒ 一筆 renderer 事件，不帶 err、不帶 d", (t) => {
   const s = setup(t);
-  s.invoke("bootstrap_ctx_factory_missing");
+  s.invoke("renderer_boot_failed");
   assert.deepEqual(s.records(), [
-    { v: 1, s: "renderer", e: "bootstrap_ctx_factory_missing" },
+    { v: 1, s: "renderer", e: "renderer_boot_failed" },
   ]);
 });
 
@@ -55,16 +55,20 @@ test("A11: ui_refs_missing（6a G2）⇒ 照記，不變成 renderer_log_rejecte
   ]);
 });
 
-test("P2: 不在清單的字串、偽裝成 main 的 ID ⇒ renderer_log_rejected，送來的字串不進檔", (t) => {
+test("P2: 不在清單的字串、偽裝成 main 的 ID、已退役的 ID ⇒ renderer_log_rejected，送來的字串不進檔", (t) => {
   const s = setup(t);
   s.invoke("token=FAKE_P2");
   s.invoke("start_main_failed");
+  // 6d A1-C：模組缺失併入 renderer_boot_failed，舊的專屬 ID 不再收
+  s.invoke("bootstrap_ctx_factory_missing");
   assert.deepEqual(s.records(), [
+    { v: 1, s: "main", e: "renderer_log_rejected", d: { type: "string" } },
     { v: 1, s: "main", e: "renderer_log_rejected", d: { type: "string" } },
     { v: 1, s: "main", e: "renderer_log_rejected", d: { type: "string" } },
   ]);
   assert.ok(!s.raw().includes("FAKE"));
   assert.ok(!s.raw().includes("start_main_failed"));
+  assert.ok(!s.raw().includes("bootstrap_ctx_factory_missing"));
 });
 
 test("P3: 不是字串 ⇒ renderer_log_rejected＋typeof，不拋", (t) => {
@@ -73,8 +77,8 @@ test("P3: 不是字串 ⇒ renderer_log_rejected＋typeof，不拋", (t) => {
     [42, "number"],
     [null, "object"],
     [undefined, "undefined"],
-    [{ e: "bootstrap_ctx_factory_missing" }, "object"],
-    [["bootstrap_ctx_factory_missing"], "object"],
+    [{ e: "renderer_boot_failed" }, "object"],
+    [["renderer_boot_failed"], "object"],
   ];
   for (const [p] of payloads) assert.doesNotThrow(() => s.invoke(p));
   assert.deepEqual(

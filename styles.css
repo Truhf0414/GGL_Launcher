@@ -1162,6 +1162,33 @@ textarea,
 }
 
 /* =========================
+   初始化失敗訊息（renderer/boot-failure.js）：只在 bootstrap 失敗時出現，不自動消失；
+   不蓋住右上角，玩家照樣能按 × 關閉
+   ========================= */
+.boot-failure {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 60;
+  width: min(520px, calc(100% - 48px));
+  padding: 20px 24px;
+  border-radius: var(--design-radius);
+  border: 1px solid var(--design-stroke);
+  background: rgba(18, 20, 26, 0.92);
+  box-shadow: var(--design-shadow);
+}
+.boot-failure__title {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+.boot-failure__detail {
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+/* =========================
    設定彈窗（毛玻璃）
    ========================= */
 .modal {

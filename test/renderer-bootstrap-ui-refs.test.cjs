@@ -1,7 +1,8 @@
 "use strict";
 
-// 畫面必要元素缺席要大聲（G2）：buildUiRefs 收到 null 就丟錯；bootstrap.start() 接住 ⇒ gglError ui_refs_missing 後停止初始化。
-// → _notes/plans/cross-review-2026-10-phase6a.md §驗收 A8–A10
+// 畫面必要元素缺席要大聲（G2）：buildUiRefs 收到 null 就丟錯。
+// → _notes/plans/cross-review-2026-10-phase6a.md §驗收 A8–A10；A10（bootstrap 接住後記 ui_refs_missing）
+// 6d-1 起改由 test/renderer-boot.test.cjs 的 E4 驗（故障出口換成 renderer/boot-failure.js）
 // A9 是拿真 index.html 的 id／class 當資料的契約測試，不驗瀏覽器的初始化時序（script 何時執行、DOM 是否已解析）。
 
 const test = require("node:test");
@@ -12,7 +13,6 @@ const path = require("path");
 const { makeEl, loadRendererModule } = require("./helpers/fake-dom.cjs");
 
 const CTX = path.join(__dirname, "..", "renderer", "bootstrap-ctx.js");
-const BOOT = path.join(__dirname, "..", "renderer", "bootstrap.js");
 const HTML = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 
 // 假 document：getElementById 查 ids、querySelector 只認 ".class"（buildUiRefs 改用別種選擇器 ⇒ 這裡丟錯，不默默回 null）
@@ -98,54 +98,4 @@ test("A9 契約：真 index.html 的 id／class 餵給 buildUiRefs ⇒ 不丟、
   );
   const missing = Object.keys(refs).filter((k) => refs[k] === null);
   assert.deepEqual(missing, []);
-});
-
-// 真的 bootstrap-ctx.js＋真的 bootstrap.js 載進同一個 window；document 裡一個元素都沒有
-function startWithEmptyDocument(t) {
-  fakeDocument(t, new Set(), new Set());
-  const calls = { gglError: [], invoke: [], on: [], getModule: [] };
-  const win = loadRendererModule(CTX, {
-    ggl: {
-      invoke: (...a) => {
-        calls.invoke.push(a);
-        return Promise.resolve();
-      },
-      on: (...a) => {
-        calls.on.push(a);
-        return () => {};
-      },
-    },
-    GglRendererModules: {
-      getModule: (name) => {
-        calls.getModule.push(name);
-        return null;
-      },
-    },
-    GglStructuredLog: {
-      gglEvent: () => {},
-      gglError: (...a) => calls.gglError.push(a),
-    },
-  });
-  delete require.cache[require.resolve(BOOT)];
-  require(BOOT);
-  // 沒有 GglRendererLifetime ⇒ bootstrap 會 console.error 一行提示（既有行為），不是本案要驗的
-  t.mock.method(console, "error", () => {});
-  return { win, calls };
-}
-
-test("A10 bootstrap.start()：buildUiRefs 丟錯 ⇒ gglError ui_refs_missing（不帶 detail）、start 不往外丟、停在原地", (t) => {
-  const { win, calls } = startWithEmptyDocument(t);
-  assert.doesNotThrow(() => win.GglRendererBootstrap.start());
-
-  assert.equal(calls.gglError.length, 1);
-  const [args] = calls.gglError;
-  assert.equal(args.length, 3, "不帶 detail");
-  assert.deepEqual(args.slice(0, 2), ["renderer", "ui_refs_missing"]);
-  assert.ok(args[2] instanceof Error);
-  assert.match(args[2].message, /\bbtnMinimize\b/);
-
-  // buildUiRefs 之前只拿過背景影片模組；之後的模組、IPC 監聽、renderer:ready 都沒發生
-  assert.deepEqual(calls.getModule, ["GglRendererBackgroundVideo"]);
-  assert.deepEqual(calls.on, []);
-  assert.deepEqual(calls.invoke, []);
 });

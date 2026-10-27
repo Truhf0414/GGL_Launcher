@@ -19,8 +19,7 @@ const RENDERER_LIBS = [
 const expected = [
   ...RENDERER_LIBS,
   "./renderer/lifetime.js",
-  "./renderer/module-registry.js",
-  "./renderer/self-check.js",
+  "./renderer/boot-failure.js",
   "./renderer/constants.js",
   "./renderer/ggl-log.js",
   "./renderer/ui-status.js",
