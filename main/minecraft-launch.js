@@ -7,7 +7,6 @@ const path = require("path");
 const { spawn } = require("child_process");
 const { ensureWritableTree } = require("./fs-utils");
 const { launchIdFor } = require("../lib/runtime-target.js");
-const { assertLaunchBundle } = require("../lib/runtime-needs.js");
 const { javaExeFor } = require("../lib/paths-layout.js");
 const { heapMbFromSettings } = require("../lib/launch-memory.js");
 const {
@@ -148,13 +147,13 @@ function waitSpawned(p) {
 /**
  * 連點／兩個 IPC 同時啟動由呼叫端的啟動鎖擋（main/sync 的 withLaunchLock）；遊戲已在跑由鎖內的 IPC 那道擋。
  * record、launch 是閘那次計算的那份（④c A1）；launch＝就緒交出的成品，啟動不讀 json、不重算（⑤c P2′）。
- * 不完整的記錄與沒有成品由閘擋（canLaunch ⇒ 就緒），這裡不再驗（→ _notes/plans/cross-review-2026-10-phase6b4.md #5、#6）。
+ * 不完整的記錄與沒有成品由閘擋（canLaunch ⇒ 就緒），這裡不再驗（→ _notes/plans/cross-review-2026-10-phase6b4.md #5、#6）；
+ * 成品的形狀也不驗：只有 runtimeNeeds 組、同一次計算原物件交過來（→ _notes/plans/cross-review-2026-10-phase6c.md U3-b）。
  * 依賴只經 configureMinecraftLaunch（一條注入路，6b-3b）。
  * @param {{ settings: object, paths: object, record: object, launch: object, auth?: object }} input
  */
 async function launchMinecraft({ settings, paths, record, launch, auth }) {
   const d = launchDeps;
-  assertLaunchBundle(launch);
   const gameDir = paths.gameDir;
   const launchId = launchIdFor(record);
   d.sendMcStatus("正在準備啟動參數…");

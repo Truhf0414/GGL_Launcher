@@ -108,22 +108,9 @@ test("L1 evaluateRules：上層六案＋os.version、同一條全部成立", () 
   );
 });
 
-test("L2 evaluateRules：json 壞掉 ⇒ GGL_BAD_VERSION_JSON；env 形狀不對 ⇒ TypeError", () => {
-  assert.throws(() => evaluateRules([R("maybe")], ENV), bad(/maybe/));
-  assert.throws(() => evaluateRules([R("allow", { foo: 1 })], ENV), bad(/foo/));
-  assert.throws(
-    () => evaluateRules([R("allow", { os: { foo: "x" } })], ENV),
-    bad(/foo/),
-  );
-  assert.throws(() => evaluateRules("x", ENV), bad(/rules/));
-  assert.throws(
-    () => evaluateRules([R("allow", { os: { version: "(" } })], ENV),
-    bad(/正規式/),
-  );
-  const noArch = { ...ENV, os: { name: "windows", version: "10.0" } };
-  assert.throws(() => evaluateRules([], noArch), misuse(/env/));
-  assert.throws(() => evaluateRules([], { ...ENV, features: null }), misuse(/env/));
-});
+// L2（壞 rules ⇒ GGL_BAD_VERSION_JSON、壞 env ⇒ TypeError）撤回：evaluateRules 不再重驗。
+// 壞 rules 由邊界 checkLaunchSpec 擋（L14）；壞 env 由入口擋（runtime-readiness、runtime-minecraft 的 K8）
+// （→ _notes/plans/cross-review-2026-10-phase6c.md U3-a、U3-c）
 
 test("L3 mergeVersionChain：兩支 fixture", () => {
   const v = fx.vanilla();
@@ -141,15 +128,19 @@ test("L3 mergeVersionChain：兩支 fixture", () => {
   assert.equal(m.libraries.length, 115);
 });
 
+// 每層都帶 libraries：正式輸入過 checkLibraries 一定有，mergeLibraries 不再把缺的當空陣列（→ phase6c U3-d）
 test("L4 mergeVersionChain：子層 null 不蓋、library 子覆蓋、單層、壞資料", () => {
   const nulls = mergeVersionChain([
-    { logging: { client: 1 }, type: "release" },
-    { logging: null, type: null },
+    { logging: { client: 1 }, type: "release", libraries: [] },
+    { logging: null, type: null, libraries: [] },
   ]);
   assert.deepEqual(nulls.logging, { client: 1 });
   assert.equal(nulls.type, "release");
   assert.equal(
-    mergeVersionChain([{ type: "release" }, { type: "snapshot" }]).type,
+    mergeVersionChain([
+      { type: "release", libraries: [] },
+      { type: "snapshot", libraries: [] },
+    ]).type,
     "snapshot",
   );
   const libs = mergeVersionChain([
@@ -158,7 +149,7 @@ test("L4 mergeVersionChain：子層 null 不蓋、library 子覆蓋、單層、�
   ]).libraries;
   assert.deepEqual(libs, [{ name: "a:b:1", from: "child" }]);
   const one = mergeVersionChain([
-    { id: "x", mainClass: "M", arguments: { jvm: ["a"], game: ["b"] } },
+    { id: "x", mainClass: "M", arguments: { jvm: ["a"], game: ["b"] }, libraries: [] },
   ]);
   assert.equal(one.id, "x");
   assert.equal(one.mainClass, "M");
@@ -256,7 +247,7 @@ test("L8 expandArguments：null＝故意沒有、連旗標拿掉；漏給報錯�
     ex(["--clientId", "${clientid}", "--xuid", "${auth_xuid}"], both),
     [],
   );
-  assert.throws(() => ex(["${foo}"], {}), bad(/foo/));
+  // 「不認得的 ${foo} ⇒ GGL_BAD_VERSION_JSON」撤回：名字由邊界 checkLaunchSpec 驗（L14）（→ phase6c U3-c）
   assert.throws(() => ex(["a"], { foo: "x" }), misuse(/foo/));
   assert.throws(() => ex(["a"], { clientid: 5 }), misuse(/clientid/));
   assert.deepEqual(
@@ -461,6 +452,9 @@ test("L14 checkLaunchSpec：fixture 過；各種壞法 ⇒ ok:false 指出哪一
     ],
     ["rule 帶不認得的鍵", (v) => (v.arguments.jvm[0].rules[0].foo = 1), /foo/],
     ["os.version 編不起來", (v) => (v.arguments.jvm[0].rules[0].os.version = "("), /正規式/],
+    // 下兩列從撤掉的 L2 搬來：evaluateRules 不再重驗，這兩種壞法只剩邊界擋（→ phase6c U3-c）
+    ["rule.os 帶不認得的鍵", (v) => (v.arguments.jvm[0].rules[0].os.foo = "x"), /foo/],
+    ["library 的 rules 不是陣列", (v) => (v.libraries.find((l) => l.rules).rules = "x"), /rules/],
     [
       "只有 minecraftArguments",
       (v) => {
@@ -616,7 +610,7 @@ test("N3 checkLaunchable：fixture 過；就緒驗的＝啟動用的（type、nu
   notOk(checkLaunchable({ ...mergeVersionChain([v, f]), mainClass: "" }, ENV), /mainClass/);
   // 啟動器沒有值的 key 無條件出現 ⇒ 整組省略、不算壞（R-l）
   assert.deepEqual(check(v, withArgs(f, "game", ["--width", "${resolution_width}"])), { ok: true });
-  // 程式錯照丟，不轉成「資料壞了」：env 在 try 外驗；merged 給錯是在 try 裡面丟的（突變 M4）
+  // 程式錯照丟，不轉成「資料壞了」：env 給錯由 ruleMatches 丟 TypeError、merged 給錯由 launchPlaceholders 丟，都在 try 裡（突變 M4）
   assert.throws(() => checkLaunchable(mergeVersionChain([v, f]), null), TypeError);
   assert.throws(() => checkLaunchable(null, ENV), misuse(/merged/));
 });

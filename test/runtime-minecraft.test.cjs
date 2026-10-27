@@ -504,7 +504,11 @@ test("K8 installRuntimeFiles 沒給 env ⇒ TypeError，一個請求都沒發", 
   const gameDir = await tempDir(t);
   const { env, ...noEnv } = installArgs(fake, gameDir);
   void env;
-  await assert.rejects(installRuntimeFiles(noEnv), TypeError);
+  // 要是入口的 assertEnv 丟的：下游 checkLaunchable 不再驗 env，缺 env 也會在 ruleMatches 丟 TypeError（→ phase6c U3-a）
+  await assert.rejects(
+    installRuntimeFiles(noEnv),
+    (e) => e instanceof TypeError && /env 形狀不對/.test(e.message),
+  );
   assert.equal(fake.requests.length, 0);
 });
 

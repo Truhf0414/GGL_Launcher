@@ -348,19 +348,9 @@ test("S4 啟動不讀 json：拿到成品後把兩份 json 刪掉，照樣啟動
   assert.deepEqual(h.calls.spawn[1].args, first);
 });
 
-// 沒有成品（null／undefined）原本由第二道報 GGL_LAUNCH_NOT_READY；第二道撤掉後同樣由 assertLaunchBundle 擋（它本來就把 null、非物件當形狀不對）
-// （→ _notes/plans/cross-review-2026-10-phase6b4.md #6 責任轉移）
-test("S4 沒有成品或成品形狀不對 ⇒ assertLaunchBundle 的 TypeError；都不 spawn", async (t) => {
-  const h = await setup(t);
-  for (const launch of [null, undefined, {}, { ...h.bundle, logConfigRel: "" }, { ...h.bundle, versionJarRel: "" }]) {
-    await assert.rejects(
-      h.launch(online, {}, { launch }),
-      (e) => e instanceof TypeError && /assertLaunchBundle/.test(e.message),
-      launch == null ? String(launch) : JSON.stringify(Object.keys(launch)),
-    );
-  }
-  assert.equal(h.calls.spawn.length, 0);
-});
+// S4「沒有成品或成品形狀不對 ⇒ assertLaunchBundle 的 TypeError」整案撤回：assertLaunchBundle 已刪（B3），
+// 五列餵的都是 runtimeNeeds 組不出的成品。沒有成品由閘擋（canLaunch ⇒ 就緒，6b-4 #6）；成品的值由 runtime-needs 的 N1 等案釘住
+// （→ _notes/plans/cross-review-2026-10-phase6c.md U3-b）
 
 // ── 送畫面是通知：失敗不改變啟動與查詢的結果（6b-1 B5e、B6、B7）──
 // 接真的 bridge（main/ipc-bridge.js），失敗由它記常駐日誌 → _notes/plans/cross-review-2026-10-phase6b.md §B7、D4
