@@ -43,14 +43,6 @@
     }
   }
 
-  function safeInvokeSilent(channel, ...args) {
-    // For fire-and-forget actions (minimize/close/openExternal).
-    try {
-      const p = ggl.invoke(channel, ...args);
-      if (p && typeof p.catch === "function") p.catch(() => {});
-    } catch {}
-  }
-
   function onIpc(channel, handler) {
     const off = ggl.on(channel, handler);
     ipcUnsubscribers.push(off);
@@ -63,7 +55,9 @@
     const off = () => {
       try {
         target.removeEventListener(type, handler, options);
-      } catch {}
+      } catch {
+        // 清理：拔不掉就算了，視窗正在卸載或故障出口正在收攤，沒有人能處理
+      }
     };
     domUnsubscribers.push(off);
     return off;
@@ -85,31 +79,41 @@
     return off;
   }
 
+  // 清理（卸載前、故障出口）：每一項各自 try，一項丟錯不能讓後面的沒清到；
+  // 丟出來的錯也沒有人能處理（視窗正在卸載，或出口已經在報更早的故障）
   function cleanupRendererLifetime() {
     // Stop custom timers first (they might trigger UI work).
     for (const id of intervalIds.splice(0)) {
       try {
         clearInterval(id);
-      } catch {}
+      } catch {
+        // 同上
+      }
     }
     for (const id of timeoutIds.splice(0)) {
       try {
         clearTimeout(id);
-      } catch {}
+      } catch {
+        // 同上
+      }
     }
 
     // Remove DOM listeners.
     for (const off of domUnsubscribers.splice(0)) {
       try {
         off();
-      } catch {}
+      } catch {
+        // 同上
+      }
     }
 
     // Unsubscribe IPC listeners.
     for (const off of ipcUnsubscribers.splice(0)) {
       try {
         off();
-      } catch {}
+      } catch {
+        // 同上
+      }
     }
   }
 
@@ -118,7 +122,6 @@
 
   window.GglRendererLifetime = {
     safeInvoke,
-    safeInvokeSilent,
     onIpc,
     onDom,
     trackInterval,

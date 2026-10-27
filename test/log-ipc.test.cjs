@@ -91,3 +91,16 @@ test("P3: 不是字串 ⇒ renderer_log_rejected＋typeof，不拋", (t) => {
     })),
   );
 });
+
+// 6d-3：背景請求失敗的三個 ID（renderer:ready、通知、帳號）→ plans/cross-review-2026-10-phase6d.md §二
+for (const id of [
+  "renderer_ready_failed",
+  "notifications_fetch_failed",
+  "account_read_failed",
+]) {
+  test(`P4: ${id}（6d-3）⇒ 照記，不變成 renderer_log_rejected`, (t) => {
+    const s = setup(t);
+    s.invoke(id);
+    assert.deepEqual(s.records(), [{ v: 1, s: "renderer", e: id }]);
+  });
+}

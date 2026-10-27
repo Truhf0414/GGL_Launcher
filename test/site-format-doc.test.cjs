@@ -999,6 +999,7 @@ function bellUi(t, res) {
     notifOverlay: makeEl(),
     notifList: makeEl(),
     notifEmpty: makeEl(),
+    notifError: makeEl(),
     notifFooter: makeEl(),
     btnBell: makeEl(),
   };

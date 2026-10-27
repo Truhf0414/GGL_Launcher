@@ -79,6 +79,15 @@ function setupEnv(t, { ggl = true, ids = ALL_IDS, invoke } = {}) {
   // 啟動鈕裡寫死的標籤（index.html 的 .launch-text）：launch-ui 更新按鈕時找它
   if (ids.has("btnLaunch"))
     el("btnLaunch").querySelectorMap[".launch-text"] = makeEl("span");
+  // 背景影片的 <source> 寫死在 <video> 裡（index.html）：background-video 從它往上找 video
+  if (ids.has("bgVideoSource")) {
+    const video = Object.assign(makeEl("video"), {
+      play: () => Promise.resolve(),
+      pause: () => {},
+      load: () => {},
+    });
+    el("bgVideoSource").closest = (sel) => (sel === "video" ? video : null);
+  }
   const byClass = new Map();
   const doc = Object.assign(makeEl("document"), {
     getElementById: el,
@@ -107,6 +116,9 @@ function setupEnv(t, { ggl = true, ids = ALL_IDS, invoke } = {}) {
         if (invoke) return Promise.resolve(invoke(channel));
         if (channel === "account:get")
           return Promise.resolve({ state: "logged-out", name: "", uuid: "" });
+        // main 的形狀（main/ipc/notifications-ipc.js）：畫面不再替別的形狀補空清單（6d-3 R-OLD）
+        if (channel === "notifications:get")
+          return Promise.resolve({ items: [], unreadCount: 0 });
         return Promise.resolve();
       },
       on: (channel) => {
@@ -471,10 +483,18 @@ test("U7 上線段最後一步才失敗、請求晚回來 ⇒ 故障區的字還
   // 上線段的最後一步（renderer:ready 之後的 updateLaunchButtonUi）丟錯：startup 已經發出請求
   const LU = env.win.GglRendererLaunchUi;
   const create = LU.createLaunchUi;
+  // 只壞那一次：之後晚回來的帳號套用到畫面時照常呼叫它（6d-3 起套用時的程式錯不再被讀帳號的 catch 吞掉）
   LU.createLaunchUi = (input) => {
     const ui = create(input);
+    const real = ui.updateLaunchButtonUi;
+    let failed = false;
     ui.updateLaunchButtonUi = () => {
-      throw new Error("late failure");
+      // 經 bootstrap 的第一次呼叫就是上線段最後一步（下面的 reports 斷言釘住）
+      if (!failed) {
+        failed = true;
+        throw new Error("late failure");
+      }
+      return real();
     };
     return ui;
   };
@@ -582,5 +602,96 @@ test("G1 每支 renderer/*.js 都恰好定義一個 window global（照 index.ht
       `${src} 定義了 ${added.join(", ") || "（沒有）"}`,
     );
     assert.match(added[0], /^Ggl/, src);
+  }
+});
+
+// ---- 6d-3（Q2）：背景請求與玩家操作的失敗，在受影響的地方說、背景的記一筆 → plan §二 ----
+
+/** 假 main：fails 裡的 channel 一律被拒，其他照 setupEnv 的預設回 */
+function failOn(...fails) {
+  return (channel) => {
+    if (fails.includes(channel))
+      return Promise.reject(new Error(`${channel} 壞了`));
+    if (channel === "account:get")
+      return { state: "logged-out", name: "", uuid: "" };
+    if (channel === "notifications:get") return { items: [], unreadCount: 0 };
+    return undefined;
+  };
+}
+
+const settle = () => new Promise((r) => setImmediate(r));
+
+function startWith(t, ...fails) {
+  const env = setupEnv(t, { invoke: failOn(...fails) });
+  loadScripts();
+  const reports = spyReport(env.win);
+  const errors = spyGglError(env.win);
+  return { env, reports, errors, ids: () => errors.map(([, id]) => id) };
+}
+
+test("Q1 renderer:ready 送不出去 ⇒ 記 renderer_ready_failed、狀態區說拿不到狀態，不走故障出口", async (t) => {
+  const s = startWith(t, "renderer:ready");
+  s.env.win.GglRendererBootstrap.start();
+  await settle();
+  assert.deepEqual(s.reports, []);
+  assert.deepEqual(s.ids(), ["renderer_ready_failed"]);
+  assert.equal(
+    s.env.el("statusText").title,
+    "無法取得啟動器狀態，請重新開啟啟動器。",
+  );
+});
+
+test("Q2 開機讀帳號失敗 ⇒ 記 account_read_failed、帳號區寫「無法讀取帳號」（不是「登入」）", async (t) => {
+  const s = startWith(t, "account:get");
+  s.env.win.GglRendererBootstrap.start();
+  await settle();
+  assert.deepEqual(s.reports, []);
+  assert.deepEqual(s.ids(), ["account_read_failed"]);
+  assert.equal(s.env.el("accountName").textContent, "無法讀取帳號");
+});
+
+test("Q3 啟動失敗後重讀帳號失敗（bootstrap 交給 launch-ui 的 resyncAccountState）⇒ 同一個 ID、同一句", async (t) => {
+  const s = startWith(t);
+  const LU = s.env.win.GglRendererLaunchUi;
+  const create = LU.createLaunchUi;
+  let launchInput;
+  LU.createLaunchUi = (input) => create((launchInput = input));
+  s.env.win.GglRendererBootstrap.start();
+  await settle();
+  assert.deepEqual(s.ids(), []);
+  s.env.win.ggl.invoke = (channel) => {
+    s.env.calls.invoke.push(channel);
+    return Promise.reject(new Error(`${channel} 壞了`));
+  };
+  await launchInput.resyncAccountState();
+  assert.deepEqual(s.ids(), ["account_read_failed"]);
+  assert.equal(s.env.el("accountName").textContent, "無法讀取帳號");
+});
+
+test("Q4 開機讀通知失敗 ⇒ 記 notifications_fetch_failed、紅點維持、狀態區不出字", async (t) => {
+  const s = startWith(t, "notifications:get");
+  s.env.el("btnBell").classList.add("has-unread");
+  s.env.win.GglRendererBootstrap.start();
+  await settle();
+  assert.deepEqual(s.ids(), ["notifications_fetch_failed"]);
+  assert.ok(s.env.el("btnBell").classList.contains("has-unread"));
+  assert.doesNotMatch(s.env.el("statusText").title, /通知|無法/);
+});
+
+test("Q5 縮小、關閉、Discord 按了失敗 ⇒ 狀態區各自說哪一個失敗，不記", async (t) => {
+  for (const [id, channel, said] of [
+    ["btnMinimize", "window:minimize", "無法縮小視窗：window:minimize 壞了"],
+    ["btnClose", "window:close", "無法關閉視窗：window:close 壞了"],
+    ["btnDiscord", "openExternal", "無法開啟 Discord 邀請：openExternal 壞了"],
+  ]) {
+    await t.test(id, async (tt) => {
+      const s = startWith(tt, channel);
+      s.env.win.GglRendererBootstrap.start();
+      await settle();
+      await s.env.el(id).fire("click");
+      await settle();
+      assert.equal(s.env.el("statusText").title, said);
+      assert.deepEqual(s.ids(), []);
+    });
   }
 });

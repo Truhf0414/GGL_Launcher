@@ -203,15 +203,16 @@
       try {
         let startDir = inputInstallDir.value.trim();
         if (!startDir) {
-          // 欄位空白才拿伺服器預設當起點；取不到就傳空字串，由 main 退回 C:\
-          startDir = await loadServerDefaults()
-            .then((d) => String(d?.launcherRootDir || ""))
-            .catch(() => "");
+          // 欄位空白才拿伺服器預設當起點（出貨常數，取不到只剩接線壞）
+          startDir = await loadServerDefaults().then((d) =>
+            String(d?.launcherRootDir || ""),
+          );
         }
         const chosen = await safeInvoke("dialog:selectDirectory", startDir);
         if (chosen) inputInstallDir.value = chosen;
-      } catch {
-        // keep silent: directory picker failures shouldn't hard-block settings
+      } catch (e) {
+        // 玩家按的：在設定視窗裡說（Q2 ①），不記
+        setSettingsError(`選擇資料夾失敗：${String(e?.message ?? e)}`);
       }
     }
 
@@ -304,7 +305,9 @@
     function teardown() {
       try {
         detachSettingsKeydown();
-      } catch {}
+      } catch {
+        // 清理：視窗正在卸載；丟出來也沒有人能處理
+      }
     }
 
     return {

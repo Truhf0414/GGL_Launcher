@@ -60,6 +60,7 @@
       btnNotifClear: el("btnNotifClear"),
       notifFooter: el("notifFooter"),
       notifEmpty: el("notifEmpty"),
+      notifError: el("notifError"),
       notifList: el("notifList"),
 
       // Background video
@@ -81,7 +82,7 @@
     const {
       ggl,
       safeInvoke,
-      safeInvokeSilent,
+      gglError,
       onIpc,
       onDom,
       trackInterval,
@@ -101,7 +102,7 @@
     const fx = {
       ggl,
       safeInvoke,
-      safeInvokeSilent,
+      gglError,
       onIpc,
       onDom,
       trackInterval,

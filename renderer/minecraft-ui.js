@@ -41,7 +41,8 @@
               stopMcWatchdog();
             }
           } catch {
-            // 忽略，下一輪再試
+            // 探測：這一輪問不到就等下一輪（2.5 秒後）再問；
+            // 它本身是 minecraft:running 事件漏接時的備援，不另外報錯
           }
         }, 2500),
       );
@@ -80,7 +81,9 @@
     function teardown() {
       try {
         stopMcWatchdog();
-      } catch {}
+      } catch {
+        // 清理：視窗正在卸載；丟出來也沒有人能處理
+      }
     }
 
     return { init, teardown, startMcWatchdog, stopMcWatchdog };

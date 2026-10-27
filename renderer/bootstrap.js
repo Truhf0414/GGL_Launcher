@@ -30,14 +30,13 @@
 
       const {
         safeInvoke,
-        safeInvokeSilent,
         onIpc,
         onDom,
         trackInterval,
         trackTimeout,
         trackDomCleanup,
       } = mod("GglRendererLifetime");
-      const { gglEvent } = mod("GglStructuredLog");
+      const { gglEvent, gglError } = mod("GglStructuredLog");
       const BCTX = mod("GglRendererBootstrapCtx");
       const { computeMemoryUiModel } = mod("GglSettingsLogic");
       const K = mod("GglRendererConstants");
@@ -73,6 +72,7 @@
         notifOverlay,
         notifList,
         notifEmpty,
+        notifError,
         notifFooter,
         btnBell,
         btnNotifClose,
@@ -97,7 +97,7 @@
       const ctx = BCTX.buildRootCtx({
         ggl,
         safeInvoke,
-        safeInvokeSilent,
+        gglError,
         onIpc,
         onDom,
         trackInterval,
@@ -171,12 +171,15 @@
         "GglRendererServerStatusUi",
       ).createServerStatusUi({ ctx });
 
-      async function resyncAccountState() {
-        try {
-          const a = await safeInvoke("account:get");
-          accountState = a;
-          accountUi.applyAccountToUi();
-        } catch {}
+      // 只接住讀取本身的失敗（交給 account-ui 照實顯示＋記）；套用到畫面時丟錯是程式錯，照樣丟出來
+      function resyncAccountState() {
+        return safeInvoke("account:get").then(
+          (a) => {
+            accountState = a;
+            accountUi.applyAccountToUi();
+          },
+          (err) => accountUi.reportAccountReadFailed(err),
+        );
       }
 
       // 修復流程與啟動鈕互相要用：用函式晚綁定（兩者都在 activate 之前建好）
@@ -254,13 +257,16 @@
 
       return {
         onDom,
-        safeInvokeSilent,
+        safeInvoke,
+        gglError,
+        setStatusError,
         trackDomCleanup,
         updateLaunchButtonUi,
         notifUi,
         notifOverlay,
         notifList,
         notifEmpty,
+        notifError,
         notifFooter,
         btnBell,
         btnNotifClose,
@@ -291,12 +297,20 @@
 
       // Notif button wiring (still here because it binds raw DOM nodes).
       stage = "notif_buttons";
-      const { notifUi, notifOverlay, notifList, notifEmpty, notifFooter } = m;
+      const {
+        notifUi,
+        notifOverlay,
+        notifList,
+        notifEmpty,
+        notifError,
+        notifFooter,
+      } = m;
       m.onDom(m.btnBell, "click", () => {
         notifUi.toggleNotif({
           notifOverlay,
           notifList,
           notifEmpty,
+          notifError,
           notifFooter,
           btnBell: m.btnBell,
         });
@@ -309,6 +323,7 @@
         await notifUi.clearNotifs({
           notifList,
           notifEmpty,
+          notifError,
           notifFooter,
           btnBell: m.btnBell,
         });
@@ -352,8 +367,13 @@
 
       // 所有 onIpc 都在上面同步掛好了：請 main 把狀態事件的最後一筆重送一次（B10）。
       // 必須留在 activate() 最後；之後若有非同步才掛的監聽，要掛在它之前。
+      // 送不出去 ⇒ 狀態事件可能永遠等不到，主要狀態不可信：狀態區說出來＋記一筆（Q2 ④）。
+      // 之後真的有狀態事件進來時照常蓋掉；這只讓 ready 呼叫本身的失敗有聲音，不保證重送成功
       stage = "renderer_ready";
-      m.safeInvokeSilent("renderer:ready");
+      m.safeInvoke("renderer:ready").catch((err) => {
+        m.gglError("renderer", "renderer_ready_failed", err);
+        m.setStatusError("無法取得啟動器狀態，請重新開啟啟動器。");
+      });
       m.updateLaunchButtonUi();
     }
   }

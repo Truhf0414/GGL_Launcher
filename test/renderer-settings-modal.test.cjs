@@ -43,7 +43,16 @@ async function until(cond, what) {
   assert.fail(`等不到：${what}`);
 }
 
-function setup(t, { settings = SAVED, set = async (p) => p, recheck = async () => {} } = {}) {
+function setup(
+  t,
+  {
+    settings = SAVED,
+    set = async (p) => p,
+    recheck = async () => {},
+    selectDirectory = async () => null,
+    loadServerDefaults = async () => ({}),
+  } = {},
+) {
   global.document = {
     activeElement: null,
     addEventListener: () => {},
@@ -85,6 +94,7 @@ function setup(t, { settings = SAVED, set = async (p) => p, recheck = async () =
           if (channel === "settings:get") return { ...settings };
           if (channel === "settings:set") return set(arg);
           if (channel === "instance:recheck") return recheck();
+          if (channel === "dialog:selectDirectory") return selectDirectory(arg);
           throw new Error(`沒預期的 invoke：${channel}`);
         },
         setStatusError: (text) => record.statusErrors.push(text),
@@ -92,7 +102,7 @@ function setup(t, { settings = SAVED, set = async (p) => p, recheck = async () =
         closeOverlay: () => record.closed++,
         onDom,
         trackTimeout: (x) => x,
-        loadServerDefaults: async () => ({}),
+        loadServerDefaults,
         computeMemoryUiModel,
       },
       ui: refs,
@@ -235,4 +245,43 @@ test("settings:set 失敗 ⇒「儲存失敗：…」、視窗不關、不重新
   assert.equal(h.record.closed, 0);
   assert.ok(!h.channels().includes("instance:recheck"));
   assert.deepEqual(h.record.statusErrors, []);
+});
+
+// ---- 6d-3（Q2 ①）：選資料夾是玩家按的，失敗在設定視窗裡說 → plan §2.1 ----
+
+test("P1 選資料夾失敗 ⇒ 設定視窗顯示「選擇資料夾失敗：…」，欄位不動", async (t) => {
+  const h = setup(t, {
+    selectDirectory: async () => {
+      throw new Error("對話框開不了");
+    },
+  });
+  await h.open();
+  await h.refs.btnPickDir.fire("click");
+  await until(() => h.errorText() !== "", "錯誤出現");
+  assert.equal(h.errorText(), "選擇資料夾失敗：對話框開不了");
+  assert.ok(!h.refs.settingsError.classList.contains("hidden"));
+  assert.equal(h.refs.inputInstallDir.value, "D:\\GGL");
+  assert.deepEqual(h.record.statusErrors, []);
+});
+
+test("P2 欄位空白、伺服器預設取不到 ⇒ 同一句，不再默默用空字串開對話框", async (t) => {
+  const h = setup(t, {
+    loadServerDefaults: async () => {
+      throw new Error("接線壞了");
+    },
+  });
+  await h.open();
+  h.refs.inputInstallDir.value = "";
+  await h.refs.btnPickDir.fire("click");
+  await until(() => h.errorText() !== "", "錯誤出現");
+  assert.equal(h.errorText(), "選擇資料夾失敗：接線壞了");
+  assert.ok(!h.channels().includes("dialog:selectDirectory"));
+});
+
+test("P3 對照：選到資料夾 ⇒ 填進欄位、沒有錯誤", async (t) => {
+  const h = setup(t, { selectDirectory: async () => "E:\\Games\\GGL" });
+  await h.open();
+  await h.refs.btnPickDir.fire("click");
+  await until(() => h.refs.inputInstallDir.value === "E:\\Games\\GGL", "填進欄位");
+  assert.equal(h.errorText(), "");
 });
