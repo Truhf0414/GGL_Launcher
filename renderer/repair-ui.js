@@ -2,45 +2,43 @@
 // Loaded before renderer.js via index.html.
 // 這條流程的 busy 只有它一個擁有者：從列清單外 jar 到修復回來，finally 放掉（B17）。
 (function () {
-  function createRepairUi(input) {
-    const ctx = input?.ctx || null;
-    const fx = ctx?.fx || {};
-    const ui = ctx?.ui || {};
-
-    const safeInvoke = input?.safeInvoke || fx.safeInvoke;
-    const setStatus = input?.setStatus || fx.setStatus || (() => {});
-    const setStatusError =
-      input?.setStatusError || fx.setStatusError || (() => {});
-    const openOverlay = input?.openOverlay || fx.openOverlay || (() => {});
-    const closeOverlay = input?.closeOverlay || fx.closeOverlay || (() => {});
-    const onDom = input?.onDom || fx.onDom;
-    const doc = input?.doc || window.document;
-
-    const repairModal = input?.repairModal || ui.repairModal;
-    const repairBackdrop = input?.repairBackdrop || ui.repairBackdrop;
-    const repairList = input?.repairList || ui.repairList;
-    const repairEmpty = input?.repairEmpty || ui.repairEmpty;
-    const btnRepairConfirm = input?.btnRepairConfirm || ui.btnRepairConfirm;
-    const btnRepairCancel = input?.btnRepairCancel || ui.btnRepairCancel;
-    const btnRepair = input?.btnRepair || ui.btnRepair;
-
-    const getInstanceStatus = input?.getInstanceStatus || (() => null);
-    const getBusyState = input?.getBusyState || (() => ({}));
-    const setLauncherBusy = input?.setLauncherBusy || (() => {});
-    const closeSettingsModal = input?.closeSettingsModal || (() => {});
+  function createRepairUi({
+    ctx,
+    getInstanceStatus,
+    getBusyState,
+    setLauncherBusy,
+    closeSettingsModal,
+  }) {
+    const {
+      safeInvoke,
+      setStatus,
+      setStatusError,
+      openOverlay,
+      closeOverlay,
+      onDom,
+    } = ctx.fx;
+    const {
+      repairModal,
+      repairBackdrop,
+      repairList,
+      repairEmpty,
+      btnRepairConfirm,
+      btnRepairCancel,
+      btnRepair,
+    } = ctx.ui;
 
     /** 視窗開著時，等使用者選擇的 resolve；確認 ⇒ 勾選的路徑，取消 ⇒ null */
     let pendingChoice = null;
 
     function renderChoices(stray) {
       const items = stray.map((rel) => {
-        const label = doc.createElement("label");
+        const label = document.createElement("label");
         label.className = "repair-item";
-        const box = doc.createElement("input");
+        const box = document.createElement("input");
         box.type = "checkbox";
         box.checked = false;
         box.value = rel;
-        const name = doc.createElement("span");
+        const name = document.createElement("span");
         name.textContent = rel;
         label.append(box, name);
         return label;
@@ -98,7 +96,6 @@
     }
 
     function updateRepairButton() {
-      if (!btnRepair) return;
       const { launcherBusy, gameRunning } = getBusyState();
       const allowed = getInstanceStatus()?.allowed?.repair === true;
       btnRepair.disabled = !allowed || launcherBusy || gameRunning;

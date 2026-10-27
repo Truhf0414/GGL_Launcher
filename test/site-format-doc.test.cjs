@@ -40,6 +40,8 @@ const {
   makeEl,
   fakeDocument,
   loadRendererModule,
+  onDom,
+  makeCtx,
 } = require("./helpers/fake-dom.cjs");
 
 const DOC = path.join(__dirname, "..", "docs", "site-format.md");
@@ -198,8 +200,15 @@ function noticeCard() {
   el.noticeDate.textContent = "預設副標";
   const handlers = new Map();
   GglRendererInstanceUi.createInstanceUi({
-    onIpc: (ch, fn) => handlers.set(ch, fn),
-    ...el,
+    ctx: makeCtx({
+      fx: { onIpc: (ch, fn) => handlers.set(ch, fn), onDom },
+      ui: {
+        ...el,
+        instanceStatusText: makeEl(),
+        instanceStatusNote: makeEl(),
+        btnCopyErrorDetail: makeEl(),
+      },
+    }),
   }).init();
   return { show: (snapshot) => handlers.get("notice:changed")(snapshot), el };
 }
@@ -975,15 +984,22 @@ function bellUi(t, res) {
   const asked = [];
   const { GglRendererNotificationsUi } = loadRendererModule(NOTIFICATIONS_UI);
   const ui = GglRendererNotificationsUi.createNotificationsUi({
-    safeInvoke: async (ch, arg) => {
-      asked.push([ch, arg]);
-      return res;
-    },
+    ctx: makeCtx({
+      fx: {
+        safeInvoke: async (ch, arg) => {
+          asked.push([ch, arg]);
+          return res;
+        },
+        openOverlay: () => {},
+      },
+    }),
   });
+  // 正式的 openNotif 收到的元素（bootstrap 從 buildUiRefs 拿）
   const el = {
     notifOverlay: makeEl(),
     notifList: makeEl(),
     notifEmpty: makeEl(),
+    notifFooter: makeEl(),
     btnBell: makeEl(),
   };
   return { ui, el, asked };

@@ -1,43 +1,37 @@
 // Renderer UI helpers: settings modal (focus trap + form + actions).
 // Loaded before renderer.js via index.html.
 (function () {
-  function createSettingsModal(input) {
-    const ctx = input?.ctx || null;
-    const fx = ctx?.fx || {};
-    const ui = ctx?.ui || {};
-    const consts = ctx?.consts || {};
-
-    const safeInvoke = input?.safeInvoke || fx.safeInvoke;
-    const setStatusError = input?.setStatusError || fx.setStatusError;
-    const openOverlay = input?.openOverlay || fx.openOverlay || (() => {});
-    const closeOverlay = input?.closeOverlay || fx.closeOverlay || (() => {});
-    const onDom = input?.onDom || fx.onDom;
-    const trackTimeout = input?.trackTimeout || fx.trackTimeout || ((x) => x);
-    const ANIM_MS = input?.ANIM_MS ?? consts.ANIM_MS;
-    const loadServerDefaults =
-      input?.loadServerDefaults || fx.loadServerDefaults;
-    const computeMemoryUiModel =
-      input?.computeMemoryUiModel || fx.computeMemoryUiModel || (() => ({}));
+  function createSettingsModal({ ctx }) {
+    const {
+      safeInvoke,
+      setStatusError,
+      openOverlay,
+      closeOverlay,
+      onDom,
+      trackTimeout,
+      loadServerDefaults,
+      computeMemoryUiModel,
+    } = ctx.fx;
+    const {
+      btnSettings,
+      settingsModal,
+      settingsBackdrop,
+      btnSettingsClose,
+      btnSaveSettings,
+      btnExportDiagnostics,
+      inputInstallDir,
+      btnPickDir,
+      inputOfflinePlayerId,
+      inputMinMemoryGb,
+      inputMaxMemoryGb,
+      settingsError,
+      memAutoHint,
+    } = ctx.ui;
+    const { ANIM_MS } = ctx.consts;
     // 與 main 同一份欄位規則（lib/settings-format.js，index.html 先載）；畫面只是提前回饋，main 照樣再驗
     const settingsFormat = window.GglSettingsFormat;
 
-    const btnSettings = input?.btnSettings || ui.btnSettings;
-    const settingsModal = input?.settingsModal || ui.settingsModal;
-    const settingsBackdrop = input?.settingsBackdrop || ui.settingsBackdrop;
-    const btnSettingsClose = input?.btnSettingsClose || ui.btnSettingsClose;
-    const btnSaveSettings = input?.btnSaveSettings || ui.btnSaveSettings;
-    const btnExportDiagnostics =
-      input?.btnExportDiagnostics || ui.btnExportDiagnostics;
-    const inputInstallDir = input?.inputInstallDir || ui.inputInstallDir;
-    const btnPickDir = input?.btnPickDir || ui.btnPickDir;
-    const inputOfflinePlayerId =
-      input?.inputOfflinePlayerId || ui.inputOfflinePlayerId;
-    const inputMinMemoryGb = input?.inputMinMemoryGb || ui.inputMinMemoryGb;
-    const inputMaxMemoryGb = input?.inputMaxMemoryGb || ui.inputMaxMemoryGb;
-    const settingsError = input?.settingsError || ui.settingsError;
-    const memAutoHint = input?.memAutoHint || ui.memAutoHint;
-
-    const modalPanel = settingsModal?.querySelector?.(".modal-panel") ?? null;
+    const modalPanel = settingsModal.querySelector?.(".modal-panel") ?? null;
     const SETTINGS_FOCUSABLE_SEL =
       'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -68,10 +62,8 @@
 
     function setSettingsError(msg, { focusEl = null } = {}) {
       const text = String(msg ?? "").trim();
-      if (settingsError) {
-        settingsError.textContent = text;
-        settingsError.classList.toggle("hidden", !text);
-      }
+      settingsError.textContent = text;
+      settingsError.classList.toggle("hidden", !text);
       // Clear prior invalid state
       for (const x of [
         inputInstallDir,
@@ -79,7 +71,6 @@
         inputMinMemoryGb,
         inputMaxMemoryGb,
       ]) {
-        if (!x) continue;
         x.classList.remove("input--error");
         x.removeAttribute("aria-invalid");
       }
@@ -95,10 +86,6 @@
 
     function getFocusableInSettings() {
       if (settingsFocusableCache) return settingsFocusableCache;
-      if (!settingsModal) {
-        settingsFocusableCache = [];
-        return settingsFocusableCache;
-      }
       const nodes = settingsModal.querySelectorAll(SETTINGS_FOCUSABLE_SEL);
       settingsFocusableCache = Array.from(nodes).filter(
         isElementTabbableVisible,
@@ -129,7 +116,7 @@
     }
 
     function handleSettingsModalKeydown(ev) {
-      if (!settingsModal || settingsModal.classList.contains("hidden")) return;
+      if (settingsModal.classList.contains("hidden")) return;
 
       if (ev.key === "Escape") {
         ev.preventDefault();
@@ -188,17 +175,15 @@
 
     /** settings：settings:get 的回應（main 驗過、補過預設，每個鍵都在） */
     function fillSettingsForm(settings) {
-      if (inputInstallDir) inputInstallDir.value = settings.launcherRootDir;
-      if (inputOfflinePlayerId) inputOfflinePlayerId.value = settings.playerId;
-      if (memAutoHint) {
-        memAutoHint.textContent = "";
-        memAutoHint.classList.add("hidden");
-      }
+      inputInstallDir.value = settings.launcherRootDir;
+      inputOfflinePlayerId.value = settings.playerId;
+      memAutoHint.textContent = "";
+      memAutoHint.classList.add("hidden");
 
       const m = computeMemoryUiModel(settings);
-      if (inputMinMemoryGb) inputMinMemoryGb.value = m.minInput;
-      if (inputMaxMemoryGb) inputMaxMemoryGb.value = m.maxInput;
-      if (memAutoHint && m.hintShow) {
+      inputMinMemoryGb.value = m.minInput;
+      inputMaxMemoryGb.value = m.maxInput;
+      if (m.hintShow) {
         memAutoHint.textContent = m.hintText;
         memAutoHint.classList.remove("hidden");
       }
@@ -210,13 +195,13 @@
         fillSettingsForm(settings);
         openSettingsModal();
       } catch (e) {
-        setStatusError?.(`無法載入設定：${String(e?.message ?? e)}`);
+        setStatusError(`無法載入設定：${String(e?.message ?? e)}`);
       }
     }
 
     async function pickInstallDir() {
       try {
-        let startDir = (inputInstallDir?.value ?? "").trim();
+        let startDir = inputInstallDir.value.trim();
         if (!startDir) {
           // 欄位空白才拿伺服器預設當起點；取不到就傳空字串，由 main 退回 C:\
           startDir = await loadServerDefaults()
@@ -224,7 +209,7 @@
             .catch(() => "");
         }
         const chosen = await safeInvoke("dialog:selectDirectory", startDir);
-        if (chosen && inputInstallDir) inputInstallDir.value = chosen;
+        if (chosen) inputInstallDir.value = chosen;
       } catch {
         // keep silent: directory picker failures shouldn't hard-block settings
       }

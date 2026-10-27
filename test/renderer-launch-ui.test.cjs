@@ -12,6 +12,7 @@ const {
   loadRendererModule,
   rendererConstants,
   onDom,
+  makeCtx,
 } = require("./helpers/fake-dom.cjs");
 
 const LAUNCH_UI = path.join(__dirname, "..", "renderer", "launch-ui.js");
@@ -32,15 +33,18 @@ function setup({ action, invoke }) {
     allowed: { update: true, repair: true },
   };
   const launchUi = win.GglRendererLaunchUi.createLaunchUi({
-    btnLaunch,
-    btnOfflineLink,
-    onDom,
-    safeInvoke: async (channel, ...args) => {
-      record.invoked.push(channel);
-      return invoke(channel, ...args);
-    },
-    setStatus: () => {},
-    setStatusError: (text) => record.errors.push(text),
+    ctx: makeCtx({
+      fx: {
+        onDom,
+        safeInvoke: async (channel, ...args) => {
+          record.invoked.push(channel);
+          return invoke(channel, ...args);
+        },
+        setStatus: () => {},
+        setStatusError: (text) => record.errors.push(text),
+      },
+      ui: { btnLaunch, btnOfflineLink },
+    }),
     getAccountState: () => ({ state: "active" }),
     getInstanceStatus: () => status,
     getBusyState: () => ({ launcherBusy, gameRunning: false }),
@@ -53,6 +57,10 @@ function setup({ action, invoke }) {
     startRepairFlow: async (opts) => {
       record.repairFlows.push(opts);
     },
+    // 正式由 bootstrap 給；這組案不看它們
+    onButtonUpdated: () => {},
+    ensureReadyStatusText: () => {},
+    resyncAccountState: async () => {},
   });
   launchUi.init();
   return { btnLaunch, record, isBusy: () => launcherBusy };

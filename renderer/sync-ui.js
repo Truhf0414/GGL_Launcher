@@ -1,22 +1,13 @@
 // Renderer UI helpers: sync status/progress handlers + transient notices.
 // Loaded before renderer.js via index.html.
 (function () {
-  function createSyncUi(input) {
-    const ctx = input?.ctx || null;
-    const fx = ctx?.fx || {};
-
-    const onIpc = input?.onIpc || fx.onIpc;
-    const trackTimeout = input?.trackTimeout || fx.trackTimeout || ((x) => x);
-    const setStatus = input?.setStatus || fx.setStatus || (() => {});
-    const setStatusVisibility =
-      input?.setStatusVisibility || fx.setStatusVisibility || (() => {});
-
-    const ensureReadyStatusText = input?.ensureReadyStatusText || (() => {});
-    const statusGuard = input?.statusGuard || {
-      isErrorGuardActive: () => false,
-      resetToNormal: () => {},
-    };
-    const getBusyState = input?.getBusyState || (() => ({}));
+  function createSyncUi({
+    ctx,
+    ensureReadyStatusText,
+    statusGuard,
+    getBusyState,
+  }) {
+    const { onIpc, trackTimeout, setStatus, setStatusVisibility } = ctx.fx;
 
     function showTransientStatus(text, ms = 4500) {
       const t = String(text || "").trim();

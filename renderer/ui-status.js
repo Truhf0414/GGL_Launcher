@@ -6,7 +6,6 @@
     window.GglRendererConstants;
 
   function openOverlay(elm) {
-    if (!elm) return;
     elm.classList.remove("hidden");
     try {
       elm.setAttribute?.("aria-hidden", "false");
@@ -15,7 +14,6 @@
   }
 
   function closeOverlay(elm) {
-    if (!elm) return;
     elm.classList.remove("is-open");
     try {
       elm.setAttribute?.("aria-hidden", "true");
@@ -24,14 +22,11 @@
   }
 
   function setStatusVisibility({ statusText, btnLaunch }, visible) {
-    if (!statusText) return;
     statusText.classList.toggle("launch-subtext--hidden", !visible);
-    if (btnLaunch)
-      btnLaunch.classList.toggle("launch-btn--status-hidden", !visible);
+    btnLaunch.classList.toggle("launch-btn--status-hidden", !visible);
   }
 
   function setStatusStacked(statusText, primary, secondary) {
-    if (!statusText) return;
     const hasSecond = Boolean(secondary);
     statusText.classList.toggle("launch-subtext--stacked", hasSecond);
     statusText.classList.toggle("launch-subtext--single", !hasSecond);
@@ -167,7 +162,7 @@
 
     setStatusStacked(statusText, primary, secondary);
     // 畫面上會被 … 截斷：滑鼠移上去看全文（R3 的檔名與原因）
-    if (statusText) statusText.title = s;
+    statusText.title = s;
     // 有些狀態來源可能會讓 primary 為空但 secondary 有值；
     // 可見性判斷必須包含兩行，避免 UI 看起來「卡住不更新」。
     const visibleText = [primary, secondary].filter(Boolean).join(" ").trim();
@@ -175,9 +170,8 @@
 
     if (progress01 === null || Number.isNaN(progress01)) return;
     const p = Math.max(0, Math.min(1, progress01));
-    if (progressBar) progressBar.style.width = `${Math.round(p * 100)}%`;
-    if (progressRoot)
-      progressRoot.setAttribute("aria-valuenow", String(Math.round(p * 100)));
+    progressBar.style.width = `${Math.round(p * 100)}%`;
+    progressRoot.setAttribute("aria-valuenow", String(Math.round(p * 100)));
   }
 
   function createStatusGuard() {
@@ -198,7 +192,7 @@
   }
 
   function setStatusError(ctx, guard, text) {
-    guard?.setError?.();
+    guard.setError();
     setStatus(ctx, text, 0);
   }
 

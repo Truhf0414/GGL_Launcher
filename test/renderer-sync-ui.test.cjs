@@ -12,6 +12,7 @@ const {
   fakeDocument,
   loadRendererModule,
   rendererConstants,
+  makeCtx,
 } = require("./helpers/fake-dom.cjs");
 
 const SYNC_UI = path.join(__dirname, "..", "renderer", "sync-ui.js");
@@ -33,8 +34,13 @@ function setup() {
   };
   const handlers = new Map();
   SU.createSyncUi({
-    onIpc: (channel, fn) => handlers.set(channel, fn),
-    setStatus: (text, p) => UI.setStatus(statusCtx, text, p),
+    ctx: makeCtx({
+      fx: {
+        onIpc: (channel, fn) => handlers.set(channel, fn),
+        setStatus: (text, p) => UI.setStatus(statusCtx, text, p),
+      },
+    }),
+    statusGuard: { isErrorGuardActive: () => false, resetToNormal: () => {} },
   }).init();
   return { emit: (ch, payload) => handlers.get(ch)(payload), statusCtx };
 }

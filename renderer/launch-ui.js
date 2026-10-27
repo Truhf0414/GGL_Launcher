@@ -3,33 +3,26 @@
 (function () {
   const { ACCOUNT_STATE } = window.GglRendererConstants;
 
-  function createLaunchUi(input) {
-    const ctx = input?.ctx || null;
-    const fx = ctx?.fx || {};
-    const ui = ctx?.ui || {};
-
-    const safeInvoke = input?.safeInvoke || fx.safeInvoke;
-    const setStatus = input?.setStatus || fx.setStatus;
-    const setStatusError = input?.setStatusError || fx.setStatusError;
-    const onDom = input?.onDom || fx.onDom;
-    const btnLaunch = input?.btnLaunch || ui.btnLaunch;
-    const btnOfflineLink = input?.btnOfflineLink || ui.btnOfflineLink;
-    const getAccountState = input?.getAccountState || (() => ({}));
+  function createLaunchUi({
+    ctx,
+    getAccountState,
     // 中樞的狀態（instance:status 的 payload）；還沒收到第一筆時是 null
-    const getInstanceStatus = input?.getInstanceStatus || (() => null);
-    const getBusyState = input?.getBusyState || (() => ({}));
-    const setBusyState = input?.setBusyState || (() => {});
-    const ensureReadyStatusText = input?.ensureReadyStatusText || (() => {});
+    getInstanceStatus,
+    getBusyState,
+    setBusyState,
+    ensureReadyStatusText,
     // 「安裝」整個交給修復流程（renderer/repair-ui.js），busy 由它擁有
-    const startRepairFlow = input?.startRepairFlow || (async () => {});
+    startRepairFlow,
     // 按鈕狀態更新後通知旁邊跟著 busy 走的元件（設定視窗的修復鈕）
-    const onButtonUpdated = input?.onButtonUpdated || (() => {});
+    onButtonUpdated,
     // 啟動失敗有可能是 main 端剛把帳號轉成 reauth-required（invalid_grant）——
     // 沒有這個 resync，畫面會停在啟動前拉到的舊 accountState，按鈕文字說謊。
-    const resyncAccountState = input?.resyncAccountState || (async () => {});
+    resyncAccountState,
+  }) {
+    const { safeInvoke, setStatus, setStatusError, onDom } = ctx.fx;
+    const { btnLaunch, btnOfflineLink } = ctx.ui;
 
     function setOfflineLinkState({ visible, enabled }) {
-      if (!btnOfflineLink) return;
       const v = Boolean(visible);
       const e = Boolean(enabled);
       btnOfflineLink.classList.toggle("hidden", !v);

@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("path");
 
-const { loadRendererModule } = require("./helpers/fake-dom.cjs");
+const { loadRendererModule, makeCtx } = require("./helpers/fake-dom.cjs");
 
 const READY_STATUS = path.join(__dirname, "..", "renderer", "ready-status.js");
 
@@ -22,7 +22,7 @@ function setup({
   const win = loadRendererModule(READY_STATUS);
   const writes = [];
   const rs = win.GglRendererReadyStatus.createReadyStatus({
-    setStatus: (text, p) => writes.push([text, p]),
+    ctx: makeCtx({ fx: { setStatus: (text, p) => writes.push([text, p]) } }),
     statusGuard: { isErrorGuardActive: () => guard },
     getBusyState: () => ({ launcherBusy, gameRunning }),
     getInstanceStatus: () => (noStatusYet ? null : { ui: { canLaunch } }),

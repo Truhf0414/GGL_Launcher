@@ -12,6 +12,7 @@ const {
   fakeDocument,
   loadRendererModule,
   rendererConstants,
+  makeCtx,
 } = require("./helpers/fake-dom.cjs");
 
 const ACCOUNT_UI = path.join(__dirname, "..", "renderer", "account-ui.js");
@@ -29,15 +30,19 @@ async function clickLoginAndFail(t, rejectMessage) {
   const bindings = [];
   const statuses = [];
   const accountUi = win.GglRendererAccountUi.createAccountUi({
-    btnLogin,
-    safeInvoke: async () => {
-      throw new Error(rejectMessage);
-    },
-    setStatus: (text) => statuses.push(text),
-    onDom: (target, type, handler) => {
-      bindings.push({ target, type, handler });
-      return () => {};
-    },
+    ctx: makeCtx({
+      fx: {
+        safeInvoke: async () => {
+          throw new Error(rejectMessage);
+        },
+        setStatus: (text) => statuses.push(text),
+        onDom: (target, type, handler) => {
+          bindings.push({ target, type, handler });
+          return () => {};
+        },
+      },
+      ui: { btnLogin },
+    }),
     getAccountState: () => ({ state: "logged-out" }),
   });
   accountUi.init();

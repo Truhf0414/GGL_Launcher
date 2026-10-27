@@ -61,6 +61,10 @@
       notifFooter: el("notifFooter"),
       notifEmpty: el("notifEmpty"),
       notifList: el("notifList"),
+
+      // Background video
+      bgVideoSource: el("bgVideoSource"),
+      appBg: document.querySelector(".app-bg"),
     };
     const missing = Object.keys(refs).filter((k) => refs[k] === null);
     if (missing.length) {
@@ -92,7 +96,7 @@
       loadServerDefaults,
       ui,
       ANIM_MS,
-    } = input || {};
+    } = input;
 
     const fx = {
       ggl,

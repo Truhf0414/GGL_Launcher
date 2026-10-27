@@ -99,10 +99,19 @@ function onDom(target, type, handler, options) {
   return () => {};
 }
 
+/**
+ * 正式的 ctx 形狀（renderer/bootstrap-ctx.js 的 buildRootCtx）：測試照同一個形狀餵，只填被測模組用得到的欄位。
+ * 這裡不列「哪個模組要哪些欄位」——那是被測模組自己的事。
+ */
+function makeCtx({ fx = {}, ui = {}, consts = {} } = {}) {
+  return { fx, ui, consts };
+}
+
 module.exports = {
   makeEl,
   fakeDocument,
   loadRendererModule,
   rendererConstants,
   onDom,
+  makeCtx,
 };
