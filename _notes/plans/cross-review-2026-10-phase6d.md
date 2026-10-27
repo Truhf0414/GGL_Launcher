@@ -1,4 +1,4 @@
-# Phase 6d — renderer 組：細部 plan（狀態：**2026-10-27 初稿，基準 `a239efa`；同日 owner 初審（含 ChatGPT 初審意見）裁 Q1–Q4，修訂為二稿，基準 `0277061`（程式與 `a239efa` 相同）；同日 owner 二審裁 Q5（B）、N4 進 6d-1、A1（C）、故障訊息改用專用區域、6d-1 採「先組裝、後上線」順序，並以 repo 外的 Electron 探針確定故障時的關窗路徑（→ §Owner 裁決、§探針），文件 `c1d3d3c`；2026-10-28 owner 轉貼的審查指出兩處 6d-1 測試前提有誤（組裝段的副作用斷言、`mod()` 延後爆錯會把模組缺失記成 `ui_refs_missing`），局部修正（→ §被推翻或更正），文件 `f662d42`；同日 owner 授權 6d-1（→ §Owner 裁決 6d-1 授權），施工 commit `342a80c`，經 owner 驗收放行（→ §6d-1 施工紀錄）；同日 owner 授權 6d-2（→ §Owner 裁決 6d-2 授權），施工 commit `1382a01`，經 owner 驗收放行（→ §6d-2 施工紀錄）**）
+# Phase 6d — renderer 組：細部 plan（狀態：**2026-10-27 初稿，基準 `a239efa`；同日 owner 初審（含 ChatGPT 初審意見）裁 Q1–Q4，修訂為二稿，基準 `0277061`（程式與 `a239efa` 相同）；同日 owner 二審裁 Q5（B）、N4 進 6d-1、A1（C）、故障訊息改用專用區域、6d-1 採「先組裝、後上線」順序，並以 repo 外的 Electron 探針確定故障時的關窗路徑（→ §Owner 裁決、§探針），文件 `c1d3d3c`；2026-10-28 owner 轉貼的審查指出兩處 6d-1 測試前提有誤（組裝段的副作用斷言、`mod()` 延後爆錯會把模組缺失記成 `ui_refs_missing`），局部修正（→ §被推翻或更正），文件 `f662d42`；同日 owner 授權 6d-1（→ §Owner 裁決 6d-1 授權），施工 commit `342a80c`，經 owner 驗收放行（→ §6d-1 施工紀錄）；同日 owner 授權 6d-2（→ §Owner 裁決 6d-2 授權），施工 commit `1382a01`，經 owner 驗收放行（→ §6d-2 施工紀錄）；同日 owner 授權 6d-3（→ §Owner 裁決 6d-3 授權），施工 commit `49d1066`，經 owner 驗收放行（→ §6d-3 施工紀錄）**）
 
 **範圍**：`defense-cleanup.md` §清理清單「renderer/（含 preload、main.js、index.html）」的 R-A～R-PLATFORM，**R-THUMB 除外（Q3 整件移交 6e，→ §五）**；加 §Bug 的 B1、`cross-review-2026-10.md` §4.2 的 U2、本檔 N4。拆 G2 守住的空值檢查與 R-B 是同一筆測試帳（判準檔 §判例 4）。
 **判準**：`plans/cross-review-2026-10-phase6-criteria.md`（改／留／退回／停止）；規則本體＝conventions §防禦與相容 §1–§6（本檔以條號引用）。
@@ -16,14 +16,14 @@
 ## 基準〔讀碼，2026-10-27〕
 
 - HEAD `0277061`。`git diff --stat a239efa HEAD -- main lib renderer renderer.js preload.js main.js index.html package.json scripts test` 為空：初稿之後只動了 `_notes/`，**下文行號一律是 `a239efa`＝`0277061` 的程式**。
-- 逐檔全文讀過：`renderer/` 21 支、`renderer.js`、`preload.js`、`main.js`、`index.html` 的 script 段（`:540-572`）。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`index.html` 的 script 段 `:540-572` 後 `:546-577`〕
+- 逐檔全文讀過：`renderer/` 21 支、`renderer.js`、`preload.js`、`main.js`、`index.html` 的 script 段（`:540-572`）。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`index.html` 的 script 段 `:540-572` 後 `:546-577`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`index.html` 的 script 段 `:546-577`（上次對齊）後 `:550-581`〕
 - 二稿另讀：
   - main 端：`main/ipc/window-ipc.js`、`main/ipc-bridge.js:15-60`、`main/app-ready.js:125-167`；`main/ipc/{external,dialog,server-config,log,notifications}-ipc.js`、`main/notifications.js:6-20`、`main/main-window.js:60-90`。
   - 公告與通知：`lib/notifications-broadcast.js`、`lib/sync/notice.js`、`lib/sync/site-format.js:107-120`、`main/sync/notice-feed.js:60-100`、`main/sync/site-client.js:135-150`。
   - 打包：`package.json` 的 `build`、`scripts/check-packaged-artifacts.cjs:29-37`。
-  - 測試：`test/renderer-bootstrap-ui-refs.test.cjs:80-151`、`test/log-ipc.test.cjs:44-77`、`test/site-format-doc.test.cjs:1062-1091`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`test/renderer-bootstrap-ui-refs.test.cjs:80-151` 剩 `:80-101`（`:103-151` 的 A10 與骨架移到 `test/renderer-boot.test.cjs` 的 E4）；`test/log-ipc.test.cjs:44-77` 改寫後 `:44-81`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`test/site-format-doc.test.cjs:1062-1091` 後 `:1078-1107`（內容未變）；其他行號指的檔不在本 commit〕
+  - 測試：`test/renderer-bootstrap-ui-refs.test.cjs:80-151`、`test/log-ipc.test.cjs:44-77`、`test/site-format-doc.test.cjs:1062-1091`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`test/renderer-bootstrap-ui-refs.test.cjs:80-151` 剩 `:80-101`（`:103-151` 的 A10 與骨架移到 `test/renderer-boot.test.cjs` 的 E4）；`test/log-ipc.test.cjs:44-77` 改寫後 `:44-81`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`test/site-format-doc.test.cjs:1062-1091` 後 `:1078-1107`（內容未變）；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`test/site-format-doc.test.cjs:1078-1107`（上次對齊）後 `:1079-1108`（內容未變）；其他行號指的檔不在本 commit〕
 - 二審另讀：
-  - `renderer/bootstrap-ctx.js:8-70`：`buildUiRefs` 本體是 42 個 `el(id)`、1 個常數選擇器 `querySelector(".avatar")`，最後一處「缺元素就丟」。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`renderer/bootstrap-ctx.js:8-70` 後 `:8-74`（6d-2 加了 `bgVideoSource` 一個 `el(id)` 與 `.app-bg` 一個常數選擇器）〕
+  - `renderer/bootstrap-ctx.js:8-70`：`buildUiRefs` 本體是 42 個 `el(id)`、1 個常數選擇器 `querySelector(".avatar")`，最後一處「缺元素就丟」。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`renderer/bootstrap-ctx.js:8-70` 後 `:8-74`（6d-2 加了 `bgVideoSource` 一個 `el(id)` 與 `.app-bg` 一個常數選擇器）〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`renderer/bootstrap-ctx.js:8-74`（上次對齊）後 `:8-75`（6d-3 加了 `notifError` 一個 `el(id)`）〕
   - 直接 `addEventListener` 的位置（`rg '\.addEventListener\(' renderer`）。
   - 各模組 `createX` 本體第一層的呼叫（→ §1.2 的掃描）。
 - 測試只讀了餵法與上述幾案，**其餘案的斷言沒有逐條讀**，測試帳是估計（U-1）。
@@ -54,13 +54,15 @@
 | 順序 | **6d-1 的 `start()` 採「先組裝、後上線」** | 見 §1.2；任一 `createX` 本體有副作用、得改模組才分得開 ⇒ 停、回報，退回逐模組建立的原樣 | 順序 |
 | 6d-1 授權 | **開工 6d-1** | owner：「好，直接開工 6D-1 吧！」。修前對照多紅 8 案（R-C）觸發停止條件後，owner：「好，照這樣繼續」（→ §6d-1 施工紀錄） | 〔轉述〕owner 2026-10-28（與 CC 對話） |
 | 6d-2 授權 | **6d-1 docs 收完後接著做 6d-2** | owner：「收 docs commit，可以接著做 6d-2」 | 〔轉述〕owner 2026-10-28（與 CC 對話） |
+| 6d-3 授權 | **開工 6d-3** | owner：「沒事，直接開 6d-3 吧！」。修前對照多紅 5 案觸發停止條件後，owner：「可以，繼續吧」（→ §6d-3 施工紀錄） | 〔轉述〕owner 2026-10-28（與 CC 對話） |
+| 6d-3 驗收 | **A4（`renderer_ready_failed` 的狀態區文案）維持原句；通知一直讀不到時日誌逐次記、不去重** | 原句「無法取得啟動器狀態，請重新開啟啟動器。」在狀態區會被截成「…請…」，全文靠滑鼠提示；實測 4 秒記 6 筆 `notifications_fetch_failed`，不加去重（Q2 ⑤）。owner 先回「ok，這樣很好。」，CC 列出三件（放行、維持原句、不去重）確認範圍後，owner：「是，commit 吧」 | 〔轉述〕owner 2026-10-28（與 CC 對話） |
 | 其他 | 維持 | A2（`self-check.js` 改名 `boot-failure.js`）、A3（通知面板用新元素 `notifError`）照二稿；A4 文案待各批畫面驗收；N1 不重開 D-LOG-RENDERER；N2、N3 維持 future-work；不加 ACK、重試、隔離框架、跨平台抽象；兩條關窗路徑前提不同，**不記「正常關窗也改 `window.close()`」的 future-work** | 二審五；二審補裁 |
 
 ## 已由前面處理（留-2）
 
 | 項 | 處理 | 證據 |
 |---|---|---|
-| G1、G2、G3 | 6a | `a421da2`、`a707155`（`plans/cross-review-2026-10-phase6a.md`）。G2＝`buildUiRefs` 缺 ID 就丟（`renderer/bootstrap-ctx.js:65-68`）＋真實 `index.html` 的契約測試（A9）〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`renderer/bootstrap-ctx.js:65-68` 後 `:69-72`〕 |
+| G1、G2、G3 | 6a | `a421da2`、`a707155`（`plans/cross-review-2026-10-phase6a.md`）。G2＝`buildUiRefs` 缺 ID 就丟（`renderer/bootstrap-ctx.js:65-68`）＋真實 `index.html` 的契約測試（A9）〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`renderer/bootstrap-ctx.js:65-68` 後 `:69-72`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`renderer/bootstrap-ctx.js:69-72`（上次對齊）後 `:70-73`〕 |
 | R-B 的 `settings-modal` `parseFiniteNumberOrUnset` | Phase 4 | `a4d4eb9` |
 | R-CONTRACT 的 `settings-modal` `"Player001"` | Phase 4 | `a4d4eb9`；6c-7 `d46c008` 拆掉 lib 那份 |
 | G4（畫面錯誤進常駐日誌的管道） | Phase 2b | `log:rendererError`＋`lib/renderer-error-events.js` 清單 |
@@ -79,7 +81,7 @@
   - C0 是沒改的副本：開到 `start_main_done`，正常關閉，exit 0。
   - C1 只掛探針：關閉鈕走原本的 IPC，`close → closed → window-all-closed → quit`，exit 0。
 - 點擊方式：main 端 `sendInputEvent` 對 `#btnClose` 送真實輸入（`isTrusted=true`），每種情況 2 次；另做 1 次 `element.click()` 合成點擊當對照。
-- 副本把 `window-controls.js:32` 的 IPC 綁定拿掉，所以關窗只可能來自 `window.close()`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`window-controls.js:32` 後 `:19`（R-C 拿掉備援 `bind`）〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`window-controls.js:19`（上次對齊）後 `:10`〕
+- 副本把 `window-controls.js:32` 的 IPC 綁定拿掉，所以關窗只可能來自 `window.close()`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`window-controls.js:32` 後 `:19`（R-C 拿掉備援 `bind`）〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`window-controls.js:19`（上次對齊）後 `:10`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`window-controls.js:10`（上次對齊）改寫成 `:16-18`（改成 `safeInvoke(...).catch`）〕
 
 | 情況 | `window.ggl` | 畫面 | `window.close()` 關窗＋行程結束 | `preload-error`＋常駐日誌 |
 |---|---|---|---|---|
@@ -112,25 +114,25 @@
     - `:86-139` **lifetime 的整套備用實作**；`:141-160` bootstrap-ctx 缺席；`:167-177` `GglSettingsLogic`、`GglRendererConstants` 的退路；
     - `:255-301` UiStatus 缺席時的 statusGuard、overlay、setStatus 假物件；
     - `:389-610` 每個模組 `X?.createY?.({ ctx }) || null`、`?.init?.()`；`:541-550` launchUi 缺席的退路；`:612-618` teardown 包 try。
-  - 各模組頂端：`account-ui.js:4-9`、`launch-ui.js:4-9` 自帶一份 `ACCOUNT_STATE`；`ui-status.js:4-5` lifetime 缺就整檔不掛、`:9-15` 自帶 280／2500；`renderer.js:3-11` bootstrap 缺席。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`account-ui.js:4-9`、`launch-ui.js:4-9` 各剩一行 `:4`（只讀 constants）；`ui-status.js:4-5`、`:9-15` 改寫成 `:4-6`（直接讀 lifetime 與 constants）；`renderer.js:3-11` 改寫成 `:3-8`（只把 start 交給故障出口）〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`account-ui.js:4`、`launch-ui.js:4`、`ui-status.js:4-6`（上次對齊）未移動；其他行號指的檔不在本 commit〕
-- **R-C**：`settings-modal.js:301-312`、`account-ui.js:366-378`、`window-controls.js:18-29`、`launch-ui.js:165-176`、`repair-ui.js:108-119` 各自一份「`onDom` 不是函式就自己綁」。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：五份備援 `bind` 全刪，各檔 `init()` 直接用 `onDom`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：五份備援 `bind` 已在 `342a80c` 刪除，不追〕
+  - 各模組頂端：`account-ui.js:4-9`、`launch-ui.js:4-9` 自帶一份 `ACCOUNT_STATE`；`ui-status.js:4-5` lifetime 缺就整檔不掛、`:9-15` 自帶 280／2500；`renderer.js:3-11` bootstrap 缺席。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`account-ui.js:4-9`、`launch-ui.js:4-9` 各剩一行 `:4`（只讀 constants）；`ui-status.js:4-5`、`:9-15` 改寫成 `:4-6`（直接讀 lifetime 與 constants）；`renderer.js:3-11` 改寫成 `:3-8`（只把 start 交給故障出口）〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`account-ui.js:4`、`launch-ui.js:4`、`ui-status.js:4-6`（上次對齊）未移動；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`account-ui.js:4`（上次對齊）未移動；其他行號指的檔不在本 commit〕
+- **R-C**：`settings-modal.js:301-312`、`account-ui.js:366-378`、`window-controls.js:18-29`、`launch-ui.js:165-176`、`repair-ui.js:108-119` 各自一份「`onDom` 不是函式就自己綁」。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：五份備援 `bind` 全刪，各檔 `init()` 直接用 `onDom`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：五份備援 `bind` 已在 `342a80c` 刪除，不追〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：五份備援 `bind` 已在 `342a80c` 刪除，不追〕
 - **R-D**：
-  - 280 寫了五份：`constants.js:5`（權威）、`ui-status.js:10-12`、`bootstrap.js:267-273`、`settings-modal.js:16-18`、`account-ui.js:21-23`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`ui-status.js:10-12` 改寫成 `:5-6`；`bootstrap.js:267-273` 刪除，改讀 `K.UI_ANIM_MS`（`:117`）；`settings-modal.js:16-18`、`account-ui.js:21-23` 各剩一行 `:16`（`input?.ANIM_MS ?? consts.ANIM_MS`，R-B 那半留 6d-2）〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`ui-status.js:5-6`（上次對齊）未移動；`bootstrap.js:117`（上次對齊）後 `:83`；`settings-modal.js:16`、`account-ui.js:16`（上次對齊）改寫成 `const { ANIM_MS } = ctx.consts;`，在 `settings-modal.js:30`、`account-ui.js:15`（R-B）〕
+  - 280 寫了五份：`constants.js:5`（權威）、`ui-status.js:10-12`、`bootstrap.js:267-273`、`settings-modal.js:16-18`、`account-ui.js:21-23`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`ui-status.js:10-12` 改寫成 `:5-6`；`bootstrap.js:267-273` 刪除，改讀 `K.UI_ANIM_MS`（`:117`）；`settings-modal.js:16-18`、`account-ui.js:21-23` 各剩一行 `:16`（`input?.ANIM_MS ?? consts.ANIM_MS`，R-B 那半留 6d-2）〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`ui-status.js:5-6`（上次對齊）未移動；`bootstrap.js:117`（上次對齊）後 `:83`；`settings-modal.js:16`、`account-ui.js:16`（上次對齊）改寫成 `const { ANIM_MS } = ctx.consts;`，在 `settings-modal.js:30`、`account-ui.js:15`（R-B）〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`bootstrap.js:83`、`settings-modal.js:30`、`account-ui.js:15`（上次對齊）未移動；其他行號指的檔不在本 commit〕
   - 2500 兩份：`constants.js:7`、`ui-status.js:13-15`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`ui-status.js:13-15` 改寫成 `:5-6`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`ui-status.js:5-6`（上次對齊）未移動〕
-  - `ACCOUNT_STATE` 三份：`constants.js:9-13`、`account-ui.js:5-9`、`launch-ui.js:5-9`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`account-ui.js:5-9`、`launch-ui.js:5-9` 改寫成 `:4`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`account-ui.js:4`、`launch-ui.js:4`（上次對齊）未移動〕
+  - `ACCOUNT_STATE` 三份：`constants.js:9-13`、`account-ui.js:5-9`、`launch-ui.js:5-9`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`account-ui.js:5-9`、`launch-ui.js:5-9` 改寫成 `:4`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`account-ui.js:4`、`launch-ui.js:4`（上次對齊）未移動〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`account-ui.js:4`（上次對齊）未移動；其他行號指的檔不在本 commit〕
 - **preload 不在的偵測有三處**：
-  - `lifetime.js:6-15`：整支不掛。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lifetime.js:6-15` 刪除〕
-  - `bootstrap.js:69-84`：打 `gglError("ggl_bridge_missing")`，沒有 `window.ggl` 就只到 console；探針 P2 實測確認它只出現在 console。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:69-84` 改寫成 `:28-29`（`window.ggl` 不在就丟）〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:28-29`（上次對齊）未移動〕
-  - `self-check.js:11`：在 `statusText` 寫「初始化失敗：缺少 …」，由 `bootstrap.js:17-19` 呼叫。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`self-check.js` 檔案已刪除（→ `renderer/boot-failure.js`）；`bootstrap.js:17-19` 刪除〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:17-19` 已在 `342a80c` 刪除，不追〕
-- **載入方式**：`index.html:540-572` 是 body 尾端一串同步 `<script>`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`index.html:540-572` 後 `:546-577`〕
+  - `lifetime.js:6-15`：整支不掛。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lifetime.js:6-15` 刪除〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`lifetime.js:6-15` 已在 `342a80c` 刪除，不追〕
+  - `bootstrap.js:69-84`：打 `gglError("ggl_bridge_missing")`，沒有 `window.ggl` 就只到 console；探針 P2 實測確認它只出現在 console。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:69-84` 改寫成 `:28-29`（`window.ggl` 不在就丟）〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:28-29`（上次對齊）未移動〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`bootstrap.js:28-29`（上次對齊）未移動〕
+  - `self-check.js:11`：在 `statusText` 寫「初始化失敗：缺少 …」，由 `bootstrap.js:17-19` 呼叫。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`self-check.js` 檔案已刪除（→ `renderer/boot-failure.js`）；`bootstrap.js:17-19` 刪除〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:17-19` 已在 `342a80c` 刪除，不追〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`bootstrap.js:17-19` 已在 `342a80c` 刪除，不追〕
+- **載入方式**：`index.html:540-572` 是 body 尾端一串同步 `<script>`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`index.html:540-572` 後 `:546-577`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`index.html:546-577`（上次對齊）後 `:550-581`〕
   - 某支在頂層丟錯，只有它自己的 global 不存在，後面幾支照樣執行，直到 bootstrap 用到它。
   - 語法錯另有 `npm run lint` 擋。
 - **`start()` 是同步的**：從 `:4` 到 `:623`，主流程沒有 `await`。執行期間玩家的點擊只會排隊，不會插進來執行。
-- **初始化期間發出的請求**：只有 `startup` 的 init（`:601-610`）會立刻發 `account:get` 與通知查詢（`startup.js:25-36`）。各模組 init 裡的其他 `safeInvoke` 都在 click handler 內（例：`account-ui.js:395`、`launch-ui.js:184`）。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:601-610` 拆成建立 `:327-336`（組裝段）與 `init` `:426-427`（上線段）；`account-ui.js:395` 後 `:375`；`launch-ui.js:184` 後 `:166`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js` 建立 startup 的 `:327-336`（上次對齊）後 `:245-253`（R-B 改傳 `{ ctx, … }`）、`init` 的 `:426-427` 後 `:339-340`；`startup.js:25-36` 後 `:20-31`（`:29`、`:36` 原地拿掉 `?.`）；`account-ui.js:375`（上次對齊）後 `:362`；`launch-ui.js:166`（上次對齊）後 `:159`〕
+- **初始化期間發出的請求**：只有 `startup` 的 init（`:601-610`）會立刻發 `account:get` 與通知查詢（`startup.js:25-36`）。各模組 init 裡的其他 `safeInvoke` 都在 click handler 內（例：`account-ui.js:395`、`launch-ui.js:184`）。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:601-610` 拆成建立 `:327-336`（組裝段）與 `init` `:426-427`（上線段）；`account-ui.js:395` 後 `:375`；`launch-ui.js:184` 後 `:166`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js` 建立 startup 的 `:327-336`（上次對齊）後 `:245-253`（R-B 改傳 `{ ctx, … }`）、`init` 的 `:426-427` 後 `:339-340`；`startup.js:25-36` 後 `:20-31`（`:29`、`:36` 原地拿掉 `?.`）；`account-ui.js:375`（上次對齊）後 `:362`；`launch-ui.js:166`（上次對齊）後 `:159`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`bootstrap.js` 建立 startup 的 `:245-253`（上次對齊）後 `:248-256`、`init` 的 `:339-340` 後 `:354-355`；`startup.js:20-31`（上次對齊）改寫成 `:19-30`（讀帳號改成 `.then(成功, 失敗)`，`:29`、`:36` 後 `:28`、`:35`）；`account-ui.js:362`（上次對齊）後 `:369`；其他行號指的檔不在本 commit〕
 - **直接 `addEventListener`、不經 lifetime 的**：
-  - 帳號選單三顆按鈕（`account-ui.js:203,214,225`），選單第一次打開時才建（`ensureAccountMenu`，`:165`）；〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`account-ui.js:203,214,225` 後 `:196,207,218`、`:165` 後 `:158`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`account-ui.js:196,207,218`（上次對齊）後 `:183,194,205`、`:158` 後 `:145`〕
-  - 設定視窗的 keydown（`settings-modal.js:188`），視窗打開時才掛；〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`settings-modal.js:188` 後 `:186`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`settings-modal.js:186`（上次對齊）後 `:173`〕
-  - 背景影片的三個媒體事件（`background-video.js:44,48,52`），有 `trackDomCleanup`；〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`background-video.js:44,48,52` 後 `:36,40,44`（`initBackgroundVideo` 不再收參數、拿掉 `bgRoot` 檢查，整段上移）〕
+  - 帳號選單三顆按鈕（`account-ui.js:203,214,225`），選單第一次打開時才建（`ensureAccountMenu`，`:165`）；〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`account-ui.js:203,214,225` 後 `:196,207,218`、`:165` 後 `:158`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`account-ui.js:196,207,218`（上次對齊）後 `:183,194,205`、`:158` 後 `:145`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`account-ui.js:183,194,205`（上次對齊）後 `:190,201,212`、`:145` 後 `:152`〕
+  - 設定視窗的 keydown（`settings-modal.js:188`），視窗打開時才掛；〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`settings-modal.js:188` 後 `:186`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`settings-modal.js:186`（上次對齊）後 `:173`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`settings-modal.js:173`（上次對齊）未移動〕
+  - 背景影片的三個媒體事件（`background-video.js:44,48,52`），有 `trackDomCleanup`；〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`background-video.js:44,48,52` 後 `:36,40,44`（`initBackgroundVideo` 不再收參數、拿掉 `bgRoot` 檢查，整段上移）〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`background-video.js:36,40,44`（上次對齊）後 `:37,41,45`（外層 try 拆掉，整段少一層縮排）〕
   - 其餘命中都是 R-C 的備援 `bind`。
   - 打開選單或設定視窗的入口，都經 lifetime 掛。
 - **常駐日誌管道**：
@@ -141,14 +143,14 @@
 
 ### 1.2 R-A、R-C、R-D：改；`start()` 先組裝、後上線（依 Q1、順序）
 
-**是否違反**：載入順序是 `index.html` 的元素與載入順序＝邊界內（conventions §防禦與相容 清單）。保證它的機制已經在：`scripts/check-renderer-scripts.cjs` 逐檔比對 `expected`。⇒ §2＋§6 違規成立；`bootstrap.js:86-139` 是同一件事的第二條路（§6）。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:86-139` 刪除〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:86-139` 已在 `342a80c` 刪除，不追〕
+**是否違反**：載入順序是 `index.html` 的元素與載入順序＝邊界內（conventions §防禦與相容 清單）。保證它的機制已經在：`scripts/check-renderer-scripts.cjs` 逐檔比對 `expected`。⇒ §2＋§6 違規成立；`bootstrap.js:86-139` 是同一件事的第二條路（§6）。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:86-139` 刪除〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:86-139` 已在 `342a80c` 刪除，不追〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`bootstrap.js:86-139` 已在 `342a80c` 刪除，不追〕
 
 **改法**：
 - 刪 `module-registry.js`，連 `index.html` 的 `<script>`、`check-renderer-scripts.cjs` 的 `expected`、`docs/renderer-architecture.md` 的描述一起改。
 - bootstrap 直接用 `window.GglRendererX.createY({ ctx })`；刪 lifetime 備用實作、所有模組缺席的退路與假物件。
 - 常數只讀 `GglRendererConstants`。
 - R-C 的五份 `bind` 刪掉，直接用 `onDom`。
-- `lifetime.js:6-15` 的 ggl 檢查刪掉：lifetime 載入時不碰 `ggl`，只有函式被呼叫時才用（`:126` 綁 `beforeunload` 不需要它）。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lifetime.js:6-15` 刪除、`:126` 後 `:117`〕
+- `lifetime.js:6-15` 的 ggl 檢查刪掉：lifetime 載入時不碰 `ggl`，只有函式被呼叫時才用（`:126` 綁 `beforeunload` 不需要它）。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lifetime.js:6-15` 刪除、`:126` 後 `:117`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`lifetime.js:6-15` 已在 `342a80c` 刪除；`:117`（上次對齊）後 `:121`〕
 
 **先組裝、後上線**〔設計，順序已裁〕：
 
@@ -159,11 +161,11 @@
 2. **上線段**：全部 `init()`、bootstrap 自己綁的通知按鈕（今天 `:419-439`）、背景影片的 `initBackgroundVideo`（今天 `:376-385`）、`startup` 的 init（發出第一批請求），最後 `renderer:ready`。
 
 *換到什麼*：
-- R-A 之後最大的一類失敗（模組沒載到）和 `ui_refs_missing`，都發生在組裝段。那時 `start()` 還沒新增任何操作性的監聽、計時器、請求，沒有東西要拔，也沒有東西會晚回來。lifetime 在腳本載入時就掛的 `beforeunload` 清理監聽（`lifetime.js:126`，早於 `start()`）是既有的生命週期清理，不是玩家能操作的入口，不在這個說法之內。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lifetime.js:126` 後 `:117`〕
+- R-A 之後最大的一類失敗（模組沒載到）和 `ui_refs_missing`，都發生在組裝段。那時 `start()` 還沒新增任何操作性的監聽、計時器、請求，沒有東西要拔，也沒有東西會晚回來。lifetime 在腳本載入時就掛的 `beforeunload` 清理監聽（`lifetime.js:126`，早於 `start()`）是既有的生命週期清理，不是玩家能操作的入口，不在這個說法之內。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lifetime.js:126` 後 `:117`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`lifetime.js:117`（上次對齊）後 `:121`〕
 - 上線段失敗（某個 `init()` 自己丟錯）才需要 cleanup；U-7 只剩「startup 之後才失敗」這一小段。
 
 *前提與停止*：
-- 前提：每個 `createX` 本體只讀依賴、沒有副作用。〔讀碼＋掃描，啟發式〕逐支掃過第一層的 `onDom`／`onIpc`／`safeInvoke`／計時器／`addEventListener`／`document.` 呼叫，命中的全是 `const x = input?.x || fx.x` 的依賴讀取。另有兩處讀狀態：`notifications-ui.js:30` 讀 `localStorage`、`instance-ui.js:30-33` 讀預設文字，都不掛東西。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`notifications-ui.js:30` 後 `:23`；`instance-ui.js:30-33` 後 `:24-27`（`:31-32` 拿掉 `?.`／`?? ""`）〕
+- 前提：每個 `createX` 本體只讀依賴、沒有副作用。〔讀碼＋掃描，啟發式〕逐支掃過第一層的 `onDom`／`onIpc`／`safeInvoke`／計時器／`addEventListener`／`document.` 呼叫，命中的全是 `const x = input?.x || fx.x` 的依賴讀取。另有兩處讀狀態：`notifications-ui.js:30` 讀 `localStorage`、`instance-ui.js:30-33` 讀預設文字，都不掛東西。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`notifications-ui.js:30` 後 `:23`；`instance-ui.js:30-33` 後 `:24-27`（`:31-32` 拿掉 `?.`／`?? ""`）〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`notifications-ui.js:23`（上次對齊）後 `:24`；其他行號指的檔不在本 commit〕
 - 掃描抓不到「create 本體呼叫本地函式、函式裡才掛監聽」，施工時逐支現讀（U-10）。
 - **任一 create 有副作用、得改模組本身才分得開 ⇒ 停、回報，退回逐模組建立的原樣**（不重新設計模組生命週期，Q1）。
 
@@ -220,7 +222,7 @@
 
 **preload 不在**：
 - `start()` 第一步 `stage = "preload"`，`window.ggl` 不在就丟。preload 不是載入順序保證得了的東西，這一處檢查是合法邊界（`preload.js:57-76` 才 `exposeInMainWorld`）。
-- 三處偵測收成這一處；`ggl_bridge_missing` 刪掉，`lib/renderer-error-events.js:4` 的註解跟著改。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lib/renderer-error-events.js:4` 改寫成 `:4-6`〕
+- 三處偵測收成這一處；`ggl_bridge_missing` 刪掉，`lib/renderer-error-events.js:4` 的註解跟著改。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lib/renderer-error-events.js:4` 改寫成 `:4-6`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`lib/renderer-error-events.js:4-6`（上次對齊）改寫成 `:4-7`（多一行 6d-3 的三個 ID），清單在 `:8-14`〕
 - 探針 P2／P3 證實這時 HTML 的 script 照常執行、畫面寫得出字、`window.close()` 關得掉（§探針）。
 
 **出口能保證與不能保證的**（依 Q5 的誠實要求）：
@@ -229,7 +231,7 @@
 |---|---|
 | 失敗訊息顯示在專用區域，除出口外沒有任何程式寫它，所以晚回來的請求不會改它的字 | 設計；U-7 測試釘一個情境 |
 | 組裝段失敗：`start()` 沒有新增任何操作性的監聽、計時器、請求（載入時就掛的 `beforeunload` 清理監聽不算） | §1.2 的排序；前提是 create 無副作用（U-10） |
-| 上線段失敗：失敗當下已登記的監聽、IPC 監聽、計時器被拔掉 | `lifetime.js:97-123`〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lifetime.js:97-123` 後 `:88-114`〕 |
+| 上線段失敗：失敗當下已登記的監聽、IPC 監聽、計時器被拔掉 | `lifetime.js:97-123`〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lifetime.js:97-123` 後 `:88-114`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`lifetime.js:88-114`（上次對齊）改寫成 `:84-118`（6d-3 每個 catch 補理由）〕 |
 | 右上角關閉鈕可用 | 第 3 步；探針 |
 
 | 不保證 | 說明 |
@@ -259,16 +261,16 @@
 
 ### 1.6 N4：靜態初始文字（依二審三）
 
-- `index.html:287` 的「準備就緒」改成「正在初始化啟動器…」。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`index.html:287` 後 `:293`（N4 已改字）〕
-- 正常啟動時 `startup.js:21` 立刻 `setStatus("正在檢查版本…", 0)`，之後照既有流程走〔讀碼〕。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`startup.js:21` 後 `:16`〕
+- `index.html:287` 的「準備就緒」改成「正在初始化啟動器…」。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`index.html:287` 後 `:293`（N4 已改字）〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`index.html:293`（上次對齊）未移動〕
+- 正常啟動時 `startup.js:21` 立刻 `setStatus("正在檢查版本…", 0)`，之後照既有流程走〔讀碼〕。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`startup.js:21` 後 `:16`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`startup.js:16`（上次對齊）未移動〕
 - JS 完全沒跑（§1.3 B 類例外）時，畫面不再宣稱「準備就緒」。
 - 不加 loading manager、狀態機、重試。
 
 ### 1.7 B1：改（依 Q1）
 
 **現讀**〔讀碼〕：
-- `bootstrap.js:449` 先放 `ensureReadyStatusText = () => {}`，`:492` 建 account-ui 時按值交出，`:504` 才換成 ready-status 的真函式。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:449` 與 `:503-504` 的晚綁定刪除；`:492`（建 account-ui）改到 `:242-250`，ready-status 先在 `:234-240` 建好〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:242-250`（上次對齊）後 `:160-168`、`:234-240` 後 `:152-158`〕
-- account-ui 只有一處用它：`account-ui.js:399`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`account-ui.js:399` 後 `:379`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`account-ui.js:379`（上次對齊）後 `:366`〕
+- `bootstrap.js:449` 先放 `ensureReadyStatusText = () => {}`，`:492` 建 account-ui 時按值交出，`:504` 才換成 ready-status 的真函式。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:449` 與 `:503-504` 的晚綁定刪除；`:492`（建 account-ui）改到 `:242-250`，ready-status 先在 `:234-240` 建好〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:242-250`（上次對齊）後 `:160-168`、`:234-240` 後 `:152-158`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`bootstrap.js:160-168`、`:152-158`（上次對齊）未移動〕
+- account-ui 只有一處用它：`account-ui.js:399`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`account-ui.js:399` 後 `:379`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`account-ui.js:379`（上次對齊）後 `:366`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`account-ui.js:366`（上次對齊）後 `:373`〕
 - 之後建的 launch-ui（`:537`）、sync-ui（`:567`）、minecraft-ui（`:577`）、instance-ui（`:594`）拿到的是真的；`setLauncherBusy`（`:544`）讀的是變數，不受影響。
 
 **後果**〔推論，U-5〕：登入成功時 sync-ui 900 ms 後呼叫的是真函式（`sync-ui.js:57-66`），畫面多半看不出來。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`sync-ui.js:57-66` 後 `:48-57`〕
@@ -290,34 +292,34 @@
 - 背景的 ⇒ 記事件 ID（原則②）。
 - 背景失敗使主要狀態不可信 ⇒ 主要狀態區顯示＋記（原則④）。
 - 新事件 ID：`renderer_ready_failed`、`notifications_fetch_failed`、`account_read_failed`，進 `lib/renderer-error-events.js`。
-- 顯示沿用現成的：狀態區用 `setStatusError`（前例 `account-ui.js:203-223` 開外部連結失敗）；設定視窗用 `settingsError`（`settings-modal.js:73-75`）。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`account-ui.js:203-223` 後 `:196-216`；`settings-modal.js:73-75` 後 `:71-73`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`account-ui.js:196-216`（上次對齊）後 `:183-203`；`settings-modal.js:71-73`（上次對齊）改寫成 `:65-66`（拿掉 `if (settingsError)` 外殼，G2）〕
+- 顯示沿用現成的：狀態區用 `setStatusError`（前例 `account-ui.js:203-223` 開外部連結失敗）；設定視窗用 `settingsError`（`settings-modal.js:73-75`）。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`account-ui.js:203-223` 後 `:196-216`；`settings-modal.js:73-75` 後 `:71-73`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`account-ui.js:196-216`（上次對齊）後 `:183-203`；`settings-modal.js:71-73`（上次對齊）改寫成 `:65-66`（拿掉 `if (settingsError)` 外殼，G2）〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`account-ui.js:183-203`（上次對齊）後 `:190-210`；`settings-modal.js:65-66`（上次對齊）未移動〕
 
 ### 2.1 逐處
 
 | 位置〔讀碼〕 | 會失敗的實際來源〔讀碼〕 | 今天 | 處置 |
 |---|---|---|---|
-| `bootstrap.js:622` `safeInvokeSilent("renderer:ready")` | handler（`main/ipc/window-ipc.js:10-13`）的 `replayLatest` 不往外丟：送出失敗由 `deliver` 記 main 的 `renderer_send_failed`（`main/ipc-bridge.js:22-31,46-55`）。會 reject 的只剩 handler 沒註冊、channel 被擋這類接線壞。註冊時序〔讀碼＋對照〕：`main/app-ready.js:131` 建視窗、`:167` 註冊 IPC，中間 0 個 `await`（對照組：`:125-131` 有 3 個） | 吞掉；畫面停在「正在檢查版本…」，沒有紀錄 | 原則④：`safeInvoke(...).catch`，記 `renderer_ready_failed`，`setStatusError("無法取得啟動器狀態，請重新開啟啟動器。")`〔A4〕。之後真的有狀態事件進來時照常蓋掉。**只代表 ready 呼叫本身失敗有聲音，不保證重播成功**。不加 ACK〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:622` 後 `:443`（`m.safeInvokeSilent("renderer:ready")`）；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:443`（上次對齊）後 `:356`；其他行號指的檔不在本 commit〕 |
-| `window-controls.js:31` minimize、`:32` close | main 端 `getMainWindow()?.minimize()／close()`（`window-ipc.js:5-8`）不丟；reject 只剩接線壞 | 吞掉 | 原則①：失敗時視窗還在，狀態區看得到。`safeInvoke(...).catch(e => setStatusError(…))`，不記（→ §CC 可能錯）〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`window-controls.js:31`、`:32` 後 `:18`、`:19`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`window-controls.js:18`、`:19`（上次對齊）後 `:9`、`:10`；其他行號指的檔不在本 commit〕 |
-| `window-controls.js:34-39` Discord | `loadServerDefaults` 回出貨常數（`main/ipc/server-config-ipc.js:6-9`）；`openExternal` 的非同步 reject 會傳回畫面（外部邊界），同步丟錯被 main 吞（N3） | 按了沒反應 | 原則①：照 `account-ui.js:203-223` 的形狀，失敗時 `setStatusError(\`無法開啟 Discord 邀請：${msg}\`)`，不記〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`window-controls.js:34-39` 後 `:21-26`；`account-ui.js:203-223` 後 `:196-216`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`window-controls.js:21-26`（上次對齊）後 `:12-17`；`account-ui.js:196-216`（上次對齊）後 `:183-203`；其他行號指的檔不在本 commit〕 |
-| `lifetime.js:55-61` `safeInvokeSilent` 本身 | — | — | 上面三類改完後沒有使用者 ⇒ 刪（連 `bootstrap.js:108-115`、`bootstrap-ctx.js:80,100`）〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lifetime.js:55-61` 後 `:46-52`；`bootstrap.js:108-115` 刪除（改從 lifetime 解構，`:31-39`）；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:31-39`（上次對齊）未移動；`bootstrap-ctx.js:80,100` 後 `:84,104`；其他行號指的檔不在本 commit〕 |
-| `settings-modal.js:219-233` 選資料夾（R-SILENT） | `dialog:selectDirectory`（`main/ipc/dialog-ipc.js:6-20`），`showOpenDialog` 是外部邊界 | 按了沒反應 | 原則①：設定視窗內 `settingsError` 顯示「選擇資料夾失敗：…」，不記〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`settings-modal.js:219-233` 後 `:217-231`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`settings-modal.js:217-231`（上次對齊）後 `:202-216`（`:219`、`:227` 原地拿掉 `inputInstallDir` 的空值檢查）；其他行號指的檔不在本 commit〕 |
-| `settings-modal.js:224-226` 取伺服器預設失敗 ⇒ 起點空字串 | 出貨常數，reject 只剩接線壞 | main 退回 `C:\` | 改（§2）：拿掉 `.catch(() => "")`，失敗併入上一列〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`settings-modal.js:224-226` 後 `:222-224`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`settings-modal.js:222-224`（上次對齊）後 `:207-209`〕 |
-| `notifications-ui.js:36-49` 等通知 | → §2.2 | 空清單＋零未讀（說謊） | → §2.2〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`notifications-ui.js:36-49` 後 `:29-42`〕 |
-| `startup.js:25-33` 開機讀帳號（R-SILENT） | `account:get` | 帳號區停在「登入」，把失敗變成空狀態 | 原則②＋③：記 `account_read_failed`；帳號區顯示「無法讀取帳號」。account-ui 多一個對外函式，約 5 行〔設計〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`startup.js:25-33` 後 `:20-28`（`:29` 原地拿掉 `?.`）〕 |
-| `bootstrap.js:512-518` 啟動失敗後重讀帳號 | 同上 | 按鈕停在舊狀態 | 同上，共用函式與 ID；不搶狀態區，那時顯示的是啟動失敗原因（`launch-ui.js:146-149`）〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:512-518` 後 `:256-262`；`launch-ui.js:146-149` 後 `:141-144`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:256-262`（上次對齊）後 `:174-180`；`launch-ui.js:141-144`（上次對齊）後 `:134-137`〕 |
-| `startup.js:45-50` 掛 `notice:changed` 監聽包 try | `onIpc` 只在 channel 不在白名單時同步丟（`preload.js:65-69`） | — | 改（§2）：刪 try〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`startup.js:45-50` 後 `:40-45`（`:48` 原地拿掉 `?.`）；其他行號指的檔不在本 commit〕 |
-| `background-video.js:18-77` | 見 §2.3 | — | 見 §2.3〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`background-video.js:18-77` 後 `:12-68`（拿掉 `bgRoot` 檢查與 `?.`，元素改從 `ctx.ui` 拿）〕 |
-| `minecraft-ui.js:49-51` 遊戲行程輪詢失敗 | 探測，有註解 | 下一輪再試 | 留（§4）〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`minecraft-ui.js:49-51` 後 `:43-45`〕 |
-| `lifetime.js:73-75,99-122`、各 teardown 的 try | 清理 | — | 留（§4），補理由；新寫的不准空 catch〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lifetime.js:73-75` 後 `:64-66`、`:99-122` 後 `:90-113`〕 |
+| `bootstrap.js:622` `safeInvokeSilent("renderer:ready")` | handler（`main/ipc/window-ipc.js:10-13`）的 `replayLatest` 不往外丟：送出失敗由 `deliver` 記 main 的 `renderer_send_failed`（`main/ipc-bridge.js:22-31,46-55`）。會 reject 的只剩 handler 沒註冊、channel 被擋這類接線壞。註冊時序〔讀碼＋對照〕：`main/app-ready.js:131` 建視窗、`:167` 註冊 IPC，中間 0 個 `await`（對照組：`:125-131` 有 3 個） | 吞掉；畫面停在「正在檢查版本…」，沒有紀錄 | 原則④：`safeInvoke(...).catch`，記 `renderer_ready_failed`，`setStatusError("無法取得啟動器狀態，請重新開啟啟動器。")`〔A4〕。之後真的有狀態事件進來時照常蓋掉。**只代表 ready 呼叫本身失敗有聲音，不保證重播成功**。不加 ACK〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:622` 後 `:443`（`m.safeInvokeSilent("renderer:ready")`）；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:443`（上次對齊）後 `:356`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`bootstrap.js:356`（上次對齊）改寫成 `:373-376`（本列照處置做完：`safeInvoke(...).catch`，記 `renderer_ready_failed`＋狀態區）；其他行號指的檔不在本 commit〕 |
+| `window-controls.js:31` minimize、`:32` close | main 端 `getMainWindow()?.minimize()／close()`（`window-ipc.js:5-8`）不丟；reject 只剩接線壞 | 吞掉 | 原則①：失敗時視窗還在，狀態區看得到。`safeInvoke(...).catch(e => setStatusError(…))`，不記（→ §CC 可能錯）〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`window-controls.js:31`、`:32` 後 `:18`、`:19`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`window-controls.js:18`、`:19`（上次對齊）後 `:9`、`:10`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`window-controls.js:9`、`:10`（上次對齊）改寫成 `:13-15`、`:16-18`（本列照處置做完）；其他行號指的檔不在本 commit〕 |
+| `window-controls.js:34-39` Discord | `loadServerDefaults` 回出貨常數（`main/ipc/server-config-ipc.js:6-9`）；`openExternal` 的非同步 reject 會傳回畫面（外部邊界），同步丟錯被 main 吞（N3） | 按了沒反應 | 原則①：照 `account-ui.js:203-223` 的形狀，失敗時 `setStatusError(\`無法開啟 Discord 邀請：${msg}\`)`，不記〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`window-controls.js:34-39` 後 `:21-26`；`account-ui.js:203-223` 後 `:196-216`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`window-controls.js:21-26`（上次對齊）後 `:12-17`；`account-ui.js:196-216`（上次對齊）後 `:183-203`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`window-controls.js:12-17`（上次對齊）改寫成 `:20-27`（本列照處置做完）；`account-ui.js:183-203`（上次對齊）後 `:190-210`；其他行號指的檔不在本 commit〕 |
+| `lifetime.js:55-61` `safeInvokeSilent` 本身 | — | — | 上面三類改完後沒有使用者 ⇒ 刪（連 `bootstrap.js:108-115`、`bootstrap-ctx.js:80,100`）〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lifetime.js:55-61` 後 `:46-52`；`bootstrap.js:108-115` 刪除（改從 lifetime 解構，`:31-39`）；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:31-39`（上次對齊）未移動；`bootstrap-ctx.js:80,100` 後 `:84,104`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`safeInvokeSilent` 刪除（本列照處置做完）：`bootstrap.js:31-39`（上次對齊）改寫成 `:31-38`；`bootstrap-ctx.js:84,104`（上次對齊）改寫成 `:85,105`（換成 `gglError`）；其他行號指的檔不在本 commit〕 |
+| `settings-modal.js:219-233` 選資料夾（R-SILENT） | `dialog:selectDirectory`（`main/ipc/dialog-ipc.js:6-20`），`showOpenDialog` 是外部邊界 | 按了沒反應 | 原則①：設定視窗內 `settingsError` 顯示「選擇資料夾失敗：…」，不記〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`settings-modal.js:219-233` 後 `:217-231`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`settings-modal.js:217-231`（上次對齊）後 `:202-216`（`:219`、`:227` 原地拿掉 `inputInstallDir` 的空值檢查）；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`settings-modal.js:202-216`（上次對齊）改寫成 `:202-217`（本列照處置做完：失敗走 `setSettingsError`）；其他行號指的檔不在本 commit〕 |
+| `settings-modal.js:224-226` 取伺服器預設失敗 ⇒ 起點空字串 | 出貨常數，reject 只剩接線壞 | main 退回 `C:\` | 改（§2）：拿掉 `.catch(() => "")`，失敗併入上一列〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`settings-modal.js:224-226` 後 `:222-224`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`settings-modal.js:222-224`（上次對齊）後 `:207-209`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`settings-modal.js:207-209`（上次對齊）改寫成 `:206-209`（拿掉 `.catch(() => "")`）〕 |
+| `notifications-ui.js:36-49` 等通知 | → §2.2 | 空清單＋零未讀（說謊） | → §2.2〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`notifications-ui.js:36-49` 後 `:29-42`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`notifications-ui.js:29-42`（上次對齊）改寫：`fetchNotifications` 只剩 `:32-34`（不再接住失敗），背景與面板各自接（`refreshNotifIndicator` `:37-46`、`loadPanel` `:64-75`）〕 |
+| `startup.js:25-33` 開機讀帳號（R-SILENT） | `account:get` | 帳號區停在「登入」，把失敗變成空狀態 | 原則②＋③：記 `account_read_failed`；帳號區顯示「無法讀取帳號」。account-ui 多一個對外函式，約 5 行〔設計〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`startup.js:25-33` 後 `:20-28`（`:29` 原地拿掉 `?.`）〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`startup.js:20-28`（上次對齊）改寫成 `:19-27`（本列照處置做完）〕 |
+| `bootstrap.js:512-518` 啟動失敗後重讀帳號 | 同上 | 按鈕停在舊狀態 | 同上，共用函式與 ID；不搶狀態區，那時顯示的是啟動失敗原因（`launch-ui.js:146-149`）〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:512-518` 後 `:256-262`；`launch-ui.js:146-149` 後 `:141-144`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:256-262`（上次對齊）後 `:174-180`；`launch-ui.js:141-144`（上次對齊）後 `:134-137`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`bootstrap.js:174-180`（上次對齊）改寫成 `:174-183`（本列照處置做完）；其他行號指的檔不在本 commit〕 |
+| `startup.js:45-50` 掛 `notice:changed` 監聽包 try | `onIpc` 只在 channel 不在白名單時同步丟（`preload.js:65-69`） | — | 改（§2）：刪 try〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`startup.js:45-50` 後 `:40-45`（`:48` 原地拿掉 `?.`）；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`startup.js:40-45`（上次對齊）改寫成 `:39-42`（try 刪除）；其他行號指的檔不在本 commit〕 |
+| `background-video.js:18-77` | 見 §2.3 | — | 見 §2.3〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`background-video.js:18-77` 後 `:12-68`（拿掉 `bgRoot` 檢查與 `?.`，元素改從 `ctx.ui` 拿）〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`background-video.js:12-68`（上次對齊）改寫成 `:10-72`（§2.3 照做：外層與內層 try 刪除，`play()` 的 catch、清理的 catch 補理由）〕 |
+| `minecraft-ui.js:49-51` 遊戲行程輪詢失敗 | 探測，有註解 | 下一輪再試 | 留（§4）〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`minecraft-ui.js:49-51` 後 `:43-45`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`minecraft-ui.js:43-45`（上次對齊）改寫成 `:43-46`（理由改寫）〕 |
+| `lifetime.js:73-75,99-122`、各 teardown 的 try | 清理 | — | 留（§4），補理由；新寫的不准空 catch〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lifetime.js:73-75` 後 `:64-66`、`:99-122` 後 `:90-113`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`lifetime.js:64-66`（上次對齊）改寫成 `:56-60`、`:90-113`（上次對齊）改寫成 `:86-117`（補理由）〕 |
 
 ### 2.2 通知面板（原則③）〔設計〕
 
-**現讀**〔讀碼〕：`fetchNotifications`（`notifications-ui.js:36-49`）失敗就回 `{ items: [], unreadCount: 0 }`，於是：〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`notifications-ui.js:36-49` 後 `:29-42`〕
+**現讀**〔讀碼〕：`fetchNotifications`（`notifications-ui.js:36-49`）失敗就回 `{ items: [], unreadCount: 0 }`，於是：〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`notifications-ui.js:36-49` 後 `:29-42`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`notifications-ui.js:29-42`（上次對齊）改寫：`fetchNotifications` 只剩 `:32-34`（不再接住失敗），背景與面板各自接（`refreshNotifIndicator` `:37-46`、`loadPanel` `:64-75`）〕
 - `refreshNotifIndicator`（`:51-54`）收起紅點；
-- `renderNotifications`（`:62-71`）顯示「暫無通知」（`index.html:526`），並在 `:70` 收紅點；〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`index.html:526` 後 `:532`；同行的 `:62-71`、`:70` 是 notifications-ui，不在本 commit〕
+- `renderNotifications`（`:62-71`）顯示「暫無通知」（`index.html:526`），並在 `:70` 收紅點；〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`index.html:526` 後 `:532`；同行的 `:62-71`、`:70` 是 notifications-ui，不在本 commit〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`index.html:532`（上次對齊）未移動；同行的 `:62-71`、`:70` 是 `a239efa` 時 notifications-ui 的行號，6d-3 把讀取與畫面拆開，現在的 `renderNotifications` 在 `:77-117`〕
 - `openNotif` 接著 `markNotifsSeen(btnBell, [])`（`:126-128`）：已讀基準不動（`:110`），但 `:114` 又收一次紅點。
 
-背景觸發來源：開機、視窗 focus、`notice:changed`（`startup.js:36-49`）。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`startup.js:36-49` 後 `:31-44`（`:36`、`:48` 原地拿掉 `?.`）〕
+背景觸發來源：開機、視窗 focus、`notice:changed`（`startup.js:36-49`）。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`startup.js:36-49` 後 `:31-44`（`:36`、`:48` 原地拿掉 `?.`）〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`startup.js:31-44`（上次對齊）改寫成 `:30-42`（`notice:changed` 外面的 try 刪除）〕
 
 **改法**：
 1. `fetchNotifications` 拿掉 catch，直接回 main 的結果。main 一定回 `{ items, unreadCount }`（`main/ipc/notifications-ipc.js:9,31`），R-OLD 的 `:41-42` 與 `:43-44` 一起刪；失敗就是 reject。
@@ -347,9 +349,9 @@
 **現讀**〔讀碼〕：
 - 13 支模組都寫 `const x = input?.x || fx.x || 預設`（`rg 'input\?\.' renderer` 共 140 處）；正式只傳 `{ ctx, … }`，測試餵扁平欄位（例：`renderer-launch-ui.test.cjs:27-37`）。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`renderer-launch-ui.test.cjs:27-37` 後 `:34-45`（中間插入 `onDom`）〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`renderer-launch-ui.test.cjs:34-45`（上次對齊）改寫後 `:35-49`（扁平欄位改成 `ctx: makeCtx(…)`）〕
 - 很多欄位帶 `|| (() => {})` 的空函式預設，正是 B1 的溫床。
-- 空值檢查例：`account-ui.js:37,123,146,261`、`ui-status.js:18,27,36,38,43,179,187-188`、`instance-ui.js:31-32,72-76,85,89,95,103`；G2 之後 ref 一定非 `null`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`account-ui.js:37,123,146,261` 後 `:30,116,139,254`；`ui-status.js:18,27,36,38,43,179,187-188` 後 `:9,18,27,29,34,170,178-179`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：這些空值檢查 6d-2 拿掉了（G2）：`account-ui.js:30`（上次對齊）刪除、`:116` 後 `:107`、`:139` 改寫成 `:128-129`、`:254` 改寫成 `:241`；`ui-status.js:9,18,27,34`（上次對齊）刪除、`:29` 改寫成 `:26`、`:170` 改寫成 `:165`、`:178-179` 改寫成 `:173-174`；`instance-ui.js:31-32` 改寫成 `:25-26`、`:72-76` 改寫成 `:62-65`、`:85` 改寫成 `:73`、`:89` 改寫成 `:76-77`、`:95` 改寫成 `:80`、`:103` 改寫成 `:88`〕
-- G2 沒守到的兩個：`bootstrap.js:377-378` 自己抓 `bgVideoSource` 與 `.app-bg`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:377-378` 移到上線段 `:369-370`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:369-370`（上次對齊）刪除，兩個元素改由 `buildUiRefs` 取（`bootstrap-ctx.js:66-67`），上線段只剩 `initBackgroundVideo()`（`bootstrap.js:284`）〕
-- R-DUP：refs 在 `bootstrap-ctx.js:9-64`、`bootstrap.js:205-253`、`:318-366` 各列一次，共三次。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:205-253`（解構）後 `:66-114`、`:318-366`（`ui` 物件）後 `:146-194`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap-ctx.js:9-64` 後 `:9-68`（加了背景影片兩項）；`bootstrap.js:66-114`（上次對齊）改寫成 `:67-80`（只解構 bootstrap 自己用的 12 個）；`:146-194`（上次對齊）刪除，改成 `ui: uiRefs`（`:112`）〕
+- 空值檢查例：`account-ui.js:37,123,146,261`、`ui-status.js:18,27,36,38,43,179,187-188`、`instance-ui.js:31-32,72-76,85,89,95,103`；G2 之後 ref 一定非 `null`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`account-ui.js:37,123,146,261` 後 `:30,116,139,254`；`ui-status.js:18,27,36,38,43,179,187-188` 後 `:9,18,27,29,34,170,178-179`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：這些空值檢查 6d-2 拿掉了（G2）：`account-ui.js:30`（上次對齊）刪除、`:116` 後 `:107`、`:139` 改寫成 `:128-129`、`:254` 改寫成 `:241`；`ui-status.js:9,18,27,34`（上次對齊）刪除、`:29` 改寫成 `:26`、`:170` 改寫成 `:165`、`:178-179` 改寫成 `:173-174`；`instance-ui.js:31-32` 改寫成 `:25-26`、`:72-76` 改寫成 `:62-65`、`:85` 改寫成 `:73`、`:89` 改寫成 `:76-77`、`:95` 改寫成 `:80`、`:103` 改寫成 `:88`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`account-ui.js:107`、`:128-129`（上次對齊）未移動、`:241` 後 `:248`；其他行號指的檔不在本 commit〕
+- G2 沒守到的兩個：`bootstrap.js:377-378` 自己抓 `bgVideoSource` 與 `.app-bg`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:377-378` 移到上線段 `:369-370`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:369-370`（上次對齊）刪除，兩個元素改由 `buildUiRefs` 取（`bootstrap-ctx.js:66-67`），上線段只剩 `initBackgroundVideo()`（`bootstrap.js:284`）〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`bootstrap-ctx.js:66-67`（上次對齊）後 `:67-68`；`bootstrap.js:284` 後 `:290`〕
+- R-DUP：refs 在 `bootstrap-ctx.js:9-64`、`bootstrap.js:205-253`、`:318-366` 各列一次，共三次。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:205-253`（解構）後 `:66-114`、`:318-366`（`ui` 物件）後 `:146-194`；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap-ctx.js:9-64` 後 `:9-68`（加了背景影片兩項）；`bootstrap.js:66-114`（上次對齊）改寫成 `:67-80`（只解構 bootstrap 自己用的 12 個）；`:146-194`（上次對齊）刪除，改成 `ui: uiRefs`（`:112`）〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`bootstrap-ctx.js:9-68`（上次對齊）後 `:9-69`；`bootstrap.js:67-80`（上次對齊）改寫成 `:66-80`（多解構 `notifError`）、`:112` 未移動〕
 
 **是否違反**：§6；判例 2 已校準為**改**。空值檢查屬 §2。
 
@@ -375,35 +377,35 @@
 
 | 類別 | 判法 | 位置〔讀碼〕 | 處置 |
 |---|---|---|---|
-| **一、重複驗證資料形狀** | 上游已保證型別與形狀 | `notifications-ui.js:41-44`、`:104`、`:107`（main 已 `String()`，`key` 一定是 `${ms}:${id}`，`lib/notifications-broadcast.js:24-28`）；`instance-ui.js:38`（呼叫端 `:119` 已判 `snapshot.notice`）、`:40` 與 `:43` 的 `typeof`＋`trim`、`:60` `Array.isArray(n.log)`、`:62` `.map(String)` | 改（刪）〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`notifications-ui.js:41-44` 後 `:34-37`、`:104` 後 `:97`、`:107` 後 `:100`；`instance-ui.js:38` 後 `:32`、`:119` 後 `:104`、`:40` 改寫成 `:34`（拿掉 `noticeTitle &&`）、`:43` 後 `:37`、`:60` 後 `:51`、`:62` 後 `:53`（拿掉外層 `if (noticeLog)`，`:59-65` 改寫成 `:51-57`）；其他行號指的檔不在本 commit〕 |
-| **二、合法空值的顯示政策** | 上游會合法給空 | `notifications-ui.js:84` `n.title \|\| "通知"`：只有本文、沒有標題的通知合法（`lib/notifications-broadcast.js:39,55`；`notifications-ipc.js:16`）。`instance-ui.js:40` 標題空時保留原標題：`parseNoticeFields` 會給 `""`（`lib/sync/notice.js:15`）。`instance-ui.js:61-63` `.filter(Boolean)`：logUrl 抓回的 JSON 陣列可含空字串（`lib/sync/notice.js:44-46`） | **留**規則，只拿掉同一行裡第一類的部分〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`notifications-ui.js:84` 後 `:77`；`instance-ui.js:40` 改寫成 `:34`（拿掉 `noticeTitle &&`）、`:61-63` 後 `:52-54`（拿掉外層 `if (noticeLog)`）；其他行號指的檔不在本 commit〕 |
-| **三、還沒追完呼叫端的預設文字** | 要看 main 會不會傳空 | `sync-ui.js:46,54,60,70`、`minecraft-ui.js:58,72`、`server-status-ui.js:14,36` 的 `?? "…"`／`\|\| "Discord 狀態未啟用"` | 施工前 rg 每個 `sendSyncStatus`／`sendMcStatus`／`sendRpcNotice` 呼叫端（U-3）：會合法給空 ⇒ 歸第二類；一定非空 ⇒ 刪〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`sync-ui.js:46,54,60,70` 後 `:37,45,51,61`；`minecraft-ui.js:58,72` 後 `:52,66`；`server-status-ui.js:14,36` 後 `:9,27`〕 |
+| **一、重複驗證資料形狀** | 上游已保證型別與形狀 | `notifications-ui.js:41-44`、`:104`、`:107`（main 已 `String()`，`key` 一定是 `${ms}:${id}`，`lib/notifications-broadcast.js:24-28`）；`instance-ui.js:38`（呼叫端 `:119` 已判 `snapshot.notice`）、`:40` 與 `:43` 的 `typeof`＋`trim`、`:60` `Array.isArray(n.log)`、`:62` `.map(String)` | 改（刪）〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`notifications-ui.js:41-44` 後 `:34-37`、`:104` 後 `:97`、`:107` 後 `:100`；`instance-ui.js:38` 後 `:32`、`:119` 後 `:104`、`:40` 改寫成 `:34`（拿掉 `noticeTitle &&`）、`:43` 後 `:37`、`:60` 後 `:51`、`:62` 後 `:53`（拿掉外層 `if (noticeLog)`，`:59-65` 改寫成 `:51-57`）；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`notifications-ui.js:34-37`（上次對齊）刪除（R-OLD）、`:97` 刪除、`:100` 改寫成 `:122`（本列 notifications-ui 的部分照處置做完）；其他行號指的檔不在本 commit〕 |
+| **二、合法空值的顯示政策** | 上游會合法給空 | `notifications-ui.js:84` `n.title \|\| "通知"`：只有本文、沒有標題的通知合法（`lib/notifications-broadcast.js:39,55`；`notifications-ipc.js:16`）。`instance-ui.js:40` 標題空時保留原標題：`parseNoticeFields` 會給 `""`（`lib/sync/notice.js:15`）。`instance-ui.js:61-63` `.filter(Boolean)`：logUrl 抓回的 JSON 陣列可含空字串（`lib/sync/notice.js:44-46`） | **留**規則，只拿掉同一行裡第一類的部分〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`notifications-ui.js:84` 後 `:77`；`instance-ui.js:40` 改寫成 `:34`（拿掉 `noticeTitle &&`）、`:61-63` 後 `:52-54`（拿掉外層 `if (noticeLog)`）；其他行號指的檔不在本 commit〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`notifications-ui.js:77`（上次對齊）後 `:102`；其他行號指的檔不在本 commit〕 |
+| **三、還沒追完呼叫端的預設文字** | 要看 main 會不會傳空 | `sync-ui.js:46,54,60,70`、`minecraft-ui.js:58,72`、`server-status-ui.js:14,36` 的 `?? "…"`／`\|\| "Discord 狀態未啟用"` | 施工前 rg 每個 `sendSyncStatus`／`sendMcStatus`／`sendRpcNotice` 呼叫端（U-3）：會合法給空 ⇒ 歸第二類；一定非空 ⇒ 刪〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`sync-ui.js:46,54,60,70` 後 `:37,45,51,61`；`minecraft-ui.js:58,72` 後 `:52,66`；`server-status-ui.js:14,36` 後 `:9,27`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`minecraft-ui.js:52,66`（上次對齊）後 `:53,67`；其他行號指的檔不在本 commit〕 |
 | **四、main 已正規化的遠端資料** | 正規化的地方要指準 | 通知：`normalizeBroadcastNotifications`＋`notifications-ipc.js:14-22`。公告：`parseNoticeFields`（`lib/sync/notice.js:12-26`）＋`assembleNotice`（`:65-71`）。**不是 `validateNotice`**：它明文不驗欄位（`lib/sync/site-format.js:107-120`） | 依這兩處判第一類 |
 
 其他：
-- **行為不變的冗餘**：`notifications-ui.js:88,92` 的 `|| ""` ⇒ 改，行為不變。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`notifications-ui.js:88,92` 後 `:81,85`〕
+- **行為不變的冗餘**：`notifications-ui.js:88,92` 的 `|| ""` ⇒ 改，行為不變。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`notifications-ui.js:88,92` 後 `:81,85`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`notifications-ui.js:81,85`（上次對齊）改寫成 `:106,110`（拿掉 `|| ""`，本列照處置做完）〕
 - **R-THUMB**：`instance-ui.js:50-57` 一行都不動（Q3）。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`instance-ui.js:50-57` 後 `:42-49`（內容未變，只是上方拿掉空值檢查後整段上移）〕
-- **DOM／計時器 API 與自建物件**：`ui-status.js:20-22,29-31`、`settings-modal.js:57-66,88-95,126-128,182-184`、`account-ui.js:198-203,214,225,255,263,279,287,303`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`ui-status.js:20-22,29-31` 後 `:11-13,20-22`；`settings-modal.js:57-66,88-95,126-128,182-184` 後 `:55-64,86-93,124-126,180-182`；`account-ui.js:198-203,214,225,255,263,279,287,303` 後 `:191-196,207,218,248,256,272,280,296`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`ui-status.js:11-13,20-22`（上次對齊）後 `:10-12,18-20`；`settings-modal.js:55-64,86-93,124-126,180-182`（上次對齊）後 `:49-58,77-84,111-113,167-169`；`account-ui.js:191-196,207,218,248,256,272,280,296`（上次對齊）後 `:178-183,194,205,235,243,259,267,283`〕
+- **DOM／計時器 API 與自建物件**：`ui-status.js:20-22,29-31`、`settings-modal.js:57-66,88-95,126-128,182-184`、`account-ui.js:198-203,214,225,255,263,279,287,303`。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`ui-status.js:20-22,29-31` 後 `:11-13,20-22`；`settings-modal.js:57-66,88-95,126-128,182-184` 後 `:55-64,86-93,124-126,180-182`；`account-ui.js:198-203,214,225,255,263,279,287,303` 後 `:191-196,207,218,248,256,272,280,296`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`ui-status.js:11-13,20-22`（上次對齊）後 `:10-12,18-20`；`settings-modal.js:55-64,86-93,124-126,180-182`（上次對齊）後 `:49-58,77-84,111-113,167-169`；`account-ui.js:191-196,207,218,248,256,272,280,296`（上次對齊）後 `:178-183,194,205,235,243,259,267,283`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`settings-modal.js:49-58,77-84,111-113,167-169`（上次對齊）未移動；`account-ui.js:178-183,194,205,235,243,259,267,283`（上次對齊）後 `:185-190,201,212,242,250,266,274,290`；其他行號指的檔不在本 commit〕
   - `setAttribute`、`focus`、自建元素 ⇒ 改。
   - `checkVisibility`：探針確定 Chromium 是 152，CC 判斷一定存在，但還沒逐一查 API（U-2）；判不出就退回。
 - `preload.js:38-47` 的 try ⇒ §2，改。
-- `index.html:14-18` noscript：施工時現讀再判。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`index.html:14-18` 未移動〕
+- `index.html:14-18` noscript：施工時現讀再判。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`index.html:14-18` 未移動〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`index.html:14-18` 未移動〕
 
 ### 4.2 R-OLD
 
-`notifications-ui.js:41-42`：main 一定回 `{ items, unreadCount }`。§5，**改**；和 §2.2 同一個函式，在 6d-3。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`notifications-ui.js:41-42` 後 `:34-35`〕
+`notifications-ui.js:41-42`：main 一定回 `{ items, unreadCount }`。§5，**改**；和 §2.2 同一個函式，在 6d-3。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`notifications-ui.js:41-42` 後 `:34-35`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`notifications-ui.js:34-35`（上次對齊）刪除（本列照處置做完）〕
 
 ### 4.3 R-PAYLOAD
 
 - main 送畫面的 payload 一律是物件（`main/ipc-bridge.js:57-132`）；`notice:changed` 的 snapshot 一定是 `{ notice, notifications }`（`main/sync/notice-feed.js:86-96`）。⇒ `payload?.`、`snapshot?.` 改。
 - 預設文字照 §4.1 第三類。
-- `getInstanceStatus()?.` 留：開機前畫面端真的是 `null`（`bootstrap.js:452`）；`status.ui?.` 改。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:452` 後 `:229`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:229`（上次對齊）後 `:147`〕
+- `getInstanceStatus()?.` 留：開機前畫面端真的是 `null`（`bootstrap.js:452`）；`status.ui?.` 改。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:452` 後 `:229`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:229`（上次對齊）後 `:147`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`bootstrap.js:147`（上次對齊）未移動〕
 
 ### 4.4 R-LOG：分清一般 console 與故障報告出口
 
 | 位置〔讀碼〕 | 是什麼 | 處置 |
 |---|---|---|
-| `renderer.js:5-9`、`bootstrap.js:74-82,98-102,148-158,161-165,370-374`、`module-registry.js:9-13`、`self-check.js:29-31`、`lifetime.js:11-13` | 一般呼叫端把 `console.*`／`gglEvent` 包 try | 改：多數隨 R-A 消失；剩下的 `gglEvent` 呼叫拿掉 try 與 `?.`〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：列出的位置全部隨 6d-1 刪除（`module-registry.js`、`self-check.js` 整檔刪除；`lifetime.js:11-13` 刪除）；`bootstrap.js` 剩 `gglEvent` 兩處 `:44`、`:198`，不包 try〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js` 的 `gglEvent` 兩處 `:44`（上次對齊）未移動、`:198` 後 `:116`；其餘已在 `342a80c` 刪除，不追〕 |
+| `renderer.js:5-9`、`bootstrap.js:74-82,98-102,148-158,161-165,370-374`、`module-registry.js:9-13`、`self-check.js:29-31`、`lifetime.js:11-13` | 一般呼叫端把 `console.*`／`gglEvent` 包 try | 改：多數隨 R-A 消失；剩下的 `gglEvent` 呼叫拿掉 try 與 `?.`〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：列出的位置全部隨 6d-1 刪除（`module-registry.js`、`self-check.js` 整檔刪除；`lifetime.js:11-13` 刪除）；`bootstrap.js` 剩 `gglEvent` 兩處 `:44`、`:198`，不包 try〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js` 的 `gglEvent` 兩處 `:44`（上次對齊）未移動、`:198` 後 `:116`；其餘已在 `342a80c` 刪除，不追〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`bootstrap.js` 的 `gglEvent` `:44`（上次對齊）後 `:43`、`:116` 未移動〕 |
 | `ggl-log.js:8-22` `gglEvent` 的序列化退路 | 一般事件，只到 console；`detail` 是自家呼叫者給的 | 改（§2）〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`ggl-log.js:8-22` 改寫成 `:8-9`（退路刪除）〕 |
 | `ggl-log.js:33-38` 讀 `err.stack` 的 try | **故障出口**：`err` 是任何被丟出的值 | **留**，補理由〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`ggl-log.js:33-38` 後 `:22-29`（補理由）〕 |
 | `ggl-log.js:39-53` `gglError` 的序列化退路 | **故障出口**：沒有它，序列化失敗會在 `:57` 送事件 ID **之前**丟出，ID 就丟了 | **留**，補理由〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`ggl-log.js:39-53` 後 `:30-46`、`:57` 後 `:50`〕 |
@@ -421,7 +423,7 @@
 ## 五、R-THUMB：移交 6e（依 Q3）
 
 **6d 不碰**（每批驗收都查）：
-- `renderer/instance-ui.js:50-57`；`test/site-format-doc.test.cjs:1062-1072`（SF-S4）；`styles.css`、`index.html` 的縮圖相關部分。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`instance-ui.js:50-57` 後 `:42-49`（內容未變，只是上方拿掉空值檢查後整段上移）；`test/site-format-doc.test.cjs:1062-1072` 後 `:1078-1088`（內容未變）〕
+- `renderer/instance-ui.js:50-57`；`test/site-format-doc.test.cjs:1062-1072`（SF-S4）；`styles.css`、`index.html` 的縮圖相關部分。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`instance-ui.js:50-57` 後 `:42-49`（內容未變，只是上方拿掉空值檢查後整段上移）；`test/site-format-doc.test.cjs:1062-1072` 後 `:1078-1088`（內容未變）〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`test/site-format-doc.test.cjs:1078-1088`（上次對齊）後 `:1079-1089`（內容未變）；其他行號指的檔不在本 commit〕
 - 驗法：每批 `git diff <父> -- renderer/instance-ui.js test/site-format-doc.test.cjs` 不得碰上述範圍。
 
 **6e 接手的驗收帳**（6e 細部 plan 開工時從這裡起算，逐條答「做了／故意不做」）：
@@ -465,7 +467,7 @@
 - **U-7 延遲回應**：
   - 讓失敗發生在 startup 之後（例如上線段最後一步丟錯），`account:get` 與通知查詢延後才完成 ⇒ 專用區域的字還在；`btnLaunch`、`btnLogin`、`btnSettings`、`btnBell` 的 click 不觸發任何 invoke；`#btnClose` 仍關得掉。
   - 通過只代表這個順序與這個延遲情境（二審補裁）。
-- **組裝段沒有新增副作用**：比較 `start()` 期間的**新增**呼叫，不看 lifetime 清單總數——清單在載入時就有 `beforeunload`（`lifetime.js:126`），而且是 lifetime 的私有變數，測試讀不到；也**不為了讓斷言成立刪 `beforeunload` 或公開內部清單**。做法：在既有骨架記錄 `window.ggl.on`／`invoke`、頁面元素的 `addEventListener`、`setInterval`／`setTimeout`，讓組裝段最後一步失敗，斷言 `start()` 期間新增的這些呼叫都是 0。對照：把一個 `init()` 搬回組裝段，此案紅。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lifetime.js:126` 後 `:117`〕
+- **組裝段沒有新增副作用**：比較 `start()` 期間的**新增**呼叫，不看 lifetime 清單總數——清單在載入時就有 `beforeunload`（`lifetime.js:126`），而且是 lifetime 的私有變數，測試讀不到；也**不為了讓斷言成立刪 `beforeunload` 或公開內部清單**。做法：在既有骨架記錄 `window.ggl.on`／`invoke`、頁面元素的 `addEventListener`、`setInterval`／`setTimeout`，讓組裝段最後一步失敗，斷言 `start()` 期間新增的這些呼叫都是 0。對照：把一個 `init()` 搬回組裝段，此案紅。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lifetime.js:126` 後 `:117`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`lifetime.js:117`（上次對齊）後 `:121`〕
 - **B1** 接線一案；「每支定義了 global」一案；`log-ipc.test.cjs` 的 A10／A11 改成 `renderer_boot_failed`／`ui_refs_missing`。
 - **真 Electron**（照探針的做法，在 repo 外的副本）：
   - 正常副本：開機後 N4 的字被正常流程蓋掉；關閉鈕走 IPC 關得掉。
@@ -529,7 +531,7 @@
   - R-B：13 支模組的 `createX` 只收 `{ ctx, …本模組專屬的依賴 }`，從 `ctx.fx`／`ctx.ui`／`ctx.consts` 解構；扁平欄位與空函式預設全拆。repair-ui 不再收測試專用的 `doc`，改用全域 `document`。
   - G2 守住的空值檢查：對 `buildUiRefs` 保證存在的元素，拆掉 `if (!el) return`、`el?.`、`if (el)` 外殼。
   - `bgVideoSource`、`.app-bg`（鍵名 `appBg`）進 `buildUiRefs`；background-video 改從 `ctx.ui` 拿，`initBackgroundVideo()` 不收參數。
-  - R-DUP：bootstrap 只解構自己用的 12 個 ref，ctx 直接用 `uiRefs`。§三 留給施工判的 `buildRootCtx`：**留**（正式程式裡唯一組出 `{ fx, ui, consts }` 的地方〔現查 2026-10-28：`bootstrap-ctx.js:123`〕），只拿掉 `input || {}`。〔對齊 2026-10-28：本行寫於 `1382a01` 之後（以 `1382a01` 現查），`1382a01` 不適用〕
+  - R-DUP：bootstrap 只解構自己用的 12 個 ref，ctx 直接用 `uiRefs`。§三 留給施工判的 `buildRootCtx`：**留**（正式程式裡唯一組出 `{ fx, ui, consts }` 的地方〔現查 2026-10-28：`bootstrap-ctx.js:123`〕），只拿掉 `input || {}`。〔對齊 2026-10-28：本行寫於 `1382a01` 之後（以 `1382a01` 現查），`1382a01` 不適用〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`bootstrap-ctx.js:123` 後 `:124`〕
 - **修前**：全套沒另跑；只改正式程式的探針共 1392 案，等於 `342a80c` 收尾時的全套數。
 - **只改正式程式時的紅燈**（Node 24）：24 案，全落在 §三 測試帳列的 7 支檔，原因都是沒傳 `ctx`：
   - account-ui A1 ×2、launch-ui W21、repair-ui W22、sync-ui ×1、ready-status ×4；
@@ -558,8 +560,40 @@
   - 正常副本：沒有 console 錯誤，影片在播，× 走 IPC 關窗，exit 0。
   - 兩份故障副本：行為與 6d-1 相同。
   - 一次截圖縮圖是空白：DOM 上的 `backgroundImage` 已經是遠端網址，重跑就顯示，判為截圖時圖片還沒下載完，與 6d-2 無關。
-- **Q3 界線**〔現查 2026-10-28〕：`instance-ui.js:50-57`（`1382a01` 後 `:42-49`）與 SF-S4（`site-format-doc.test.cjs:1062-1072`，`1382a01` 後 `:1078-1088`）的內容都沒變，只是整段上移。〔對齊 2026-10-28：本行寫於 `1382a01` 之後，舊位置與新位置都寫在行內〕
+- **Q3 界線**〔現查 2026-10-28〕：`instance-ui.js:50-57`（`1382a01` 後 `:42-49`）與 SF-S4（`site-format-doc.test.cjs:1062-1072`，`1382a01` 後 `:1078-1088`）的內容都沒變，只是整段上移。〔對齊 2026-10-28：本行寫於 `1382a01` 之後，舊位置與新位置都寫在行內〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`site-format-doc.test.cjs:1078-1088` 後 `:1079-1089`（內容未變）；其他行號指的檔不在本 commit〕
 - **owner 看畫面**：CC 交驗收時請 owner 照 §七 6d-2 列各點一次（啟動、設定視窗、修復視窗、通知面板、登入）；owner 回的是上面那句放行，沒有逐項回報。
+
+## 6d-3 施工紀錄
+
+- **commit**：`49d1066`（18 檔，+583／-158，含新檔 `test/renderer-notifications-ui.test.cjs`）。授權、驗收裁定 → §Owner 裁決。
+- **做了什麼**（§2.1 逐處、§2.2、§2.3 都照處置做；位置見各列的對齊註記）：
+  - 背景失敗記 ID：`renderer:ready`（另在狀態區說，原則④）、開機讀帳號與啟動失敗後重讀帳號（共用 account-ui 新增的 `reportAccountReadFailed`，帳號區寫「無法讀取帳號」）、通知背景更新。三個新 ID 進 `lib/renderer-error-events.js`。
+  - 玩家按的在受影響的介面說、不記：縮小、關閉、Discord（狀態區）；選資料夾與伺服器預設取不到（設定視窗的 `settingsError`）。
+  - 通知面板：`fetchNotifications` 不再接住失敗，R-OLD 的陣列相容與 `items`／`unreadCount` 的補值刪除；開面板讀不到時用新元素 `notifError`；清除成功、重讀失敗時走面板錯誤；`markNotifsSeen` 的第一類檢查、body／timeText 的 `|| ""` 刪除；`n.title || "通知"` 留（第二類）。
+  - 刪 `safeInvokeSilent`；startup 掛 `notice:changed` 的 try 刪除；背景影片外層與內層 try 刪除，`play()` 的 catch 補理由。
+  - 清理的 catch（lifetime、settings-modal、account-ui、minecraft-ui 的 teardown、背景影片的清理）補理由；遊戲輪詢的 catch 改寫理由。
+  - 接線：`gglError` 進 `ctx.fx`（`buildRootCtx`），`notifError` 進 `buildUiRefs` 與 `index.html`。
+  - 讀帳號改成 `.then(成功, 失敗)`：只接讀取本身的失敗，套用到畫面時的程式錯照樣丟出來，不會被記成 `account_read_failed`。
+- **修前**：全套 Node 24.14.1、22.23.4 都 1393／1393。
+- **只改正式程式時的紅燈**（Node 24）：5 案，本檔測試帳是 0 案 ⇒ 觸發停止條件，停下回報，owner 准照補（斷言不改）→ §被推翻或更正：
+  - renderer-boot B0、E8、U7：`sourceEl.closest is not a function`。假元素沒有 `closest`，背景影片的初始化在測試裡其實每次都失敗，一直被外層 try 吞掉；拆 try 後浮出來。補：`bgVideoSource.closest("video")` 回假 video。
+  - site-format-doc SF-T13、SF-T14：開面板沒傳 `notifError`。補上。
+- **補的時候又浮出兩處被吞的錯**（同樣只改測試輸入，斷言不改）：
+  - U7 的故障注入讓 `updateLaunchButtonUi` 每次都丟；晚回來的帳號套用時再丟一次，原本被讀帳號的空 catch 吞掉。改成 U7 設計的「上線段最後一步失敗一次」。
+  - renderer-boot 的假 main 對 `notifications:get` 回 `undefined`，原本被 R-OLD 的相容碼換成空清單。改成正式 main 的 `{ items, unreadCount }`。
+- **測試新增**（21 案）：`renderer-notifications-ui` N1–N6 與 N1 對照（7）；renderer-boot Q1–Q5（Q5 含 3 個子案，共 8）；settings-modal P1–P3（3）；log-ipc P4 三個 ID（3）。
+  - 一次撞到：用 Bash heredoc 追加測試時 `\\` 被減半（`"D:\\GGL"` 變 `"D:\GGL"`），P1 紅、P3 兩邊一起減半成假綠；改用 Edit 修回，並以 `rg -F '\'` 查其他追加段（對照組命中 3）。
+- **修後**：全套 Node 24.14.1、22.23.4 都 1414／1414；lint、`check:ui-css`（一般／strict）、`check-renderer-scripts`、`git diff --check` 過。
+- **反向驗證**（repo 外副本，一次放回一個舊行為）：11 個突變都紅，還原後對照組全綠——通知讀不到換成空清單 → N1、N2、N5；清除後重讀失敗往外丟 → N2、N5；ready、開機讀帳號、重讀帳號、縮小、Discord 失敗吞掉 → Q1、Q2、Q3、Q5；選資料夾失敗安靜 → P1、P2；預設值退回空字串 → P2；ID 沒進清單 → log-ipc P4；`index.html` 少了 `notifError` → A8、A9。
+  - 背景影片的 try 沒做反向突變：放回去只會讓錯誤重新被吞，沒有測試能「因為吞了而紅」；它的效果就是上面 B0、E8、U7 浮出來的那次。
+- **freeze**：本批動到的 6 支測試 0 個 HTTP 請求；對照組 `local-http` 收到 4 個。
+- **殘留**：`safeInvokeSilent` 在 `renderer`、`docs`、`test`、`lib`、`main` 0 個檔；對照：`HEAD`（`1382a01`）時 5 個檔。
+- **真 Electron**（repo 外副本，main 端讓指定 handler 丟錯，真實點擊）：
+  - 正常：沒有 console 錯誤，× 走 IPC 關窗，exit 0。
+  - `renderer:ready`、`account:get`、`notifications:get` 同時壞：狀態區、帳號區「無法讀取帳號」、通知面板「無法取得通知，請稍後再試。」（清單與「清除全部」藏起）都對；常駐日誌有三個 ID；exit 0。
+  - `window:close` 壞：狀態區「無法關閉視窗：…」。
+  - 截圖看到狀態區那句被截斷 → 交 owner 裁（A4，§Owner 裁決 6d-3 驗收）。
+- **owner 看畫面**：用 CC 準備的故障副本（只換進入點，main 端讓上述三個 handler 丟錯）開一次。owner 開副本時誤按「安裝」後關窗：CC 查無殘留的 electron／java 行程（對照：同查法查 powershell 有 6 個），副本的安裝位置在暫存區，只留兩個版本 json（44 KB）與 `sync-in-progress`，正式資料夾沒碰到。
 
 ## 被推翻或更正
 
@@ -570,22 +604,23 @@
 | 初稿：公告「在 main 由 `site-format.js` 正規化過」 | 正規化在 `parseNoticeFields`＋`assembleNotice`；`validateNotice` 不驗欄位 | owner 初審 |
 | 初稿：`ggl-log.js` 只留 `:57-65` | `gglError` 的 `:33-53` 也留（故障出口）；`gglEvent` 的退路才改 | owner 初審〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`ggl-log.js` 的 `:57-65` 後 `:50-58`、`:33-53` 後 `:22-46`〕 |
 | 初稿：N1 的理由，且漏對 D-LOG-RENDERER | 結論不變，理由換成 §1.5，並對到 D-LOG-RENDERER | owner 初審 |
-| 初稿：`settings-modal.js:224-226` 初判「留-1？」 | **改**：伺服器預設是出貨常數 | CC 二稿現讀〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`settings-modal.js:224-226` 後 `:222-224`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`settings-modal.js:222-224`（上次對齊）後 `:207-209`〕 |
+| 初稿：`settings-modal.js:224-226` 初判「留-1？」 | **改**：伺服器預設是出貨常數 | CC 二稿現讀〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`settings-modal.js:224-226` 後 `:222-224`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`settings-modal.js:222-224`（上次對齊）後 `:207-209`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`settings-modal.js:207-209`（上次對齊）改寫成 `:206-209`〕 |
 | 初稿：Q2 的玩家操作統一在狀態列顯示 | 改成受影響的介面 | Q2 |
 | 初稿：R-THUMB「6d 只刪 inline」 | 整件移交 6e | Q3 |
 | 二稿：故障出口寫進啟動鈕內的 `statusText` | **推翻**：探針 P2 截圖顯示訊息被截到只剩「初始化失敗：缺少 ggl（ｒ」，畫面其他地方看起來正常。改用專用、持續可見的區域 | 探針截圖；二審補裁 |
 | 二稿：日誌出口「`GglStructuredLog` 存在才呼叫」 | 不夠：方法本身也可能丟錯，且丟出後 `renderer.js` 會再接一次、把 stage 蓋成 `"bootstrap"`。改成包一個 try | 二審四之 1；二審補裁 |
-| 二稿：A1 兩個舊 ID 全併 | A1-C：保留 `ui_refs_missing` | 二審（ChatGPT 改判）；`bootstrap-ctx.js:65-68`〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap-ctx.js:65-68` 後 `:69-72`〕 |
+| 二稿：A1 兩個舊 ID 全併 | A1-C：保留 `ui_refs_missing` | 二審（ChatGPT 改判）；`bootstrap-ctx.js:65-68`〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap-ctx.js:65-68` 後 `:69-72`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`bootstrap-ctx.js:69-72`（上次對齊）後 `:70-73`〕 |
 | 二稿：Q5 待裁、建議 A | 已裁 B；關閉改用 `window.close()`（探針） | 二審一、二 |
 | 二稿：N4 只記新發現 | 納入 6d-1 | 二審三 |
 | 二稿：出口保證「拔掉已掛的監聽」，沒寫清楚範圍 | 寫成「保證／不保證」兩張表（§1.3），並加上「先組裝、後上線」把主要失敗移到上線之前 | 二審一；順序 |
 | CC 討論中：「兩條關窗路徑跟一條路原則有拉扯，探針成功就記 future-work」 | **撤回**：兩條路的前提不同（有沒有 `window.ggl`），不是重複負責；不記 future-work | 二審補裁 |
-| `c1d3d3c`：「組裝段失敗時沒有任何監聽、計時器、請求存在」，6d-1 驗收「lifetime 的登記清單是空的」 | **改**：`lifetime.js:126` 在載入時就掛 `beforeunload`，清單不從零開始；而且清單是私有變數，原測試寫不出來。改成「`start()` 沒有新增操作性的副作用」，用前後差異驗（§1.2、§1.3、§七） | 2026-10-28 owner 轉貼的審查；CC 補「私有、讀不到」〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lifetime.js:126` 後 `:117`〕 |
+| `c1d3d3c`：「組裝段失敗時沒有任何監聽、計時器、請求存在」，6d-1 驗收「lifetime 的登記清單是空的」 | **改**：`lifetime.js:126` 在載入時就掛 `beforeunload`，清單不從零開始；而且清單是私有變數，原測試寫不出來。改成「`start()` 沒有新增操作性的副作用」，用前後差異驗（§1.2、§1.3、§七） | 2026-10-28 owner 轉貼的審查；CC 補「私有、讀不到」〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`lifetime.js:126` 後 `:117`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`lifetime.js:117`（上次對齊）後 `:121`〕 |
 | `c1d3d3c`：`mod()` 取不到只回 `undefined`；U-9 寫「接線碼錯誤算在前一個模組頭上」 | **改**：延後到使用時才爆，會把模組缺失記到後面的階段（例：`BCTX` 缺失被記成 `ui_refs_missing`）。`mod()` 改成取不到當場丟；6d-1 加「拿掉 `bootstrap-ctx.js` ⇒ `renderer_boot_failed`」一案；U-9 改寫 | 2026-10-28 審查的反例；CC 補根因在 `mod()` |
 | `c1d3d3c` 的 STATUS：「plan 未 commit」 | commit 後即過期，改成「plan 已入版控」 | 2026-10-28 審查 |
 | CC 討論中：故障出口改用 `<dialog>` `showModal()` | **撤回**：它附帶的 inert 隔離沒有反例支持，而且會讓右上角關閉鈕失效，與 Q5-B 衝突；dialog、inert 都只留作候選 | CC 自己撤回；二審補裁 2 |
+| §七 6d-3 測試帳：只列「新增 notifications 測試，log-ipc 補三案」，既有測試預期 0 紅 | **漏列**：renderer-boot B0、E8、U7（假元素沒有 `closest`，原本被背景影片的外層 try 吞掉）、site-format-doc SF-T13、SF-T14（沒傳新元素 `notifError`）；補的時候又浮出 U7 的注入每次都丟、假 main 的 `notifications:get` 回 `undefined` 兩處 | 6d-3 修前對照（→ §6d-3 施工紀錄） |
 | §七 6d-1 測試帳：只列「補載 constants／lifetime」，log-ipc 寫成「A10／A11」 | **漏列 R-C**：settings-modal 7 案、repair-ui 1 案沒傳 `onDom`，一直靠被刪的備援 `bind`；**名字寫錯**：實際紅的是 log-ipc P1（`ui_refs_missing` 的 A11 照 A1-C 保留，維持綠） | 6d-1 修前對照（→ §6d-1 施工紀錄） |
-| 行號漂移（`6cf5d4e` → `a239efa`） | `bootstrap.js` R-SILENT `:523-529` → `:512-518`；`settings-modal.js` R-SWALLOW `:229-231` → `:224-226`、R-SILENT `:235-237` → `:230-232`；其餘未移動，施工時逐條再對 | 初稿現讀〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js` 的 `:512-518` 後 `:256-262`；`settings-modal.js` 的 `:224-226` 後 `:222-224`、`:230-232` 後 `:228-230`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js` 的 `:256-262`（上次對齊）後 `:174-180`；`settings-modal.js` 的 `:222-224`（上次對齊）後 `:207-209`、`:228-230` 後 `:213-215`〕 |
+| 行號漂移（`6cf5d4e` → `a239efa`） | `bootstrap.js` R-SILENT `:523-529` → `:512-518`；`settings-modal.js` R-SWALLOW `:229-231` → `:224-226`、R-SILENT `:235-237` → `:230-232`；其餘未移動，施工時逐條再對 | 初稿現讀〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js` 的 `:512-518` 後 `:256-262`；`settings-modal.js` 的 `:224-226` 後 `:222-224`、`:230-232` 後 `:228-230`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js` 的 `:256-262`（上次對齊）後 `:174-180`；`settings-modal.js` 的 `:222-224`（上次對齊）後 `:207-209`、`:228-230` 後 `:213-215`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`bootstrap.js` 的 `:174-180`（上次對齊）改寫成 `:174-183`；`settings-modal.js` 的 `:207-209`（上次對齊）改寫成 `:206-209`、`:213-215` 改寫成 `:213-216`〕 |
 
 ## 交 owner 裁
 
@@ -597,11 +632,11 @@
 - 不把正常的關窗改成 `window.close()`，也不記成 future-work（二審補裁）。
 - 不掛 `window.onerror`／`unhandledrejection`（D-LOG-RENDERER；N1）。
 - `renderer:ready` 不加 ACK、不加重試（Q2 ⑤）。
-- `notifications-ui.js:16-28` 讀寫 `localStorage` 的 try：瀏覽器儲存可能被停用，盤點沒列。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`notifications-ui.js:16-28` 後 `:9-21`〕
-- `bootstrap.js:179-191` `loadServerDefaults` 的「失敗不快取」：既有，不拆不擴。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:179-191` 後 `:49-60`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:49-60`（上次對齊）未移動〕
-- `account-ui.js:203-223` 開外部連結失敗的處理：已經是 Q2 要的形狀。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`account-ui.js:203-223` 後 `:196-216`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`account-ui.js:196-216`（上次對齊）後 `:183-203`〕
+- `notifications-ui.js:16-28` 讀寫 `localStorage` 的 try：瀏覽器儲存可能被停用，盤點沒列。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`notifications-ui.js:16-28` 後 `:9-21`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`notifications-ui.js:9-21`（上次對齊）後 `:10-22`〕
+- `bootstrap.js:179-191` `loadServerDefaults` 的「失敗不快取」：既有，不拆不擴。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`bootstrap.js:179-191` 後 `:49-60`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`bootstrap.js:49-60`（上次對齊）未移動〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`bootstrap.js:49-60`（上次對齊）後 `:48-59`〕
+- `account-ui.js:203-223` 開外部連結失敗的處理：已經是 Q2 要的形狀。〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`account-ui.js:203-223` 後 `:196-216`〕〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`account-ui.js:196-216`（上次對齊）後 `:183-203`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`account-ui.js:183-203`（上次對齊）後 `:190-210`〕
 - `clearNotifs` 清除失敗的 `setStatusError`：既有行為。
-- `minecraft-ui.js:49-51` 輪詢、teardown 與 lifetime cleanup 的 try：§4 留。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`minecraft-ui.js:49-51` 後 `:43-45`〕
+- `minecraft-ui.js:49-51` 輪詢、teardown 與 lifetime cleanup 的 try：§4 留。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`minecraft-ui.js:49-51` 後 `:43-45`〕〔對齊 2026-10-28：→ `49d1066`（plans/cross-review-2026-10-phase6d.md 6d-3）：`minecraft-ui.js:43-45`（上次對齊）改寫成 `:43-46`（理由改寫）〕
 - `renderer/ggl-log.js` 與 `lib/ggl-structured-log.js` 並存。
 - `instance-ui.js:50-57`、SF-S4、`--thumb-url`（Q3）。〔對齊 2026-10-28：→ `1382a01`（plans/cross-review-2026-10-phase6d.md 6d-2）：`instance-ui.js:50-57` 後 `:42-49`（內容未變，只是上方拿掉空值檢查後整段上移）〕
 - 6e 的 CSS 整理：6d-1 只加故障訊息必要的少量 CSS。
