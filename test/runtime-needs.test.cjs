@@ -5,7 +5,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { runtimeNeeds, assertLaunchBundle } = require("../lib/runtime-needs.js");
+const { runtimeNeeds } = require("../lib/runtime-needs.js");
 const { libraryArtifact } = require("../lib/library-filter.js");
 const fx = require("./helpers/runtime-fixtures.cjs");
 
@@ -147,13 +147,8 @@ test("K3 Fabric 自己有 logging ⇒ 用 Fabric 那份（子層不是 null 才�
   ]);
 });
 
-test("K8 runtimeNeeds 沒給 env ⇒ TypeError：記錄不完整、目標 json 壞掉的路也一樣", () => {
-  const without = (input) => () => runtimeNeeds(input);
-  const base = { record: record(), target: ok(fx.fabric()), vanilla: ok(fx.vanilla()) };
-  assert.throws(without(base), TypeError);
-  assert.throws(without({ ...base, record: null }), TypeError);
-  assert.throws(without({ ...base, target: BAD }), TypeError);
-});
+// K8 runtimeNeeds 沒給 env 撤回：唯一的正式呼叫者 checkRuntimeReady 先驗同一個 env
+// 接手 → runtime-readiness 的 K8（記錄 null 那條路也丟）（_notes/plans/cross-review-2026-10-phase6c.md U3-a）
 
 // → _notes/plans/instance-sync-v3-commit5c.md N1、N5（P2′：就緒交出成品；D1：試組 argv）
 const libRels = (r) => r.files.filter((f) => f.item === "library").map((f) => f.rel);
@@ -193,24 +188,5 @@ test("N1 json 壞 ⇒ 沒有 launch；試組 argv 不過 ⇒ 記在 version-json
   assert.equal("launch" in r, false);
 });
 
-test("N5 assertLaunchBundle：就緒交的那份不丟；形狀不對 ⇒ TypeError", () => {
-  const L = needs().launch;
-  assert.doesNotThrow(() => assertLaunchBundle(L));
-  assert.doesNotThrow(() => assertLaunchBundle({ ...L, logConfigRel: null }));
-  const cases = [
-    ["{}", {}],
-    ["null", null],
-    ["merged 沒有 arguments", { ...L, merged: {} }],
-    ["libraries 不是陣列", { ...L, libraries: "x" }],
-    ['versionJarRel 是 ""', { ...L, versionJarRel: "" }],
-    ['logConfigRel 是 ""', { ...L, logConfigRel: "" }],
-    ["少 env", { ...L, env: undefined }],
-  ];
-  for (const [name, bad] of cases) {
-    assert.throws(
-      () => assertLaunchBundle(bad),
-      (e) => e instanceof TypeError && /launch/.test(e.message),
-      name,
-    );
-  }
-});
+// N5 assertLaunchBundle 撤回：函式已刪（B3）。成品的值由上面 N1 等案對 runtimeNeeds 的回傳釘住
+// （_notes/plans/cross-review-2026-10-phase6c.md U3-b）
