@@ -154,6 +154,7 @@
 - 2026-10-27 cross-review Phase 6c-7 commit `d46c008`（2 檔，+5／-3）：L-DUP——假跑傳自己的名字 `"check"`，`launchPlaceholders` 拿掉 `Player001` 的隱藏預設；N3b 那個 assert 撤回。只改正式程式時紅 1 案（就是它）；全套 Node 24.14.1、22.23.4 都 1377／1377；兩種反向驗證各紅 20、2 案；owner 驗收過。6c 各批（6c-1～6c-7、6c-7a）施工至此全部完成 → plans/cross-review-2026-10-phase6c.md §6c-7 施工紀錄
 - 2026-10-27 cross-review Phase 6c 結案：6c-1～6c-7、6c-7a 完成後 push 到 `a239efa`（`f26f9a9..a239efa`）；owner「6c 驗證通過，先 push 吧」；本次 owner 沒提外部審查輪，未記。下一步 6d → plans/cross-review-2026-10-phase6c.md 狀態列
 - 2026-10-27 cross-review Phase 6d 細部 plan：初稿後 owner 初審（含 ChatGPT）裁 Q1–Q4，二稿；二審裁 Q5（B）、N4 進 6d-1、A1（C），另開 session 在 repo 外的副本跑 Electron 44.3.0 探針：preload 正常、檔不存在、執行時丟錯三種情況下，渲染端 `window.close()` 都能關窗並讓行程 exit 0（9/9）。撞到：探針截圖顯示二稿把故障訊息寫進啟動鈕的 `statusText` 會被截到看不懂，改用專用區域；CC 討論中提的 `<dialog>` 撤回，改採「先組裝、後上線」的 `start()` 順序。6d-1 待授權 → plans/cross-review-2026-10-phase6d.md §Owner 裁決、§探針
+- 2026-10-28 6d plan 局部修正：owner 轉貼的審查（ChatGPT）指出 `c1d3d3c` 兩處 6d-1 測試前提有誤，加上 STATUS 一格過期。撞到：① `lifetime.js:126` 在載入時就掛 `beforeunload`，「組裝段失敗時 lifetime 清單為空」不成立，而且清單是私有的、測試讀不到，改成驗 `start()` 期間的新增呼叫；② `mod()` 取不到只回 `undefined`，模組缺失會延到使用時才爆、記到後面的階段（`BCTX` 缺失被記成 `ui_refs_missing`），改成當場丟；③ STATUS 的「plan 未 commit」在 commit 後就過期了 → plans/cross-review-2026-10-phase6d.md §被推翻或更正
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
