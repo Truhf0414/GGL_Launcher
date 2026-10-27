@@ -105,23 +105,10 @@
     }
 
     function init() {
-      const bind =
-        typeof onDom === "function"
-          ? onDom
-          : (target, type, handler, options) => {
-              if (!target?.addEventListener) return () => {};
-              target.addEventListener(type, handler, options);
-              return () => {
-                try {
-                  target.removeEventListener(type, handler, options);
-                } catch {}
-              };
-            };
-
-      bind(btnRepairConfirm, "click", confirmChoice);
-      bind(btnRepairCancel, "click", () => finishChoice(null));
-      bind(repairBackdrop, "click", () => finishChoice(null));
-      bind(btnRepair, "click", () => {
+      onDom(btnRepairConfirm, "click", confirmChoice);
+      onDom(btnRepairCancel, "click", () => finishChoice(null));
+      onDom(repairBackdrop, "click", () => finishChoice(null));
+      onDom(btnRepair, "click", () => {
         closeSettingsModal();
         void startRepairFlow({ entry: "settings" });
       });

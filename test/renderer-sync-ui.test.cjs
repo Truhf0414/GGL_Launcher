@@ -11,6 +11,7 @@ const {
   makeEl,
   fakeDocument,
   loadRendererModule,
+  rendererConstants,
 } = require("./helpers/fake-dom.cjs");
 
 const SYNC_UI = path.join(__dirname, "..", "renderer", "sync-ui.js");
@@ -20,6 +21,7 @@ function setup() {
   global.document = fakeDocument;
   const UI = loadRendererModule(UI_STATUS, {
     GglRendererLifetime: { trackTimeout: (x) => x },
+    GglRendererConstants: rendererConstants(),
   }).GglRendererUiStatus;
   const SU = loadRendererModule(SYNC_UI).GglRendererSyncUi;
 

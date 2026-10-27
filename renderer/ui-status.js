@@ -1,18 +1,9 @@
 // Renderer UI helpers: overlays + status line rendering.
 // Loaded before renderer.js via index.html.
 (function () {
-  const LT = window.GglRendererLifetime;
-  if (!LT || typeof LT.trackTimeout !== "function") return;
-
-  const { trackTimeout } = LT;
-
-  const K = window.GglRendererConstants || {};
-  const ANIM_MS = Number.isFinite(Number(K.UI_ANIM_MS))
-    ? Number(K.UI_ANIM_MS)
-    : 280;
-  const STATUS_GUARD_MS = Number.isFinite(Number(K.UI_STATUS_GUARD_MS))
-    ? Number(K.UI_STATUS_GUARD_MS)
-    : 2500;
+  const { trackTimeout } = window.GglRendererLifetime;
+  const { UI_ANIM_MS: ANIM_MS, UI_STATUS_GUARD_MS: STATUS_GUARD_MS } =
+    window.GglRendererConstants;
 
   function openOverlay(elm) {
     if (!elm) return;

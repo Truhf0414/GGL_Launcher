@@ -11,6 +11,7 @@ const {
   makeEl,
   fakeDocument,
   loadRendererModule,
+  onDom,
 } = require("./helpers/fake-dom.cjs");
 
 const REPAIR_UI = path.join(__dirname, "..", "renderer", "repair-ui.js");
@@ -33,6 +34,7 @@ function setup({ stray, repair = async () => ({ movedAside: [] }) }) {
   const repairUi = win.GglRendererRepairUi.createRepairUi({
     ...refs,
     doc: fakeDocument,
+    onDom,
     safeInvoke: async (channel, ...args) => {
       record.invoked.push([channel, ...args]);
       if (channel === "instance:listStrayJars") return stray();

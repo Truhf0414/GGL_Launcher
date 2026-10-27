@@ -13,9 +13,7 @@
     const closeOverlay = input?.closeOverlay || fx.closeOverlay || (() => {});
     const onDom = input?.onDom || fx.onDom;
     const trackTimeout = input?.trackTimeout || fx.trackTimeout || ((x) => x);
-    const ANIM_MS =
-      input?.ANIM_MS ??
-      (Number.isFinite(consts.ANIM_MS) ? consts.ANIM_MS : 280);
+    const ANIM_MS = input?.ANIM_MS ?? consts.ANIM_MS;
     const loadServerDefaults =
       input?.loadServerDefaults || fx.loadServerDefaults;
     const computeMemoryUiModel =
@@ -298,25 +296,12 @@
     }
 
     function init() {
-      const bind =
-        typeof onDom === "function"
-          ? onDom
-          : (target, type, handler, options) => {
-              if (!target?.addEventListener) return () => {};
-              target.addEventListener(type, handler, options);
-              return () => {
-                try {
-                  target.removeEventListener(type, handler, options);
-                } catch {}
-              };
-            };
-
-      bind(btnSettings, "click", () => void openWithLatestSettings());
-      bind(btnSettingsClose, "click", closeSettingsModal);
-      bind(settingsBackdrop, "click", closeSettingsModal);
-      bind(btnPickDir, "click", () => void pickInstallDir());
-      bind(btnSaveSettings, "click", () => void saveSettings());
-      bind(btnExportDiagnostics, "click", () => void exportDiagnostics());
+      onDom(btnSettings, "click", () => void openWithLatestSettings());
+      onDom(btnSettingsClose, "click", closeSettingsModal);
+      onDom(settingsBackdrop, "click", closeSettingsModal);
+      onDom(btnPickDir, "click", () => void pickInstallDir());
+      onDom(btnSaveSettings, "click", () => void saveSettings());
+      onDom(btnExportDiagnostics, "click", () => void exportDiagnostics());
 
       // Clear inline error when user edits inputs.
       for (const x of [
@@ -325,7 +310,7 @@
         inputMinMemoryGb,
         inputMaxMemoryGb,
       ]) {
-        bind(x, "input", () => setSettingsError(""), {
+        onDom(x, "input", () => setSettingsError(""), {
           passive: true,
         });
       }

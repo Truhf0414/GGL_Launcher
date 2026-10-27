@@ -7,12 +7,19 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("path");
 
-const { makeEl, loadRendererModule } = require("./helpers/fake-dom.cjs");
+const {
+  makeEl,
+  loadRendererModule,
+  rendererConstants,
+  onDom,
+} = require("./helpers/fake-dom.cjs");
 
 const LAUNCH_UI = path.join(__dirname, "..", "renderer", "launch-ui.js");
 
 function setup({ action, invoke }) {
-  const win = loadRendererModule(LAUNCH_UI);
+  const win = loadRendererModule(LAUNCH_UI, {
+    GglRendererConstants: rendererConstants(),
+  });
   const btnLaunch = makeEl("button");
   btnLaunch.querySelectorMap[".launch-text"] = makeEl("span");
   const btnOfflineLink = makeEl("button");
@@ -27,6 +34,7 @@ function setup({ action, invoke }) {
   const launchUi = win.GglRendererLaunchUi.createLaunchUi({
     btnLaunch,
     btnOfflineLink,
+    onDom,
     safeInvoke: async (channel, ...args) => {
       record.invoked.push(channel);
       return invoke(channel, ...args);

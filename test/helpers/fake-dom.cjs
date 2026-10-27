@@ -57,7 +57,14 @@ function makeEl(tag = "div") {
       if (!listeners.has(type)) listeners.set(type, []);
       listeners.get(type).push(fn);
     },
-    removeEventListener: () => {},
+    removeEventListener: (type, fn) => {
+      const list = listeners.get(type) ?? [];
+      const i = list.indexOf(fn);
+      if (i >= 0) list.splice(i, 1);
+    },
+    /** 目前掛著幾個監聽（不分種類）：驗「有沒有新掛」「清理後拔乾淨了沒」 */
+    listenerCount: () =>
+      [...listeners.values()].reduce((n, list) => n + list.length, 0),
     /** 依序 await 每個 listener（模組的 click handler 是 async） */
     fire: async (type, ev = {}) => {
       for (const fn of listeners.get(type) ?? []) await fn(ev);
@@ -80,4 +87,22 @@ function loadRendererModule(relPath, windowProps = {}) {
   return global.window;
 }
 
-module.exports = { makeEl, fakeDocument, loadRendererModule };
+/** renderer/constants.js 的真值（模組在載入時就讀它，index.html 也先載它） */
+function rendererConstants() {
+  return loadRendererModule(require.resolve("../../renderer/constants.js"))
+    .GglRendererConstants;
+}
+
+/** lifetime 的 onDom 同形：直接掛上元素（假元素的 fire 會呼叫它） */
+function onDom(target, type, handler, options) {
+  target.addEventListener(type, handler, options);
+  return () => {};
+}
+
+module.exports = {
+  makeEl,
+  fakeDocument,
+  loadRendererModule,
+  rendererConstants,
+  onDom,
+};

@@ -8,7 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("path");
 
-const { makeEl, loadRendererModule } = require("./helpers/fake-dom.cjs");
+const { makeEl, loadRendererModule, onDom } = require("./helpers/fake-dom.cjs");
 const settingsFormat = require("../lib/settings-format.js");
 const { computeMemoryUiModel } = require("../lib/settings-logic.js");
 
@@ -84,6 +84,7 @@ function setup(t, { settings = SAVED, set = async (p) => p, recheck = async () =
     setStatusError: (text) => record.statusErrors.push(text),
     openOverlay: () => record.opened++,
     closeOverlay: () => record.closed++,
+    onDom,
     trackTimeout: (x) => x,
     ANIM_MS: 0,
     loadServerDefaults: async () => ({}),
