@@ -153,6 +153,7 @@
 - 2026-10-27 cross-review Phase 6c-7a commit `b0f8163`（7 檔，+190／-8）：D2 身分邊界——`active` 帳號的 `name`／`uuid` 不完整 ⇒ 讀成 `reauth-required`、排在 token 解密之前；Minecraft profile 缺 `id`／`name` ⇒ `MC_PROFILE_FAILED`、不存帳號；規則只有 `lib/account-secret.js` 的 `isCompleteIdentity` 一份。只改正式程式時全綠（新行為只由新測試釘住）；全套 Node 24.14.1、22.23.4 都 1377／1377；三種反向驗證各紅預期的案；freeze `microsoft-auth-login` 16 跑綠；owner 的帳號唯讀查過身分完整、改後不受影響；owner 驗收過。撞到：反向驗證「身分挪到 token 之後」第一版把檢查插在「暫時不可用就丟」之前，等於沒挪，跑之前讀腳本發現、改插在它之後 → plans/cross-review-2026-10-phase6c.md §6c-7a 施工紀錄
 - 2026-10-27 cross-review Phase 6c-7 commit `d46c008`（2 檔，+5／-3）：L-DUP——假跑傳自己的名字 `"check"`，`launchPlaceholders` 拿掉 `Player001` 的隱藏預設；N3b 那個 assert 撤回。只改正式程式時紅 1 案（就是它）；全套 Node 24.14.1、22.23.4 都 1377／1377；兩種反向驗證各紅 20、2 案；owner 驗收過。6c 各批（6c-1～6c-7、6c-7a）施工至此全部完成 → plans/cross-review-2026-10-phase6c.md §6c-7 施工紀錄
 - 2026-10-27 cross-review Phase 6c 結案：6c-1～6c-7、6c-7a 完成後 push 到 `a239efa`（`f26f9a9..a239efa`）；owner「6c 驗證通過，先 push 吧」；本次 owner 沒提外部審查輪，未記。下一步 6d → plans/cross-review-2026-10-phase6c.md 狀態列
+- 2026-10-27 cross-review Phase 6d 細部 plan：初稿後 owner 初審（含 ChatGPT）裁 Q1–Q4，二稿；二審裁 Q5（B）、N4 進 6d-1、A1（C），另開 session 在 repo 外的副本跑 Electron 44.3.0 探針：preload 正常、檔不存在、執行時丟錯三種情況下，渲染端 `window.close()` 都能關窗並讓行程 exit 0（9/9）。撞到：探針截圖顯示二稿把故障訊息寫進啟動鈕的 `statusText` 會被截到看不懂，改用專用區域；CC 討論中提的 `<dialog>` 撤回，改採「先組裝、後上線」的 `start()` 順序。6d-1 待授權 → plans/cross-review-2026-10-phase6d.md §Owner 裁決、§探針
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn

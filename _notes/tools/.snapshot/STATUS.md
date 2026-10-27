@@ -3,6 +3,6 @@
 ## 現在
 
 | 未結案       | 交叉審查後的收斂施工（Phase 0–5、X1、N6、X1b ✅；6 進行中：6a、6b、6c ✅；6d、6e 未開始） | → plans/cross-review-2026-10.md |
-| 接續步驟     | 6d（renderer 組）細部 plan 初稿（未 commit）待 owner 裁 Q1–Q4 | → plans/cross-review-2026-10-phase6d.md |
+| 接續步驟     | 6d 細部 plan 二審已裁，6d-1 待 owner 授權施工；plan 未 commit | → plans/cross-review-2026-10-phase6d.md |
 | 卡住         | 否 | — |
 | 上一輪 retro | 2026-09-11 code review ✅ | → learnings.md |
