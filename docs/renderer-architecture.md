@@ -18,7 +18,7 @@ This project uses a plain `<script>`-based renderer (no bundler). Most renderer 
 ## Modules (responsibilities)
 
 - `renderer/lifetime.js`
-  - `safeInvoke`, `safeInvokeSilent`, `onIpc`, `onDom`
+  - `safeInvoke`, `onIpc`, `onDom`
   - lifetime cleanup tracking (`trackTimeout`, `trackInterval`, `trackDomCleanup`)
 - `renderer/ui-status.js`
   - status line rendering + overlay open/close + error guard

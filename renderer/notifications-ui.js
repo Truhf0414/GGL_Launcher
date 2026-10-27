@@ -2,7 +2,8 @@
 // Loaded before renderer.js via index.html.
 (function () {
   function createNotificationsUi({ ctx }) {
-    const { safeInvoke, openOverlay, closeOverlay, setStatusError } = ctx.fx;
+    const { safeInvoke, gglError, openOverlay, closeOverlay, setStatusError } =
+      ctx.fx;
 
     const NOTIF_LAST_SEEN_KEY_STORAGE = "ggl:notifLastSeenKey:v1";
 
@@ -26,34 +27,58 @@
       btnBell.classList.toggle("has-unread", Boolean(hasUnread));
     }
 
-    async function fetchNotifications() {
-      try {
-        const res = await safeInvoke("notifications:get", {
-          lastSeenKey: lastSeenNotifKey,
-        });
-        // Back-compat: older main.js might return an array.
-        if (Array.isArray(res)) return { items: res, unreadCount: 0 };
-        const items = Array.isArray(res?.items) ? res.items : [];
-        const unreadCount = Number(res?.unreadCount) || 0;
-        return { items, unreadCount };
-      } catch {
-        return { items: [], unreadCount: 0 };
-      }
+    // main 一定回 { items, unreadCount }（main/ipc/notifications-ipc.js）；讀不到就 reject，
+    // 不再換成空清單（那會把「讀不到」說成「沒有通知」），由呼叫者決定在哪裡說
+    function fetchNotifications() {
+      return safeInvoke("notifications:get", { lastSeenKey: lastSeenNotifKey });
     }
 
+    // 背景更新（開機、視窗 focus、notice:changed）：讀不到就記一筆，紅點維持原樣、不出字、不重試（Q2 ②）
     async function refreshNotifIndicator(btnBell) {
-      const { unreadCount } = await fetchNotifications();
-      setBellUnreadDot(btnBell, unreadCount > 0);
+      let res;
+      try {
+        res = await fetchNotifications();
+      } catch (err) {
+        gglError("renderer", "notifications_fetch_failed", err);
+        return;
+      }
+      setBellUnreadDot(btnBell, res.unreadCount > 0);
     }
 
-    async function renderNotifications({
+    function showNotifError({
       notifList,
       notifEmpty,
+      notifError,
       notifFooter,
-      btnBell,
     }) {
-      const { items: list, unreadCount } = await fetchNotifications();
+      notifError.classList.remove("hidden");
+      notifEmpty.classList.add("hidden");
+      notifList.classList.add("hidden");
+      notifFooter.classList.add("hidden");
+    }
 
+    /**
+     * 面板裡讀一次、畫出來（開面板、清除之後）。讀不到 ⇒ 面板說讀不到、藏起清單與「清除全部」、記一筆，回 null
+     * （呼叫者就不會把它當成「看過了」）；畫的時候丟錯是程式錯，照樣丟出來。
+     */
+    async function loadPanel(els) {
+      let res;
+      try {
+        res = await fetchNotifications();
+      } catch (err) {
+        showNotifError(els);
+        gglError("renderer", "notifications_fetch_failed", err);
+        return null;
+      }
+      renderNotifications(els, res.items);
+      return res.items;
+    }
+
+    function renderNotifications(
+      { notifList, notifEmpty, notifError, notifFooter, btnBell },
+      list,
+    ) {
+      notifError.classList.add("hidden");
       notifList.innerHTML = "";
 
       if (list.length === 0) {
@@ -61,7 +86,7 @@
         notifList.classList.add("hidden");
         notifFooter.classList.add("hidden");
         setBellUnreadDot(btnBell, false);
-        return { items: [], unreadCount };
+        return;
       }
 
       notifEmpty.classList.add("hidden");
@@ -78,27 +103,23 @@
 
         const body = document.createElement("div");
         body.className = "notif-item-body";
-        body.textContent = n.body || "";
+        body.textContent = n.body;
 
         const time = document.createElement("div");
         time.className = "notif-item-time";
-        time.textContent = n.timeText || "";
+        time.textContent = n.timeText;
 
         wrap.appendChild(title);
         wrap.appendChild(body);
         wrap.appendChild(time);
         notifList.appendChild(wrap);
       }
-
-      return { items: list, unreadCount };
     }
 
     function markNotifsSeen(btnBell, items) {
-      const list = Array.isArray(items) ? items : [];
       let maxKey = lastSeenNotifKey || "";
-      for (const n of list) {
-        const k = String(n?.key || "").trim();
-        if (k && k > maxKey) maxKey = k;
+      for (const n of items) {
+        if (n.key > maxKey) maxKey = n.key;
       }
       if (maxKey && maxKey !== lastSeenNotifKey) {
         lastSeenNotifKey = maxKey;
@@ -111,16 +132,21 @@
       notifOverlay,
       notifList,
       notifEmpty,
+      notifError,
       notifFooter,
       btnBell,
     }) {
       openOverlay(notifOverlay);
-      renderNotifications({ notifList, notifEmpty, notifFooter, btnBell })
-        .then(({ items }) => {
-          // Opening the panel = user has "seen" current announcements.
-          markNotifsSeen(btnBell, items);
-        })
-        .catch(() => {});
+      void loadPanel({
+        notifList,
+        notifEmpty,
+        notifError,
+        notifFooter,
+        btnBell,
+      }).then((items) => {
+        // Opening the panel = user has "seen" current announcements.（讀不到就沒有「看過」）
+        if (items) markNotifsSeen(btnBell, items);
+      });
     }
 
     function closeNotif(notifOverlay) {
@@ -131,6 +157,7 @@
       notifOverlay,
       notifList,
       notifEmpty,
+      notifError,
       notifFooter,
       btnBell,
     }) {
@@ -139,30 +166,35 @@
           notifOverlay,
           notifList,
           notifEmpty,
+          notifError,
           notifFooter,
           btnBell,
         });
       else closeNotif(notifOverlay);
     }
 
+    // 清除本身失敗 ⇒ 狀態區（玩家按的，Q2 ①）；清除成功、重新讀取失敗 ⇒ 面板說讀不到（loadPanel），不說「清除失敗」
     async function clearNotifs({
       notifList,
       notifEmpty,
+      notifError,
       notifFooter,
       btnBell,
     }) {
       try {
         await safeInvoke("notifications:clear");
-        const { items } = await renderNotifications({
-          notifList,
-          notifEmpty,
-          notifFooter,
-          btnBell,
-        });
-        markNotifsSeen(btnBell, items);
       } catch (e) {
         setStatusError(`清除通知失敗：${String(e?.message ?? e)}`);
+        return;
       }
+      const items = await loadPanel({
+        notifList,
+        notifEmpty,
+        notifError,
+        notifFooter,
+        btnBell,
+      });
+      if (items) markNotifsSeen(btnBell, items);
     }
 
     return {

@@ -10,7 +10,7 @@
     updateLaunchButtonUi,
     ensureReadyStatusText,
   }) {
-    const { safeInvoke, setStatus, setStatusError, onDom } = ctx.fx;
+    const { safeInvoke, gglError, setStatus, setStatusError, onDom } = ctx.fx;
     const { btnLogin, accountName, avatarEl } = ctx.ui;
     const { ANIM_MS } = ctx.consts;
 
@@ -129,6 +129,13 @@
         avatarEl.style.backgroundImage = "";
       }
       updateLaunchButtonUi();
+    }
+
+    // 讀帳號失敗（開機、啟動失敗後重讀）：帳號區照實說讀不到、記一筆（Q2 ②③），不把失敗顯示成「登入」。
+    // 狀態區留給當下的流程（例：啟動失敗的原因）
+    function reportAccountReadFailed(err) {
+      gglError("renderer", "account_read_failed", err);
+      accountName.textContent = "無法讀取帳號";
     }
 
     function scheduleAccountMenuPosition() {
@@ -408,10 +415,18 @@
     function teardown() {
       try {
         closeAccountMenu();
-      } catch {}
+      } catch {
+        // 清理：視窗正在卸載，選單狀態可能已半毀；丟出來也沒有人能處理
+      }
     }
 
-    return { init, teardown, applyAccountToUi, closeAccountMenu };
+    return {
+      init,
+      teardown,
+      applyAccountToUi,
+      reportAccountReadFailed,
+      closeAccountMenu,
+    };
   }
 
   window.GglRendererAccountUi = { createAccountUi };

@@ -16,16 +16,15 @@
       setStatus("正在檢查版本…", 0);
       setInstanceStatus("正在檢查實例版本…");
 
-      // 啟動時先讀取帳號狀態（若之前登入過就會自動顯示頭像/ID）
-      (async () => {
-        try {
-          const a = await safeInvoke("account:get");
+      // 啟動時先讀取帳號狀態（若之前登入過就會自動顯示頭像/ID）。
+      // 讀不到 ⇒ 帳號區照實說、記一筆（account-ui 的 reportAccountReadFailed），不當成沒登入
+      void safeInvoke("account:get").then(
+        (a) => {
           setAccountState(a);
           accountUi.applyAccountToUi();
-        } catch {
-          // 忽略
-        }
-      })();
+        },
+        (err) => accountUi.reportAccountReadFailed(err),
+      );
 
       // Notifications indicator: refresh on startup / focus / 公告模組推送（notice:changed）.
       void notifUi.refreshNotifIndicator(btnBell);
@@ -37,12 +36,10 @@
           passive: true,
         },
       );
-      try {
-        onIpc(
-          "notice:changed",
-          () => void notifUi.refreshNotifIndicator(btnBell),
-        );
-      } catch {}
+      onIpc(
+        "notice:changed",
+        () => void notifUi.refreshNotifIndicator(btnBell),
+      );
     }
 
     return { init };
