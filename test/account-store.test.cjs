@@ -169,6 +169,79 @@ test("token 暫時不可用：readAccount 丟專屬錯誤，錯誤帶不含 toke
   assert.equal(await sha256OfFile(filePath), hashBefore);
 });
 
+// D2：active 帳號的 name／uuid 不是非空字串 ⇒ 要重新登入；身分壞先於 token 判，token 不解密
+// （→ _notes/plans/cross-review-2026-10-phase6c.md §施工前釘清 1）
+function countingSafeStorage() {
+  const inner = makeFakeSafeStorage();
+  const counted = {
+    ...inner,
+    decrypts: 0,
+    decryptStringAsync: async (buf) => {
+      counted.decrypts += 1;
+      return inner.decryptStringAsync(buf);
+    },
+  };
+  return counted;
+}
+
+const BAD_IDENTITIES = [
+  ["空名字", { name: "" }],
+  ["空 uuid", { uuid: "" }],
+  ["缺 name", { name: undefined }],
+  ["缺 uuid", { uuid: undefined }],
+  ["name 是數字", { name: 5 }],
+  ["uuid 是 null", { uuid: null }],
+];
+
+for (const [label, identity] of BAD_IDENTITIES) {
+  test(`D2 active、${label} ⇒ reauth-required、token 不解密、不記解密失敗、磁碟不變`, async (t) => {
+    const safeStorage = countingSafeStorage();
+    const errors = [];
+    const filePath = await withTempAccountFile(t, {
+      safeStorage,
+      gglError: (...args) => errors.push(args),
+    });
+    // mc token 故意解不開：要是有解密，就會記一筆 token_decrypt_failed
+    await writeRawAccountFile(filePath, {
+      ...identity,
+      mcAccessToken: UNDECRYPTABLE_ENVELOPE,
+    });
+    const hashBefore = await sha256OfFile(filePath);
+    const acct = await readAccount();
+    assert.equal(acct.state, ACCOUNT_STATE.REAUTH_REQUIRED);
+    assert.equal(acct.mcAccessToken, "");
+    assert.equal(acct.msRefreshToken, "");
+    assert.equal(acct.expiresAt, 123);
+    assert.equal(safeStorage.decrypts, 0);
+    assert.deepEqual(errors, []);
+    assert.equal(await sha256OfFile(filePath), hashBefore);
+  });
+}
+
+test("D2 壞身分＋token 暫時不可用 ⇒ reauth-required，不丟 CredentialsTemporarilyUnavailableError", async (t) => {
+  const filePath = await withTempAccountFile(t);
+  await writeRawAccountFile(filePath, {
+    name: "",
+    mcAccessToken: TEMPORARILY_UNAVAILABLE_ENVELOPE,
+    msRefreshToken: TEMPORARILY_UNAVAILABLE_ENVELOPE,
+  });
+  const hashBefore = await sha256OfFile(filePath);
+  const acct = await readAccount();
+  assert.equal(acct.state, ACCOUNT_STATE.REAUTH_REQUIRED);
+  assert.equal(await sha256OfFile(filePath), hashBefore);
+});
+
+test("D2 非 active 的帳號身分不完整 ⇒ 狀態照舊，不新增轉換", async (t) => {
+  const filePath = await withTempAccountFile(t);
+  for (const state of [
+    ACCOUNT_STATE.LOGGED_OUT,
+    ACCOUNT_STATE.REAUTH_REQUIRED,
+  ]) {
+    await writeRawAccountFile(filePath, { state, name: "", uuid: "" });
+    assert.equal((await readAccount()).state, state);
+  }
+});
+
 test("token 暫時不可用：renderer 快照照存檔狀態回傳，不顯示成登出", async (t) => {
   const filePath = await withTempAccountFile(t);
   await writeRawAccountFile(filePath, {

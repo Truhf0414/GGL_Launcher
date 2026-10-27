@@ -11,6 +11,7 @@ const {
   ACCOUNT_STATE,
   REFRESH_OUTCOME,
   computeExpiresAt,
+  isCompleteIdentity,
 } = require("../lib/account-secret");
 
 /** 整條換新鏈（MS refresh → XBL → XSTS → login_with_xbox）的總 deadline。
@@ -273,6 +274,10 @@ async function minecraftGetProfile(mcAccessToken) {
       "MC_PROFILE_FAILED",
       `HTTP ${res.status}${msg ? ` (${msg})` : ""}`,
     );
+  }
+  // 身分在進來的地方驗：缺 id 或 name 就不登入、不存帳號（→ _notes/plans/cross-review-2026-10-phase6c.md §D2 的要求）
+  if (!isCompleteIdentity(data?.name, data?.id)) {
+    throw makeLoginError("MC_PROFILE_FAILED", "profile 缺 id 或 name");
   }
   return data;
 }

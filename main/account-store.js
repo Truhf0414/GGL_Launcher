@@ -10,6 +10,7 @@ const {
   CredentialsTemporarilyUnavailableError,
   createTokenEnvelope,
   readTokenEnvelope,
+  isCompleteIdentity,
   normalizeAccountState,
   resolveAccountAfterTokenRead,
 } = require("../lib/account-secret");
@@ -65,6 +66,7 @@ function emptyAccount() {
  * 讀檔失敗、JSON 壞掉 → logged-out。token 解不開不走這條：由 token 分類決定
  * 記憶體內的 state（見 resolveAccountAfterTokenRead），磁碟維持原樣。
  * token 暫時不可用 → 丟 CredentialsTemporarilyUnavailableError（帶不含 token 的快照）。
+ * active 而身分不完整 → reauth-required，排在 token 之前（→ _notes/plans/cross-review-2026-10-phase6c.md §施工前釘清 1）。
  */
 async function readAccount() {
   let parsed;
@@ -83,6 +85,21 @@ async function readAccount() {
     uuid: typeof parsed.uuid === "string" ? parsed.uuid : "",
     avatarUrl: typeof parsed.avatarUrl === "string" ? parsed.avatarUrl : "",
   };
+  const expiresAt =
+    typeof parsed.expiresAt === "number" ? parsed.expiresAt : null;
+  // 身分壞是永久的，token 暫時不可用不能蓋過它：不解密，要求重新登入
+  if (
+    profile.state === ACCOUNT_STATE.ACTIVE &&
+    !isCompleteIdentity(profile.name, profile.uuid)
+  ) {
+    return {
+      ...profile,
+      state: ACCOUNT_STATE.REAUTH_REQUIRED,
+      mcAccessToken: "",
+      msRefreshToken: "",
+      expiresAt,
+    };
+  }
   const safeStorage = deps.getSafeStorage();
   const mcRead = await readTokenEnvelope(
     parsed.mcAccessToken,
@@ -103,7 +120,7 @@ async function readAccount() {
     state: resolved.state,
     mcAccessToken: mcRead.kind === TOKEN_READ.OK ? mcRead.value : "",
     msRefreshToken: msRead.kind === TOKEN_READ.OK ? msRead.value : "",
-    expiresAt: typeof parsed.expiresAt === "number" ? parsed.expiresAt : null,
+    expiresAt,
   };
 }
 

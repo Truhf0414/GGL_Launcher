@@ -312,6 +312,28 @@ for (const [label, diskOverrides] of [
   });
 }
 
+// D2：帳號檔的身分不完整 ⇒ 正版啟動跳既有的重新登入訊息、不 spawn；離線不讀帳號，照常啟動
+// （→ _notes/plans/cross-review-2026-10-phase6c.md §施工前釘清 1）
+for (const [label, identity] of [
+  ["空名字", { name: "" }],
+  ["空 uuid", { uuid: "" }],
+]) {
+  test(`跨層 D2：active 但${label} → 重新登入訊息、不啟動、不換新、不寫檔`, async (t) => {
+    const setup = await setupRealStoreIpc(t, identity);
+    await assertBlockedWithoutSideEffects(setup);
+    assert.deepEqual(setup.calls.dialogs, [
+      { title: "需要登入", message: "登入狀態已失效，請重新登入 Microsoft 帳號。" },
+    ]);
+  });
+
+  test(`跨層 D2：帳號${label}時離線啟動照常、名字用設定的 playerId`, async (t) => {
+    const { ipcMain, calls } = await setupRealStoreIpc(t, identity);
+    await ipcMain.invoke(IPC.invoke.MINECRAFT_LAUNCH_OFFLINE);
+    assert.equal(calls.launch.length, 1);
+    assert.deepEqual(calls.launch[0].auth, { name: "P" });
+  });
+}
+
 test("readAccount 丟非暫時不可用的錯誤 → 原錯誤照舊往外丟、不顯示稍後再試", async () => {
   const boom = new Error("讀帳號時的其他錯誤");
   const { ipcMain, calls } = setupIpc({
