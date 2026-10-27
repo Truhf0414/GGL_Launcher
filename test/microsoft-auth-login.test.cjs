@@ -79,7 +79,8 @@ const {
 
 // 假 token 都帶 FAKE，錯誤字串與帳號檔裡不該出現
 const TOKEN_URL = "https://login.live.com/oauth20_token.srf";
-function responses({ withRefreshToken }) {
+const GOOD_PROFILE = { id: "uuid-1", name: "Steve" };
+function responses({ withRefreshToken, profile = GOOD_PROFILE }) {
   return {
     [TOKEN_URL]: {
       access_token: "ms-access-FAKE",
@@ -97,10 +98,7 @@ function responses({ withRefreshToken }) {
     "https://api.minecraftservices.com/entitlements/mcstore": {
       items: [{ name: "game_minecraft" }],
     },
-    "https://api.minecraftservices.com/minecraft/profile": {
-      id: "uuid-1",
-      name: "Steve",
-    },
+    "https://api.minecraftservices.com/minecraft/profile": profile,
   };
 }
 
@@ -150,7 +148,7 @@ async function assertPortReleased(port) {
   await new Promise((resolve) => again.close(resolve));
 }
 
-async function setup(t, { withRefreshToken }) {
+async function setup(t, { withRefreshToken, profile }) {
   const dir = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-login-"));
   t.after(() => fsp.rm(dir, { recursive: true, force: true }));
   const accountPath = path.join(dir, "account.json");
@@ -160,7 +158,7 @@ async function setup(t, { withRefreshToken }) {
     getAccountPath: () => accountPath,
   });
 
-  const fetchMock = makeDispatchFetch(responses({ withRefreshToken }));
+  const fetchMock = makeDispatchFetch(responses({ withRefreshToken, profile }));
   const originalFetch = global.fetch;
   global.fetch = fetchMock;
   t.after(() => {
@@ -245,6 +243,44 @@ test(
     await assertPortReleased(port);
   },
 );
+
+// D2：profile 的 id 或 name 不是非空字串 ⇒ 既有的 MC_PROFILE_FAILED、不寫帳號
+// （→ _notes/plans/cross-review-2026-10-phase6c.md §施工前釘清 1）
+for (const [label, profile] of [
+  ["profile 是 null", null],
+  ["缺 id", { name: "Steve" }],
+  ["缺 name", { id: "uuid-1" }],
+  ["name 是空字串", { id: "uuid-1", name: "" }],
+  ["id 是空字串", { id: "", name: "Steve" }],
+  ["id 是數字", { id: 5, name: "Steve" }],
+]) {
+  test(
+    `L4 ${label} ⇒ 登入失敗（MC_PROFILE_FAILED）、不寫帳號`,
+    { timeout: 10_000 },
+    async (t) => {
+      const { ipcMain, port, accountPath, done } = await setup(t, {
+        withRefreshToken: true,
+        profile,
+      });
+
+      let caught;
+      try {
+        await ipcMain.invoke(IPC.invoke.ACCOUNT_LOGIN);
+      } catch (e) {
+        caught = e;
+      }
+      assert.ok(caught, "應該要 reject");
+      assert.match(caught.message, /^LOGIN_ERR\|MC_PROFILE_FAILED\|/);
+      for (const tok of FAKE_TOKENS)
+        assert.equal(caught.message.includes(tok), false, tok);
+
+      assert.equal(fs.existsSync(accountPath), false);
+      assert.deepEqual(done, []);
+      assert.equal(windows[0].isDestroyed(), true);
+      await assertPortReleased(port);
+    },
+  );
+}
 
 test("L3 假 fetch 遇到清單外的 URL 會丟（隔離本身有效）", async () => {
   const fetchMock = makeDispatchFetch(responses({ withRefreshToken: true }));

@@ -13,6 +13,7 @@ const {
   readTokenEnvelope,
   computeExpiresAt,
   isRefreshDue,
+  isCompleteIdentity,
   normalizeAccountState,
   resolveAccountAfterTokenRead,
   nextStateAfterInteractiveLogin,
@@ -188,6 +189,20 @@ test("isRefreshDue：沒有可信到期時間時保守當作需要換新", () =>
   assert.equal(isRefreshDue(undefined, Date.now()), true);
   assert.equal(isRefreshDue(NaN, Date.now()), true);
   assert.equal(isRefreshDue(null, Date.now()), true);
+});
+
+test("isCompleteIdentity：name 與 uuid 都是非空字串才算完整", () => {
+  assert.equal(isCompleteIdentity("Steve", "uuid-1"), true);
+  for (const [name, uuid] of [
+    ["", "uuid-1"],
+    ["Steve", ""],
+    [undefined, "uuid-1"],
+    ["Steve", null],
+    [5, "uuid-1"],
+    ["Steve", {}],
+  ]) {
+    assert.equal(isCompleteIdentity(name, uuid), false, `${name}／${uuid}`);
+  }
 });
 
 test("normalizeAccountState：不認得的值一律當 logged-out", () => {
