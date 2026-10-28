@@ -165,12 +165,6 @@ const SUMMARY = {
   nonBlobEntries: ["files/bootstrap-GGL3-launcher-test/"],
   unreadableArchives: [],
   currentWithoutArchive: null,
-  legacyManifestFields: {
-    notice: { title: "公告" },
-    maintenance: { enabled: false, message: "" },
-    minLauncherVersion: "1.0.0",
-    notifications: [],
-  },
   errors: [],
   sanity: { ok: true, reasons: [] },
   forced: false,
@@ -205,7 +199,6 @@ test("formatPublishReport --details：乾跑報告的關鍵行與順序", () => 
     /^== 將清理：blob 7 個（共 40\.1 MB）；封存 1 份/,
     /^== 退路檢查：GGL3\.1\.00 有 2 個 blob 已損壞，該版無法退回$/,
     /^== 非 blob、不處理：files\/bootstrap-GGL3-launcher-test\/$/,
-    /^== 舊 manifest 欄位（不會自動搬）：notice\.title=公告、maintenance\.enabled=false、maintenance\.message=、minLauncherVersion=1\.0\.0、notifications=0 筆$/,
     /^== 乾跑，未寫入任何檔。確認後加 --apply$/,
   ]);
 });
