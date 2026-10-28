@@ -657,7 +657,13 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - 解衝突時三樣都要留住：CSS 線的 `dist:win`、`pack:win`；CJS-FMT 的 `format`（含 `cjs`）；6e-4 刪掉 `format:ui` 的結果，不恢復。
 - 合併後檢查 `package.json` 最後的 scripts，重跑必要的格式與工程檢查。
 - 出現預演以外的衝突就停下回報 owner。D-6E-CJS-MERGE 只接受這一處，不是全面解除跨線衝突的停工規則。
-- 整次合併不只這一個檔會衝突〔查過 2026-10-29：`git merge-tree --write-tree --name-only main css/css-2026-10`，衝突檔 7 個：`package.json`、`.prettierignore`、`_notes/conventions.md`、`_notes/future-work.md`、`_notes/history.md`、`_notes/tools/.snapshot/conventions.md`、`_notes/tools/.snapshot/future-work.md`〕。`package.json` 以外的是第 6 點預期的相鄰改動，照第 6 點處理，不在 D-6E-CJS-MERGE 的放行範圍內。兩邊之後還會再前進，以合併當下重跑的結果為準。
+- 整次合併不只這一個檔會衝突〔查過 2026-10-29：`git merge-tree --write-tree --name-only main css/css-2026-10`，衝突檔 7 個：`package.json`、`.prettierignore`、`_notes/conventions.md`、`_notes/future-work.md`、`_notes/history.md`、`_notes/tools/.snapshot/conventions.md`、`_notes/tools/.snapshot/future-work.md`〕。這些都不在 D-6E-CJS-MERGE 的放行範圍內，各自的解法如下（衝突內容〔查過 2026-10-29：同一次 `git merge-tree` 的結果裡逐檔看衝突標記〕）：
+  - `.prettierignore`（第 6 點的共用檔）：`main` 刪了兩條重複規則（`**/dist/`、`assets/*.min.css`），CSS 刪了 `assets/tailwind.css`。兩邊的刪除都收下，三行都不留。
+  - `_notes/conventions.md`（第 6 點的共用檔）：`main` 照 D-6E-FMT-USE 改寫了格式化那句，CSS 刪了 `assets/tailwind.css` 那條。用 `main` 的格式化句，Tailwind 那條刪掉；`format:ui` 不能從 CSS 那側帶回來。
+  - `_notes/future-work.md`：`main` 新增兩條待辦（`ensureWritableTree` 那幾個資料夾、`build:icons` 跑不起來），CSS 移走已經做完的 Tailwind 那條。留 `main` 新增的兩條，Tailwind 那條照 CSS 移走。
+  - `_notes/history.md`：兩邊都在同一位置往後追加（`main` 是 6e 各批，CSS 是 CSS-1 起各批）。兩邊的紀錄都留，依時間排；不改任何一條的內文。
+  - 兩份快照（`_notes/tools/.snapshot/`）：是 `doc_check.py` 產生的檔，不手動合。合併時先任選一側，合併後跑 `python _notes/tools/doc_check.py snapshot`（帶當時未結案的 plan）重新產生。
+  - 兩邊之後還會再前進，以合併當下重跑的結果為準；出現這裡沒列到的衝突，就停下回報 owner。
 
 ---
 
