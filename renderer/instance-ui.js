@@ -36,14 +36,9 @@
 
       noticeDate.textContent = n.subtitle.replace(/\s*\/\s*/g, "\n");
 
-      if (typeof n.imageUrl === "string" && n.imageUrl.trim()) {
-        const url = n.imageUrl.trim();
-        if (noticeThumb) noticeThumb.style.backgroundImage = `url("${url}")`;
-        document.documentElement.style.setProperty(
-          "--thumb-url",
-          `url("${url}")`,
-        );
-      }
+      // imageUrl 是去掉頭尾空白的字串；空字串＝這則公告沒圖，縮圖沿用目前的（預設圖或上一張）
+      if (n.imageUrl)
+        noticeThumb.style.setProperty("--thumb-url", `url("${n.imageUrl}")`);
 
       // logUrl 抓回的 JSON 陣列可以有空字串（parseNoticeLogText）：空行不顯示（第二類）
       const text = n.log.filter(Boolean).join("\n");
