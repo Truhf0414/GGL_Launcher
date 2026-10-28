@@ -370,8 +370,7 @@ async function realSite(t, state) {
     }
     if (req.url === "/log") {
       if (state.log500) return send(500, {});
-      res.writeHead(200);
-      return res.end(state.logLines.join("\n"));
+      return send(200, { log: state.logLines });
     }
     send(404, {});
   });
