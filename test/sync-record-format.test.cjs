@@ -47,7 +47,11 @@ test("U5 validateRecord: 缺任一欄（含 ③ 形狀三欄都缺）⇒ 不過�
   assertRejected(goodRecord({ loader: undefined }), "record.loader");
   assertRejected(goodRecord({ javaMajor: undefined }), "record.javaMajor");
   assertRejected(
-    goodRecord({ minecraft: undefined, loader: undefined, javaMajor: undefined }),
+    goodRecord({
+      minecraft: undefined,
+      loader: undefined,
+      javaMajor: undefined,
+    }),
     "record.minecraft",
   );
 });

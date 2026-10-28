@@ -13,14 +13,19 @@ const electron = require("./helpers/fake-electron.cjs").installFakeElectron();
 
 const { plainErrorIpcMain } = require("../lib/ipc-plain-errors.js");
 const { registerAllMainIpc } = require("../main/ipc/index.js");
-const { SettingsError, readSettings, writeSettings } = require("../main/settings.js");
+const {
+  SettingsError,
+  readSettings,
+  writeSettings,
+} = require("../main/settings.js");
 
 function makeFakeIpcMain() {
   const handlers = new Map();
   return {
     handlers,
     handle: (channel, fn) => handlers.set(channel, fn),
-    invoke: (channel, ...args) => handlers.get(channel)({ sender: {} }, ...args),
+    invoke: (channel, ...args) =>
+      handlers.get(channel)({ sender: {} }, ...args),
   };
 }
 
@@ -52,7 +57,11 @@ test("自訂類別的錯誤 ⇒ 換成訊息相同的普通 Error，原錯放 ca
   assert.equal(err.name, "Error");
   assert.equal(err.message, "第一行\n第二行");
   assert.equal(err.cause, original);
-  assert.equal(String(err), "Error: 第一行\n第二行", "Electron 交給畫面的就是這一串");
+  assert.equal(
+    String(err),
+    "Error: 第一行\n第二行",
+    "Electron 交給畫面的就是這一串",
+  );
 });
 
 test("同步丟的、TypeError、不是 Error 的值 ⇒ 都換成普通 Error", async () => {
@@ -84,7 +93,10 @@ test("已經是普通 Error ⇒ 原物件放行（instance-ipc 加的前綴與 c
 
 test("成功時回傳值與參數照樣傳遞", async () => {
   const fake = makeFakeIpcMain();
-  plainErrorIpcMain(fake).handle("s:get", async (event, a, b) => ({ sender: event.sender, sum: a + b }));
+  plainErrorIpcMain(fake).handle("s:get", async (event, a, b) => ({
+    sender: event.sender,
+    sum: a + b,
+  }));
   assert.deepEqual(await fake.invoke("s:get", 1, 2), { sender: {}, sum: 3 });
 });
 
@@ -99,7 +111,13 @@ async function registerWithFake(t, deps) {
     ipcMain: fake,
     shell: { openPath: async () => "" },
     dialog: {},
-    deps: { getLockHolder: () => null, getSystemMemoryGb: () => 16, readSettings, writeSettings, ...deps },
+    deps: {
+      getLockHolder: () => null,
+      getSystemMemoryGb: () => 16,
+      readSettings,
+      writeSettings,
+      ...deps,
+    },
     showInfoDialog: async () => {},
     replayLatest: () => {},
   });
@@ -116,15 +134,23 @@ test("registerAllMainIpc：每一條 channel 都經過包裝層註冊（含 micr
     },
   };
   registerAllMainIpc({ ipcMain, deps: {} });
-  assert.ok(viaWrapper.size > 0 && viaWrapper.size === ALLOWED_INVOKE.length, `註冊了 ${viaWrapper.size} 條`);
+  assert.ok(
+    viaWrapper.size > 0 && viaWrapper.size === ALLOWED_INVOKE.length,
+    `註冊了 ${viaWrapper.size} 條`,
+  );
   assert.ok(viaWrapper.has("account:get"), "帳號那幾支要在裡面");
-  assert.deepEqual([...viaWrapper].filter(([, ok]) => !ok).map(([c]) => c), []);
+  assert.deepEqual(
+    [...viaWrapper].filter(([, ok]) => !ok).map(([c]) => c),
+    [],
+  );
 });
 
 test("registerAllMainIpc：settings:set 遇到 SettingsError ⇒ 畫面收到的是普通 Error、訊息不變", async (t) => {
   const { dir, fake } = await registerWithFake(t, {});
   await fsp.writeFile(path.join(dir, "settings.json"), '{"memoryGb": 4}');
-  const err = await rejectsWith(fake.invoke("settings:set", { playerId: "Steve" }));
+  const err = await rejectsWith(
+    fake.invoke("settings:set", { playerId: "Steve" }),
+  );
   assert.equal(err.constructor, Error, `實際 ${err.name}`);
   assert.ok(err.cause instanceof SettingsError);
   assert.equal(err.message, err.cause.message);

@@ -9,17 +9,13 @@ const {
 } = require("../lib/discord-button-url.js");
 
 test("normalizeAllowedHosts dedupes and lowercases", () => {
-  assert.deepEqual(
-    normalizeAllowedHosts([" Discord.GG ", "discord.gg", ""]),
-    ["discord.gg"],
-  );
+  assert.deepEqual(normalizeAllowedHosts([" Discord.GG ", "discord.gg", ""]), [
+    "discord.gg",
+  ]);
 });
 
 test("filterButtonUrl: non-http rejected", () => {
-  assert.equal(
-    filterButtonUrl("ftp://a/b", ["a"]),
-    "",
-  );
+  assert.equal(filterButtonUrl("ftp://a/b", ["a"]), "");
   assert.equal(filterButtonUrl("javascript:alert(1)", []), "");
 });
 

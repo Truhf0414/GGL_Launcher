@@ -61,7 +61,10 @@ test("連寫兩次：讀到第二份，目錄裡沒有 .tmp", async (t) => {
   await writeRecord(paths, record("v2"), NO_LOG);
   assert.equal((await readRecord(paths)).version, "v2");
   const names = await fsp.readdir(paths.instanceDir);
-  assert.deepEqual(names.filter((n) => n.endsWith(".tmp")), []);
+  assert.deepEqual(
+    names.filter((n) => n.endsWith(".tmp")),
+    [],
+  );
 });
 
 test("readRecord：不存在／不是 JSON／形狀錯 ⇒ null", async (t) => {
@@ -100,7 +103,9 @@ test("U5 readRecord：③ 形狀、缺 javaMajor、loader 不是 fabric、minecr
 
 test("writeRecord：形狀錯 ⇒ 丟錯，沒有記錄檔也沒有 .tmp", async (t) => {
   const paths = await tempPaths(t);
-  await assert.rejects(writeRecord(paths, { ...record("v1"), files: "x" }, NO_LOG));
+  await assert.rejects(
+    writeRecord(paths, { ...record("v1"), files: "x" }, NO_LOG),
+  );
   const names = await fsp.readdir(paths.instanceDir).catch(() => []);
   assert.deepEqual(names, []);
 });
@@ -138,7 +143,9 @@ const { snapshot } = require("./helpers/fs-snapshot.cjs");
 
 /** 另一個暫存根底下的 victim.txt 當連結的目標 */
 async function outsideVictim(t) {
-  const outside = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-record-outside-"));
+  const outside = await fsp.mkdtemp(
+    path.join(os.tmpdir(), "ggl-record-outside-"),
+  );
   t.after(() => fsp.rm(outside, { recursive: true, force: true }));
   const victim = path.join(outside, "victim.txt");
   await fsp.writeFile(victim, "VICTIM");
@@ -163,7 +170,9 @@ test("T-I1 N6: sync-record.json.tmp is a file symlink ⇒ record written as a re
   assert.deepEqual(await snapshot(outside), before);
   await assertRegularFile(paths.syncRecordPath);
   assert.deepEqual(await readRecord(paths), record("v1"));
-  assert.deepEqual(lines, [`SYNC_RECORD_TMP_LINK_REMOVED ${paths.syncRecordPath}.tmp`]);
+  assert.deepEqual(lines, [
+    `SYNC_RECORD_TMP_LINK_REMOVED ${paths.syncRecordPath}.tmp`,
+  ]);
 });
 
 test("T-I2 N6: sync-in-progress is a file symlink ⇒ marker is a regular file, in progress, outside untouched, one log line", async (t) => {
@@ -179,7 +188,9 @@ test("T-I2 N6: sync-in-progress is a file symlink ⇒ marker is a regular file, 
   assert.deepEqual(await snapshot(outside), before);
   await assertRegularFile(paths.syncInProgressPath);
   assert.equal(await isInProgress(paths), true);
-  assert.deepEqual(lines, [`SYNC_MARKER_LINK_REMOVED ${paths.syncInProgressPath}`]);
+  assert.deepEqual(lines, [
+    `SYNC_MARKER_LINK_REMOVED ${paths.syncInProgressPath}`,
+  ]);
 });
 
 test("T-I3 N6: a marker left by an interrupted sync (regular file) ⇒ still in progress, nothing logged", async (t) => {

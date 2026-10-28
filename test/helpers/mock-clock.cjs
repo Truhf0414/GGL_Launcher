@@ -52,7 +52,8 @@ function ignoreForeignClears() {
       return handle;
     };
     globalThis[clear] = function (handle) {
-      if (handle !== null && typeof handle === "object" && !mine.has(handle)) return;
+      if (handle !== null && typeof handle === "object" && !mine.has(handle))
+        return;
       return mockClear.call(this, handle);
     };
   }

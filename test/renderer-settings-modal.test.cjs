@@ -64,7 +64,13 @@ function setup(
     delete global.requestAnimationFrame;
   });
   const win = loadRendererModule(MODAL, { GglSettingsFormat: settingsFormat });
-  const record = { invoked: [], statusErrors: [], opened: 0, closed: 0, focused: null };
+  const record = {
+    invoked: [],
+    statusErrors: [],
+    opened: 0,
+    closed: 0,
+    focused: null,
+  };
   const refs = {};
   for (const name of [
     "btnSettings",
@@ -144,7 +150,9 @@ test("填表：記憶體 null ⇒ 欄位空白、建議值只在提示裡；有�
     assert.ok(!h.refs.memAutoHint.classList.contains("hidden"));
   }
   {
-    const h = setup(t, { settings: { ...SAVED, minMemoryGb: 2, maxMemoryGb: 6.5 } });
+    const h = setup(t, {
+      settings: { ...SAVED, minMemoryGb: 2, maxMemoryGb: 6.5 },
+    });
     await h.open();
     assert.equal(h.refs.inputMinMemoryGb.value, "2");
     assert.equal(h.refs.inputMaxMemoryGb.value, "6.5");
@@ -179,19 +187,43 @@ test("合法輸入 ⇒ 原文送出（不 trim）、數字照轉、空白＝null
     maxMemoryGb: null,
   });
   assert.equal(h.record.closed, 1);
-  assert.deepEqual(h.channels(), ["settings:get", "settings:set", "instance:recheck"]);
+  assert.deepEqual(h.channels(), [
+    "settings:get",
+    "settings:set",
+    "instance:recheck",
+  ]);
   assert.deepEqual(h.record.statusErrors, []);
 });
 
 const REJECTED = [
   ["明確輸入 0 不等於空白", { inputMinMemoryGb: "0" }, "inputMinMemoryGb"],
   ["超過 64", { inputMaxMemoryGb: "65" }, "inputMaxMemoryGb"],
-  ["min > max", { inputMinMemoryGb: "8", inputMaxMemoryGb: "4" }, "inputMinMemoryGb"],
-  ["離線 ID 清空不換成 Player001", { inputOfflinePlayerId: "" }, "inputOfflinePlayerId"],
-  ["離線 ID 前後空白不 trim", { inputOfflinePlayerId: " Steve" }, "inputOfflinePlayerId"],
+  [
+    "min > max",
+    { inputMinMemoryGb: "8", inputMaxMemoryGb: "4" },
+    "inputMinMemoryGb",
+  ],
+  [
+    "離線 ID 清空不換成 Player001",
+    { inputOfflinePlayerId: "" },
+    "inputOfflinePlayerId",
+  ],
+  [
+    "離線 ID 前後空白不 trim",
+    { inputOfflinePlayerId: " Steve" },
+    "inputOfflinePlayerId",
+  ],
   ["安裝位置空白", { inputInstallDir: "" }, "inputInstallDir"],
-  ["安裝位置不是磁碟機開頭的完整路徑", { inputInstallDir: "C:" }, "inputInstallDir"],
-  ["安裝位置前後空白不 trim", { inputInstallDir: " D:\\GGL" }, "inputInstallDir"],
+  [
+    "安裝位置不是磁碟機開頭的完整路徑",
+    { inputInstallDir: "C:" },
+    "inputInstallDir",
+  ],
+  [
+    "安裝位置前後空白不 trim",
+    { inputInstallDir: " D:\\GGL" },
+    "inputInstallDir",
+  ],
 ];
 
 test("V8 畫面非法輸入 ⇒ 不送 settings:set、錯誤出現、焦點在對應欄位", async (t) => {
@@ -229,7 +261,9 @@ test("V12 settings:set 成功、instance:recheck 失敗 ⇒ 不報「儲存失�
   await h.open();
   await h.save();
   await until(() => h.record.statusErrors.length > 0, "狀態列的錯誤");
-  assert.deepEqual(h.record.statusErrors, ["設定已儲存，但重新檢查失敗：連不上"]);
+  assert.deepEqual(h.record.statusErrors, [
+    "設定已儲存，但重新檢查失敗：連不上",
+  ]);
   assert.ok(!h.errorText().includes("儲存失敗"), h.errorText());
   assert.equal(h.record.closed, 1);
 });
@@ -284,6 +318,9 @@ test("P3 對照：選到資料夾 ⇒ 填進欄位、沒有錯誤", async (t) =>
   const h = setup(t, { selectDirectory: async () => "E:\\Games\\GGL" });
   await h.open();
   await h.refs.btnPickDir.fire("click");
-  await until(() => h.refs.inputInstallDir.value === "E:\\Games\\GGL", "填進欄位");
+  await until(
+    () => h.refs.inputInstallDir.value === "E:\\Games\\GGL",
+    "填進欄位",
+  );
   assert.equal(h.errorText(), "");
 });
