@@ -8,12 +8,11 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "build:css": "npx --yes @tailwindcss/cli -c tailwind.config.js -i tailwind.css -o assets/tailwind.css --minify",
     "build:icons": "node scripts/build-icons.js",
     "build:rpc-helper": "npm --prefix rpc-helper install --no-audit --no-fund && cd rpc-helper && npx --yes pkg index.js --targets node18-win-x64 --output ../assets/rpc-helper.exe",
     "docs:ipc": "node scripts/update-ipc-index.js",
-    "dist:win": "npm run check:ui-css:strict && npm run docs:ipc && npm run build:css && npm run build:rpc-helper && node scripts/generate-electron-builder-config.cjs && electron-builder --config scripts/.electron-builder.generated.json --win nsis --x64 && npm run check:packaged-artifacts",
-    "pack:win": "npm run check:ui-css:strict && npm run docs:ipc && npm run build:css && npm run build:rpc-helper && node scripts/generate-electron-builder-config.cjs && electron-builder --config scripts/.electron-builder.generated.json --win dir --x64 && npm run check:packaged-artifacts",
+    "dist:win": "npm run check:ui-css:strict && npm run docs:ipc && npm run build:rpc-helper && node scripts/generate-electron-builder-config.cjs && electron-builder --config scripts/.electron-builder.generated.json --win nsis --x64 && npm run check:packaged-artifacts",
+    "pack:win": "npm run check:ui-css:strict && npm run docs:ipc && npm run build:rpc-helper && node scripts/generate-electron-builder-config.cjs && electron-builder --config scripts/.electron-builder.generated.json --win dir --x64 && npm run check:packaged-artifacts",
     "format": "prettier --write **/*.{js,css,html,json,md,yml,yaml} --ignore-unknown",
     "format:ui": "prettier --write styles.css index.html renderer.js main.js main/start-main.js main/launcher-log.js main/app-ready.js main/account-store.js main/paths.js main/settings.js main/notifications.js main/net-fetch.js main/fs-utils.js main/sync/instance-record.js main/sync/site-client.js main/sync/apply.js main/sync/game-running.js main/sync/index.js main/sync/notice-feed.js main/single-instance.js main/game-closed-dialog.js main/startup-failure.js main/microsoft-auth.js main/ipc/index.js main/ipc/window-ipc.js main/ipc/external-ipc.js main/ipc/settings-ipc.js main/ipc/server-config-ipc.js main/ipc/dialog-ipc.js main/ipc/notifications-ipc.js main/ipc/instance-ipc.js main/ipc/diagnostics-ipc.js main/ipc/minecraft-ipc.js main/ipc/log-ipc.js main/runtime/download.js main/runtime/minecraft.js main/runtime/java.js main/runtime/prepare.js main/minecraft-launch.js main/server-status.js main/main-window.js main/discord-rpc.js main/system-memory.js main/ggl-log.js main/renderer-failure-log.js preload.js lib/settings-logic.js lib/ggl-structured-log.js lib/log-file.js lib/manifest-network.js lib/discord-button-url.js lib/manifest-url-configured.js lib/paths-layout.js lib/runtime-json.js lib/server-config.js lib/sync/rel-path.js lib/sync/glob.js lib/sync/site-format.js lib/sync/record-format.js lib/sync/plan.js lib/sync/status-kind.js lib/sync/status-text.js lib/sync/notice.js lib/sync/blocking.js lib/sync/game-running.js lib/runtime-readiness.js lib/discord-helper-args.js lib/notifications-broadcast.js lib/launcher-debug-logging.js lib/renderer-error-events.js renderer/constants.js renderer/ggl-log.js renderer/ui-status.js renderer/bootstrap-ctx.js renderer/bootstrap.js renderer/repair-ui.js --ignore-unknown",
     "format:file": "prettier --write",
@@ -33,7 +32,6 @@
     "undici": "8.12.3"
   },
   "devDependencies": {
-    "@tailwindcss/cli": "^4.1.12",
     "electron": "^44.3.0",
     "electron-builder": "^26.0.12",
     "eslint": "^10.12.0",
@@ -42,8 +40,7 @@
     "pkg": "^5.8.1",
     "png-to-ico": "^2.1.1",
     "prettier": "^3.8.3",
-    "sharp": "^0.34.3",
-    "tailwindcss": "^4.1.12"
+    "sharp": "^0.34.3"
   },
   "build": {
     "appId": "ggl3.launcher",
@@ -61,7 +58,6 @@
       "main/**/*",
       "lib/**/*",
       "renderer/**/*",
-      "assets/tailwind.css",
       "assets/notice-thumb.svg",
       "assets/icon.ico",
       "assets/fonts/fusion-pixel-12px-proportional-zh_hant.ttf",

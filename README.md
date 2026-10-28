@@ -2,13 +2,11 @@
 
 ```powershell
 npm install
-npm run build:css
 npm start
 ```
 
 ## Useful commands
 
-- **Build CSS (Tailwind)**: `npm run build:css`
 - **Build Discord RPC helper exe**: `npm run build:rpc-helper`
 - **(Later) Package installer (NSIS)**: `npm run dist:win`
 - **UI checks**: `npm run check:ui-css` (errors fail, warnings only warn; also run by pre-commit), `npm run check:ui-css:strict` (used before packaging)
