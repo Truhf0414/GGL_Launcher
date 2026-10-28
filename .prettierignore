@@ -1,6 +1,5 @@
 node_modules/
 dist/
-assets/tailwind.css
 **/*.min.css
 **/*.map
 **/.cache/

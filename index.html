@@ -7,10 +7,9 @@
     <meta name="theme-color" content="#0b1020" />
     <title>GGL - Launcher</title>
 
-    <link rel="stylesheet" href="./assets/tailwind.css" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body class="select-none antialiased">
+  <body>
     <!-- 背景（影片優先，其次圖片 fallback） -->
     <!-- 影片請放到：./assets/sakura_field_BG.mp4 -->
     <div class="app-bg">
@@ -25,7 +24,7 @@
       >
         <source id="bgVideoSource" src="" type="video/mp4" />
       </video>
-      <!-- fallback：影片失敗時用 styles.css 的 --background-url（內建漸層，無外部圖） -->
+      <!-- fallback：影片失敗時用 styles.css 的 --design-background-url（內建漸層，無外部圖） -->
       <div class="app-bg-fallback"></div>
     </div>
     <div class="app-bg-overlay"></div>
@@ -204,7 +203,7 @@
 
         <!-- 中下方資訊卡（毛玻璃） -->
         <section class="cards">
-          <div class="glass-card glass-card--compact glass-card--changelog">
+          <div class="glass-card glass-card--compact">
             <div class="card-tabs">
               <h2 class="card-heading" id="changelogHeading">更新日誌</h2>
             </div>
@@ -356,7 +355,7 @@
               />
               <button
                 id="btnPickDir"
-                class="icon-btn ctl ctl--icon"
+                class="ctl ctl--icon"
                 type="button"
                 title="選擇資料夾"
                 aria-label="選擇資料夾"
@@ -430,11 +429,7 @@
             <button id="btnRepair" class="ctl" type="button">
               <span class="btn-label">檢查並修復檔案</span>
             </button>
-            <button
-              id="btnSaveSettings"
-              class="primary ctl ctl--primary"
-              type="button"
-            >
+            <button id="btnSaveSettings" class="ctl ctl--primary" type="button">
               <span class="btn-label btn-label--save">儲存</span>
             </button>
           </div>
@@ -476,7 +471,7 @@
             </button>
             <button
               id="btnRepairConfirm"
-              class="primary ctl ctl--primary"
+              class="ctl ctl--primary"
               type="button"
             >
               <span class="btn-label">繼續</span>

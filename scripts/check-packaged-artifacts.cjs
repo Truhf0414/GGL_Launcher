@@ -21,7 +21,6 @@ const requiredAsarEntries = [
   "/main/discord-rpc.js",
   "/lib/ipc-channels.js",
   "/renderer/bootstrap.js",
-  "/assets/tailwind.css",
   "/assets/notice-thumb.svg",
   "/assets/fonts/fusion-pixel-12px-proportional-zh_hant.ttf",
 ];
@@ -45,8 +44,6 @@ const forbiddenAsarPrefixes = [
 ];
 
 const forbiddenDevDependencyRoots = [
-  "/node_modules/@tailwindcss/",
-  "/node_modules/tailwindcss/",
   "/node_modules/prettier/",
   "/node_modules/pkg/",
   "/node_modules/husky/",
