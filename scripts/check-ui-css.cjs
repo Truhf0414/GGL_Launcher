@@ -62,8 +62,7 @@ const html = fs.readFileSync(htmlPath, "utf8");
 const cssNoComments = maskCssComments(css);
 const errors = [];
 const warnings = [];
-const isStrict =
-  process.argv.includes("--strict") || process.env.UI_CSS_STRICT === "1";
+const isStrict = process.argv.includes("--strict");
 const rerunCmd = isStrict
   ? "npm run check:ui-css:strict"
   : "npm run check:ui-css";
@@ -196,26 +195,24 @@ const rerunCmd = isStrict
   }
 }
 
-// (7) Warn on var() without fallback (only a warning to avoid false positives)
+// (7) Every var(--x) must have --x defined in styles.css — error, fallback or not
+// A fallback would hide a missing or misspelled token; variables set at runtime keep a default in :root.
 {
-  // Only warn when the referenced variable is NOT defined anywhere in styles.css.
-  // This keeps noise low while still catching common "missing token" breakages.
   const defNameRe = /(^|[;\s{])(--[a-z0-9-]+)\s*:/gim;
   const defined = new Set();
   let d;
   while ((d = defNameRe.exec(cssNoComments))) defined.add(d[2]);
 
-  // var(--x) with no comma fallback
-  const re = /var\(\s*(--[a-z0-9-]+)\s*\)/gi;
-  const warned = new Set();
+  const re = /var\(\s*(--[a-z0-9-]+)\s*[,)]/gi;
+  const reported = new Set();
   let m;
   while ((m = re.exec(cssNoComments))) {
     const name = m[1];
     if (defined.has(name)) continue;
-    if (warned.has(name)) continue;
-    warned.add(name);
-    warnings.push(
-      `styles.css:${findLineNumber(css, m.index)}: var(${name}) has no fallback and "${name}" is not defined in styles.css`,
+    if (reported.has(name)) continue;
+    reported.add(name);
+    errors.push(
+      `styles.css:${findLineNumber(css, m.index)}: var(${name}) uses "${name}" but it is not defined in styles.css (a variable set at runtime still needs a default in :root)`,
     );
   }
 }
@@ -240,6 +237,121 @@ const rerunCmd = isStrict
       const msg = `index.html: expected element with id="${id}" to include class "no-drag" (Electron drag region can block clicks)`;
       (isStrict ? errors : warnings).push(msg);
     }
+  }
+}
+
+// (9) @layer contract — error (keeps .hidden winning over every component rule; see the header of styles.css)
+// Node can't compute the cascade, so guard the structure the guarantee rests on.
+{
+  const LAYERS = ["components", "utilities"];
+
+  // One stylesheet only: a second, unlayered sheet would beat every layered rule.
+  const sheets = (html.match(/<link\b[^>]*>/gi) ?? []).filter((tag) =>
+    /\brel\s*=\s*["'][^"']*\bstylesheet\b/i.test(tag),
+  );
+  if (
+    sheets.length !== 1 ||
+    !/\bhref\s*=\s*["']\.\/styles\.css["']/i.test(sheets[0])
+  ) {
+    errors.push(
+      `index.html: expected exactly one stylesheet <link>, href="./styles.css" (found ${sheets.length}; another unlayered sheet would beat .hidden)`,
+    );
+  }
+
+  // Top level of styles.css: split into statements (";") and blocks ("{...}").
+  /** @type {{prelude:string, start:number, end:number, block:boolean}[]} */
+  const items = [];
+  let i = 0;
+  while (i < cssNoComments.length) {
+    while (i < cssNoComments.length && /\s/.test(cssNoComments[i])) i++;
+    if (i >= cssNoComments.length) break;
+    const start = i;
+    const semi = cssNoComments.indexOf(";", i);
+    const brace = cssNoComments.indexOf("{", i);
+    if (brace >= 0 && (semi < 0 || brace < semi)) {
+      let depth = 0;
+      let end = -1;
+      for (let j = brace; j < cssNoComments.length; j++) {
+        if (cssNoComments[j] === "{") depth++;
+        else if (cssNoComments[j] === "}" && --depth === 0) {
+          end = j;
+          break;
+        }
+      }
+      if (end < 0) {
+        errors.push(`styles.css:${findLineNumber(css, start)}: unclosed "{"`);
+        break;
+      }
+      const prelude = cssNoComments.slice(start, brace).trim();
+      items.push({ prelude, start, end, block: true });
+      i = end + 1;
+    } else if (semi >= 0) {
+      const prelude = cssNoComments.slice(start, semi).trim();
+      items.push({ prelude, start, end: semi, block: false });
+      i = semi + 1;
+    } else {
+      errors.push(
+        `styles.css:${findLineNumber(css, start)}: unterminated top-level text`,
+      );
+      break;
+    }
+  }
+
+  const layerNames = (prelude) =>
+    prelude
+      .replace(/^@layer\b/i, "")
+      .split(",")
+      .map((s) => s.trim() || "(anonymous)");
+
+  const first = items[0];
+  if (
+    !first ||
+    first.block ||
+    !/^@layer\s/i.test(first.prelude) ||
+    layerNames(first.prelude).join(",") !== LAYERS.join(",")
+  ) {
+    errors.push(
+      `styles.css: the first rule must be "@layer ${LAYERS.join(", ")};" (it fixes the order, so utilities beats components)`,
+    );
+  }
+
+  for (const item of items) {
+    const line = findLineNumber(css, item.start);
+    if (/^@layer\b/i.test(item.prelude)) {
+      const unknown = layerNames(item.prelude).filter(
+        (n) => !LAYERS.includes(n),
+      );
+      if (unknown.length) {
+        errors.push(
+          `styles.css:${line}: unknown layer "${unknown.join(", ")}" (only ${LAYERS.join(", ")}; a layer not named first is ordered after utilities and beats .hidden)`,
+        );
+      }
+    } else if (!(item.block && /^@font-face$/i.test(item.prelude))) {
+      errors.push(
+        `styles.css:${line}: "${item.prelude}" is outside any @layer (unlayered rules beat every layered rule, so .hidden could lose; put it inside @layer components)`,
+      );
+    }
+  }
+
+  // .hidden: defined once, in @layer utilities.
+  const utilities = items.find(
+    (item) => item.block && /^@layer\s+utilities$/i.test(item.prelude),
+  );
+  const hiddenRe = /\.hidden(?![\w-])/g;
+  let found = 0;
+  let h;
+  while ((h = hiddenRe.exec(cssNoComments))) {
+    found++;
+    const inUtilities =
+      utilities && h.index > utilities.start && h.index < utilities.end;
+    if (found > 1 || !inUtilities) {
+      errors.push(
+        `styles.css:${findLineNumber(css, h.index)}: ".hidden" must be defined once, in @layer utilities`,
+      );
+    }
+  }
+  if (found === 0) {
+    errors.push(`styles.css: cannot find ".hidden" in @layer utilities`);
   }
 }
 
