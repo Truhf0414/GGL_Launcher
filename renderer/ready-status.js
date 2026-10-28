@@ -11,7 +11,7 @@
 
     // 「準備就緒」＝可啟動（離線但本機齊也算；無法確認最新版靠狀態區的 note）
     function isInstanceReady() {
-      return getInstanceStatus()?.ui?.canLaunch === true;
+      return getInstanceStatus()?.ui.canLaunch === true;
     }
 
     // 回到靜止文字：可啟動 ⇒「準備就緒」，否則清空（原因在狀態區，Q2）——

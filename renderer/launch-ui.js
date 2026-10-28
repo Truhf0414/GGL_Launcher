@@ -72,7 +72,7 @@
       }
 
       btnLaunch.classList.remove("launch-btn--ready", "launch-btn--busy");
-      const button = status?.ui?.button;
+      const button = status?.ui.button;
       if (!button) {
         setLaunchLabel("檢查中…");
         setEnabled(false);
@@ -151,7 +151,7 @@
 
     function init() {
       onDom(btnLaunch, "click", async () => {
-        const action = getInstanceStatus()?.ui?.button?.action;
+        const action = getInstanceStatus()?.ui.button.action;
         await ACTIONS[action]?.();
       });
 

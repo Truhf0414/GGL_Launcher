@@ -342,6 +342,26 @@ test("B12 sendRpcNotice 送一次 rpc:notice、payload { text }；一次性，�
   assert.deepEqual(errors, []);
 });
 
+test("B12b 畫面直接信任的 payload 形狀（6d-4 拆掉畫面的 ?. 與預設字後由這裡接手）：sync／minecraft 的 { text }、{ text, progress01 }、{ isRunning: 布林 }", () => {
+  const { senders, mainWc, errors } = setup();
+  senders.sendSyncStatus("正在交換 Token…");
+  senders.sendSyncProgress("寫入遊戲資料夾 1/2", 0.5);
+  senders.sendSyncDone("登入完成");
+  senders.sendMcStatus("正在啟動遊戲…");
+  senders.sendMcRunning(1);
+  assert.deepEqual(mainWc.sent, [
+    { channel: "sync:status", payload: { text: "正在交換 Token…" } },
+    {
+      channel: "sync:progress",
+      payload: { text: "寫入遊戲資料夾 1/2", progress01: 0.5 },
+    },
+    { channel: "sync:done", payload: { text: "登入完成" } },
+    { channel: "minecraft:status", payload: { text: "正在啟動遊戲…" } },
+    { channel: "minecraft:running", payload: { isRunning: true } },
+  ]);
+  assert.deepEqual(errors, []);
+});
+
 test("B1 webContents 已 destroyed（S2）⇒ 六個一次性 sender 都不丟、不送、不記", () => {
   for (const [name, args] of ONE_SHOT) {
     const { win, wc } = windowWithDestroyedWebContents();

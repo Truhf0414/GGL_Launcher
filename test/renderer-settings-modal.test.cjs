@@ -85,6 +85,8 @@ function setup(
     refs[name].focus = () => {
       record.focused = name;
     };
+    // <input> 的 select()：錯誤欄位聚焦後順便選取內容
+    refs[name].select = () => {};
   }
   const modal = win.GglRendererSettingsModal.createSettingsModal({
     ctx: makeCtx({

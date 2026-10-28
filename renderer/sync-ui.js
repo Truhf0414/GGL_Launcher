@@ -30,11 +30,12 @@
       );
     }
 
+    // payload 由 main 的 ipc-bridge 送：text 一定是非空字串（sendSyncStatus／Progress／Done、sendRpcNotice 的呼叫端，6d-4 逐一追過）
     function init() {
       onIpc("sync:status", (payload) => {
         if (statusGuard.isErrorGuardActive()) return;
         statusGuard.resetToNormal();
-        setStatus(payload?.text ?? "...");
+        setStatus(payload.text);
       });
 
       // busy 由送出請求的那一方管（launch-ui／repair-ui），這裡只顯示。
@@ -42,13 +43,13 @@
       onIpc("sync:progress", (payload) => {
         if (statusGuard.isErrorGuardActive()) return;
         statusGuard.resetToNormal();
-        setStatus(payload?.text ?? "同步中…", payload?.progress01);
+        setStatus(payload.text, payload.progress01);
       });
 
       onIpc("sync:done", (payload) => {
         if (statusGuard.isErrorGuardActive()) return;
         statusGuard.resetToNormal();
-        setStatus(payload?.text ?? "已是最新", 1);
+        setStatus(payload.text, 1);
         trackTimeout(
           setTimeout(() => {
             if (statusGuard.isErrorGuardActive()) return;
@@ -58,7 +59,7 @@
       });
 
       onIpc("rpc:notice", (payload) => {
-        showTransientStatus(payload?.text || "Discord 狀態未啟用", 5200);
+        showTransientStatus(payload.text, 5200);
       });
     }
 

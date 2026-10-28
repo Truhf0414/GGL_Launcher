@@ -11,11 +11,6 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body class="select-none antialiased">
-    <noscript>
-      <div class="p-4 text-sm text-white/90 bg-black/60">
-        需要啟用 JavaScript 才能使用此啟動器。
-      </div>
-    </noscript>
     <!-- 背景（影片優先，其次圖片 fallback） -->
     <!-- 影片請放到：./assets/sakura_field_BG.mp4 -->
     <div class="app-bg">
@@ -49,7 +44,7 @@
         <header class="topbar drag-region">
           <div class="topbar-spacer"></div>
 
-          <div class="topbar-pill no-drag">
+          <div id="topbarPill" class="topbar-pill no-drag">
             <!-- 登入區（先顯示「登入」狀態；登入後才顯示頭像/ID） -->
             <button
               id="btnLogin"

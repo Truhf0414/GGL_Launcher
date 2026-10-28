@@ -35,16 +35,12 @@ function resolvePackagedAssetPath(rel) {
   // packaged: process.resourcesPath/assets/... ; dev: __dirname/assets/...
   const packagedBase = path.join(process.resourcesPath || "", "assets");
   const packaged = path.join(packagedBase, normalized);
-  try {
-    if (
-      packaged &&
-      path
-        .resolve(packaged)
-        .startsWith(path.resolve(packagedBase) + path.sep) &&
-      fs.existsSync(packaged)
-    )
-      return packaged;
-  } catch {}
+  if (
+    packaged &&
+    path.resolve(packaged).startsWith(path.resolve(packagedBase) + path.sep) &&
+    fs.existsSync(packaged)
+  )
+    return packaged;
 
   const devBase = path.join(__dirname, "assets");
   const dev = path.join(devBase, normalized);
