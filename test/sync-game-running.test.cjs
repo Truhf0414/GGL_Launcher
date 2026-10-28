@@ -227,7 +227,14 @@ test(
 
     const r = await checkGameRunning({
       gameDir: GAME_DIR,
-      deps: { isMinecraftRunning: notRunning, filter: "Name='node.exe'" },
+      deps: {
+        isMinecraftRunning: notRunning,
+        filter: "Name='node.exe'",
+        // 這案驗「真的 PowerShell 查得到長命令列」，不是「10 秒內查完」（那是正式的逾時，逾時有確認框兜著）；
+        // CI 機器忙時查一次會超過 10 秒（2026-10-28 CI 跑了 10.66 秒、拿到 unknown）
+        runPowerShell: (command) =>
+          runPowerShell(command, { timeoutMs: 25_000 }),
+      },
     });
     assert.equal(r, "running");
   },
