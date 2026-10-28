@@ -104,26 +104,6 @@ function formatExcluded(excluded) {
     );
 }
 
-function formatLegacyFields(fields) {
-  const parts = [];
-  for (const [k, v] of Object.entries(fields)) {
-    if (k === "notifications" && Array.isArray(v)) {
-      const titles = v.map((n) => (n && n.title) || "（無標題）");
-      const list = titles.length > 0 ? `（${titles.join("、")}）` : "";
-      parts.push(`notifications=${v.length} 筆${list}`);
-    } else if (v && typeof v === "object") {
-      for (const [sub, sv] of Object.entries(v)) {
-        parts.push(
-          `${k}.${sub}=${typeof sv === "string" ? sv : JSON.stringify(sv)}`,
-        );
-      }
-    } else {
-      parts.push(`${k}=${v}`);
-    }
-  }
-  return parts.join("、");
-}
-
 function formatPreview(s, format) {
   const lines = [
     `== 發版預覽：${s.version}（Minecraft ${s.minecraft}／${s.loader.type} ${s.loader.version}）`,
@@ -183,10 +163,6 @@ function formatSiteNotes(s) {
   if (s.unreadableArchives.length > 0)
     lines.push(
       `== 無法辨識的封存（不列入退版、不刪）：${list(s.unreadableArchives)}`,
-    );
-  if (s.legacyManifestFields)
-    lines.push(
-      `== 舊 manifest 欄位（不會自動搬）：${formatLegacyFields(s.legacyManifestFields)}`,
     );
   if (s.forced)
     lines.push(
