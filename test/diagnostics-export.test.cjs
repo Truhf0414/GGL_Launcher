@@ -58,6 +58,8 @@ test("V22 正常 ⇒ 匯出資料夾裡有報告、settings.json 經 copySetting
   const outDir = await exportDiagnostics(h.deps);
   assert.equal(path.dirname(path.dirname(outDir)), h.userData);
   assert.deepEqual(h.copies, [path.join(outDir, "settings.json")]);
-  const report = JSON.parse(await fsp.readFile(path.join(outDir, "report.json"), "utf8"));
+  const report = JSON.parse(
+    await fsp.readFile(path.join(outDir, "report.json"), "utf8"),
+  );
   assert.equal(report.paths.launcherRootDir, root);
 });

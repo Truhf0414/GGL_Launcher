@@ -339,22 +339,37 @@ test("S8 progress boundaries and inputs that must not throw", () => {
 // → _notes/plans/instance-sync-v3-commit4c.md §設計「畫面文字」（④b 的 runtime 進度物件）
 test("C11 runtime 進度：每一種物件的文字與比例；total 為 0 不出 NaN", () => {
   const rt = (o) => describeProgress({ phase: "runtime", ...o });
-  assert.deepEqual(rt({ step: "vanilla-json" }), { text: "取得 Minecraft 版本資訊…", progress01: null });
-  assert.deepEqual(rt({ step: "loader-json" }), { text: "取得 Fabric 版本資訊…", progress01: null });
-  assert.deepEqual(rt({ step: "java", stage: "download", received: MiB, total: 4 * MiB }), {
-    text: "下載 Java 1.0 MB / 4.0 MB",
-    progress01: 0.25,
-  });
-  assert.deepEqual(rt({ step: "java", stage: "download", received: MiB, total: 0 }), {
-    text: "下載 Java 1.0 MB",
+  assert.deepEqual(rt({ step: "vanilla-json" }), {
+    text: "取得 Minecraft 版本資訊…",
     progress01: null,
   });
+  assert.deepEqual(rt({ step: "loader-json" }), {
+    text: "取得 Fabric 版本資訊…",
+    progress01: null,
+  });
+  assert.deepEqual(
+    rt({ step: "java", stage: "download", received: MiB, total: 4 * MiB }),
+    {
+      text: "下載 Java 1.0 MB / 4.0 MB",
+      progress01: 0.25,
+    },
+  );
+  assert.deepEqual(
+    rt({ step: "java", stage: "download", received: MiB, total: 0 }),
+    {
+      text: "下載 Java 1.0 MB",
+      progress01: null,
+    },
+  );
   for (const [stage, text] of [
     ["extract", "解壓 Java…"],
     ["verify", "檢查 Java…"],
     ["install", "安裝 Java…"],
   ]) {
-    assert.deepEqual(rt({ step: "java", stage, received: 0, total: 0 }), { text, progress01: null });
+    assert.deepEqual(rt({ step: "java", stage, received: 0, total: 0 }), {
+      text,
+      progress01: null,
+    });
   }
   const files = (group, done, total, receivedBytes, totalBytes) =>
     rt({ step: "files", group, done, total, receivedBytes, totalBytes });

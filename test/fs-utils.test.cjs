@@ -36,7 +36,10 @@ test("ensureWritableTree: 五個資料夾都建好；建不起來（config 被�
 });
 
 test("net-fetch loads after the import move", () => {
-  assert.equal(typeof require("../main/net-fetch.js").downloadToFile, "function");
+  assert.equal(
+    typeof require("../main/net-fetch.js").downloadToFile,
+    "function",
+  );
 });
 
 // ── N6：removeLinkAt（→ _notes/plans/cross-review-2026-10-n6.md §設計 helper、§回歸測試 T-H）──
@@ -55,10 +58,16 @@ async function linkCase(t) {
 }
 
 for (const [label, make] of [
-  ["file symlink", (o, p) => fsp.symlink(path.join(o, "victim.bin"), p, "file")],
+  [
+    "file symlink",
+    (o, p) => fsp.symlink(path.join(o, "victim.bin"), p, "file"),
+  ],
   ["junction", (o, p) => fsp.symlink(path.join(o, "dir"), p, "junction")],
   ["dir symlink", (o, p) => fsp.symlink(path.join(o, "dir"), p, "dir")],
-  ["dangling file symlink", (o, p) => fsp.symlink(path.join(o, "missing.bin"), p, "file")],
+  [
+    "dangling file symlink",
+    (o, p) => fsp.symlink(path.join(o, "missing.bin"), p, "file"),
+  ],
 ]) {
   test(`T-H removeLinkAt: ${label} ⇒ true, only the link itself is gone, the target is untouched`, async (t) => {
     const { outside, p } = await linkCase(t);
@@ -96,11 +105,14 @@ test("T-H removeLinkAt: a regular folder ⇒ false, folder and contents untouche
   await fsp.mkdir(p);
   await fsp.writeFile(path.join(p, "inside.txt"), "inside");
   assert.equal(await fsUtils.removeLinkAt(fsp, p), false);
-  assert.deepEqual(await snapshot(p), { "inside.txt": Buffer.from("inside").toString("base64") });
+  assert.deepEqual(await snapshot(p), {
+    "inside.txt": Buffer.from("inside").toString("base64"),
+  });
 });
 
 test("T-H removeLinkAt: lstat or rm failing with anything but ENOENT ⇒ rejects with that same error", async () => {
-  const eperm = (syscall) => Object.assign(new Error(`EPERM: ${syscall}`), { code: "EPERM", syscall });
+  const eperm = (syscall) =>
+    Object.assign(new Error(`EPERM: ${syscall}`), { code: "EPERM", syscall });
   const lstatErr = eperm("lstat");
   const rmCalls = [];
   const lstatFails = {
@@ -109,7 +121,10 @@ test("T-H removeLinkAt: lstat or rm failing with anything but ENOENT ⇒ rejects
     },
     rm: async (...args) => rmCalls.push(args),
   };
-  await assert.rejects(fsUtils.removeLinkAt(lstatFails, "x.tmp"), (e) => e === lstatErr);
+  await assert.rejects(
+    fsUtils.removeLinkAt(lstatFails, "x.tmp"),
+    (e) => e === lstatErr,
+  );
   assert.deepEqual(rmCalls, []);
 
   const rmErr = eperm("rm");
@@ -119,5 +134,8 @@ test("T-H removeLinkAt: lstat or rm failing with anything but ENOENT ⇒ rejects
       throw rmErr;
     },
   };
-  await assert.rejects(fsUtils.removeLinkAt(rmFails, "x.tmp"), (e) => e === rmErr);
+  await assert.rejects(
+    fsUtils.removeLinkAt(rmFails, "x.tmp"),
+    (e) => e === rmErr,
+  );
 });

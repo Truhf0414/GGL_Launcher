@@ -30,7 +30,10 @@ test("B10u 活視窗 ⇒ 帶 parent；destroyed 的視窗、沒有視窗 ⇒ 不
   assert.deepEqual(calls, [[win, OPTIONS]]);
   assert.equal(calls[0][0], win);
 
-  for (const getMainWindow of [() => ({ isDestroyed: () => true }), () => null]) {
+  for (const getMainWindow of [
+    () => ({ isDestroyed: () => true }),
+    () => null,
+  ]) {
     calls.length = 0;
     await createShowInfoDialog(getMainWindow, noLog)("標題", "內容");
     assert.deepEqual(calls, [[OPTIONS]]);

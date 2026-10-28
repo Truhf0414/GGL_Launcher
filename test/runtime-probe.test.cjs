@@ -15,7 +15,10 @@ async function setup(t) {
   t.after(() => fsp.rm(root, { recursive: true, force: true }));
   const paths = getPaths({ launcherRootDir: root });
   const put = async (base, rel, content) => {
-    const p = path.join(base === "root" ? paths.root : paths.gameDir, ...rel.split("/"));
+    const p = path.join(
+      base === "root" ? paths.root : paths.gameDir,
+      ...rel.split("/"),
+    );
     await fsp.mkdir(path.dirname(p), { recursive: true });
     if (content === null) await fsp.mkdir(p, { recursive: true });
     else await fsp.writeFile(p, content);
@@ -29,7 +32,10 @@ test("isFile：一般檔案 ⇒ true；不存在、上層是檔案 ⇒ false；�
   await h.put("gameDir", "dir.jar", null);
   await h.put("root", "runtime/java-21/bin/java.exe", "");
   assert.equal(await h.probe.isFile("gameDir", "a/b.jar"), true);
-  assert.equal(await h.probe.isFile("root", "runtime/java-21/bin/java.exe"), true);
+  assert.equal(
+    await h.probe.isFile("root", "runtime/java-21/bin/java.exe"),
+    true,
+  );
   assert.equal(await h.probe.isFile("gameDir", "nope.jar"), false);
   assert.equal(await h.probe.isFile("gameDir", "a/b.jar/c"), false);
   assert.equal(await h.probe.isFile("gameDir", "dir.jar"), false);
@@ -41,14 +47,22 @@ test("readJson：parse 得過 ⇒ ok；不存在、壞掉、是資料夾 ⇒ ok:
   await h.put("gameDir", "v/good.json", '{"id":"x"}');
   await h.put("gameDir", "v/bad.json", "{ nope");
   await h.put("gameDir", "v/dir.json", null);
-  assert.deepEqual(await h.probe.readJson("gameDir", "v/good.json"), { ok: true, value: { id: "x" } });
+  assert.deepEqual(await h.probe.readJson("gameDir", "v/good.json"), {
+    ok: true,
+    value: { id: "x" },
+  });
   for (const rel of ["v/missing.json", "v/bad.json", "v/dir.json"]) {
-    assert.deepEqual(await h.probe.readJson("gameDir", rel), { ok: false }, rel);
+    assert.deepEqual(
+      await h.probe.readJson("gameDir", rel),
+      { ok: false },
+      rel,
+    );
   }
 });
 
 test("其他讀檔錯照丟（帶 syscall，由中樞歸成 local-unreadable）", async () => {
-  const eperm = (syscall) => Object.assign(new Error("EPERM"), { code: "EPERM", syscall });
+  const eperm = (syscall) =>
+    Object.assign(new Error("EPERM"), { code: "EPERM", syscall });
   const probe = makeRuntimeProbe(
     { gameDir: "G", root: "R" },
     {
@@ -62,6 +76,12 @@ test("其他讀檔錯照丟（帶 syscall，由中樞歸成 local-unreadable）"
       },
     },
   );
-  await assert.rejects(probe.isFile("gameDir", "a"), (e) => e.code === "EPERM" && e.syscall === "lstat");
-  await assert.rejects(probe.readJson("root", "a"), (e) => e.code === "EPERM" && e.syscall === "open");
+  await assert.rejects(
+    probe.isFile("gameDir", "a"),
+    (e) => e.code === "EPERM" && e.syscall === "lstat",
+  );
+  await assert.rejects(
+    probe.readJson("root", "a"),
+    (e) => e.code === "EPERM" && e.syscall === "open",
+  );
 });

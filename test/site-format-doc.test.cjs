@@ -71,7 +71,12 @@ const LAUNCHER = "1.0.0";
 const SHA = "a".repeat(64);
 const FILES = [{ path: "mods/a.jar", sha256: SHA, size: 1 }];
 // ④c 起「相同」也比 minecraft／loader，記錄帶 runtime 三欄（→ instance-sync-v3-commit4c.md）
-const RELEASE = { version: "v1", files: FILES, minecraft: RUNTIME.minecraft, loader: RUNTIME.loader };
+const RELEASE = {
+  version: "v1",
+  files: FILES,
+  minecraft: RUNTIME.minecraft,
+  loader: RUNTIME.loader,
+};
 const RECORD = {
   format: 3,
   version: "v1",
@@ -370,7 +375,12 @@ test('SF-G8 gate.json 壞掉 ⇒ 不能安裝、更新、修復，維護與最�
     ],
     [
       "型別錯",
-      { body: { maintenance: { enabled: "true" }, minLauncherVersion: "99.0.0" } },
+      {
+        body: {
+          maintenance: { enabled: "true" },
+          minLauncherVersion: "99.0.0",
+        },
+      },
       "gate.maintenance.enabled: 必須是布林",
     ],
     [
@@ -413,7 +423,12 @@ test('SF-G8 gate.json 壞掉 ⇒ 不能安裝、更新、修復，維護與最�
       const notReady = statusWith(gate, opts);
       const at = `${label} ${JSON.stringify(opts)}`;
       assert.deepEqual(
-        [notReady.kind, notReady.button, notReady.canLaunch, notReady.canRepair],
+        [
+          notReady.kind,
+          notReady.button,
+          notReady.canLaunch,
+          notReady.canRepair,
+        ],
         ["invalid", "無法啟動", false, false],
         at,
       );
@@ -425,7 +440,11 @@ test('SF-G8 gate.json 壞掉 ⇒ 不能安裝、更新、修復，維護與最�
       release: { side: "unreachable", reason: "http", detail: "HTTP 530" },
     });
     assert.equal(offline.kind, "offline", label);
-    assert.deepEqual(offline.errorTexts, ["release.json：HTTP 530", line], label);
+    assert.deepEqual(
+      offline.errorTexts,
+      ["release.json：HTTP 530", line],
+      label,
+    );
     const unreadable = statusWith(gate, {
       local: { side: "unreadable", detail: "EACCES" },
     });

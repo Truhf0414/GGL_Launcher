@@ -14,7 +14,7 @@
     "docs:ipc": "node scripts/update-ipc-index.js",
     "dist:win": "npm run check:ui-css:strict && npm run docs:ipc && npm run build:css && npm run build:rpc-helper && node scripts/generate-electron-builder-config.cjs && electron-builder --config scripts/.electron-builder.generated.json --win nsis --x64 && npm run check:packaged-artifacts",
     "pack:win": "npm run check:ui-css:strict && npm run docs:ipc && npm run build:css && npm run build:rpc-helper && node scripts/generate-electron-builder-config.cjs && electron-builder --config scripts/.electron-builder.generated.json --win dir --x64 && npm run check:packaged-artifacts",
-    "format": "prettier --write **/*.{js,css,html,json,md,yml,yaml} --ignore-unknown",
+    "format": "prettier --write **/*.{js,cjs,css,html,json,md,yml,yaml} --ignore-unknown",
     "format:file": "prettier --write",
     "check:ui-css": "node scripts/check-ui-css.cjs && node scripts/check-renderer-scripts.cjs",
     "check:ui-css:strict": "node scripts/check-ui-css.cjs --strict && node scripts/check-renderer-scripts.cjs",

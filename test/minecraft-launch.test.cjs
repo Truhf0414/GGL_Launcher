@@ -21,8 +21,15 @@ const { windowsEnv } = require("../lib/launch-args.js");
 const { checkRuntimeReady } = require("../lib/runtime-readiness.js");
 const { makeRuntimeProbe } = require("../main/sync/runtime-probe.js");
 const pkg = require("../package.json");
-const { RUNTIME, LAUNCH_ID, installRuntime } = require("./helpers/installed-runtime.cjs");
-const { bridgeWithLiveWindow, throwOnSend } = require("./helpers/real-bridge.cjs");
+const {
+  RUNTIME,
+  LAUNCH_ID,
+  installRuntime,
+} = require("./helpers/installed-runtime.cjs");
+const {
+  bridgeWithLiveWindow,
+  throwOnSend,
+} = require("./helpers/real-bridge.cjs");
 
 const ENV = windowsEnv("10.0.26200");
 const FABRIC_REL = `versions/${LAUNCH_ID}/${LAUNCH_ID}.json`;
@@ -54,21 +61,31 @@ const QUIET_LAUNCH = {
  * 裝好實例、改 json（fabric／vanilla 是改法）、跑真的就緒拿成品（閘做的事）。
  * record 只換交給啟動的那份；成品照完整的 RUNTIME 算。
  */
-async function setup(t, { record = { ...RUNTIME }, fabric, vanilla, settings: over = {} } = {}) {
+async function setup(
+  t,
+  { record = { ...RUNTIME }, fabric, vanilla, settings: over = {} } = {},
+) {
   const root = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-launch-"));
   t.after(() => fsp.rm(root, { recursive: true, force: true }));
   // 啟動收到的一定是驗過、補過預設的完整設定（閘交的那份）
   const settings = { ...DEFAULT_SETTINGS, launcherRootDir: root, ...over };
   const paths = getPaths(settings);
   await installRuntime(paths);
-  for (const [rel, change] of [[FABRIC_REL, fabric], [VANILLA_REL, vanilla]]) {
+  for (const [rel, change] of [
+    [FABRIC_REL, fabric],
+    [VANILLA_REL, vanilla],
+  ]) {
     if (!change) continue;
     const p = path.join(paths.gameDir, ...rel.split("/"));
     const json = JSON.parse(await fsp.readFile(p, "utf8"));
     change(json);
     await fsp.writeFile(p, JSON.stringify(json));
   }
-  const ready = await checkRuntimeReady({ record: { ...RUNTIME }, probe: makeRuntimeProbe(paths), env: ENV });
+  const ready = await checkRuntimeReady({
+    record: { ...RUNTIME },
+    probe: makeRuntimeProbe(paths),
+    env: ENV,
+  });
   assert.equal(ready.ready, true, `setup：就緒不過 ${ready.missing}`);
   const bundle = ready.launch;
   const calls = { spawn: [], log: [], running: [], children: [] };
@@ -105,7 +122,8 @@ async function setup(t, { record = { ...RUNTIME }, fabric, vanilla, settings: ov
 }
 
 const online = { name: "Steve", uuid: "uuid-1", accessToken: TOKEN };
-const logArgv = (line) => JSON.parse(line.slice(line.indexOf("argv=") + "argv=".length));
+const logArgv = (line) =>
+  JSON.parse(line.slice(line.indexOf("argv=") + "argv=".length));
 
 // C8 原第一案（有效成品＋缺 javaMajor 的記錄 ⇒ GGL_LAUNCH_NOT_READY）隨啟動的第二道一起撤回：閘不會交出不完整的記錄，
 // 這件事由正式路徑的 runtime-readiness C1、sync-index C12、status-kind 政策表守（→ _notes/plans/cross-review-2026-10-phase6b4.md #6 責任轉移）
@@ -120,7 +138,10 @@ test("C8 正常：spawn 收到 javaExeFor 那支、launchId 與真 token；log �
   assert.ok(args.includes(TOKEN), "交給遊戲的是真 token");
   assert.equal(h.calls.log.length, 1);
   const line = h.calls.log[0];
-  assert.ok(line.startsWith(`MC_LAUNCH launchId=${LAUNCH_ID} argv=`), line.slice(0, 80));
+  assert.ok(
+    line.startsWith(`MC_LAUNCH launchId=${LAUNCH_ID} argv=`),
+    line.slice(0, 80),
+  );
   assert.ok(!line.includes(TOKEN));
   assert.deepEqual(
     logArgv(line),
@@ -132,18 +153,26 @@ test("C8 正常：spawn 收到 javaExeFor 那支、launchId 與真 token；log �
 test("C8 token 嵌在參數裡、同一格出現兩次 ⇒ log 都遮掉", async (t) => {
   const h = await setup(t, {
     fabric: (j) => {
-      j.arguments.game = ["--x=${auth_access_token}", "--y", "${auth_access_token}:${auth_access_token}"];
+      j.arguments.game = [
+        "--x=${auth_access_token}",
+        "--y",
+        "${auth_access_token}:${auth_access_token}",
+      ];
     },
   });
   await h.launch(online);
   const { args } = h.calls.spawn[0];
-  assert.ok(args.includes(`--x=${TOKEN}`) && args.includes(`${TOKEN}:${TOKEN}`));
+  assert.ok(
+    args.includes(`--x=${TOKEN}`) && args.includes(`${TOKEN}:${TOKEN}`),
+  );
   const line = h.calls.log[0];
   assert.ok(!line.includes(TOKEN), line);
-  assert.ok(logArgv(line).includes("--x=***") && logArgv(line).includes("***:***"));
+  assert.ok(
+    logArgv(line).includes("--x=***") && logArgv(line).includes("***:***"),
+  );
 });
 
-test("C8 離線帳號 ⇒ log 沒有 ***（token 是 \"0\"，不遮）", async (t) => {
+test('C8 離線帳號 ⇒ log 沒有 ***（token 是 "0"，不遮）', async (t) => {
   const h = await setup(t);
   await h.launch({ name: "Steve" });
   assert.ok(!h.calls.log[0].includes("***"), h.calls.log[0]);
@@ -153,10 +182,18 @@ test("C8 spawn 之後才送 error ⇒ reject GGL_LAUNCH_SPAWN_FAILED、從沒送
   const h = await setup(t);
   const spawnErr = () => {
     const c = fakeChild();
-    setImmediate(() => c.emit("error", Object.assign(new Error("spawn EACCES"), { code: "EACCES" })));
+    setImmediate(() =>
+      c.emit(
+        "error",
+        Object.assign(new Error("spawn EACCES"), { code: "EACCES" }),
+      ),
+    );
     return c;
   };
-  await assert.rejects(h.launch(online, { spawn: spawnErr }), (e) => e.code === "GGL_LAUNCH_SPAWN_FAILED");
+  await assert.rejects(
+    h.launch(online, { spawn: spawnErr }),
+    (e) => e.code === "GGL_LAUNCH_SPAWN_FAILED",
+  );
   assert.deepEqual(h.calls.running, []);
 });
 
@@ -191,9 +228,22 @@ test("C9 乾淨子行程 require 啟動模組後，沒有載入安裝與網路�
     { cwd: path.join(__dirname, ".."), encoding: "utf8" },
   );
   const loaded = JSON.parse(out).map((p) => p.split(path.sep).join("/"));
-  assert.ok(loaded.some((p) => p.endsWith("main/minecraft-launch.js")), "對照：自己有載入");
-  for (const bad of ["main/runtime/", "net-fetch", "mc-mirror", "minecraft-bootstrap", "bundled-java"]) {
-    assert.deepEqual(loaded.filter((p) => p.includes(bad)), [], bad);
+  assert.ok(
+    loaded.some((p) => p.endsWith("main/minecraft-launch.js")),
+    "對照：自己有載入",
+  );
+  for (const bad of [
+    "main/runtime/",
+    "net-fetch",
+    "mc-mirror",
+    "minecraft-bootstrap",
+    "bundled-java",
+  ]) {
+    assert.deepEqual(
+      loaded.filter((p) => p.includes(bad)),
+      [],
+      bad,
+    );
   }
 });
 
@@ -209,18 +259,30 @@ test("S1 argv 照 json 組：log4j、classpath、launcher 名與版本；舊的�
   const { args } = h.calls.spawn[0];
   const g = h.paths.gameDir;
   for (const a of args) {
-    assert.ok(typeof a === "string" && a !== "" && !a.includes("${"), JSON.stringify(a));
+    assert.ok(
+      typeof a === "string" && a !== "" && !a.includes("${"),
+      JSON.stringify(a),
+    );
   }
   assert.equal(
-    count(args, `-Dlog4j.configurationFile=${path.join(g, "assets", "log_configs", "client-1.21.2.xml")}`),
+    count(
+      args,
+      `-Dlog4j.configurationFile=${path.join(g, "assets", "log_configs", "client-1.21.2.xml")}`,
+    ),
     1,
   );
   assert.equal(count(args, "-cp"), 1);
   const cp = argOf(args, "-cp").split(";");
   assert.equal(cp.length, 84);
   assert.equal(cp.at(-1), path.join(g, "versions", "1.21.11", "1.21.11.jar"));
-  assert.equal(cp.some((p) => p.includes("/")), false);
-  assert.equal(count(args, `-Djava.library.path=${path.join(g, "natives")}`), 1);
+  assert.equal(
+    cp.some((p) => p.includes("/")),
+    false,
+  );
+  assert.equal(
+    count(args, `-Djava.library.path=${path.join(g, "natives")}`),
+    1,
+  );
   for (const s of [
     "-DFabricMcEmu= net.minecraft.client.main.Main ",
     "-Dminecraft.launcher.brand=GGL_launcher",
@@ -230,7 +292,15 @@ test("S1 argv 照 json 組：log4j、classpath、launcher 名與版本；舊的�
   }
   assert.equal(argOf(args, "--versionType"), "release");
   assert.equal(argOf(args, "--assetIndex"), "29");
-  for (const s of ["-Dfile.encoding=UTF-8", "--userType", "--xuid", "--clientId", "--demo", "--width", "--quickPlayPath"]) {
+  for (const s of [
+    "-Dfile.encoding=UTF-8",
+    "--userType",
+    "--xuid",
+    "--clientId",
+    "--demo",
+    "--width",
+    "--quickPlayPath",
+  ]) {
     assert.equal(args.includes(s), false, s);
   }
 });
@@ -255,18 +325,32 @@ test("S1b 啟動照成品走：成品哪一欄換了，argv 就跟著換", async
     await h.launch(online, {}, { launch });
     return h.calls.spawn[before].args;
   };
-  assert.equal((await run(B)).includes("-Xss1M"), false, "對照：x86_64 沒有 -Xss1M");
+  assert.equal(
+    (await run(B)).includes("-Xss1M"),
+    false,
+    "對照：x86_64 沒有 -Xss1M",
+  );
 
   let a = await run({ ...B, logConfigRel: "assets/log_configs/other.xml" });
-  assert.ok(a.includes(`-Dlog4j.configurationFile=${path.join(g, "assets", "log_configs", "other.xml")}`));
+  assert.ok(
+    a.includes(
+      `-Dlog4j.configurationFile=${path.join(g, "assets", "log_configs", "other.xml")}`,
+    ),
+  );
   a = await run({ ...B, merged: { ...m, mainClass: "x.Y" } });
   assert.ok(a.includes("x.Y") && !a.includes(KNOT));
-  a = await run({ ...B, merged: { ...m, assetIndex: { ...m.assetIndex, id: "99" } } });
+  a = await run({
+    ...B,
+    merged: { ...m, assetIndex: { ...m.assetIndex, id: "99" } },
+  });
   assert.equal(argOf(a, "--assetIndex"), "99");
   a = await run({ ...B, merged: { ...m, id: "x-id" } });
   assert.equal(argOf(a, "--version"), "x-id");
   a = await run({ ...B, versionJarRel: "versions/x/x.jar" });
-  assert.equal(argOf(a, "-cp").split(";").at(-1), path.join(g, "versions", "x", "x.jar"));
+  assert.equal(
+    argOf(a, "-cp").split(";").at(-1),
+    path.join(g, "versions", "x", "x.jar"),
+  );
   a = await run({ ...B, libraries: B.libraries.slice(1) });
   assert.equal(argOf(a, "-cp").split(";").length, 83);
   a = await run({ ...B, env: { ...B.env, os: { ...B.env.os, arch: "x86" } } });
@@ -282,7 +366,10 @@ test("S1c 原版沒有 logging ⇒ 成品的 logConfigRel 是 null、照樣啟�
   assert.equal(h.bundle.logConfigRel, null);
   await h.launch(online);
   assert.equal(h.calls.spawn.length, 1);
-  assert.equal(h.calls.spawn[0].args.some((a) => a.startsWith("-Dlog4j")), false);
+  assert.equal(
+    h.calls.spawn[0].args.some((a) => a.startsWith("-Dlog4j")),
+    false,
+  );
 });
 
 test("S2 手寫旗標只剩記憶體與 GC 7 個、緊接在 mainClass 前；記憶體照 settings", async (t) => {
@@ -315,10 +402,10 @@ test("V10 記憶體：都沒設 ⇒ 1024／4096；4／16 ⇒ 4096／16384", asyn
     await memFlags(t, { minMemoryGb: null, maxMemoryGb: null }),
     ["-Xms1024M", "-Xmx4096M"],
   );
-  assert.deepEqual(
-    await memFlags(t, { minMemoryGb: 4, maxMemoryGb: 16 }),
-    ["-Xms4096M", "-Xmx16384M"],
-  );
+  assert.deepEqual(await memFlags(t, { minMemoryGb: 4, maxMemoryGb: 16 }), [
+    "-Xms4096M",
+    "-Xmx16384M",
+  ]);
 });
 
 // → 同檔 §驗收格 V9（D-SET-MEM-DYN：max 未設定跟著 min，玩家要的 8 GB 不被吃掉）
@@ -359,12 +446,19 @@ test("B5e 送畫面丟錯（真 bridge）⇒ 照樣 spawn、回成功；每筆�
   const h = await setup(t);
   const { bridge, errors } = bridgeWithLiveWindow(throwOnSend);
   const r = await h
-    .launch(online, { sendMcStatus: bridge.sendMcStatus, sendMcRunning: bridge.sendMcRunning })
+    .launch(online, {
+      sendMcStatus: bridge.sendMcStatus,
+      sendMcRunning: bridge.sendMcRunning,
+    })
     .then(
       () => ({ ok: true }),
       (error) => ({ ok: false, error }),
     );
-  assert.equal(h.calls.spawn.length, 1, `spawn 次數；launch ${r.ok ? "成功" : `reject：${r.error?.message}`}`);
+  assert.equal(
+    h.calls.spawn.length,
+    1,
+    `spawn 次數；launch ${r.ok ? "成功" : `reject：${r.error?.message}`}`,
+  );
   assert.ok(r.ok, `launch reject：${r.error?.stack}`);
   assert.deepEqual(
     errors.map((e) => [e[1], e[3].channel]),
@@ -384,7 +478,10 @@ async function launchWithRealBridge(t, h) {
     if (io.failing) throw new Error("boom");
     io.sent.push({ channel, payload });
   });
-  const senders = { sendMcStatus: bridge.sendMcStatus, sendMcRunning: bridge.sendMcRunning };
+  const senders = {
+    sendMcStatus: bridge.sendMcStatus,
+    sendMcRunning: bridge.sendMcRunning,
+  };
   await h.launch(online, senders);
   assert.equal(h.calls.children.length, 1);
   return { io, errors, child: h.calls.children[0] };
@@ -396,7 +493,9 @@ test("B6 真 bridge：行程已結束（exitCode 非 null）⇒ isMinecraftRunni
   const before = io.sent.length;
   child.exitCode = 0;
   assert.equal(isMinecraftRunning(), false);
-  assert.deepEqual(io.sent.slice(before), [{ channel: "minecraft:running", payload: { isRunning: false } }]);
+  assert.deepEqual(io.sent.slice(before), [
+    { channel: "minecraft:running", payload: { isRunning: false } },
+  ]);
   assert.equal(errors.length, 0);
 });
 

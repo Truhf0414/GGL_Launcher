@@ -27,19 +27,26 @@ const realShape = () => ({
 test("mmc-pack：真實形狀 ⇒ Minecraft 與 Fabric loader 版本", () => {
   assert.deepEqual(readVersionsFromMmcPack(realShape()), {
     ok: true,
-    value: { minecraft: "1.21.11", loader: { type: "fabric", version: "0.19.3" } },
+    value: {
+      minecraft: "1.21.11",
+      loader: { type: "fabric", version: "0.19.3" },
+    },
   });
 });
 
 test("mmc-pack：缺 loader、缺 minecraft、components 非陣列 ⇒ 各自 error", () => {
   const noLoader = realShape();
-  noLoader.components = noLoader.components.filter((c) => c.uid !== "net.fabricmc.fabric-loader");
+  noLoader.components = noLoader.components.filter(
+    (c) => c.uid !== "net.fabricmc.fabric-loader",
+  );
   const r1 = readVersionsFromMmcPack(noLoader);
   assert.equal(r1.ok, false);
   assert.match(r1.error, /net\.fabricmc\.fabric-loader/);
 
   const noMinecraft = realShape();
-  noMinecraft.components = noMinecraft.components.filter((c) => c.uid !== "net.minecraft");
+  noMinecraft.components = noMinecraft.components.filter(
+    (c) => c.uid !== "net.minecraft",
+  );
   const r2 = readVersionsFromMmcPack(noMinecraft);
   assert.equal(r2.ok, false);
   assert.match(r2.error, /net\.minecraft /);

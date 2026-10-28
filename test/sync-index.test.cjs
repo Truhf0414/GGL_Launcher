@@ -34,8 +34,16 @@ const { createSiteClient } = require("../main/sync/site-client.js");
 const { applyPlan: realApplyPlan } = require("../main/sync/apply.js");
 const { createInstanceSync } = require("../main/sync/index.js");
 const { makeRuntimeProbe } = require("../main/sync/runtime-probe.js");
-const { RUNTIME, LAUNCH_ID, installRuntime, runtimeFileRels } = require("./helpers/installed-runtime.cjs");
-const { bridgeWithLiveWindow, throwOnSend } = require("./helpers/real-bridge.cjs");
+const {
+  RUNTIME,
+  LAUNCH_ID,
+  installRuntime,
+  runtimeFileRels,
+} = require("./helpers/installed-runtime.cjs");
+const {
+  bridgeWithLiveWindow,
+  throwOnSend,
+} = require("./helpers/real-bridge.cjs");
 const { describeProgress } = require("../lib/sync/status-text.js");
 
 const HANG_LIMIT_MS = 10_000;
@@ -114,13 +122,17 @@ async function put(paths, rel, content) {
  */
 async function install(paths, { release, java = true }) {
   for (const f of release.files) await put(paths, f.path, BLOBS.get(f.sha256));
-  await writeRecord(paths, {
-    format: 3,
-    version: release.version,
-    appliedAt: "2026-10-01T00:00:00.000Z",
-    files: recordFiles(release),
-    ...RUNTIME,
-  }, NO_LOG);
+  await writeRecord(
+    paths,
+    {
+      format: 3,
+      version: release.version,
+      appliedAt: "2026-10-01T00:00:00.000Z",
+      files: recordFiles(release),
+      ...RUNTIME,
+    },
+    NO_LOG,
+  );
   if (java) await installRuntime(paths);
 }
 
@@ -240,7 +252,11 @@ async function setup(
     prepareRuntime: async (arg) => {
       calls.prepareRuntime.push(arg);
       await installRuntime(arg.paths);
-      return { minecraft: arg.minecraft, loader: { ...arg.loader }, javaMajor: RUNTIME.javaMajor };
+      return {
+        minecraft: arg.minecraft,
+        loader: { ...arg.loader },
+        javaMajor: RUNTIME.javaMajor,
+      };
     },
     sendInstanceStatus: (s) => sent.push(s),
     confirmGameClosed: async () => {
@@ -513,10 +529,12 @@ function throwingJavaProbe() {
   const javaProbe = { throws: false };
   javaProbe.make = (paths) => {
     const real = makeRuntimeProbe(paths);
-    const guard = (fn) => async (...a) => {
-      if (javaProbe.throws) throw new TypeError("探針壞了");
-      return fn(...a);
-    };
+    const guard =
+      (fn) =>
+      async (...a) => {
+        if (javaProbe.throws) throw new TypeError("探針壞了");
+        return fn(...a);
+      };
     return { readJson: guard(real.readJson), isFile: guard(real.isFile) };
   };
   return javaProbe;
@@ -720,7 +738,9 @@ test("U4 applyPlan 收到的 prepareRuntime()（無參數）⇒ 新管線被以 
 
 test("U5／C5 備妥 runtime 停住（替身以 GGL_DOWNLOAD_STALLED reject）⇒ 錯誤往外丟、鎖已放、標記留著、狀態重算為 update-available（interrupted）", async (t) => {
   // 停滯的期限本身在 ④b T16、T22 測；這裡只驗整合（→ instance-sync-v3-commit4c.md C5）
-  const boom = Object.assign(new Error("下載停住了"), { code: "GGL_DOWNLOAD_STALLED" });
+  const boom = Object.assign(new Error("下載停住了"), {
+    code: "GGL_DOWNLOAD_STALLED",
+  });
   const h = await setup(t, {
     installed: { release: REL_1 },
     deps: {
@@ -1667,7 +1687,10 @@ test("gate 壞經真的 site-client：404、非 JSON 的原因進 errorTexts，g
     [respondBody("/gate.json", 404, ""), "gate.json：HTTP 404"],
     [respondBody("/gate.json", 200, "{ not json"), "gate.json：內容不是 JSON"],
   ]) {
-    const h = await setup(t, { installed: { release: REL_1 }, site: { respond } });
+    const h = await setup(t, {
+      installed: { release: REL_1 },
+      site: { respond },
+    });
     const s = await h.sync.getInstanceStatus();
     assertKind(s, "invalid");
     assert.deepEqual(s.gateMessages, [], line);
@@ -2121,9 +2144,14 @@ test("C4 verifyAll／reinstallJava 依 who 與同步中標記：四種組合", a
     ["repair", true, { verifyAll: true, reinstallJava: true }],
   ];
   for (const [who, marked, expected] of cases) {
-    const h = await setup(t, { installed: { release: REL_1 }, site: { release: REL_2 } });
+    const h = await setup(t, {
+      installed: { release: REL_1 },
+      site: { release: REL_2 },
+    });
     if (marked) await markInProgress(h.paths, NO_LOG);
-    await (who === "update" ? h.sync.updateInstance() : h.sync.repairInstance());
+    await (who === "update"
+      ? h.sync.updateInstance()
+      : h.sync.repairInstance());
     const arg = h.calls.prepareRuntime.at(-1);
     assert.deepEqual(
       { verifyAll: arg.verifyAll, reinstallJava: arg.reinstallJava },
@@ -2134,7 +2162,10 @@ test("C4 verifyAll／reinstallJava 依 who 與同步中標記：四種組合", a
 });
 
 test("C4 成功後記錄的三欄＝release 要的；裝出來的不是這次 release 要的 ⇒ 更新失敗、記錄不變", async (t) => {
-  const h = await setup(t, { installed: { release: REL_1 }, site: { release: REL_2 } });
+  const h = await setup(t, {
+    installed: { release: REL_1 },
+    site: { release: REL_2 },
+  });
   await h.sync.updateInstance();
   const rec = await readRecord(h.paths);
   assert.deepEqual(
@@ -2145,7 +2176,12 @@ test("C4 成功後記錄的三欄＝release 要的；裝出來的不是這次 re
   const bad = await setup(t, {
     installed: { release: REL_1 },
     site: { release: REL_2 },
-    deps: { prepareRuntime: async () => ({ ...RUNTIME, loader: { type: "fabric", version: "0.19.1" } }) },
+    deps: {
+      prepareRuntime: async () => ({
+        ...RUNTIME,
+        loader: { type: "fabric", version: "0.19.1" },
+      }),
+    },
   });
   await assert.rejects(bad.sync.updateInstance(), /不是這次要的/);
   assert.equal((await readRecord(bad.paths)).version, REL_1.version);
@@ -2153,8 +2189,15 @@ test("C4 成功後記錄的三欄＝release 要的；裝出來的不是這次 re
 });
 
 test("C5 runtime 備妥後第 N 個同步檔失敗 ⇒ 記錄不變、舊 launchId 仍就緒、D2 沒跑；重跑可完成", async (t) => {
-  const h = await setup(t, { installed: { release: REL_1 }, site: { release: REL_2 } });
-  const stale = path.join(h.paths.gameDir, "versions", "fabric-loader-0.18.0-1.21.10");
+  const h = await setup(t, {
+    installed: { release: REL_1 },
+    site: { release: REL_2 },
+  });
+  const stale = path.join(
+    h.paths.gameDir,
+    "versions",
+    "fabric-loader-0.18.0-1.21.10",
+  );
   await fsp.mkdir(stale, { recursive: true });
   const blob = sha(MOD_B2);
   h.site.blobs.delete(blob);
@@ -2168,7 +2211,11 @@ test("C5 runtime 備妥後第 N 個同步檔失敗 ⇒ 記錄不變、舊 launch
   h.site.blobs.set(blob, MOD_B2);
   await h.sync.updateInstance();
   assertKind(h.last(), "up-to-date");
-  assert.equal(h.calls.prepareRuntime.at(-1).verifyAll, true, "上次沒跑完 ⇒ 這次全驗");
+  assert.equal(
+    h.calls.prepareRuntime.at(-1).verifyAll,
+    true,
+    "上次沒跑完 ⇒ 這次全驗",
+  );
 });
 
 // U5（→ _notes/plans/cross-review-2026-10-phase6c.md）：三欄必填後，③ 的記錄＝沒有記錄。
@@ -2208,7 +2255,10 @@ test("C12 刪一支 library ⇒ runtime-missing、不能啟動、fn 沒被呼叫
 });
 
 test("C12 就緒 probe 丟帶 syscall 的讀檔錯 ⇒ local-unreadable，不是 internal-error", async (t) => {
-  const eperm = Object.assign(new Error("EPERM: operation not permitted"), { code: "EPERM", syscall: "lstat" });
+  const eperm = Object.assign(new Error("EPERM: operation not permitted"), {
+    code: "EPERM",
+    syscall: "lstat",
+  });
   const h = await setup(t, {
     installed: { release: REL_1 },
     deps: {
@@ -2231,10 +2281,17 @@ async function arrangeStale(paths) {
   const runtime = path.join(paths.root, "runtime");
   const json = async (dir, name, value) => {
     await fsp.mkdir(path.join(dir, name), { recursive: true });
-    await fsp.writeFile(path.join(dir, name, `${name}.json`), typeof value === "string" ? value : JSON.stringify(value));
+    await fsp.writeFile(
+      path.join(dir, name, `${name}.json`),
+      typeof value === "string" ? value : JSON.stringify(value),
+    );
   };
-  await json(versions, "fabric-loader-0.19.1-1.21.11", { inheritsFrom: "1.21.11" });
-  await fsp.mkdir(path.join(versions, "fabric-loader-0.18.0-1.21.10"), { recursive: true });
+  await json(versions, "fabric-loader-0.19.1-1.21.11", {
+    inheritsFrom: "1.21.11",
+  });
+  await fsp.mkdir(path.join(versions, "fabric-loader-0.18.0-1.21.10"), {
+    recursive: true,
+  });
   await json(versions, "1.21.10", { id: "1.21.10" });
   await json(versions, "broken", "{ not json");
   await json(versions, "my-loader", { inheritsFrom: "1.21.10" });
@@ -2245,19 +2302,35 @@ async function arrangeStale(paths) {
   await fsp.writeFile(path.join(runtime, "java-16"), "a file, not a dir");
   return { versions, runtime };
 }
-const KEPT_VERSIONS = ["1.20", "1.21.11", "broken", "fabric-loader-0.19.3-1.21.11", "my-loader"];
+const KEPT_VERSIONS = [
+  "1.20",
+  "1.21.11",
+  "broken",
+  "fabric-loader-0.19.3-1.21.11",
+  "my-loader",
+];
 const KEPT_RUNTIME = ["foo", "java-16", "java-21", "java-21.old"];
 const ls = async (dir) => (await fsp.readdir(dir)).sort();
 
 test("C13 D2：更新成功 ⇒ 兩個基底剩下的各自等於白名單、垃圾區不在、log 逐筆", async (t) => {
-  const h = await setup(t, { installed: { release: REL_1 }, site: { release: REL_2 } });
+  const h = await setup(t, {
+    installed: { release: REL_1 },
+    site: { release: REL_2 },
+  });
   const d = await arrangeStale(h.paths);
-  await fsp.mkdir(path.join(h.paths.tempDir, "runtime-trash", "leftover"), { recursive: true });
+  await fsp.mkdir(path.join(h.paths.tempDir, "runtime-trash", "leftover"), {
+    recursive: true,
+  });
   await h.sync.updateInstance();
   assert.deepEqual(await ls(d.versions), KEPT_VERSIONS);
   assert.deepEqual(await ls(d.runtime), KEPT_RUNTIME);
-  assert.equal(await exists(path.join(h.paths.tempDir, "runtime-trash")), false);
-  const moved = h.logs.filter((l) => l.startsWith("RUNTIME_CLEANUP moved")).sort();
+  assert.equal(
+    await exists(path.join(h.paths.tempDir, "runtime-trash")),
+    false,
+  );
+  const moved = h.logs
+    .filter((l) => l.startsWith("RUNTIME_CLEANUP moved"))
+    .sort();
   assert.deepEqual(moved, [
     "RUNTIME_CLEANUP moved runtime/java-17",
     "RUNTIME_CLEANUP moved runtime/java-17.old",
@@ -2293,12 +2366,21 @@ test("C13 D2：每個都先整個搬進垃圾區（不在原地 rm）、第一�
   for (const to of moves) assert.equal(path.dirname(to), trash, to);
   assert.deepEqual([...new Set(order)], [REL_2.version]);
 
-  const f = await setup(t, { installed: { release: REL_1 }, site: { release: REL_2 } });
+  const f = await setup(t, {
+    installed: { release: REL_1 },
+    site: { release: REL_2 },
+  });
   const d = await arrangeStale(f.paths);
-  const before = { versions: await ls(d.versions), runtime: await ls(d.runtime) };
+  const before = {
+    versions: await ls(d.versions),
+    runtime: await ls(d.runtime),
+  };
   f.site.blobs.delete(sha(MOD_B2));
   await assert.rejects(f.sync.updateInstance());
-  assert.deepEqual({ versions: await ls(d.versions), runtime: await ls(d.runtime) }, before);
+  assert.deepEqual(
+    { versions: await ls(d.versions), runtime: await ls(d.runtime) },
+    before,
+  );
 });
 
 test("C13 D2：第一個搬移丟錯 ⇒ 更新仍成功、後面的照搬、log 一行失敗", async (t) => {
@@ -2312,7 +2394,9 @@ test("C13 D2：第一個搬移丟錯 ⇒ 更新仍成功、後面的照搬、log
         rename: async (...a) => {
           if (first) {
             first = false;
-            throw Object.assign(new Error("EBUSY: resource busy"), { code: "EBUSY" });
+            throw Object.assign(new Error("EBUSY: resource busy"), {
+              code: "EBUSY",
+            });
           }
           return fsp.rename(...a);
         },
@@ -2393,7 +2477,10 @@ test(
   "L17 runtime-trash 是 junction ⇒ BLOCKED_BY_LINK、外部沒有多出或少了任何東西、過期目錄留在原位、沒有中斷標記",
   { skip: process.platform !== "win32" },
   async (t) => {
-    const h = await setup(t, { installed: { release: REL_1 }, site: { release: REL_2 } });
+    const h = await setup(t, {
+      installed: { release: REL_1 },
+      site: { release: REL_2 },
+    });
     const d = await arrangeStale(h.paths);
     const outside = path.join(h.paths.root, "outside");
     await fsp.mkdir(outside);
@@ -2429,10 +2516,13 @@ test(
 const { SettingsError } = require("../main/settings.js");
 const { describeStatus } = require("../lib/sync/status-text.js");
 
-const SETTINGS_PATH = "C:\\Users\\a\\AppData\\Roaming\\GGL_launcher\\settings.json";
+const SETTINGS_PATH =
+  "C:\\Users\\a\\AppData\\Roaming\\GGL_launcher\\settings.json";
 const settingsErrors = () => [
   new SettingsError("invalid", SETTINGS_PATH, {
-    issues: [{ key: "memoryGb", value: 4, reason: "不認得的設定", fix: "刪掉這一行" }],
+    issues: [
+      { key: "memoryGb", value: 4, reason: "不認得的設定", fix: "刪掉這一行" },
+    ],
   }),
   new SettingsError("unreadable", SETTINGS_PATH, {
     cause: Object.assign(new Error("EBUSY: resource busy or locked, open"), {
@@ -2484,7 +2574,11 @@ test("V7 負向：一般 Error、帶 code＋syscall 的 errno 錯、訊息像設
       syscall: "read",
     }),
     new Error("設定檔內容不合法：memoryGb"),
-    Object.assign(new Error("假的"), { name: "SettingsError", code: "GGL_SETTINGS", reason: "invalid" }),
+    Object.assign(new Error("假的"), {
+      name: "SettingsError",
+      code: "GGL_SETTINGS",
+      reason: "invalid",
+    }),
   ]) {
     const h = await setup(t, {
       installed: { release: REL_1 },

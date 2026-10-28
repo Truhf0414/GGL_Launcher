@@ -6,7 +6,9 @@ const fs = require("fs");
 const path = require("path");
 
 const readFixture = (name) =>
-  JSON.parse(fs.readFileSync(path.join(__dirname, "..", "fixtures", name), "utf8"));
+  JSON.parse(
+    fs.readFileSync(path.join(__dirname, "..", "fixtures", name), "utf8"),
+  );
 
 const vanilla = () => readFixture("vanilla-1.21.11.json");
 const fabric = () => readFixture("fabric-0.19.3-1.21.11.json");
@@ -27,15 +29,20 @@ function installerLibraryPath(name) {
 }
 
 /** 原版 1.21.11 的每條 rules 都是單一 allow＋os.name（現查）：沒有 rules 或指名 windows 才算允許 */
-const allowsWindows = (l) => !l.rules || l.rules.some((r) => r.os?.name === "windows");
+const allowsWindows = (l) =>
+  !l.rules || l.rules.some((r) => r.os?.name === "windows");
 
 function vanillaWindowsArtifactPaths(json) {
-  return json.libraries.filter(allowsWindows).map((l) => l.downloads.artifact.path);
+  return json.libraries
+    .filter(allowsWindows)
+    .map((l) => l.downloads.artifact.path);
 }
 
 /** 上面的反面：Windows 不下載的那些（⑤b V-d） */
 function vanillaNonWindowsArtifactPaths(json) {
-  return json.libraries.filter((l) => !allowsWindows(l)).map((l) => l.downloads.artifact.path);
+  return json.libraries
+    .filter((l) => !allowsWindows(l))
+    .map((l) => l.downloads.artifact.path);
 }
 
 module.exports = {

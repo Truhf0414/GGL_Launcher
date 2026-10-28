@@ -25,7 +25,8 @@ const {
   setDebugLoggingEnabled,
 } = require("../main/launcher-log.js");
 
-const SKIP = process.platform !== "win32" && "改名時目標被開著才失敗是 Windows 的行為";
+const SKIP =
+  process.platform !== "win32" && "改名時目標被開著才失敗是 Windows 的行為";
 
 async function useUserData(t) {
   const dir = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-settings-write-"));
@@ -38,7 +39,8 @@ async function useUserData(t) {
 
 const json = (obj) => Buffer.from(JSON.stringify(obj, null, 2), "utf8");
 const readJson = async (file) => JSON.parse(await fsp.readFile(file, "utf8"));
-const tmpFiles = async (dir) => (await fsp.readdir(dir)).filter((n) => n.endsWith(".tmp"));
+const tmpFiles = async (dir) =>
+  (await fsp.readdir(dir)).filter((n) => n.endsWith(".tmp"));
 
 async function rejectsWith(promise, check) {
   let caught;
@@ -82,71 +84,120 @@ async function hammer({ readers, writes, read }) {
 
 const LOAD = { readers: 8, writes: 60 };
 
-test("V27 readSettings／copySettingsFileTo 迴圈與連續 writeSettings 並行 ⇒ 零個寫入失敗、零個讀取失敗、最後一次寫入在檔裡", { skip: SKIP, timeout: 60_000 }, async (t) => {
-  const { dir, file } = await useUserData(t);
-  await fsp.writeFile(file, json(DEFAULT_SETTINGS));
-  const { writeErrors, readErrors } = await hammer({
-    ...LOAD,
-    read: (i) => (i % 2 ? readSettings() : copySettingsFileTo(path.join(dir, `copy-${i}.json`))),
-  });
-  assert.deepEqual(writeErrors.map((e) => e.message), []);
-  assert.deepEqual(readErrors.map((e) => e.message), []);
-  assert.equal((await readJson(file)).playerId, `W${LOAD.writes - 1}`);
-  assert.deepEqual(await tmpFiles(dir), []);
-});
+test(
+  "V27 readSettings／copySettingsFileTo 迴圈與連續 writeSettings 並行 ⇒ 零個寫入失敗、零個讀取失敗、最後一次寫入在檔裡",
+  { skip: SKIP, timeout: 60_000 },
+  async (t) => {
+    const { dir, file } = await useUserData(t);
+    await fsp.writeFile(file, json(DEFAULT_SETTINGS));
+    const { writeErrors, readErrors } = await hammer({
+      ...LOAD,
+      read: (i) =>
+        i % 2
+          ? readSettings()
+          : copySettingsFileTo(path.join(dir, `copy-${i}.json`)),
+    });
+    assert.deepEqual(
+      writeErrors.map((e) => e.message),
+      [],
+    );
+    assert.deepEqual(
+      readErrors.map((e) => e.message),
+      [],
+    );
+    assert.equal((await readJson(file)).playerId, `W${LOAD.writes - 1}`);
+    assert.deepEqual(await tmpFiles(dir), []);
+  },
+);
 
 // 對照組：同樣的負載，讀改成直接 fsp.readFile（繞過序列化）。必須測得到改名被自己的讀擋住，否則上一案證明不了什麼
-test("V27 對照組：繞過序列化直接 fsp.readFile ⇒ 必須出現改名 EPERM（證明上一案測得到）；失敗的那幾次正式檔仍是合法設定", { skip: SKIP, timeout: 60_000 }, async (t) => {
-  const { dir, file } = await useUserData(t);
-  await fsp.writeFile(file, json(DEFAULT_SETTINGS));
-  const { writeErrors } = await hammer({ ...LOAD, read: () => fsp.readFile(file) });
-  const eperm = writeErrors.filter((e) => e.cause?.code === "EPERM");
-  t.diagnostic(`對照組：${LOAD.writes} 次寫入中 ${writeErrors.length} 次失敗，其中 EPERM ${eperm.length} 次`);
-  assert.ok(eperm.length > 0, `繞過序列化的讀沒有擋到任何一次改名（失敗 ${writeErrors.length} 次）`);
-  for (const e of writeErrors) assert.ok(!(e instanceof SettingsError), e.message);
-  assert.equal(typeof (await readJson(file)).playerId, "string");
-  assert.deepEqual(await tmpFiles(dir), []);
-});
+test(
+  "V27 對照組：繞過序列化直接 fsp.readFile ⇒ 必須出現改名 EPERM（證明上一案測得到）；失敗的那幾次正式檔仍是合法設定",
+  { skip: SKIP, timeout: 60_000 },
+  async (t) => {
+    const { dir, file } = await useUserData(t);
+    await fsp.writeFile(file, json(DEFAULT_SETTINGS));
+    const { writeErrors } = await hammer({
+      ...LOAD,
+      read: () => fsp.readFile(file),
+    });
+    const eperm = writeErrors.filter((e) => e.cause?.code === "EPERM");
+    t.diagnostic(
+      `對照組：${LOAD.writes} 次寫入中 ${writeErrors.length} 次失敗，其中 EPERM ${eperm.length} 次`,
+    );
+    assert.ok(
+      eperm.length > 0,
+      `繞過序列化的讀沒有擋到任何一次改名（失敗 ${writeErrors.length} 次）`,
+    );
+    for (const e of writeErrors)
+      assert.ok(!(e instanceof SettingsError), e.message);
+    assert.equal(typeof (await readJson(file)).playerId, "string");
+    assert.deepEqual(await tmpFiles(dir), []);
+  },
+);
 
 // ── V28 一般儲存遇外部鎖 ──
 
-test("V28 正式檔被序列化以外的 handle 開著 ⇒ 儲存 reject（IPC 也 reject）、寫出步驟與 errno、位元組不變、暫存已刪、debug 開關不變；放開後再存成功", { skip: SKIP }, async (t) => {
-  const { dir, file } = await useUserData(t);
-  const before = json({ ...DEFAULT_SETTINGS, playerId: "Steve" });
-  await fsp.writeFile(file, before);
-  const handlers = new Map();
-  registerSettingsIpc({
-    ipcMain: { handle: (ch, fn) => handlers.set(ch, fn) },
-    deps: { readSettings, writeSettings, getLockHolder: () => null, getSystemMemoryGb: () => 16 },
-  });
-  const set = (patch) => handlers.get("settings:set")({ sender: {} }, patch);
-
-  setDebugLoggingEnabled(false);
-  const holder = await fsp.open(file, "r");
-  let held = true;
-  t.after(() => held && holder.close());
-
-  for (const save of [() => writeSettings({ playerId: "Alex", debugLogging: true }), () => set({ playerId: "Alex", debugLogging: true })]) {
-    await rejectsWith(save(), (e) => {
-      assert.ok(!(e instanceof SettingsError), `檔案本身沒壞，不是設定檔故障：${e.message}`);
-      assert.equal(e.cause?.code, "EPERM", e.message);
-      assert.ok(e.message.includes("替換設定檔"), e.message);
-      assert.ok(e.message.includes("EPERM"), e.message);
-      assert.ok(e.message.includes(file), e.message);
+test(
+  "V28 正式檔被序列化以外的 handle 開著 ⇒ 儲存 reject（IPC 也 reject）、寫出步驟與 errno、位元組不變、暫存已刪、debug 開關不變；放開後再存成功",
+  { skip: SKIP },
+  async (t) => {
+    const { dir, file } = await useUserData(t);
+    const before = json({ ...DEFAULT_SETTINGS, playerId: "Steve" });
+    await fsp.writeFile(file, before);
+    const handlers = new Map();
+    registerSettingsIpc({
+      ipcMain: { handle: (ch, fn) => handlers.set(ch, fn) },
+      deps: {
+        readSettings,
+        writeSettings,
+        getLockHolder: () => null,
+        getSystemMemoryGb: () => 16,
+      },
     });
-    assert.ok((await fsp.readFile(file)).equals(before), "正式檔被改了");
-    assert.deepEqual(await tmpFiles(dir), [], "自己的暫存檔要清掉");
-    assert.equal(getDebugLoggingEnabled(), false, "沒存成功不能套用新的 debug 開關");
-  }
+    const set = (patch) => handlers.get("settings:set")({ sender: {} }, patch);
 
-  await holder.close();
-  held = false;
-  const next = await writeSettings({ playerId: "Alex", debugLogging: true });
-  assert.deepEqual(next, { ...DEFAULT_SETTINGS, playerId: "Alex", debugLogging: true });
-  assert.deepEqual(await readJson(file), next);
-  assert.equal(getDebugLoggingEnabled(), true);
-  assert.deepEqual(await tmpFiles(dir), []);
-});
+    setDebugLoggingEnabled(false);
+    const holder = await fsp.open(file, "r");
+    let held = true;
+    t.after(() => held && holder.close());
+
+    for (const save of [
+      () => writeSettings({ playerId: "Alex", debugLogging: true }),
+      () => set({ playerId: "Alex", debugLogging: true }),
+    ]) {
+      await rejectsWith(save(), (e) => {
+        assert.ok(
+          !(e instanceof SettingsError),
+          `檔案本身沒壞，不是設定檔故障：${e.message}`,
+        );
+        assert.equal(e.cause?.code, "EPERM", e.message);
+        assert.ok(e.message.includes("替換設定檔"), e.message);
+        assert.ok(e.message.includes("EPERM"), e.message);
+        assert.ok(e.message.includes(file), e.message);
+      });
+      assert.ok((await fsp.readFile(file)).equals(before), "正式檔被改了");
+      assert.deepEqual(await tmpFiles(dir), [], "自己的暫存檔要清掉");
+      assert.equal(
+        getDebugLoggingEnabled(),
+        false,
+        "沒存成功不能套用新的 debug 開關",
+      );
+    }
+
+    await holder.close();
+    held = false;
+    const next = await writeSettings({ playerId: "Alex", debugLogging: true });
+    assert.deepEqual(next, {
+      ...DEFAULT_SETTINGS,
+      playerId: "Alex",
+      debugLogging: true,
+    });
+    assert.deepEqual(await readJson(file), next);
+    assert.equal(getDebugLoggingEnabled(), true);
+    assert.deepEqual(await tmpFiles(dir), []);
+  },
+);
 
 // ── V29 一般儲存遇外部修改 ──
 
@@ -154,7 +205,11 @@ test("V29 暫存檔完整寫好之後、比對之前，外部改了正式檔 ⇒
   const { dir, file } = await useUserData(t);
   const original = json({ ...DEFAULT_SETTINGS, playerId: "Steve" });
   const edited = json({ playerId: "外部改的" });
-  const wouldWrite = json({ ...DEFAULT_SETTINGS, playerId: "Alex", debugLogging: true });
+  const wouldWrite = json({
+    ...DEFAULT_SETTINGS,
+    playerId: "Alex",
+    debugLogging: true,
+  });
   await fsp.writeFile(file, original);
 
   // 插在替換原語的「比對讀」：那一刻暫存檔已存在。先確認時機（暫存＝完整內容、正式檔還是原樣）才改
@@ -165,8 +220,14 @@ test("V29 暫存檔完整寫好之後、比對之前，外部改了正式檔 ⇒
       const tmps = await tmpFiles(dir);
       if (tmps.length) {
         assert.equal(tmps.length, 1);
-        assert.ok((await realReadFile(path.join(dir, tmps[0]))).equals(wouldWrite), "插入時暫存檔要已完整寫好");
-        assert.ok((await realReadFile(file)).equals(original), "插入時正式檔還沒被替換");
+        assert.ok(
+          (await realReadFile(path.join(dir, tmps[0]))).equals(wouldWrite),
+          "插入時暫存檔要已完整寫好",
+        );
+        assert.ok(
+          (await realReadFile(file)).equals(original),
+          "插入時正式檔還沒被替換",
+        );
         await fsp.writeFile(file, edited);
         inserted++;
       }
@@ -175,12 +236,18 @@ test("V29 暫存檔完整寫好之後、比對之前，外部改了正式檔 ⇒
   });
 
   setDebugLoggingEnabled(false);
-  await rejectsWith(writeSettings({ playerId: "Alex", debugLogging: true }), (e) => {
-    assert.ok(e instanceof SettingsError, `應為 SettingsError，實際 ${e?.name}：${e?.message}`);
-    assert.equal(e.reason, "conflict");
-    assert.equal(e.step, "save");
-    assert.ok(e.message.includes("重新開啟設定"), e.message);
-  });
+  await rejectsWith(
+    writeSettings({ playerId: "Alex", debugLogging: true }),
+    (e) => {
+      assert.ok(
+        e instanceof SettingsError,
+        `應為 SettingsError，實際 ${e?.name}：${e?.message}`,
+      );
+      assert.equal(e.reason, "conflict");
+      assert.equal(e.step, "save");
+      assert.ok(e.message.includes("重新開啟設定"), e.message);
+    },
+  );
   assert.equal(inserted, 1, "補丁沒插到：比對時沒有暫存檔");
   assert.ok((await fsp.readFile(file)).equals(edited), "外部改的內容被蓋掉了");
   assert.deepEqual(await tmpFiles(dir), []);
@@ -188,7 +255,11 @@ test("V29 暫存檔完整寫好之後、比對之前，外部改了正式檔 ⇒
 
   t.mock.restoreAll();
   const next = await writeSettings({ maxMemoryGb: 8 });
-  assert.deepEqual(next, { ...DEFAULT_SETTINGS, playerId: "外部改的", maxMemoryGb: 8 });
+  assert.deepEqual(next, {
+    ...DEFAULT_SETTINGS,
+    playerId: "外部改的",
+    maxMemoryGb: 8,
+  });
   assert.deepEqual(await readJson(file), next);
   assert.deepEqual(await fsp.readdir(dir), ["settings.json"]);
 });
@@ -224,7 +295,10 @@ test("比對讀失敗（fs 錯）⇒ reject、寫出步驟與 errno、正式檔�
   const realReadFile = fsp.readFile;
   t.mock.method(fsp, "readFile", async function (p, ...rest) {
     if (String(p) === file && (await tmpFiles(dir)).length) {
-      throw Object.assign(new Error("EBUSY: resource busy or locked, open"), { code: "EBUSY", syscall: "open" });
+      throw Object.assign(new Error("EBUSY: resource busy or locked, open"), {
+        code: "EBUSY",
+        syscall: "open",
+      });
     }
     return realReadFile.call(this, p, ...rest);
   });
@@ -246,7 +320,9 @@ test("替換時冒出不是 fs 的例外 ⇒ 原樣冒出（不包成儲存失�
   t.mock.method(fsp, "rename", async () => {
     throw bug;
   });
-  await rejectsWith(writeSettings({ playerId: "Alex" }), (e) => assert.equal(e, bug));
+  await rejectsWith(writeSettings({ playerId: "Alex" }), (e) =>
+    assert.equal(e, bug),
+  );
   t.mock.restoreAll();
   assert.ok((await fsp.readFile(file)).equals(before));
   assert.deepEqual(await tmpFiles(dir), []);

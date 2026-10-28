@@ -23,7 +23,11 @@ const {
 const { SETTINGS_KEYS } = require("../lib/settings-format.js");
 
 const REFUSED = "同步或啟動進行中，請稍後再改";
-const ON_DISK = { ...DEFAULT_SETTINGS, launcherRootDir: "D:\\GGL", maxMemoryGb: 8 };
+const ON_DISK = {
+  ...DEFAULT_SETTINGS,
+  launcherRootDir: "D:\\GGL",
+  maxMemoryGb: 8,
+};
 
 async function setup(t, { lockHolder = null, fileBytes } = {}) {
   const dir = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-settings-ipc-"));
@@ -48,7 +52,8 @@ async function setup(t, { lockHolder = null, fileBytes } = {}) {
     get: () => handlers.get("settings:get")({ sender: {} }),
     set: (patch) => handlers.get("settings:set")({ sender: {} }, patch),
     onDisk: async () => JSON.parse(await fsp.readFile(file, "utf8")),
-    unchanged: async () => assert.ok((await fsp.readFile(file)).equals(bytes), "檔案被寫了"),
+    unchanged: async () =>
+      assert.ok((await fsp.readFile(file)).equals(bytes), "檔案被寫了"),
   };
 }
 
@@ -68,8 +73,15 @@ async function rejectsWith(promise, check) {
 test("settings:get 回驗過、補過預設的設定＋systemMemoryGb；沒有 settingsMeta、沒有 memoryGb", async (t) => {
   const h = await setup(t, { fileBytes: Buffer.from('{"maxMemoryGb":8}') });
   const got = await h.get();
-  assert.deepEqual(got, { ...DEFAULT_SETTINGS, maxMemoryGb: 8, systemMemoryGb: 16 });
-  assert.deepEqual(Object.keys(got).sort(), [...SETTINGS_KEYS, "systemMemoryGb"].sort());
+  assert.deepEqual(got, {
+    ...DEFAULT_SETTINGS,
+    maxMemoryGb: 8,
+    systemMemoryGb: 16,
+  });
+  assert.deepEqual(
+    Object.keys(got).sort(),
+    [...SETTINGS_KEYS, "systemMemoryGb"].sort(),
+  );
 });
 
 test("V21 settings:get 遇壞檔、不合法的檔、檔不見 ⇒ reject SettingsError，不回半套設定", async (t) => {
@@ -100,7 +112,10 @@ test("K5 settings:set 擋下不是物件的 patch 與不認得的鍵（含 memor
   ]) {
     const h = await setup(t);
     await rejectsWith(h.set(patch), (e) => {
-      assert.ok(e.message.includes(`設定內容格式錯誤（收到 ${got}）`), e.message);
+      assert.ok(
+        e.message.includes(`設定內容格式錯誤（收到 ${got}）`),
+        e.message,
+      );
     });
     await h.unchanged();
   }

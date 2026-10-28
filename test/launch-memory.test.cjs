@@ -55,7 +55,12 @@ test("V18 矩陣 min∈{null,1,2,4,4.0004,8,64} × max∈{null,1,4,16,64}（只�
   let cells = 0;
   for (const minMemoryGb of mins) {
     for (const maxMemoryGb of maxes) {
-      if (minMemoryGb !== null && maxMemoryGb !== null && minMemoryGb > maxMemoryGb) continue;
+      if (
+        minMemoryGb !== null &&
+        maxMemoryGb !== null &&
+        minMemoryGb > maxMemoryGb
+      )
+        continue;
       const key = `${minMemoryGb}|${maxMemoryGb}`;
       assert.ok(key in EXPECTED, `表沒有 ${key}`);
       const { xmsMb, xmxMb } = heapMbFromSettings({ minMemoryGb, maxMemoryGb });
@@ -73,7 +78,10 @@ test("V18 GB→MB：1.5 ⇒ 1536、1.00048828125 ⇒ 1025", () => {
     xmxMb: 1536,
   });
   assert.deepEqual(
-    heapMbFromSettings({ minMemoryGb: 1.00048828125, maxMemoryGb: 1.00048828125 }),
+    heapMbFromSettings({
+      minMemoryGb: 1.00048828125,
+      maxMemoryGb: 1.00048828125,
+    }),
     { xmsMb: 1025, xmxMb: 1025 },
   );
 });
