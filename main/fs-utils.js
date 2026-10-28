@@ -20,6 +20,7 @@ async function ensureDirForFile(absFilePath) {
 
 async function ensureWritableTree(rootDir) {
   // 僅確保必要資料夾存在；不再做唯讀/ACL 修復或刪除設定檔。
+  // 建不起來就丟出去：沿啟動路徑報給玩家，不留到遊戲之後才模糊地壞掉（6e-3）
   const dirs = [
     rootDir,
     path.join(rootDir, "config"),
@@ -27,11 +28,7 @@ async function ensureWritableTree(rootDir) {
     path.join(rootDir, "logs"),
     path.join(rootDir, "crash-reports"),
   ];
-  for (const d of dirs) {
-    try {
-      await fsp.mkdir(d, { recursive: true });
-    } catch {}
-  }
+  for (const d of dirs) await fsp.mkdir(d, { recursive: true });
 }
 
 // ── 設定檔用的寫檔原語（→ _notes/plans/cross-review-2026-10-phase4.md §設計、§Probe 紀錄 Q5）──

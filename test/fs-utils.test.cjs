@@ -19,6 +19,22 @@ test("hashFile: known content gives known sha256", async (t) => {
   );
 });
 
+test("ensureWritableTree: 五個資料夾都建好；建不起來（config 被一個檔佔住）⇒ 丟出去，不吞（6e-3）", async (t) => {
+  const root = await fsp.mkdtemp(path.join(os.tmpdir(), "ggl-fsutils-tree-"));
+  t.after(() => fsp.rm(root, { recursive: true, force: true }));
+  const ok = path.join(root, "ok");
+  await fsUtils.ensureWritableTree(ok);
+  for (const d of ["config", "downloads", "logs", "crash-reports"]) {
+    assert.ok((await fsp.stat(path.join(ok, d))).isDirectory(), d);
+  }
+  const blocked = path.join(root, "blocked");
+  await fsp.mkdir(blocked);
+  await fsp.writeFile(path.join(blocked, "config"), "not a folder");
+  await assert.rejects(fsUtils.ensureWritableTree(blocked), {
+    code: "EEXIST",
+  });
+});
+
 test("net-fetch loads after the import move", () => {
   assert.equal(typeof require("../main/net-fetch.js").downloadToFile, "function");
 });

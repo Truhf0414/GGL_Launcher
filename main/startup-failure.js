@@ -22,7 +22,9 @@ function reportStartupFailure({ app, showErrorBox, err }) {
       TITLE,
       `啟動器在開啟時發生錯誤，無法繼續。按「確定」後會關閉。\n\n錯誤內容：\n${detail}`,
     );
-  } catch {}
+  } catch {
+    // 最後一道報錯：跳框失敗也沒有更後面的出口，照樣結束行程
+  }
   app.quit();
 }
 

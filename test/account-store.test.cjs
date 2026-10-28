@@ -39,7 +39,9 @@ async function withTempAccountFile(
   t.after(async () => {
     try {
       await fsp.rm(root, { recursive: true, force: true });
-    } catch {}
+    } catch {
+      // 測試收尾：暫存資料夾刪不掉不影響這個測試的結果
+    }
   });
   const filePath = path.join(root, "account.json");
   const fakeSafeStorage = safeStorage ?? makeFakeSafeStorage();

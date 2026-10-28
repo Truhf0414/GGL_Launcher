@@ -28,7 +28,9 @@ async function appendLauncherLog(line) {
       `[${ts}] ${String(line).replace(/\r?\n/g, " ")}\n`,
       "utf8",
     );
-  } catch {}
+  } catch {
+    // debug log 自己寫不進去，沒有地方可報；呼叫者一律 void，不得因此中斷
+  }
 }
 
 async function appendRpcDiagLog(line) {
@@ -43,7 +45,9 @@ async function appendRpcDiagLog(line) {
       `[${ts}] ${String(line).replace(/\r?\n/g, " ")}\n`,
       "utf8",
     );
-  } catch {}
+  } catch {
+    // 同 appendLauncherLog：debug log 自己寫不進去，沒有地方可報
+  }
 }
 
 async function rotateLauncherLogIfTooLarge(maxBytes = 6 * 1024 * 1024) {
@@ -56,9 +60,13 @@ async function rotateLauncherLogIfTooLarge(maxBytes = 6 * 1024 * 1024) {
     const bak = p.replace(/\.log$/i, ".1.log");
     try {
       await fsp.rm(bak, { force: true });
-    } catch {}
+    } catch {
+      // 輪替是盡力而為：舊的備份刪不掉，下一行改名照試
+    }
     await fsp.rename(p, bak);
-  } catch {}
+  } catch {
+    // 輪替是盡力而為：不輪替只是 debug log 變大，不得擋住開機
+  }
 }
 
 const _logThrottle = {
