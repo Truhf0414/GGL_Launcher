@@ -42,7 +42,7 @@ function createSiteClient({
   const indexCache = new Map(); // manifestUrl → ok 的 SiteResult；失敗不進來
   const logCache = new Map(); // logUrl → { ts, lines }
 
-  /** 期限內拿到 { status, text, contentType }；逾時或連線層錯誤丟出去 */
+  /** 期限內拿到 { status, text }；逾時或連線層錯誤丟出去 */
   async function fetchText(url) {
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), timeoutMs);
@@ -58,7 +58,7 @@ function createSiteClient({
       let text = "";
       if (is2xx) text = await res.text();
       else await res.body?.cancel().catch(() => {});
-      return { status, text, contentType: res.headers?.get?.("content-type") };
+      return { status, text };
     } finally {
       clearTimeout(timer);
     }
@@ -126,13 +126,13 @@ function createSiteClient({
     if (cached && now() - cached.ts < LOG_CACHE_MS) return cached.lines;
     const fallback = cached?.lines ?? [];
     try {
-      const { status, text, contentType } = await fetchText(logUrl);
+      const { status, text } = await fetchText(logUrl);
       if (status < 200 || status >= 300) return fallback;
-      const lines = parseNoticeLogText(text, contentType);
+      const lines = parseNoticeLogText(text);
       logCache.set(logUrl, { ts: now(), lines });
       return lines;
     } catch {
-      // 吞得掉：網路回應（連不上、逾時）；抓不到就沿用上一次成功的（R6）。不寫常駐日誌：輪詢每 30 秒一次，
+      // 吞得掉：網路回應（連不上、逾時、內容不是 { "log": [...] }）；抓不到就沿用上一次成功的（R6）。不寫常駐日誌：輪詢每 30 秒一次，
       // 公告路徑的三段失敗都不記，要記三段一起裁（→ _notes/plans/cross-review-2026-10-phase6b4.md #14、N13）
       return fallback;
     }
