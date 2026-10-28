@@ -1,6 +1,6 @@
 # CSS 工程 Plan v2：已知問題修復（Part A）＋架構調查與有根據的重構（Part B）
 
-**狀態**：2026-10-29 初稿（基準 `e5bc6cc`）；同日依 ChatGPT 第一輪審查修訂為二稿；同日依 owner 轉貼的 v2 重構指示整份重寫為 v2；同日回寫 owner 對 v2 的第一輪裁決，共用裁決改由 6e plan 擁有；同日最終收斂輪：CSS-5 提前到 CSS-4 之前、重新定義 computed 比對基準、同步 Q-CLOSE（→ §沿革）。同日 owner 授權 CSS 施工 session 建 worktree 並施工 CSS-1；CSS-1 完成（`8186b3a`，經 owner 驗收放行，→ §八 施工紀錄）。同日 owner 授權 CSS-2；CSS-2 完成（`75df93f`，經 owner 視覺驗收與 ChatGPT 唯讀靜態審查後放行，→ §八 施工紀錄）。同日 owner 授權 CSS-3；CSS-3 完成（`e6bebf4`，經 owner 看畫面後放行，→ §八 施工紀錄）。
+**狀態**：2026-10-29 初稿（基準 `e5bc6cc`）；同日依 ChatGPT 第一輪審查修訂為二稿；同日依 owner 轉貼的 v2 重構指示整份重寫為 v2；同日回寫 owner 對 v2 的第一輪裁決，共用裁決改由 6e plan 擁有；同日最終收斂輪：CSS-5 提前到 CSS-4 之前、重新定義 computed 比對基準、同步 Q-CLOSE（→ §沿革）。同日 owner 授權 CSS 施工 session 建 worktree 並施工 CSS-1；CSS-1 完成（`8186b3a`，經 owner 驗收放行，→ §八 施工紀錄）。同日 owner 授權 CSS-2；CSS-2 完成（`75df93f`，經 owner 視覺驗收與 ChatGPT 唯讀靜態審查後放行，→ §八 施工紀錄）。同日 owner 授權 CSS-3；CSS-3 完成（`e6bebf4`，經 owner 看畫面後放行，→ §八 施工紀錄）。同日 owner 授權 CSS-5；CSS-5 完成（`2da4b38`，經 owner 有條件放行、補驗背景影片時機固定後的 computed 對照後提交，→ §八 施工紀錄）。
 
 **這是什麼**：CSS 工程本身的**唯一權威**，管 CSS 架構與技術方案、Part A／Part B 的調查與裁決、施工分批、驗收、停止條件，以及 CSS 自己完成的證據。
 
@@ -225,7 +225,7 @@
 - 把視窗縮到最小時，可見寬度跟螢幕縮放有關：100% 與 150% 是 980，`@media` 觸發；125% 與 175%（這台）是 982，**不觸發**。
 - 所以這段只在「拖到最小、而且縮放剛好」時才生效（標題 64→52px、卡片變窄），其他時候是死碼。→ B-9
 
-**素材路徑**【現讀可證】：`styles.css` 只有兩個 `url()`：字型（`:111`）與預設縮圖（`:15`），都相對於 `styles.css`。`build.files` 列了 `styles.css`、字型檔、`notice-thumb.svg`；`check-packaged-artifacts.cjs` 的必備清單也列了這三個。打包後相對位置不變，所以路徑一致〔靜態推論待驗：沒有在打包版裡量 computed；X1b 時 owner 用過打包版，沒回報字型或縮圖問題〕。**不改**。〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css` 的 `:111` 後 `:113`；`:15` `1852a1d` 未移動〕〔對齊 2026-10-29：`8186b3a`（plans/css-2026-10.md CSS-1） 未移動：`styles.css` 的 `:113`（上次對齊）、`:15`；`check-packaged-artifacts.cjs` 本行沒有行號〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css` 的 `:113`（上次對齊）後 `:104`；`:15` 未移動〕〔對齊 2026-10-29：→ `e6bebf4`（plans/css-2026-10.md CSS-3）（整份縮進 `@layer` 並加檔頭說明）：`styles.css` 的 `:15`（上次對齊）後 `:41`；字型的 `:104`（上次對齊）隨 `@font-face` 移到層外，後 `:17`〕
+**素材路徑**【現讀可證】：`styles.css` 只有兩個 `url()`：字型（`:111`）與預設縮圖（`:15`），都相對於 `styles.css`。`build.files` 列了 `styles.css`、字型檔、`notice-thumb.svg`；`check-packaged-artifacts.cjs` 的必備清單也列了這三個。打包後相對位置不變，所以路徑一致〔靜態推論待驗：沒有在打包版裡量 computed；X1b 時 owner 用過打包版，沒回報字型或縮圖問題〕。**不改**。〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css` 的 `:111` 後 `:113`；`:15` `1852a1d` 未移動〕〔對齊 2026-10-29：`8186b3a`（plans/css-2026-10.md CSS-1） 未移動：`styles.css` 的 `:113`（上次對齊）、`:15`；`check-packaged-artifacts.cjs` 本行沒有行號〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css` 的 `:113`（上次對齊）後 `:104`；`:15` 未移動〕〔對齊 2026-10-29：→ `e6bebf4`（plans/css-2026-10.md CSS-3）（整份縮進 `@layer` 並加檔頭說明）：`styles.css` 的 `:15`（上次對齊）後 `:41`；字型的 `:104`（上次對齊）隨 `@font-face` 移到層外，後 `:17`〕〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）（檔頭說明多 2 行）：`styles.css` 的 `:41`（上次對齊）後 `:43`；字型的 `:17` 後 `:19`〕
 
 **拿掉 Tailwind 之後的 CSS 入口與建置**：入口就是 `index.html` 的一個 `<link>`（整份縮排版連 `styles.css`；入口檔版連入口檔）；不再有 CSS 建置步驟；格式化走 prettier（S-FMT 歸 6e）；檢查走 `check-ui-css`。**不需要新增任何建置設施。**
 
@@ -416,7 +416,7 @@
 ### 六-1 B2：`.hidden` 藏不住
 
 **現讀**【現讀可證】：
-- `styles.css:142-144` 是 `.hidden { display: none }`；`assets/tailwind.css` 也有一份。`index.html:10-11` 先載 tailwind 再載 `styles.css`。〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css:142-144` 後 `:144-146`；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：→ `8186b3a`（plans/css-2026-10.md CSS-1）：`styles.css:144-146`（上次對齊）後 `:152-154`；`index.html:10-11` 的 tailwind `<link>`（`:10`）已刪，`styles.css` 的 `<link>` 後 `:10`〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css:152-154`（上次對齊）後 `:143-145`；`index.html:10` 未移動〕〔對齊 2026-10-29：`e6bebf4`（plans/css-2026-10.md CSS-3）：`styles.css:143-145`（上次對齊）的 `.hidden` 已刪，唯一一份在檔尾 `@layer utilities`（`:1589-1591`）；`index.html:10` 不在本 commit〕
+- `styles.css:142-144` 是 `.hidden { display: none }`；`assets/tailwind.css` 也有一份。`index.html:10-11` 先載 tailwind 再載 `styles.css`。〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css:142-144` 後 `:144-146`；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：→ `8186b3a`（plans/css-2026-10.md CSS-1）：`styles.css:144-146`（上次對齊）後 `:152-154`；`index.html:10-11` 的 tailwind `<link>`（`:10`）已刪，`styles.css` 的 `<link>` 後 `:10`〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css:152-154`（上次對齊）後 `:143-145`；`index.html:10` 未移動〕〔對齊 2026-10-29：`e6bebf4`（plans/css-2026-10.md CSS-3）：`styles.css:143-145`（上次對齊）的 `.hidden` 已刪，唯一一份在檔尾 `@layer utilities`（`:1589-1591`）；`index.html:10` 不在本 commit〕〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`styles.css:1589-1591`（上次對齊）後 `:1591-1593`；`index.html:10` 不在本 commit〕
 - 寫在 `.hidden` 後面、權重相同、宣告了 `display` 的元件規則都會蓋過它：`.offline-link` 的 `display: grid`（規則從 `:772` 開始，`display` 在 `:788`）、`.repair-list` 的 `display: flex`（`:1605`）。
 - 離線按鈕何時出現由 `renderer/launch-ui.js` 的 `setOfflineLinkState` 決定（`:25-30`）；修復清單在清單空的時候切 `hidden`（`renderer/repair-ui.js:47`）。
 - 同一病根被局部縫過一次：`:1303-1308` `.notif-empty.hidden, .notif-list.hidden, .notif-footer.hidden { display: none }`。
@@ -430,7 +430,7 @@
 **方案**【Owner 已裁：`@layer`】：
 - 宣告 `@layer components, utilities;`。後宣告的層，不管權重一律贏前面的層。
 - 元件規則放進 `components` 層（`@font-face` 留在層外）；`.hidden` 單獨放進 `utilities` 層。
-- 刪掉 `styles.css` 原位置的 `.hidden` 與 `:1303-1308`，只留一份。〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css` 的 `:1303-1308` 後 `:1305-1310`〕〔對齊 2026-10-29：→ `8186b3a`（plans/css-2026-10.md CSS-1）：`styles.css` 的 `:1305-1310`（上次對齊）後 `:1314-1319`〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css` 的 `:1314-1319`（上次對齊）因 B-1 搬段後 `:1472-1477`〕〔對齊 2026-10-29：`e6bebf4`（plans/css-2026-10.md CSS-3） 照本列做了：原位置的 `.hidden` 與 `:1472-1477`（上次對齊）都已刪，只留 `@layer utilities` 那份（`styles.css:1589-1591`）〕
+- 刪掉 `styles.css` 原位置的 `.hidden` 與 `:1303-1308`，只留一份。〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css` 的 `:1303-1308` 後 `:1305-1310`〕〔對齊 2026-10-29：→ `8186b3a`（plans/css-2026-10.md CSS-1）：`styles.css` 的 `:1305-1310`（上次對齊）後 `:1314-1319`〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css` 的 `:1314-1319`（上次對齊）因 B-1 搬段後 `:1472-1477`〕〔對齊 2026-10-29：`e6bebf4`（plans/css-2026-10.md CSS-3） 照本列做了：原位置的 `.hidden` 與 `:1472-1477`（上次對齊）都已刪，只留 `@layer utilities` 那份（`styles.css:1589-1591`）〕〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`styles.css:1589-1591`（上次對齊）後 `:1591-1593`〕
 - 同一層裡的串接規則跟現在一樣，只有跨層的比較不同。
 
 **怎麼寫**【Owner 已裁：D-CSS-B2-INDENT，整份縮排】：`styles.css` 本身包成 `@layer components { … }`，`utilities` 層寫在檔尾；`@font-face` 留在層外；`index.html` 仍只連 `styles.css`。被比較過、**不採**的入口檔寫法：新檔 `styles-entry.css` 寫 `@layer components, utilities;`、`@import url("./styles.css") layer(components);`、`@layer utilities { .hidden { display: none } }`，`index.html` 改連它。下表保留兩者的比較當證據。
@@ -479,7 +479,7 @@
 | 啟動鈕再取名 | 6 對：`--btn-pad-x`、`--content-pad-x`、`--text-frame-h`、`--frame-pad-top`、`--frame-pad-bottom`、`--subtext-top-offset`（`:888-897`） | 改：使用者直接用 `--launch-*`，刪短名 |
 | 舊進度 UI | `.launch-status`／`.status-text`／`.progress`／`.progress-bar`（`:1129-1161`），沒人引用【v2 再確認：`cascade4` 0 個元素對到；字串掃描 0 引用】 | 改：刪 |
 | `#btnSettings .icon { transform: none }`（`:359-361`） | `.icon`（`:347`）本身沒有 `transform` | 改：刪 |
-| `.icon-btn`（`:1589-1593`） | 跟 `.ctl--icon` 一模一樣，唯一使用者 `index.html:359` 同時掛著 `ctl--icon` | 改：CSS 與 HTML 的 class 一起刪〔對齊 2026-10-29：→ `8186b3a`（plans/css-2026-10.md CSS-1）：`index.html:359` 後 `:358`；`:1589-1593` 指 `styles.css`（`e5bc6cc` 時；`1852a1d` 那輪漏對），現在 `:1600-1604`〕〔對齊 2026-10-29：本行列的 `.icon-btn` 已由 `75df93f`（plans/css-2026-10.md CSS-2） 刪除：`styles.css:1600-1604`（上次對齊）整條刪；`index.html:358`（上次對齊）的 class 拿掉，該行現在是 `class="ctl ctl--icon"`〕〔對齊 2026-10-29：本行指的 `styles.css` 行已在 `75df93f` 刪除，`e6bebf4`（plans/css-2026-10.md CSS-3） 沒有可對齊的行號〕 |
+| `.icon-btn`（`:1589-1593`） | 跟 `.ctl--icon` 一模一樣，唯一使用者 `index.html:359` 同時掛著 `ctl--icon` | 改：CSS 與 HTML 的 class 一起刪〔對齊 2026-10-29：→ `8186b3a`（plans/css-2026-10.md CSS-1）：`index.html:359` 後 `:358`；`:1589-1593` 指 `styles.css`（`e5bc6cc` 時；`1852a1d` 那輪漏對），現在 `:1600-1604`〕〔對齊 2026-10-29：本行列的 `.icon-btn` 已由 `75df93f`（plans/css-2026-10.md CSS-2） 刪除：`styles.css:1600-1604`（上次對齊）整條刪；`index.html:358`（上次對齊）的 class 拿掉，該行現在是 `class="ctl ctl--icon"`〕〔對齊 2026-10-29：本行指的 `styles.css` 行已在 `75df93f` 刪除，`e6bebf4`（plans/css-2026-10.md CSS-3） 沒有可對齊的行號〕〔對齊 2026-10-29：本行指的 `styles.css` 行已在 `75df93f` 刪除，`2da4b38`（plans/css-2026-10.md CSS-5） 沒有可對齊的行號〕 |
 | `.primary`（`:1637-1639`） | 跟 `.ctl` 相同，兩個使用者都掛著 `ctl` | 改：同上 |
 | 重複的選擇器 | 9 個，7 個是合法的「共用規則＋各自規則」；2 個是被拆開的同一條：`.launch-btn--disabled`（`:1066`、`:1082`）、`@media` 裡的 `.cards`（`:1653`、`:1659`） | 改：合併那 2 個（`@media` 裡的 `.cards` 合併後，B-9 在 CSS-4 再改斷點與數值）；B-5 會把 `.launch-btn--disabled` 改成 `:disabled`，合併照改後的名字做 |
 | `.hidden`／`.sr-only` 跟 tailwind 重複 | 留 `styles.css` 那份 | 由 B2 與 U11 處理；**不准刪 `styles.css` 那份、留 Tailwind 那份** |
@@ -487,7 +487,7 @@
 
 **證據**【6e 舊草稿實測，`e5bc6cc`】：上表所有「改」一次套上：computed 537 項，標準屬性 0 差異（差的只有被刪的自訂屬性名稱）；`check-ui-css --strict` 通過；`styles.css` 淨刪 68 行。測試帳 0【靜態推論待驗：施工時跑全套】。這組比對證明的是「沒變」，同一份對同一份的對照組就是它的對照；它沒有被 Tailwind 遮住的問題（S-CSS 動的東西跟 Tailwind 的 class 不重疊）。
 
-**跟 R-THUMB 的接縫**：`styles.css:17` 的註解「Back-compat aliases」同時掛著 `--background-url`（`:18`，本線刪）和 `--thumb-url`（`:19`，R-THUMB 的）。6e 舊草稿 §三 驗收帳第 2 條說 R-THUMB 會改寫這行註解，所以 R-THUMB 會動 `styles.css` 一行註解。本線刪 `:18` 時保留 R-THUMB 改寫後的註解，只確認它讀起來仍然對。〔對齊 2026-10-29：`styles.css:17` → `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0） 註解改成三行，後 `:17-19`（「Back-compat alias」只剩掛 `--background-url`，`--thumb-url` 註明不是別名）；`:18` 後 `:20`；`:19` 後 `:21`〕〔對齊 2026-10-29：`8186b3a`（plans/css-2026-10.md CSS-1） 未移動：`styles.css:17-19`、`:20`、`:21`（上次對齊）〕〔對齊 2026-10-29：`75df93f`（plans/css-2026-10.md CSS-2）：`styles.css:17-19`（上次對齊）的註解刪掉 `--background-url` 那半句，後 `:17-18`；`:20` 的 `--background-url` 已刪；`:21` 後 `:19`〕〔對齊 2026-10-29：→ `e6bebf4`（plans/css-2026-10.md CSS-3）（整份縮進 `@layer` 並加檔頭說明）：`styles.css:17-18`（上次對齊）後 `:43-44`；`:19` 後 `:45`〕
+**跟 R-THUMB 的接縫**：`styles.css:17` 的註解「Back-compat aliases」同時掛著 `--background-url`（`:18`，本線刪）和 `--thumb-url`（`:19`，R-THUMB 的）。6e 舊草稿 §三 驗收帳第 2 條說 R-THUMB 會改寫這行註解，所以 R-THUMB 會動 `styles.css` 一行註解。本線刪 `:18` 時保留 R-THUMB 改寫後的註解，只確認它讀起來仍然對。〔對齊 2026-10-29：`styles.css:17` → `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0） 註解改成三行，後 `:17-19`（「Back-compat alias」只剩掛 `--background-url`，`--thumb-url` 註明不是別名）；`:18` 後 `:20`；`:19` 後 `:21`〕〔對齊 2026-10-29：`8186b3a`（plans/css-2026-10.md CSS-1） 未移動：`styles.css:17-19`、`:20`、`:21`（上次對齊）〕〔對齊 2026-10-29：`75df93f`（plans/css-2026-10.md CSS-2）：`styles.css:17-19`（上次對齊）的註解刪掉 `--background-url` 那半句，後 `:17-18`；`:20` 的 `--background-url` 已刪；`:21` 後 `:19`〕〔對齊 2026-10-29：→ `e6bebf4`（plans/css-2026-10.md CSS-3）（整份縮進 `@layer` 並加檔頭說明）：`styles.css:17-18`（上次對齊）後 `:43-44`；`:19` 後 `:45`〕〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`styles.css:43-44`（上次對齊）後 `:45-46`；`:45` 後 `:47`〕
 
 ### 六-3 U11：Tailwind 的 v3 寫法配 v4 CLI
 
@@ -513,7 +513,7 @@
 | B. 完整 `@import "tailwindcss"` | 整包，有 preflight | 5850 bytes，全在 `@layer` | 能 | **會變**（box-sizing、margin、按鈕與標題外觀）；而且 Tailwind 的層名就是 `components`、`utilities`（`node_modules/tailwindcss/index.css:1,942`【現讀可證】），**一定跟 B2 撞名** |
 | C. 不用 Tailwind | `body` 兩個屬性搬進 `styles.css`；`.sr-only` 補 `clip-path: inset(50%)`；刪整套 | 沒有產物 | 不再有這一步 | 補 `clip-path` 後 **0 差異**【隔離實測：`c-sr` 對 HEAD】；不補差 1 處（`.sr-only` 的 `clip-path`）【隔離實測：`c`】 |
 
-**選項 C 要動的地方**（U11 報告 10 項＋二稿現掃 6 項）：`tailwind.css`、`tailwind.config.js`、`assets/tailwind.css`、`index.html:10` 的 `<link>` 與 `:13` 的 `body` class、`package.json` 的 `build:css` 與兩個 devDependency（＋lockfile）、`build.files` 的 `assets/tailwind.css`、`dist:win`／`pack:win` 裡的 `build:css`、`check-packaged-artifacts.cjs:24`（必備清單）與 `:48-49`（`forbiddenDevDependencyRoots` 的兩行，依賴拿掉後永遠不會觸發；D-CSS-U11-C「檢查器裡失效的 Tailwind 契約」一併移除）、`.prettierignore:4`、`styles.css:145` 的註解與 `.sr-only` 補行、`README.md:11`、`docs/pre-release-audit-source-of-truth.md:23`、專案 `CLAUDE.md:3`（→ §十）、conventions §UI / CSS 那條（→ §十）。施工時再用 `rg 'build:css'` 補掃一次。〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css:145` 後 `:147`；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：本行列的就是 `8186b3a`（plans/css-2026-10.md CSS-1） 改掉的地方：`index.html:10` 已刪、`:13` 改成 `<body>`；`check-packaged-artifacts.cjs:24`、`:48-49` 已刪；`.prettierignore:4` 已刪；`styles.css:147`（上次對齊）的註解改寫，後 `:155`，`.sr-only` 補行在 `:164`；`README.md:11` 已刪（另刪 `:5` 的 `npm run build:css`）；`docs/pre-release-audit-source-of-truth.md:23`、`CLAUDE.md:3` 改寫；conventions 那條已刪〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css` 的 `:155`（上次對齊）後 `:146`、`:164` 後 `:155`；`index.html` 的 `<link>` `:10` 與 `<body>` `:12` 未移動〕〔對齊 2026-10-29：→ `e6bebf4`（plans/css-2026-10.md CSS-3）（整份縮進 `@layer` 並加檔頭說明）：`styles.css` 的 `:146`（上次對齊）後 `:157`、`:155` 後 `:166`〕
+**選項 C 要動的地方**（U11 報告 10 項＋二稿現掃 6 項）：`tailwind.css`、`tailwind.config.js`、`assets/tailwind.css`、`index.html:10` 的 `<link>` 與 `:13` 的 `body` class、`package.json` 的 `build:css` 與兩個 devDependency（＋lockfile）、`build.files` 的 `assets/tailwind.css`、`dist:win`／`pack:win` 裡的 `build:css`、`check-packaged-artifacts.cjs:24`（必備清單）與 `:48-49`（`forbiddenDevDependencyRoots` 的兩行，依賴拿掉後永遠不會觸發；D-CSS-U11-C「檢查器裡失效的 Tailwind 契約」一併移除）、`.prettierignore:4`、`styles.css:145` 的註解與 `.sr-only` 補行、`README.md:11`、`docs/pre-release-audit-source-of-truth.md:23`、專案 `CLAUDE.md:3`（→ §十）、conventions §UI / CSS 那條（→ §十）。施工時再用 `rg 'build:css'` 補掃一次。〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css:145` 後 `:147`；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：本行列的就是 `8186b3a`（plans/css-2026-10.md CSS-1） 改掉的地方：`index.html:10` 已刪、`:13` 改成 `<body>`；`check-packaged-artifacts.cjs:24`、`:48-49` 已刪；`.prettierignore:4` 已刪；`styles.css:147`（上次對齊）的註解改寫，後 `:155`，`.sr-only` 補行在 `:164`；`README.md:11` 已刪（另刪 `:5` 的 `npm run build:css`）；`docs/pre-release-audit-source-of-truth.md:23`、`CLAUDE.md:3` 改寫；conventions 那條已刪〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css` 的 `:155`（上次對齊）後 `:146`、`:164` 後 `:155`；`index.html` 的 `<link>` `:10` 與 `<body>` `:12` 未移動〕〔對齊 2026-10-29：→ `e6bebf4`（plans/css-2026-10.md CSS-3）（整份縮進 `@layer` 並加檔頭說明）：`styles.css` 的 `:146`（上次對齊）後 `:157`、`:155` 後 `:166`〕〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`styles.css` 的 `:157`（上次對齊）後 `:159`、`:166` 後 `:168`〕
 
 **跟 B2 的耦合**：
 - `.hidden` 只能有一份權威。B2 之後 `styles.css` 那份在層裡，Tailwind 那份沒分層，會贏過所有分層規則、把 B2 的驗收遮住【隔離實測：結果見 §六-1 表】。選 C 這件事消失；選 A／A' 時產物仍有 `hidden`、是否分層【靜態推論待驗】，要嘛把產物放進比 `utilities` 更前面的層、要嘛別讓它產 `hidden`，都是多出來的工。
@@ -525,10 +525,10 @@
 
 | Tailwind 給的 | 原本的效果 | 接手方式 | 怎麼驗 |
 |---|---|---|---|
-| `select-none`（`<body>`） | `-webkit-user-select: none; user-select: none` | `styles.css` 加 `body` 規則；輸入框仍可選取（既有的 `input, textarea, [contenteditable="true"]` 規則，`:168-173`） | computed 值不變【`e5bc6cc` 隔離實測：`c-sr`】；施工時另用真滑鼠拖選文字、在輸入框打字與選取〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css` 的 `:168-173` 後 `:170-175`〕〔對齊 2026-10-29：→ `8186b3a`（plans/css-2026-10.md CSS-1）：`styles.css` 的 `:170-175`（上次對齊）後 `:179-184`；新加的 `body` 規則在 `:134-139`〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css` 的 `:179-184`（上次對齊）後 `:164-169`；`body` 規則 `:134-139` 後 `:125-130`〕〔對齊 2026-10-29：→ `e6bebf4`（plans/css-2026-10.md CSS-3）（整份縮進 `@layer` 並加檔頭說明）：`styles.css` 的 `:164-169`（上次對齊）後 `:175-180`；`body` 規則 `:125-130` 後 `:139-144`〕 |
+| `select-none`（`<body>`） | `-webkit-user-select: none; user-select: none` | `styles.css` 加 `body` 規則；輸入框仍可選取（既有的 `input, textarea, [contenteditable="true"]` 規則，`:168-173`） | computed 值不變【`e5bc6cc` 隔離實測：`c-sr`】；施工時另用真滑鼠拖選文字、在輸入框打字與選取〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css` 的 `:168-173` 後 `:170-175`〕〔對齊 2026-10-29：→ `8186b3a`（plans/css-2026-10.md CSS-1）：`styles.css` 的 `:170-175`（上次對齊）後 `:179-184`；新加的 `body` 規則在 `:134-139`〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css` 的 `:179-184`（上次對齊）後 `:164-169`；`body` 規則 `:134-139` 後 `:125-130`〕〔對齊 2026-10-29：→ `e6bebf4`（plans/css-2026-10.md CSS-3）（整份縮進 `@layer` 並加檔頭說明）：`styles.css` 的 `:164-169`（上次對齊）後 `:175-180`；`body` 規則 `:125-130` 後 `:139-144`〕〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`styles.css` 的 `:175-180`（上次對齊）後 `:177-182`；`body` 規則 `:139-144` 後 `:141-146`〕 |
 | `antialiased`（`<body>`） | `-webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale` | 同一條 `body` 規則 | computed 值不變【同上】；Windows 上有沒有實際效果沒查，保證的是值不變 |
-| `.hidden` | `display: none` | B2 之前由 `styles.css` 原本那份（`:142`）接手；B2 之後住 `utilities` 層 | 13 個帶 `.hidden` 的元素藏得住的狀態跟 HEAD 一樣（B2 之前離線鈕與修復清單照舊藏不住，那是 B2 的事）〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css` 的 `:142` 後 `:144`〕〔對齊 2026-10-29：→ `8186b3a`（plans/css-2026-10.md CSS-1）：`styles.css` 的 `:144`（上次對齊）後 `:152`〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css` 的 `:152`（上次對齊）後 `:143`〕〔對齊 2026-10-29：`e6bebf4`（plans/css-2026-10.md CSS-3）：`styles.css` 的 `:143`（上次對齊）已刪；B2 之後住 `@layer utilities`（`:1589`），本列右半說的就是這件事〕 |
-| `.sr-only` | 視覺藏起來、輔助技術照念 | `styles.css` 原本那份（`:146-156`）補 `clip-path: inset(50%)` | computed 0 差異【同上】；螢幕閱讀器實際念不念沒驗〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css` 的 `:146-156` 後 `:148-158`〕〔對齊 2026-10-29：→ `8186b3a`（plans/css-2026-10.md CSS-1）：`styles.css` 的 `:148-158`（上次對齊）後 `:156-167`（多了 `clip-path` 一行）〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css` 的 `:156-167`（上次對齊）後 `:147-158`〕〔對齊 2026-10-29：→ `e6bebf4`（plans/css-2026-10.md CSS-3）（整份縮進 `@layer` 並加檔頭說明）：`styles.css` 的 `:147-158`（上次對齊）後 `:158-169`〕 |
+| `.hidden` | `display: none` | B2 之前由 `styles.css` 原本那份（`:142`）接手；B2 之後住 `utilities` 層 | 13 個帶 `.hidden` 的元素藏得住的狀態跟 HEAD 一樣（B2 之前離線鈕與修復清單照舊藏不住，那是 B2 的事）〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css` 的 `:142` 後 `:144`〕〔對齊 2026-10-29：→ `8186b3a`（plans/css-2026-10.md CSS-1）：`styles.css` 的 `:144`（上次對齊）後 `:152`〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css` 的 `:152`（上次對齊）後 `:143`〕〔對齊 2026-10-29：`e6bebf4`（plans/css-2026-10.md CSS-3）：`styles.css` 的 `:143`（上次對齊）已刪；B2 之後住 `@layer utilities`（`:1589`），本列右半說的就是這件事〕〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`styles.css` 的 `:1589`（上次對齊）後 `:1591`〕 |
+| `.sr-only` | 視覺藏起來、輔助技術照念 | `styles.css` 原本那份（`:146-156`）補 `clip-path: inset(50%)` | computed 0 差異【同上】；螢幕閱讀器實際念不念沒驗〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css` 的 `:146-156` 後 `:148-158`〕〔對齊 2026-10-29：→ `8186b3a`（plans/css-2026-10.md CSS-1）：`styles.css` 的 `:148-158`（上次對齊）後 `:156-167`（多了 `clip-path` 一行）〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css` 的 `:156-167`（上次對齊）後 `:147-158`〕〔對齊 2026-10-29：→ `e6bebf4`（plans/css-2026-10.md CSS-3）（整份縮進 `@layer` 並加檔頭說明）：`styles.css` 的 `:147-158`（上次對齊）後 `:158-169`〕〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`styles.css` 的 `:158-169`（上次對齊）後 `:160-171`〕 |
 
 施工時另外要確認（隔離實測只證明 computed 結果）：真正的 CSS 載入（`index.html` 只剩一個 `<link>`、沒有 404）、互動狀態、打包後的素材（`check:packaged-artifacts`）、§下面的建置驗證。
 
@@ -550,21 +550,21 @@
 
 | 段 | 守什麼 | 一般 | strict | 守它的測試 |
 |---|---|---|---|---|
-| (1) `:71-80` | 不准 `zoom` | 錯誤 | 錯誤 | — |
-| (2) `:82-91` | 不准 `--x: var(--x)` | 錯誤 | 錯誤 | — |
-| (3) `:93-111` | `--design-*`／`--optical-*` 只在 `:root` 定義 | 錯誤 | 錯誤 | — |
-| (4) `:113-176` | 變數不准間接繞圈 | 錯誤 | 錯誤 | — |
-| (5) `:178-186` | `!important` | 警告 | 錯誤 | A7 |
-| (6) `:188-197` | `backdrop-filter` 10 次以上 | 警告 | 警告 | — |
-| (7) `:199-221` | `var(--x)` 沒 fallback 又沒定義 | 警告 | 警告 | — |
-| (8) `:223-244` | `settingsModal`、`notifOverlay` 存在且帶 `no-drag` | id 不在＝錯誤；沒 `no-drag`＝警告 | 都錯誤 | A4、A6 |
-| 檔頭 `:60-61` | 讀不到 `styles.css`／`index.html` 就丟錯（`a421da2`） | — | — | A5〔對齊 2026-10-29：`:60-61` 指 `check-ui-css.cjs`，`1852a1d` 未移動〕〔對齊 2026-10-29：`:60-61` 指 `check-ui-css.cjs`，`8186b3a` 未移動〕〔對齊 2026-10-29：`:60-61` 指 `check-ui-css.cjs`，`75df93f` 未移動〕〔對齊 2026-10-29：`:60-61` 指 `check-ui-css.cjs`，`e6bebf4` 未移動〕 |
+| (1) `:71-80` | 不准 `zoom` | 錯誤 | 錯誤 | —〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`check-ui-css.cjs` 的 `:71-80` 後 `:70-79`〕 |
+| (2) `:82-91` | 不准 `--x: var(--x)` | 錯誤 | 錯誤 | —〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`check-ui-css.cjs` 的 `:82-91` 後 `:81-90`〕 |
+| (3) `:93-111` | `--design-*`／`--optical-*` 只在 `:root` 定義 | 錯誤 | 錯誤 | —〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`check-ui-css.cjs` 的 `:93-111` 後 `:92-110`〕 |
+| (4) `:113-176` | 變數不准間接繞圈 | 錯誤 | 錯誤 | —〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`check-ui-css.cjs` 的 `:113-176` 後 `:112-175`〕 |
+| (5) `:178-186` | `!important` | 警告 | 錯誤 | A7〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`check-ui-css.cjs` 的 `:178-186` 後 `:177-185`〕 |
+| (6) `:188-197` | `backdrop-filter` 10 次以上 | 警告 | 警告 | —〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`check-ui-css.cjs` 的 `:188-197` 後 `:187-196`〕 |
+| (7) `:199-221` | `var(--x)` 沒 fallback 又沒定義 | 警告 | 警告 | —〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`check-ui-css.cjs` 的 `:199-221` 整段照 C2 改寫，後 `:198-218`（兩種模式都是錯誤）〕 |
+| (8) `:223-244` | `settingsModal`、`notifOverlay` 存在且帶 `no-drag` | id 不在＝錯誤；沒 `no-drag`＝警告 | 都錯誤 | A4、A6〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`check-ui-css.cjs` 的 `:223-244` 後 `:220-241`〕 |
+| 檔頭 `:60-61` | 讀不到 `styles.css`／`index.html` 就丟錯（`a421da2`） | — | — | A5〔對齊 2026-10-29：`:60-61` 指 `check-ui-css.cjs`，`1852a1d` 未移動〕〔對齊 2026-10-29：`:60-61` 指 `check-ui-css.cjs`，`8186b3a` 未移動〕〔對齊 2026-10-29：`:60-61` 指 `check-ui-css.cjs`，`75df93f` 未移動〕〔對齊 2026-10-29：`:60-61` 指 `check-ui-css.cjs`，`e6bebf4` 未移動〕〔對齊 2026-10-29：`:60-61` 指 `check-ui-css.cjs`，`2da4b38` 未移動〕 |
 
 由 `.husky/pre-commit` 與 CI（`.github/workflows/ci.yml:24`）跑一般模式；`dist:win`／`pack:win` 跑 strict。測試在 `test/ui-check-scripts.test.cjs`。
 
 **要改的**：
-- **C1** `UI_CSS_STRICT` 環境變數（`:65-66`）：`--strict` 的第二個開關，repo 裡沒人設，`test/ui-check-scripts.test.cjs:42` 還特地刪掉它 → 刪開關，測試那行與 `:39` 註解後半句跟著刪。
-- **C2** (7) 改成：每一個 `var(--x)`，不管有沒有 fallback，`--x` 沒定義就是**錯誤**；訊息寫明「執行期才給值的變數，在 `:root` 放預設值」。依據【隔離實測】：72／72 定義與使用、0 未定義；帶 fallback 的只有 `:587` 一處（S-CSS 刪）；執行期由 JS 寫的變數只有 `--thumb-url`（`instance-ui.js:42`），它在 `:root` 有預設；`index.html` 沒有 `style="--…"`。所以在本工程裡 C2 不會誤殺合法契約。R-THUMB 之後若 `:root` 不再定義 `--thumb-url`，C2 會擋住——那時停下來跟 6e 對，不准為了讓檢查過而改 R-THUMB 的契約。反例測試：`var(--nope, 1px)`（沒定義）⇒ exit 1；`var(--x, 1px)` 且 `--x` 有定義 ⇒ exit 0。〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css` 的 `:587` 後 `:589`；`instance-ui.js:42` 整段改寫，改在 `.thumb` 元素上寫 `--thumb-url`，後 `:41`；`:root` 仍有預設（`styles.css:21`）〕〔對齊 2026-10-29：→ `8186b3a`（plans/css-2026-10.md CSS-1）：`styles.css` 的 `:589`（上次對齊）後 `:598`；`styles.css:21`、`instance-ui.js:41` `8186b3a` 未移動〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css` 的 `:598`（上次對齊）拿掉 fallback，後 `:573`；`styles.css:21` 後 `:19`；`instance-ui.js:41` 未移動〕〔對齊 2026-10-29：→ `e6bebf4`（plans/css-2026-10.md CSS-3）（整份縮進 `@layer` 並加檔頭說明）：`styles.css` 的 `:573`（上次對齊）後 `:584`；`:19` 後 `:45`；`instance-ui.js:41` 未移動〕
+- **C1** `UI_CSS_STRICT` 環境變數（`:65-66`）：`--strict` 的第二個開關，repo 裡沒人設，`test/ui-check-scripts.test.cjs:42` 還特地刪掉它 → 刪開關，測試那行與 `:39` 註解後半句跟著刪。〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5） 照本條做了：`check-ui-css.cjs:65-66` 改寫成一行 `:65`（只認 `--strict`）；`test/ui-check-scripts.test.cjs:42` 已刪，`:39` 改寫後 `:40`〕
+- **C2** (7) 改成：每一個 `var(--x)`，不管有沒有 fallback，`--x` 沒定義就是**錯誤**；訊息寫明「執行期才給值的變數，在 `:root` 放預設值」。依據【隔離實測】：72／72 定義與使用、0 未定義；帶 fallback 的只有 `:587` 一處（S-CSS 刪）；執行期由 JS 寫的變數只有 `--thumb-url`（`instance-ui.js:42`），它在 `:root` 有預設；`index.html` 沒有 `style="--…"`。所以在本工程裡 C2 不會誤殺合法契約。R-THUMB 之後若 `:root` 不再定義 `--thumb-url`，C2 會擋住——那時停下來跟 6e 對，不准為了讓檢查過而改 R-THUMB 的契約。反例測試：`var(--nope, 1px)`（沒定義）⇒ exit 1；`var(--x, 1px)` 且 `--x` 有定義 ⇒ exit 0。〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css` 的 `:587` 後 `:589`；`instance-ui.js:42` 整段改寫，改在 `.thumb` 元素上寫 `--thumb-url`，後 `:41`；`:root` 仍有預設（`styles.css:21`）〕〔對齊 2026-10-29：→ `8186b3a`（plans/css-2026-10.md CSS-1）：`styles.css` 的 `:589`（上次對齊）後 `:598`；`styles.css:21`、`instance-ui.js:41` `8186b3a` 未移動〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css` 的 `:598`（上次對齊）拿掉 fallback，後 `:573`；`styles.css:21` 後 `:19`；`instance-ui.js:41` 未移動〕〔對齊 2026-10-29：→ `e6bebf4`（plans/css-2026-10.md CSS-3）（整份縮進 `@layer` 並加檔頭說明）：`styles.css` 的 `:573`（上次對齊）後 `:584`；`:19` 後 `:45`；`instance-ui.js:41` 未移動〕〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`styles.css` 的 `:584`（上次對齊）後 `:586`；`:45` 後 `:47`；`instance-ui.js:41` 不在本 commit；(7) 照本條改寫，後 `check-ui-css.cjs:198-218`〕
 - **L1**（新增；守 B2）：`@layer` 是讓 `.hidden` 贏的機制，但 Node 測試算不出 CSS 串接，沒有現有測試會因為層壞掉而變紅。一條檢查、幾個斷言：
   - 共同：`index.html` 只有一個樣式表 `<link>`，連的是預期的檔（擋另加一份沒分層的樣式表，例如把 Tailwind 加回來）；`.hidden` 選擇器只出現在 `utilities` 層、全專案只定義一次；`@layer components, utilities;` 存在而且在最前面。
   - `styles.css` 最上層只准有 `@layer` 宣告、`@layer` 區塊、`@font-face`（擋「寫在層外」；D-CSS-B2-INDENT 已定整份縮排，入口檔那一版的斷言不做）。
@@ -626,7 +626,7 @@ v2 原稿寫「CSS-4 一個 commit、三項可各自 revert」，這不精確：
 
 ### 依賴：技術、排程、歸屬
 
-- **技術依賴**：CSS-1 → CSS-2 → CSS-3 是真的技術依賴（§排序理由）。CSS-5 只依賴 CSS-3：L1 檢查的是最上層結構、`.hidden` 的位置、`<link>` 數量；C2 檢查每個 `var()` 都有定義；C1 只刪一個環境變數開關。CSS-4 的改動都在 `components` 層裡面，B-3 的 A／B 兩個候選也都讓 `--cards-shadow` 的定義與使用同進同出，不影響這三項〔靜態推論待驗：CSS-5 施工時逐項確認〕。CSS-4 需要 CSS-3（B-4／B-5 寫在層裡），不需要 CSS-5。
+- **技術依賴**：CSS-1 → CSS-2 → CSS-3 是真的技術依賴（§排序理由）。CSS-5 只依賴 CSS-3：L1 檢查的是最上層結構、`.hidden` 的位置、`<link>` 數量；C2 檢查每個 `var()` 都有定義；C1 只刪一個環境變數開關。CSS-4 的改動都在 `components` 層裡面，B-3 的 A／B 兩個候選也都讓 `--cards-shadow` 的定義與使用同進同出，不影響這三項〔靜態推論待驗：CSS-5 施工時逐項確認〕〔2026-10-29 CSS-5 實測成立 → §八 施工紀錄 CSS-5〕。CSS-4 需要 CSS-3（B-4／B-5 寫在層裡），不需要 CSS-5。
 - **排程依賴**：CSS-4 排在 CSS-5 後面，只是排程；它要等 owner 看畫面，放最後不會擋住其他批。
 - **CSS-5 施工時若發現 C1、C2、L1 真的依賴 CSS-4 的修改**：拿出具體證據（哪條斷言、依賴哪個改動）再調整順序；不預先加任何防禦機制。
 - **歸屬**：Part B 不屬於 Phase 6 審查母體。Phase 6 母體裡移交 CSS 線的項目在 CSS-2（S-CSS）、CSS-3（B2）、CSS-5（C1、C2）——新順序下，這三批都在 CSS-4 之前完成。
@@ -690,6 +690,17 @@ v2 原稿寫「CSS-4 一個 commit、三項可各自 revert」，這不精確：
 - 驗收【實際跑過；computed 與負面對照量的是 `e6bebf4` 本身】：computed 對 `861158e` 標準屬性 49 處，全在離線按鈕與子元素（36）、它所在的區塊（10，高 130→80px）、`#repairList`（3），與 `e5bc6cc` 時的預期同形；自訂屬性 1176 處全是縮排帶進值裡的空白（正規化後 0；同一正規化在 CSS-1 那組仍抓到 1062，證明不會洗掉真差異）。帶 `.hidden` 的元素 14 個全部藏住；比 plan 的 13 多的是 `#statusText`（B-6 後改用 `.hidden` 藏）。負面對照：副本刪掉 `utilities` 層的 `.hidden` ⇒ 14 個全部露出來。B-6：照 `setStatusVisibility(false)` 藏狀態文字，單行與兩行兩種狀態下，對施工前（用舊 class 藏）的差異只有 B2 那 49 處。cascade：探針不認 `@layer`，把 6 組「`.hidden` 對元件的 `display`」報成靠順序贏（實際靠層贏，由 computed 與負面對照證明），其餘組合 0 變化。檢查器在縮排後仍有效：在 `@layer` 裡對 (1)–(5)、(7) 各埋一個違規，都照原因擋下，對照組 ok。Node 24.14.1、22.23.4 全套 1415／1415；lint、`check:ui-css` 一般與 strict、prettier 過；pre-commit hook 提交時跑了。owner 看畫面放行：「完成，做得真好。」（第一次看到的是 `.claude/worktrees/upbeat-jepsen-a6383a` 那份未改版，重開 `H:/GGL3-css` 後才是本批）。
 - 沒驗：各種狀態下的畫面靠 owner 看，computed 只量開機預設狀態與探針手動套的狀態；cascade 探針不模擬 `@layer`。
 - 回退：`git revert e6bebf4`（後面的批疊上之後要先退後面的批）。
+
+**CSS-5**（2026-10-29，commit `2da4b38`，3 檔：`scripts/check-ui-css.cjs`、`test/ui-check-scripts.test.cjs`、`styles.css`；施工前基準 `1d66b3e`，程式與 `e6bebf4` 相同）
+- 改動：C1 刪 `UI_CSS_STRICT`，`--strict` 是唯一的開關；測試的 `run()` 不再動環境變數，註解後半句刪。C2：(7) 在兩種模式都是錯誤——任何 `var(--x)`，不管有沒有 fallback，`--x` 在 `styles.css` 沒定義就擋，訊息寫明執行期才給值的變數也要在 `:root` 放預設值。L1 寫成 (9) 段：`index.html` 恰一個樣式表 `<link>` 且指向 `./styles.css`；第一條規則是 `@layer components, utilities;`；最上層只有 `@layer` 與 `@font-face`；`.hidden` 只定義一次、在 `utilities` 層。`styles.css` 檔頭補上 §六-1 的第 5 件（誰守）。
+- 施工時自己定、計畫沒寫死的（驗收單上講了，owner 沒有反對）：L1 另擋 `components`、`utilities` 以外的層（含匿名層）——沒在第一句宣告的層排在 `utilities` 後面，一樣能蓋掉 `.hidden`；錯誤訊息照檔案原本的英文寫。
+- 施工前全套【實際跑過】：`1d66b3e` 上 Node 24.14.1、22.23.4 都 1415／1415。
+- 反例與反向突變【實際跑過】：新增 11 個測試（C2 3 個、L1 8 個）；把檢查器的每條斷言各拔掉一次，每次都有對應的測試變紅。第一輪拔掉「只定義一次」沒有測試紅（被「不在 `utilities`」那條順便蓋住），補了「`utilities` 層裡定義兩次」才補齊。另驗零個 `<link>` ⇒ `found 0`、exit 1。
+- 依賴（§八「依賴」那條推論）【實際跑過】：副本套 CSS-4 的候選（B-3 A、B-3 B、B-4／B-5、B-9 1100px，各自單獨與兩種全套共 6 組），檢查器一般與 strict 都 exit 0，檢查器測試 21／21——C1、C2、L1 不依賴 CSS-4。
+- 驗收【實際跑過，量的是施工後的工作樹，內容與 `2da4b38` 相同】：Node 24.14.1、22.23.4 全套 1426／1426（多的 11 個是本批新測試）；lint、`check:ui-css` 一般與 strict、prettier 過（prettier 重排測試檔格式後只重跑該檔，21／21）；`styles.css` 去掉註解後與 `1d66b3e` 位元組相同（對照：改一個字就不同）；防禦掃描只命中 `html.match(...) ?? []`，零個 `<link>` 是要報錯的正常路徑，不是防禦；pre-commit hook 提交時跑了 `check:ui-css` 與 lint。
+- computed【實際跑過】：第一輪三份平行跑，同一份比同一份就差 1 處（`.app-bg-fallback` 的 `opacity`）——背景影片只在視窗有焦點時播（`renderer/background-video.js:24`），平行的視窗互搶焦點。owner 審查：〔原話〕「有條件放行」「只需要補上背景影片時機固定後的 computed 對照驗證；通過後即可依既有流程提交 CSS-5 單一 commit。」補驗：依序跑，探針固定兩種狀態——有影片（等 `has-video` 出現、背景透明度 0）、無影片（只在探針副本刪影片檔）；兩種狀態下同一份比同一份、施工前比施工後都是 534 個元素 0 差異；正面對照：同一份的有影片比無影片恰差那 1 處。
+- 沒驗、擋不住的：打包流程（`dist:win`／`pack:win`）這批沒跑；L1 擋不住 `utilities` 層裡的 `.hidden` 被明著改值（§六-4 已列）；`index.html` 裡若出現 `<style>` 區塊，L1 不看（§六-4 只要求 `<link>`）。
+- 回退：`git revert 2da4b38`。
 
 ---
 
@@ -780,7 +791,7 @@ v2 原稿寫「CSS-4 一個 commit、三項可各自 revert」，這不精確：
 - S-CSS 與 B2 疊加、S-CSS 與 Part B 疊加後的 computed 比對；S-CSS 的測試帳 0（讀碼推論）。
 - B-4／B-5、B-6、B-7 的 computed 0 差異與測試帳（推論）；真滑鼠在禁用的 `<button>` 上是否觸發 `:hover`（CSS-4 由 owner 用真滑鼠驗）。
 - B-3 兩個候選的實際畫面、B-9 以 1100px 為起點的畫面（CSS-4 由 owner 看）。
-- CSS-4 三個 commit 能否各自 `git revert`（提交後乾跑確認）；CSS-5 在技術上只依賴 CSS-3（CSS-5 施工時逐項確認，§八「依賴」）。
+- CSS-4 三個 commit 能否各自 `git revert`（提交後乾跑確認）；CSS-5 在技術上只依賴 CSS-3（CSS-5 施工時逐項確認，§八「依賴」）〔2026-10-29 CSS-5 實測成立 → §八 施工紀錄 CSS-5〕。
 - computed 全量比對只量預設狀態；其他狀態由 cascade 分析推算（分析涵蓋 19 種 class 狀態 × 6 種互動，伺服器狀態點的三種 class 沒套）。
 - 實際的選取行為、螢幕閱讀器念不念 `.sr-only` 的字（只比了 computed 值）；`-webkit-font-smoothing` 在 Windows 上有沒有效果。
 - U11：沒在 repo 本身跑 `build:css`；確切觸發條件沒查（選 C 之後不再需要查）。
@@ -815,7 +826,7 @@ v2 原稿寫「CSS-4 一個 commit、三項可各自 revert」，這不精確：
 5. **「單檔沒有增加維護成本」是看「有沒有跨元件互相覆蓋」得出的**，沒有其他客觀量尺；如果你自己改 CSS 時覺得難找東西，那是我量不到的成本。
 6. **二稿的兩個錯**（舊探針被 Tailwind 遮住沒發現、「完成範圍」用母體凍結排除架構調查）都是被審查點出來的；本輪的調查也可能有同樣的盲點——任何沒有負面對照的「沒問題」，都可能只是工具看不到。
 7. U11 報告是另一個 session 寫的；我實測了 C 選項的畫面，其餘（各選項產物大小、A／A' 內容）沒重驗。
-8. **「CSS-5 技術上只依賴 CSS-3」是讀 L1 的設計推的**，owner 已據此把 CSS-5 提前（D-CSS-ORDER）。L1 還沒寫，寫出來若要檢查 CSS-4 會動到的東西，這個推論就不成立；所以 CSS-5 施工時要逐項確認，CSS-4 之後要重跑檢查器。
+8. **「CSS-5 技術上只依賴 CSS-3」是讀 L1 的設計推的**，owner 已據此把 CSS-5 提前（D-CSS-ORDER）。L1 還沒寫，寫出來若要檢查 CSS-4 會動到的東西，這個推論就不成立；所以 CSS-5 施工時要逐項確認，CSS-4 之後要重跑檢查器。〔2026-10-29 CSS-5 實測成立 → §八 施工紀錄 CSS-5〕
 9. **6e plan 的引用是 2026-10-29 讀的版本**（它也還在審查中）；6e 那邊的節名或 ID 之後若改，本檔的地址要跟著對。
 
 ---
