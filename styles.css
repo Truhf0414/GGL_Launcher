@@ -560,9 +560,6 @@
     /* 文字縮放：預設跟著卡片縮放；想「卡片縮但字不縮」就改這個 */
     --cards-type-scale: var(--design-cards-type-scale);
     --cards-w: var(--design-cards-w);
-    /* 卡片本體陰影也要跟著縮，否則視覺底部會「垂」下去像沒對齊 */
-    --cards-shadow: 0 calc(20px * var(--cards-scale))
-      calc(60px * var(--cards-scale)) rgba(0, 0, 0, 0.35);
     /* tokens（讓縮放/微調只改這裡） */
     --cards-pad-x: calc(18px * var(--cards-scale));
     --cards-pad-left: calc(30px * var(--cards-scale));
@@ -579,11 +576,6 @@
     /* 需求：更新欄位底部與啟動按鈕底部切齊 */
     bottom: var(--design-bottom-align);
     width: calc(var(--cards-w) * var(--cards-scale));
-  }
-
-  /* 只影響更新日誌卡，別污染其他 glass-card */
-  .glass-card--changelog {
-    box-shadow: var(--cards-shadow);
   }
 
   /* ---- Generic glass card base ---- */
