@@ -20,7 +20,9 @@ function safeLog(log, line) {
   try {
     const r = log?.(line);
     if (r && typeof r.catch === "function") r.catch(() => {});
-  } catch {}
+  } catch {
+    // debug log 是 best-effort：注入的 logger 同步丟錯不得影響原本的動作（N6-D2；T-I4 守）
+  }
 }
 
 const abortError = (signal) =>
@@ -243,9 +245,7 @@ async function rankSourcesByQuickProbe(sources) {
       return { ok: false, ms: 1e9, src };
     } finally {
       clearTimeout(t);
-      try {
-        ac.abort();
-      } catch {}
+      ac.abort();
     }
   }
 

@@ -31,7 +31,10 @@ test("registerAllMainIpc 呼叫第二次 ⇒ 第一條 channel 就明確丟錯�
   const handlers = new Map();
   const ipcMain = {
     handle(channel, fn) {
-      if (handlers.has(channel)) throw new Error(`Attempted to register a second handler for '${channel}'`);
+      if (handlers.has(channel))
+        throw new Error(
+          `Attempted to register a second handler for '${channel}'`,
+        );
       handlers.set(channel, fn);
     },
     removeHandler(channel) {
@@ -45,7 +48,8 @@ test("registerAllMainIpc 呼叫第二次 ⇒ 第一條 channel 就明確丟錯�
     /Attempted to register a second handler for 'account:get'/,
   );
   assert.equal(handlers.size, first.size);
-  for (const [channel, fn] of first) assert.equal(handlers.get(channel), fn, channel);
+  for (const [channel, fn] of first)
+    assert.equal(handlers.get(channel), fn, channel);
 });
 
 test("compareWithAllowlist 抓得到缺、多、重複", () => {

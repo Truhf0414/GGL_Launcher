@@ -37,7 +37,13 @@ function assertErrorAt(result, fieldPrefix) {
   );
 }
 
-const INDEX = { format: 3, gate: "gate.json", notice: "notice.json", release: "release.json", files: "files/" };
+const INDEX = {
+  format: 3,
+  gate: "gate.json",
+  notice: "notice.json",
+  release: "release.json",
+  files: "files/",
+};
 const INDEX_URL_KEYS = ["gate", "notice", "release", "files"];
 
 test("index：標準形狀 ok；format 2 ⇒ error、不是 newer", () => {
@@ -75,11 +81,19 @@ for (const [label, format] of NOT_NEWER_FORMATS) {
 
 for (const key of INDEX_URL_KEYS) {
   test(`N29 index：${key} 寫成 "http://" ⇒ ok:false、訊息點名 index.${key}`, () => {
-    assertErrorAt(validateIndex({ ...INDEX, [key]: "http://" }), `index.${key}`);
+    assertErrorAt(
+      validateIndex({ ...INDEX, [key]: "http://" }),
+      `index.${key}`,
+    );
   });
 }
 
-const BAD_SCHEME_URLS = ["ftp://example.com/x/", "file:///C:/x/", "javascript:alert(1)/", "data:text/plain,x/"];
+const BAD_SCHEME_URLS = [
+  "ftp://example.com/x/",
+  "file:///C:/x/",
+  "javascript:alert(1)/",
+  "data:text/plain,x/",
+];
 for (const url of BAD_SCHEME_URLS) {
   test(`N29 index：絕對網址 ${url.slice(0, url.indexOf(":") + 1)} ⇒ ok:false`, () => {
     for (const key of INDEX_URL_KEYS) {
@@ -89,7 +103,10 @@ for (const url of BAD_SCHEME_URLS) {
 }
 
 test("N29 index：相對路徑與 https 絕對網址 ⇒ ok", () => {
-  assert.equal(validateIndex({ ...INDEX, gate: "sub/gate.json", files: "../files/" }).ok, true);
+  assert.equal(
+    validateIndex({ ...INDEX, gate: "sub/gate.json", files: "../files/" }).ok,
+    true,
+  );
   const abs = {
     format: 3,
     gate: "https://example.com/g.json",
@@ -116,18 +133,30 @@ test("resolveSiteUrls：相對於 manifest 自己的 URL", () => {
 });
 
 test("gate：空殼 {} ok；maintenance 缺 message ⇒ ok 且補成空字串", () => {
-  assert.deepEqual(validateGate({}), { ok: true, value: { maintenance: null, minLauncherVersion: null } });
-  assert.deepEqual(validateGate({ maintenance: { enabled: true } }).value.maintenance, {
-    enabled: true,
-    message: "",
+  assert.deepEqual(validateGate({}), {
+    ok: true,
+    value: { maintenance: null, minLauncherVersion: null },
   });
-  assertErrorAt(validateGate({ maintenance: { enabled: "yes" } }), "gate.maintenance.enabled");
+  assert.deepEqual(
+    validateGate({ maintenance: { enabled: true } }).value.maintenance,
+    {
+      enabled: true,
+      message: "",
+    },
+  );
+  assertErrorAt(
+    validateGate({ maintenance: { enabled: "yes" } }),
+    "gate.maintenance.enabled",
+  );
 });
 
 test("gate：minLauncherVersion 必須是 x.y.z", () => {
   assert.equal(validateGate({ minLauncherVersion: "1.0.0" }).ok, true);
   for (const bad of [100, "1.0", "1.0.0-beta"]) {
-    assertErrorAt(validateGate({ minLauncherVersion: bad }), "gate.minLauncherVersion");
+    assertErrorAt(
+      validateGate({ minLauncherVersion: bad }),
+      "gate.minLauncherVersion",
+    );
   }
 });
 
@@ -149,46 +178,103 @@ test("release：標準形狀 ok；空 files ok", () => {
 test("release：缺欄或型別錯 ⇒ error 點名該欄", () => {
   const { minecraft, ...noMinecraft } = goodRelease();
   assertErrorAt(validateRelease(noMinecraft), "release.minecraft");
-  assertErrorAt(validateRelease(goodRelease({ loader: { type: "forge", version: "1" } })), "release.loader.type");
-  assertErrorAt(validateRelease(goodRelease({ loader: { type: "fabric" } })), "release.loader.version");
+  assertErrorAt(
+    validateRelease(goodRelease({ loader: { type: "forge", version: "1" } })),
+    "release.loader.type",
+  );
+  assertErrorAt(
+    validateRelease(goodRelease({ loader: { type: "fabric" } })),
+    "release.loader.version",
+  );
   const { playerEditable, ...noPlayerEditable } = goodRelease();
   assertErrorAt(validateRelease(noPlayerEditable), "release.playerEditable");
-  assertErrorAt(validateRelease(goodRelease({ playerEditable: "config/" })), "release.playerEditable");
-  assertErrorAt(validateRelease(goodRelease({ playerEditable: ["config/", 3] })), "release.playerEditable[1]");
-  assertErrorAt(validateRelease(goodRelease({ playerEditable: ["../config/"] })), "release.playerEditable[0]");
-  assertErrorAt(validateRelease(goodRelease({ version: "" })), "release.version");
-  assertErrorAt(validateRelease(goodRelease({ publishedAt: "not a date" })), "release.publishedAt");
+  assertErrorAt(
+    validateRelease(goodRelease({ playerEditable: "config/" })),
+    "release.playerEditable",
+  );
+  assertErrorAt(
+    validateRelease(goodRelease({ playerEditable: ["config/", 3] })),
+    "release.playerEditable[1]",
+  );
+  assertErrorAt(
+    validateRelease(goodRelease({ playerEditable: ["../config/"] })),
+    "release.playerEditable[0]",
+  );
+  assertErrorAt(
+    validateRelease(goodRelease({ version: "" })),
+    "release.version",
+  );
+  assertErrorAt(
+    validateRelease(goodRelease({ publishedAt: "not a date" })),
+    "release.publishedAt",
+  );
 });
 
 test("release：files 每筆的 path／sha256／size", () => {
   const file = { path: "mods/a.jar", sha256: SHA, size: 1 };
-  assertErrorAt(validateRelease(goodRelease({ files: [{ ...file, path: "mods/../a.jar" }] })), "release.files[0].path");
-  assertErrorAt(validateRelease(goodRelease({ files: [{ ...file, sha256: "A".repeat(64) }] })), "release.files[0].sha256");
-  assertErrorAt(validateRelease(goodRelease({ files: [{ ...file, sha256: "abc" }] })), "release.files[0].sha256");
-  assertErrorAt(validateRelease(goodRelease({ files: [{ ...file, size: -1 }] })), "release.files[0].size");
-  assertErrorAt(validateRelease(goodRelease({ files: [{ ...file, size: 1.5 }] })), "release.files[0].size");
+  assertErrorAt(
+    validateRelease(
+      goodRelease({ files: [{ ...file, path: "mods/../a.jar" }] }),
+    ),
+    "release.files[0].path",
+  );
+  assertErrorAt(
+    validateRelease(
+      goodRelease({ files: [{ ...file, sha256: "A".repeat(64) }] }),
+    ),
+    "release.files[0].sha256",
+  );
+  assertErrorAt(
+    validateRelease(goodRelease({ files: [{ ...file, sha256: "abc" }] })),
+    "release.files[0].sha256",
+  );
+  assertErrorAt(
+    validateRelease(goodRelease({ files: [{ ...file, size: -1 }] })),
+    "release.files[0].size",
+  );
+  assertErrorAt(
+    validateRelease(goodRelease({ files: [{ ...file, size: 1.5 }] })),
+    "release.files[0].size",
+  );
 });
 
 test("release：minecraft／loader.version 開頭必須是英數（假設 18-10）", () => {
   for (const bad of ["1.21/../x", "..", "."]) {
-    assertErrorAt(validateRelease(goodRelease({ minecraft: bad })), "release.minecraft");
+    assertErrorAt(
+      validateRelease(goodRelease({ minecraft: bad })),
+      "release.minecraft",
+    );
   }
   assertErrorAt(
-    validateRelease(goodRelease({ loader: { type: "fabric", version: "0.19\\3" } })),
+    validateRelease(
+      goodRelease({ loader: { type: "fabric", version: "0.19\\3" } }),
+    ),
     "release.loader.version",
   );
 });
 
 test("release：files 重複、只差大小寫、上下層衝突 ⇒ 各自 error", () => {
   const f = (p) => ({ path: p, sha256: SHA, size: 1 });
-  assertErrorAt(validateRelease(goodRelease({ files: [f("mods/A.jar"), f("mods/a.jar")] })), "release.files");
-  assertErrorAt(validateRelease(goodRelease({ files: [f("a/b"), f("a/b/c.toml")] })), "release.files");
-  assertErrorAt(validateRelease(goodRelease({ files: [f("mods/a.jar"), f("mods/a.jar")] })), "release.files");
+  assertErrorAt(
+    validateRelease(goodRelease({ files: [f("mods/A.jar"), f("mods/a.jar")] })),
+    "release.files",
+  );
+  assertErrorAt(
+    validateRelease(goodRelease({ files: [f("a/b"), f("a/b/c.toml")] })),
+    "release.files",
+  );
+  assertErrorAt(
+    validateRelease(goodRelease({ files: [f("mods/a.jar"), f("mods/a.jar")] })),
+    "release.files",
+  );
 });
 
 test("fileListError：withSize 決定每筆要不要 size；label 當訊息開頭", () => {
   const noSize = [{ path: "mods/a.jar", sha256: SHA }];
-  assert.equal(fileListError(noSize, "record.files", { withSize: false }), null);
+  assert.equal(
+    fileListError(noSize, "record.files", { withSize: false }),
+    null,
+  );
   assert.equal(
     fileListError(noSize, "release.files", { withSize: true }),
     "release.files[0].size: 必須是 ≥0 的整數",

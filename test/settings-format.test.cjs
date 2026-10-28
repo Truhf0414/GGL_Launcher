@@ -35,7 +35,10 @@ test("SETTINGS_KEYS 是五個鍵（memoryGb 退休）、每個都有畫面用的
     "launcherRootDir",
     "debugLogging",
   ]);
-  assert.deepEqual(Object.keys(SETTINGS_LABELS).sort(), [...SETTINGS_KEYS].sort());
+  assert.deepEqual(
+    Object.keys(SETTINGS_LABELS).sort(),
+    [...SETTINGS_KEYS].sort(),
+  );
   assert.equal(SETTINGS_ERROR_CODE, "GGL_SETTINGS");
   assert.deepEqual(checkSettings(VALID), []);
 });
@@ -52,18 +55,43 @@ test("V5 記憶體：接受 1、64、1.5、1.00048828125、null（兩欄都是�
   for (const key of ["minMemoryGb", "maxMemoryGb"]) {
     for (const v of [1, 64, 1.5, 1.00048828125, null]) {
       // min 與 max 都填同一個值，避開 min > max
-      assert.deepEqual(issuesOf({ minMemoryGb: v, maxMemoryGb: v }), [], `${key}=${v}`);
+      assert.deepEqual(
+        issuesOf({ minMemoryGb: v, maxMemoryGb: v }),
+        [],
+        `${key}=${v}`,
+      );
     }
   }
 });
 
-test("V5 記憶體：拒絕 0、負數、65、Infinity（JSON 的 1e999）、NaN、\"4\"、true、undefined；issue 帶鍵與原值", () => {
+test('V5 記憶體：拒絕 0、負數、65、Infinity（JSON 的 1e999）、NaN、"4"、true、undefined；issue 帶鍵與原值', () => {
   for (const key of ["minMemoryGb", "maxMemoryGb"]) {
-    for (const v of [0, -1, 65, 64.0001, 0.5, Infinity, NaN, "4", "4G", true, undefined, {}, []]) {
+    for (const v of [
+      0,
+      -1,
+      65,
+      64.0001,
+      0.5,
+      Infinity,
+      NaN,
+      "4",
+      "4G",
+      true,
+      undefined,
+      {},
+      [],
+    ]) {
       const issues = issuesOf({ [key]: v });
-      assert.equal(issues.length, 1, `${key}=${String(v)}：${JSON.stringify(issues)}`);
+      assert.equal(
+        issues.length,
+        1,
+        `${key}=${String(v)}：${JSON.stringify(issues)}`,
+      );
       assert.equal(issues[0].key, key);
-      assert.ok(Object.is(issues[0].value, v), `${key}=${String(v)} 原值要原樣帶回`);
+      assert.ok(
+        Object.is(issues[0].value, v),
+        `${key}=${String(v)} 原值要原樣帶回`,
+      );
       assert.equal(typeof issues[0].reason, "string");
       assert.equal(typeof issues[0].fix, "string");
     }
@@ -85,7 +113,17 @@ test("V5 min > max ⇒ 拒絕、掛在 minMemoryGb；相等可以；只填一個
 });
 
 test("V5 playerId：拒絕空字串、前後空白、非字串；不加 Minecraft 名稱規則", () => {
-  for (const v of ["", " ", " Steve", "Steve ", "\tSteve", null, 1, true, undefined]) {
+  for (const v of [
+    "",
+    " ",
+    " Steve",
+    "Steve ",
+    "\tSteve",
+    null,
+    1,
+    true,
+    undefined,
+  ]) {
     const issues = issuesOf({ playerId: v });
     assert.equal(issues.length, 1, JSON.stringify(v));
     assert.equal(issues[0].key, "playerId");
@@ -116,7 +154,13 @@ test("V5 launcherRootDir：只收本機磁碟機開頭的絕對路徑", () => {
     assert.equal(issues.length, 1, JSON.stringify(v));
     assert.equal(issues[0].key, "launcherRootDir");
   }
-  for (const v of ["D:\\我的 遊戲", "d:\\games", "D:/Games", "E:\\Game2\\GGL", "C:\\"]) {
+  for (const v of [
+    "D:\\我的 遊戲",
+    "d:\\games",
+    "D:/Games",
+    "E:\\Game2\\GGL",
+    "C:\\",
+  ]) {
     assert.deepEqual(issuesOf({ launcherRootDir: v }), [], v);
   }
 });
@@ -137,7 +181,8 @@ test("V5 未知鍵（含退休的 memoryGb、打錯字、舊 discord 鍵、__pro
     issues.map((i) => i.key),
     ["launcherRootDri", "memoryGb", "discordClientId", "__proto__"],
   );
-  for (const i of issues) assert.ok(formatIssue(i).includes(i.key), formatIssue(i));
+  for (const i of issues)
+    assert.ok(formatIssue(i).includes(i.key), formatIssue(i));
 });
 
 test("checkSettings 回全部問題，不是第一條就停", () => {
@@ -149,10 +194,14 @@ test("checkSettings 回全部問題，不是第一條就停", () => {
     launcherRootDir: "C:",
     debugLogging: "yes",
   });
-  assert.deepEqual(
-    issues.map((i) => i.key).sort(),
-    ["debugLogging", "launcherRootDir", "maxMemoryGb", "memoryGb", "minMemoryGb", "playerId"],
-  );
+  assert.deepEqual(issues.map((i) => i.key).sort(), [
+    "debugLogging",
+    "launcherRootDir",
+    "maxMemoryGb",
+    "memoryGb",
+    "minMemoryGb",
+    "playerId",
+  ]);
 });
 
 test("formatIssue：含名稱、鍵、原值、原因、修法；原值照型別寫（字串加引號、Infinity 不變成 null）", () => {
@@ -186,12 +235,15 @@ test("V24 備份檔名用台北時間（UTC+8），與本機時區無關", () =>
 test("recoveredNoticeText：壞法、備份完整路徑、安裝位置回到預設與要重選、其他設定也回預設", () => {
   const text = recoveredNoticeText({
     why: "JSON 語法錯誤",
-    backupPath: "C:\\Users\\a\\AppData\\Roaming\\GGL_launcher\\settings.broken-20261022-003005.json",
+    backupPath:
+      "C:\\Users\\a\\AppData\\Roaming\\GGL_launcher\\settings.broken-20261022-003005.json",
     defaultRootDir: "C:\\Games\\GGL",
   });
   assert.ok(text.includes("JSON 語法錯誤"), text);
   assert.ok(
-    text.includes("C:\\Users\\a\\AppData\\Roaming\\GGL_launcher\\settings.broken-20261022-003005.json"),
+    text.includes(
+      "C:\\Users\\a\\AppData\\Roaming\\GGL_launcher\\settings.broken-20261022-003005.json",
+    ),
     text,
   );
   assert.ok(text.includes("C:\\Games\\GGL"), text);

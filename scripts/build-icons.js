@@ -106,7 +106,7 @@ async function main() {
       .png()
       .toBuffer();
     await fs.writeFile(out, buf);
-    if ([256, 128, 64, 48, 32, 24, 16].includes(s)) pngBuffersForIco.push(buf);
+    pngBuffersForIco.push(buf);
   }
 
   // 產生 .ico

@@ -1,10 +1,10 @@
 node_modules/
 dist/
-**/dist/
-assets/*.min.css
 **/*.min.css
 **/*.map
 **/.cache/
 **/coverage/
-rpc-helper/node_modules/
+_notes/
+.claude/
+CLAUDE.md
 

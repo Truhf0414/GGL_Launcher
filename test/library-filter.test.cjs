@@ -34,7 +34,8 @@ test("T4 libraryArtifact：沒有 downloads ⇒ 由 name 推 Maven 路徑，url 
 
 test("T4 libraryArtifact：四段 name 的 classifier 接在檔名後；兩段、帶 @ ⇒ 丟錯", () => {
   assert.equal(
-    libraryArtifact({ name: "org.x:y:1.0:natives-windows", url: "https://m/" }).rel,
+    libraryArtifact({ name: "org.x:y:1.0:natives-windows", url: "https://m/" })
+      .rel,
     "org/x/y/1.0/y-1.0-natives-windows.jar",
   );
   assert.throws(
@@ -51,7 +52,11 @@ test("T5 libraryArtifact：Fabric fixture 8 支的 rel 與 installer 的 getPath
   const libs = fx.fabric().libraries;
   assert.equal(libs.length, 8);
   for (const lib of libs) {
-    assert.equal(libraryArtifact(lib).rel, fx.installerLibraryPath(lib.name), lib.name);
+    assert.equal(
+      libraryArtifact(lib).rel,
+      fx.installerLibraryPath(lib.name),
+      lib.name,
+    );
   }
 });
 

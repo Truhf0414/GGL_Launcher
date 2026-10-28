@@ -1,4 +1,4 @@
-# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 已授權（owner 2026-10-29），其餘各批另行授權**）
+# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 完成（`3a57b5d`，經 owner 驗收放行）；6e-2 完成（`0f4cfe0`，經 owner 驗收放行）；6e-3 完成（`6577be5`，經 owner 驗收放行）；6e-4 完成（`a7b623a`，經 owner 驗收放行）；CJS-FMT 完成（`1a7c9d3`，照 owner 裁定以單一 commit 提交），其餘各批另行授權**）
 
 **這是什麼**：Phase 6e 的施工權威，同時也是**兩條線共用的裁決、跨線整合、Phase 6 整體結案**的權威。2026-10-28 的初稿是以「七批串行」寫成的。2026-10-29 owner 把 CSS 拆成獨立工程，本檔依此改寫，之後經過兩輪審查修訂與一輪 owner 最終裁決（→ §改判紀錄）。**裁決不等於任何程式已經實作。**
 
@@ -60,6 +60,7 @@
 | D-6E-CLOSE | 收尾包含整個交叉審查事件的結案 | owner 2026-10-28：「收尾含結案」 |
 | D-6E-SPLIT-BATCH | `no-empty` 的修正（6e-3）與打開規則（6e-5）是兩個不同批次；全 repo 格式化（6e-6）不得搶在相關工作線合併之前 | Crossfire 收斂；owner 2026-10-29 最終裁決 §四列為「維持先前已裁事項」 |
 | D-6E-OSAPI | `setAppUserModelId`、`setMenuBarVisibility`、`loginWin.close()` 三處採「清」：catch 裡留具體的 best-effort 原因，非致命的外觀或關窗失敗不升級成啟動、登入故障；不為了滿足 ESLint 無條件刪掉這些 catch | owner 2026-10-29 最終裁決 §四 |
+| D-6E-SAFELOG | `safeLog`（`main/runtime/download.js:19-26`）從「刪〔待驗〕」改為「清」：catch 留著、寫理由。原判只看正式接線的 logger 不會同步丟錯，漏掉 N6-D2 要求在呼叫邊界隔離 logger 故障；T-I4 的同步丟錯案是反例 | owner 2026-10-29（6e-3 施工中停下回報後）：「原判「刪」依賴正式 logger 不會同步丟錯的現有接線，卻漏掉 N6-D2 已經要求呼叫邊界隔離 logger 故障；T-I4 反例推翻原判，因此改為「清」。」〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：本列寫於本 commit 之後，`main/runtime/download.js:19-26` 已是本 commit 後的位置〕 |
 
 **owner 2026-10-29 最終裁決**（D-6E-WHERE 以外，出處一律為 owner 轉貼的「Phase 6e — Final Owner Decisions & Plan Closure」，§二逐題裁、§三採既有建議）：
 
@@ -79,6 +80,9 @@
 | D-6E-WT | Q-WT | `.claude/worktrees/upbeat-jepsen-a6383a` 先確認沒有未保存的工作、沒有其他 session 在用、沒有要留的內容，取得明確操作授權後才清理；本輪不刪；格式化與 lint 工具忽略 `.claude/` | §三 |
 | D-6E-RETRO | Q-RETRO | 做簡短而具體的 retro：錯誤主張與撤回原因、改變責任判斷的反向對照、移除了哪些冗餘防禦、哪些保證仍須保留、在哪裡選擇停止；不寫成果宣傳 | §三 |
 | D-6E-WHERE | Q-6E-WHERE | 6e 線（6e-1～6e-4）直接在 `main` 上依序做；CSS 線維持獨立分支 | owner 2026-10-29：「Q-6E-WHERE 照建議，直接在 main 上做，CSS 保持獨立分支。」 |
+| D-6E-FMT-USE | Q-FORMAT-USAGE | 日常：對本次改到、Prettier 管得到的檔跑 `npm run format:file -- <檔>`；`npm run format` 是全 repo 格式化，只留給專門的格式化批次。改 `conventions.md` 並讓 `README.md` 一致，納入 6e-4 | owner 2026-10-29 轉貼「Owner 裁決 — 6e-4 最終收尾」§1：「採 (b)。」 |
+| D-6E-CJS | Q-CJS-SCOPE | 另立施工卡 CJS-FMT：`.cjs` 納入 `npm run format`，既有適用的 `.cjs` 一次性格式化；不納入 6e-4、不擴張 6e-6；獨立 commit；以實際 Prettier 結果確認要改的檔；驗證差異只有格式並跑 Node 22／24 全套、lint 與相關檢查；非預期的語意變化或範圍擴張就停。時點原裁「排在 6e-6 完成之後」，同日 owner 要求現在開卡施工（CC 解讀為不等 6e-6，交辦時明寫此假設） | owner 2026-10-29 同一份轉貼 §2；時點：owner 2026-10-29「請你現在就開一張卡片做 Q-CJS-SCOPE 好了，我不想拖。」 |
+| D-6E-CJS-MERGE | CJS-FMT 跨線合併衝突 | CJS-FMT 現在施工，接受跟 CSS 分支在 `package.json` 的一處已知合併衝突：CSS 線改 `dist:win`／`pack:win`，CJS-FMT 改 `format`，欄位責任不重疊；三方合併實測確認衝突會明確出現、不會靜默覆寫。整合時的處理 → §跨線契約 7。只接受這一處已確認的相鄰行衝突，不是全面解除跨線衝突的停工規則 | owner 2026-10-29 在 CJS-FMT session 轉貼「Owner 裁決 — CJS-FMT 跨線合併衝突」：「採 (a)：現在施工，接受已知的單一 `package.json` 合併衝突。」 |
 
 **Crossfire 收斂、owner 沒有逐條裁的**（當設計依據用，不當門檻；owner 可推翻）：
 - 註解不能拿來當 lint 的通行證（§四「清」的註解規則）。
@@ -134,7 +138,7 @@
 | 留-2（`:39-46`） | **沿用** |
 | §一 B2、§二 S-CSS（`:48-124`） | **移交** CSS 線 |
 | §三 R-THUMB（`:125-171`） | **沿用**五條驗收帳與測試帳。前置**取代**為「全案第一批」 |
-| §四 S-CHECK／S-FMT（`:174-196`） | **拆開**：`UI_CSS_STRICT` 與 (7) 移交 CSS 線，其餘沿用；`package.json` 的部分改到整合端（管理選擇，§依賴分析） |
+| §四 S-CHECK／S-FMT（`:174-196`） | **拆開**：`UI_CSS_STRICT` 與 (7) 移交 CSS 線，其餘沿用；`package.json` 的部分改到整合端（管理選擇，§依賴分析）〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：本行的 `package.json` 沒帶行號〕〔對齊 2026-10-29：→ `1a7c9d3`（plans/cross-review-2026-10-phase6e.md CJS-FMT）：本行的 `package.json` 沒帶行號；其他行號指的檔不在本 commit〕 |
 | §五 S-V2、§六 U13（`:199-243`） | **沿用**；Q-U13 已裁 B（D-6E-U13-B） |
 | §七 `no-empty`（`:246-262`） | 分類大部分**沿用**；5 處改判（§改判紀錄）；Q-DLG 那列**取代**為 (a′)；打開規則改到整合端 |
 | §八 收尾（`:265-283`） | **沿用**，另加 Phase 6 整體結案的定義與 Q-CLOSE（§六） |
@@ -211,12 +215,12 @@ if (n.imageUrl)
 ## 二、S-V2：發包工具不再接 v2 站台索引（6e-1）
 
 **現讀**：
-- `scripts/lib/publish.js`：`:233-281`（`LEGACY_MANIFEST_FIELDS`、`readManifest` 的 `schemaVersion` 分支）、`:624`、`:646-648`。
-- `scripts/lib/publish-report.js`：`:107-125`、`:187-190`。
-- `docs/site-format.md:39`。
+- `scripts/lib/publish.js`：`:233-281`（`LEGACY_MANIFEST_FIELDS`、`readManifest` 的 `schemaVersion` 分支）、`:624`、`:646-648`。〔對齊 2026-10-29：→ `3a57b5d`（plans/cross-review-2026-10-phase6e.md 6e-1）：`scripts/lib/publish.js:233-281` 整段改寫（`LEGACY_MANIFEST_FIELDS` 與 `schemaVersion` 分支刪除），`readManifest` 現在 `:243-262`；`:624`、`:646-648`（兩處 `legacyManifestFields`）刪除〕
+- `scripts/lib/publish-report.js`：`:107-125`、`:187-190`。〔對齊 2026-10-29：→ `3a57b5d`（plans/cross-review-2026-10-phase6e.md 6e-1）：`scripts/lib/publish-report.js:107-125`（`formatLegacyFields`）、`:187-190`（舊欄位那行）都刪除〕
+- `docs/site-format.md:39`。〔對齊 2026-10-29：→ `3a57b5d`（plans/cross-review-2026-10-phase6e.md 6e-1）：`docs/site-format.md:39` 未移動，原地改寫成「只認兩種情況」〕
 - 正式站台已經是 `format: 3`〔查過〕；conventions §5 寫「不接舊版」。
 
-**刪掉之後**：遇到 v2 索引，會走既有的 `refusedManifest`，拒絕發版，報告附兩條修法。接手的測試是 N32 那組，從「v2 照收」改成「v2 會被拒」；`:1289-1334` 已經在測各種錯誤形狀被拒。
+**刪掉之後**：遇到 v2 索引，會走既有的 `refusedManifest`，拒絕發版，報告附兩條修法。接手的測試是 N32 那組，從「v2 照收」改成「v2 會被拒」；`:1289-1334` 已經在測各種錯誤形狀被拒。〔對齊 2026-10-29：→ `3a57b5d`（plans/cross-review-2026-10-phase6e.md 6e-1）：`test/sync-publish.test.cjs:1289-1334`（拒發表）後 `:1265-1322`，表內多了 v2 兩格〕
 
 **測試帳**（實測，兩步）：
 - **只改正式程式**：紅 **52** 個。幾乎都是因為測試共用的 `newSite` → `legacySite` 從 v2 站台開始。
@@ -225,21 +229,28 @@ if (n.imageUrl)
   - `formatPublishReport --details`；
   - `publish apply 首發`；
   - `readSite` ×2。
-- **一處綠的孤兒**：`test/sync-publish-cli.test.cjs:168` 的假 summary 還帶著 `legacyManifestFields`，要清掉。
+- **一處綠的孤兒**：`test/sync-publish-cli.test.cjs:168` 的假 summary 還帶著 `legacyManifestFields`，要清掉。〔對齊 2026-10-29：→ `3a57b5d`（plans/cross-review-2026-10-phase6e.md 6e-1）：`test/sync-publish-cli.test.cjs:168` 刪除〕
 
 **回滾與發布成本**：只動發包工具和它的測試，站台不動，回滾就是 revert 一個 commit，不實際發版。
 
 **隔離**：
 - 發包工具的預設站台根目錄是正式目錄（`scripts/publish-config.js:14`，`--site-root` 可以蓋）。
-- 測試一律在 `os.tmpdir()` 底下建仿真站台（`test/sync-publish.test.cjs:27-34`）〔讀碼〕。
+- 測試一律在 `os.tmpdir()` 底下建仿真站台（`test/sync-publish.test.cjs:27-34`）〔讀碼〕。〔對齊 2026-10-29：→ `3a57b5d`（plans/cross-review-2026-10-phase6e.md 6e-1）：`test/sync-publish.test.cjs:27-34` 未移動〕
 - 施工與探針**不准**在沒帶 `--site-root <暫存區>` 的情況下跑 `publish` CLI。
+
+**施工紀錄（6e-1）**：commit `3a57b5d`（5 檔，+27／-116），2026-10-29 owner 授權（主 session 轉述：「我們來做 docs commit 後就往 6e-1 開始吧！」），由新 session 施工（D-6E-SESS）。
+- 只改正式程式時紅 52；拿掉仿真站台寫 `manifest.json` 那一行後紅 6，名單跟測試帳一致；改完 Node 24.14.1、22.23.4 全套都 1415／1415（刪 2 個 v2 放行測試、拒發表加 2 格）；`lint`、`check:ui-css`、`check:ui-css:strict` 過；防禦 grep 零命中（對照組有命中）。
+- 沒跑 `publish` CLI。隔離啟動一次，本體照常開；啟動器不載入發包工具，這次啟動觀察不到本批改動。
+- 拒發訊息改成「認不出這份索引：沒有 format 鍵；v3 索引請檢查 format 有沒有拼錯」。
+- 計畫外：拿掉 `LEGACY_LINE` 與它的斷言（舊欄位那行已不可能出現，斷言恆真）；改掉三處寫著「v2 照收」的測試註解。
+- owner 驗收：「接受 6e-1 的五個檔案變更、拒發訊息與孤兒清理 可以 commit。」
 
 ---
 
 ## 三、U13：`logUrl` 內容的格式（6e-2；已裁方案 B，D-6E-U13-B）
 
 **事實**〔查過〕：
-- 解析器只有一處：`lib/sync/notice.js:28-57` 的 `parseNoticeLogText`，接受四種格式：JSON 陣列、`{log}`、`{lines}`、純文字。唯一的呼叫者是 `main/sync/site-client.js:131`。
+- 解析器只有一處：`lib/sync/notice.js:28-57` 的 `parseNoticeLogText`，接受四種格式：JSON 陣列、`{log}`、`{lines}`、純文字。唯一的呼叫者是 `main/sync/site-client.js:131`。〔對齊 2026-10-29：→ `0f4cfe0`（plans/cross-review-2026-10-phase6e.md 6e-2）：`lib/sync/notice.js:28-57` 整段改寫成只收 `{log}`，現在 `:30-42`；`main/sync/site-client.js:131` 未移動〕
 - 站上實際只用 `{ "log": [...] }`。
 - inline 的公告 log 也是一個叫 `log` 的陣列。
 - `future-work.md`「公告與通知顯示的毛病」(c)：JSON 解出空清單時，畫面顯示原始的 `[]`。SF-L4 把這個行為釘死了。
@@ -258,9 +269,16 @@ if (n.imageUrl)
 **已裁 B**（D-6E-U13-B）。6e-2 要做的：
 - `parseNoticeLogText` 只收 `{ "log": [...] }`，拿掉 JSON 陣列、`{lines}`、純文字三條路，不留相容分支；
 - 照上表 B 的測試帳更新：5 個直接測解析器的案例改斷言；6 個抓取測試的假 changelog 換成 `{log}` 形狀；
-- `docs/site-format.md:174-185` 與 SF-L3／SF-L4 同步改成只有一種格式；
+- `docs/site-format.md:174-185` 與 SF-L3／SF-L4 同步改成只有一種格式；〔對齊 2026-10-29：→ `0f4cfe0`（plans/cross-review-2026-10-phase6e.md 6e-2）：`docs/site-format.md:174-185` 後 `:174-184`〕
 - (c) 跟著消失：結案批把 `future-work.md` 那條移走（§六）。
 - 站台不動（站上那份本來就是 `{log}`〔實測〕）。
+
+**施工紀錄（6e-2）**：commit `0f4cfe0`（7 檔，+69／-72），2026-10-29 owner 授權（「好喔，開始 6e-2 吧！」），由新 session 施工（D-6E-SESS）。
+- 只改正式程式時紅 11，名單跟測試帳一致；改完 Node 24.14.1、22.23.4 全套都 1415／1415；`lint`、`check:ui-css`、`check:ui-css:strict` 過；防禦 grep 零命中（對照組有命中）。
+- 格式不符丟 `TypeError`（JSON 壞掉是 `SyntaxError`），由 `fetchLogLines` 既有的 catch 接成抓取失敗；`fetchText` 不再回 `contentType`（唯一讀它的地方拿掉了）。SF-L4 除了斷言丟錯，也經 `fetchNotice` 走過「從沒成功」「成功後變錯」兩段。
+- 隔離啟動看公告 log 五種畫面：正式站台 5 行；假站台 `{log}` 正常、換成陣列格式後沿用上一次、`{log: []}` 收起來（(c) 不再出現）、一開始就是陣列格式沒有 log。
+- 計畫外：測試假 fetch 的 `headers` 拿掉（正式程式不再讀）；SF-L1／SF-L2 的假 changelog 換成 `{log}`。
+- owner 驗收：「接受 6e-2，可以 commit，筆記收尾一起做」
 
 ---
 
@@ -274,15 +292,15 @@ if (n.imageUrl)
 
 | 處置 | 位置 | 理由與證據 |
 |---|---|---|
-| **刪** | `main/microsoft-auth.js:461`、`:464`（`removeListener`、`server.off`）；`main/runtime/download.js:248`（`ac.abort()`）；`main/server-status.js:47`（`socket.destroy()`）；`renderer/lifetime.js:41`（改成 `new Error(cleaned, { cause: e })`） | Node 的 EventEmitter 方法、`AbortController.abort`、`socket.destroy` 帶合法參數不丟錯，在全新的 Error 上設屬性也不丟錯〔推論：讀碼〕。舊草稿那次 9 處一起拆的探針 0 紅、覆蓋率顯示這幾行都有被執行到〔實測 2026-10-28〕；這 5 處是那 9 處的子集 |
-| **刪**〔待驗〕 | `main/runtime/download.js:23` 的 `safeLog`（`:19-24`）；`scripts/downscale-bg-video.cjs:43` | `safeLog` 注入的是 `appendLauncherLog`，它是 async、整段包在自己的 try 裡，不會同步丟錯也不會 reject〔讀碼：`main/launcher-log.js:21-33`〕；施工時先確認每個呼叫者傳的都是它。`downscale-bg-video` 是開發用腳本，失敗大聲反而好 |
-| **刪**（重複；已裁方案 A，D-6E-RETRY-A） | `main/net-fetch.js:42`（`notifyRetryToUi`）、`:162`（`withRetries` 包 `onRetry`） | 見下方「重試通知的保證主人」 |
-| **清**（best-effort，在 catch 裡寫理由，不記日誌；D-6E-OSAPI） | `main/app-ready.js:116`（`setAppUserModelId`）；`main/microsoft-auth.js:448`（`setMenuBarVisibility`） | **改判**（原本是「刪」）。理由寫在下方「Electron／OS API」 |
-| **清**（清理順序；D-6E-OSAPI） | `main/microsoft-auth.js:470`（`if (!loginWin.isDestroyed()) loginWin.close()`） | **改判**（原本是「刪」）。它在 `cleanupAnd` 裡、排在 `action()` 之前（`:455-472`）。拆掉 try 的話，`close()` 一丟錯，`action()` 就不會跑，登入的 Promise 永遠不結束，畫面卡住。這是 Electron API，會不會丟錯沒查〔未驗〕；但萬一丟錯，後果是卡住而不是報錯，所以留著，理由寫「關窗失敗不得擋住登入結果的回報」 |
-| **清**（留著，在 catch 裡寫一行理由） | `main/launcher-log.js:31,46`（debug log 自己寫不進去，無處可報）、`:59,61`（輪替是盡力而為）；`main/microsoft-auth.js:442`（丟出原始錯誤之前關伺服器）、`:467`（`server.close()`，時序上可能已經關了〔推論〕）；`main/net-fetch.js:202`（探測有沒有半截的檔）、`:220`（伺服器不支援續傳，下一步用 `w` 從頭寫〔讀碼待確認〕）、`:270,273`（錯誤路徑的清理，原始錯誤優先）；`main/startup-failure.js:25`（最後一道報錯，有測試守）；`main/sync/apply.js:179,182`（上方已有註解，搬進 catch）；`scripts/freeze-on-request.cjs:25`（故意空轉）；`test/account-store.test.cjs:42`（測試的收尾） | §4：吞錯只限清理與探測 |
-| **出聲** | `main/fs-utils.js:33` `ensureWritableTree` | 啟動前建資料夾失敗被吞掉，遊戲之後才用比較模糊的方式壞掉。拆掉 try，讓失敗沿著啟動路徑丟出，玩家按「啟動」就看得到（原則 ①）；加一個測試。「這幾個資料夾需不需要啟動器先建」（`defense-cleanup.md` §待查）要真的啟動遊戲才驗得了 → 進 future-work |
-| **出聲**（已裁：D-6E-DLG） | `main/ui-dialogs.js:11` `showInfoDialog` | 見下方 Q-DLG 段 |
-| **best-effort**（已裁 D-6E-SEEN） | `renderer/notifications-ui.js:21` `localStorage.setItem` | 瀏覽器儲存是邊界；寫失敗的後果〔推論，施工前確認〕只是紅點下次又亮。已讀紅點是便利性的 UI 狀態，不是一定要存下來的玩家資料。施工見下方「Q-SEEN 的施工前確認」 |
+| **刪** | `main/microsoft-auth.js:461`、`:464`（`removeListener`、`server.off`）；`main/runtime/download.js:248`（`ac.abort()`）；`main/server-status.js:47`（`socket.destroy()`）；`renderer/lifetime.js:41`（改成 `new Error(cleaned, { cause: e })`） | Node 的 EventEmitter 方法、`AbortController.abort`、`socket.destroy` 帶合法參數不丟錯，在全新的 Error 上設屬性也不丟錯〔推論：讀碼〕。舊草稿那次 9 處一起拆的探針 0 紅、覆蓋率顯示這幾行都有被執行到〔實測 2026-10-28〕；這 5 處是那 9 處的子集〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/microsoft-auth.js:461`、`:464`、`main/runtime/download.js:248`、`main/server-status.js:47`、`renderer/lifetime.js:41` 的 try 照本列刪除（`lifetime.js` 改成 `new Error(…, { cause: e })`）〕 |
+| **刪**〔待驗〕 | `main/runtime/download.js:23` 的 `safeLog`（`:19-24`）；`scripts/downscale-bg-video.cjs:43` | `safeLog` 注入的是 `appendLauncherLog`，它是 async、整段包在自己的 try 裡，不會同步丟錯也不會 reject〔讀碼：`main/launcher-log.js:21-33`〕；施工時先確認每個呼叫者傳的都是它。`downscale-bg-video` 是開發用腳本，失敗大聲反而好〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/runtime/download.js:23` 照 owner 改判為「清」（D-6E-SAFELOG），catch 仍在 `:23`、寫了理由，`safeLog` 後 `:19-26`；`scripts/downscale-bg-video.cjs:43` 的 try 刪除；`main/launcher-log.js:21-33` 後 `:21-35`〕 |
+| **刪**（重複；已裁方案 A，D-6E-RETRY-A） | `main/net-fetch.js:42`（`notifyRetryToUi`）、`:162`（`withRetries` 包 `onRetry`） | 見下方「重試通知的保證主人」〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/net-fetch.js:42`、`:162` 的 catch 刪除（方案 A）〕 |
+| **清**（best-effort，在 catch 裡寫理由，不記日誌；D-6E-OSAPI） | `main/app-ready.js:116`（`setAppUserModelId`）；`main/microsoft-auth.js:448`（`setMenuBarVisibility`） | **改判**（原本是「刪」）。理由寫在下方「Electron／OS API」〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/app-ready.js:116` 原地改寫（catch 寫理由）；`main/microsoft-auth.js:448` 後 `:450`（catch 寫理由）〕 |
+| **清**（清理順序；D-6E-OSAPI） | `main/microsoft-auth.js:470`（`if (!loginWin.isDestroyed()) loginWin.close()`） | **改判**（原本是「刪」）。它在 `cleanupAnd` 裡、排在 `action()` 之前（`:455-472`）。拆掉 try 的話，`close()` 一丟錯，`action()` 就不會跑，登入的 Promise 永遠不結束，畫面卡住。這是 Electron API，會不會丟錯沒查〔未驗〕；但萬一丟錯，後果是卡住而不是報錯，所以留著，理由寫「關窗失敗不得擋住登入結果的回報」〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/microsoft-auth.js:470` 後 `:472`（catch 寫理由）；`cleanupAnd` `:455-472` 後 `:459-476`〕 |
+| **清**（留著，在 catch 裡寫一行理由） | `main/launcher-log.js:31,46`（debug log 自己寫不進去，無處可報）、`:59,61`（輪替是盡力而為）；`main/microsoft-auth.js:442`（丟出原始錯誤之前關伺服器）、`:467`（`server.close()`，時序上可能已經關了〔推論〕）；`main/net-fetch.js:202`（探測有沒有半截的檔）、`:220`（伺服器不支援續傳，下一步用 `w` 從頭寫〔讀碼待確認〕）、`:270,273`（錯誤路徑的清理，原始錯誤優先）；`main/startup-failure.js:25`（最後一道報錯，有測試守）；`main/sync/apply.js:179,182`（上方已有註解，搬進 catch）；`scripts/freeze-on-request.cjs:25`（故意空轉）；`test/account-store.test.cjs:42`（測試的收尾） | §4：吞錯只限清理與探測〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：都原地加理由：`main/launcher-log.js:31,46` 後 `:31,48`、`:59,61` 後 `:63,67`；`main/microsoft-auth.js:442`、`:467` 未移動；`main/net-fetch.js:202`、`:220` 後 `:198`、`:218`，`:270,273` 後 `:270,275`；`main/startup-failure.js:25` 未移動；`main/sync/apply.js:179,182` 後 `:178,183`；`scripts/freeze-on-request.cjs:25` 未移動；`test/account-store.test.cjs:42` 未移動〕 |
+| **出聲** | `main/fs-utils.js:33` `ensureWritableTree` | 啟動前建資料夾失敗被吞掉，遊戲之後才用比較模糊的方式壞掉。拆掉 try，讓失敗沿著啟動路徑丟出，玩家按「啟動」就看得到（原則 ①）；加一個測試。「這幾個資料夾需不需要啟動器先建」（`defense-cleanup.md` §待查）要真的啟動遊戲才驗得了 → 進 future-work〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/fs-utils.js:33` 的 try 刪除，`ensureWritableTree` 的 `mkdir` 現在在 `:31`〕 |
+| **出聲**（已裁：D-6E-DLG） | `main/ui-dialogs.js:11` `showInfoDialog` | 見下方 Q-DLG 段〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/ui-dialogs.js:11` 改成 `catch (err)` 記 `dialog_failed`，後 `:13`〕 |
+| **best-effort**（已裁 D-6E-SEEN） | `renderer/notifications-ui.js:21` `localStorage.setItem` | 瀏覽器儲存是邊界；寫失敗的後果〔推論，施工前確認〕只是紅點下次又亮。已讀紅點是便利性的 UI 狀態，不是一定要存下來的玩家資料。施工見下方「Q-SEEN 的施工前確認」〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`renderer/notifications-ui.js:21` 改成 `catch (err)` 記 `notifications_seen_save_failed`，後 `:23`〕 |
 
 **「清」的註解規則**（Crossfire 收斂）：實測 `catch { /* reason */ }` 不會被 `no-empty` 報（Crossfire CC 第二輪 §四），所以只要有註解，這條規則就會變綠。「清」的註解必須寫出具體理由：屬於哪個出口（留-1 到留-4，或 §4 的清理／探測），或者上表寫的那種非致命理由。只寫「忽略」不算。這條靠審查守，機器擋不到。
 
@@ -292,16 +310,16 @@ if (n.imageUrl)
 - `withRetries` 只有兩個呼叫者，都在 `main/net-fetch.js` 裡：
   - `fetchJson`（`:59-72`）：`onRetry` 只呼叫 `notifyRetryToUi`。
   - `downloadToFile`（`:195` 起）：`onRetry` 做三件事（`:282-287`）：組訊息、呼叫 `notifyRetryToUi`、`void netDeps.appendLauncherLog(...)`。
-  - 測試直接呼叫 `withRetries` 的案例都沒有讓 `onRetry` 丟錯（`test/net-fetch-logic.test.cjs:55`、`test/net-fetch-download.test.cjs:439-457`）。
+  - 測試直接呼叫 `withRetries` 的案例都沒有讓 `onRetry` 丟錯（`test/net-fetch-logic.test.cjs:55`、`test/net-fetch-download.test.cjs:439-457`）。〔對齊 2026-10-29：→ `1a7c9d3`（plans/cross-review-2026-10-phase6e.md CJS-FMT）：`test/net-fetch-logic.test.cjs:55` 未移動；`test/net-fetch-download.test.cjs:439-457` 後 `:448-466`〕
   - 沒有其他模組依賴 `withRetries` 去隔離 callback 的錯誤。
 - `notifyRetryToUi`（`:39-43`）用 try 包住 `netDeps.onRetryNotify`。
-- `onRetryNotify` 在 `main/app-ready.js:135-138` 組成：呼叫 `sendSyncStatus` 和 `sendMcStatus`。這兩個 sender 各自先 `void deps.appendLauncherLog(...)`，再 `send` → `deliver`（`main/ipc-bridge.js:57-81`）。
-- `deliver`（`main/ipc-bridge.js:22-31`）：`webContents.send` 丟錯時記 `renderer_send_failed`、回 false，不往外丟。這是 owner 2026-10-25 的 Q3 裁決，`main/app-ready.js:133` 的註解也直接寫「重試的通知不會打斷下載」。
-- `appendLauncherLog`（`main/launcher-log.js:21-33`）：async 函式，debug 關著就直接 return，開著的話整段包在 try 裡。所以它**不會同步丟錯**，正常也**不會 reject**。呼叫端一律 `void`，所以就算它 reject，也打斷不了重試，但會變成沒人接的 rejection。
+- `onRetryNotify` 在 `main/app-ready.js:135-138` 組成：呼叫 `sendSyncStatus` 和 `sendMcStatus`。這兩個 sender 各自先 `void deps.appendLauncherLog(...)`，再 `send` → `deliver`（`main/ipc-bridge.js:57-81`）。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/app-ready.js:135-138` 後 `:137-140`；其他行號指的檔不在本 commit〕
+- `deliver`（`main/ipc-bridge.js:22-31`）：`webContents.send` 丟錯時記 `renderer_send_failed`、回 false，不往外丟。這是 owner 2026-10-25 的 Q3 裁決，`main/app-ready.js:133` 的註解也直接寫「重試的通知不會打斷下載」。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/app-ready.js:133` 後 `:135`；其他行號指的檔不在本 commit〕
+- `appendLauncherLog`（`main/launcher-log.js:21-33`）：async 函式，debug 關著就直接 return，開著的話整段包在 try 裡。所以它**不會同步丟錯**，正常也**不會 reject**。呼叫端一律 `void`，所以就算它 reject，也打斷不了重試，但會變成沒人接的 rejection。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/launcher-log.js:21-33` 後 `:21-35`〕
 - `configureNetFetch` 缺任何一個必填依賴就丟錯（`:17-22`、`:31-36`）。「開機一定會呼叫、而且兩個都給」由 `test/app-ready.test.cjs:105-113` 釘住。
 
 **探針**〔實測 2026-10-29，Node 24.14.1，repo 外副本，暫存區 `6e2/`〕：
-- **接線**：照 `main/app-ready.js:133-140` 組正式接線，用真的 `net-fetch`、真的 `ipc-bridge`、真的 `launcher-log`。
+- **接線**：照 `main/app-ready.js:133-140` 組正式接線，用真的 `net-fetch`、真的 `ipc-bridge`、真的 `launcher-log`。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/app-ready.js:133-140` 後 `:135-142`〕
 - **注入兩種下游故障**：
   - 假視窗的 `webContents.send` 同步丟錯；
   - debug log 打開，但把桌面路徑指到一個「檔案」底下，讓 `mkdir` 真的失敗（ENOTDIR）。
@@ -325,14 +343,14 @@ if (n.imageUrl)
 - **送畫面這條的主人是 `deliver`**。拆掉它的 catch，A 立刻斷：重試停了，原本的錯誤也被蓋掉。head 和 B 則被 net-fetch 的 catch 遮住，看不出 `deliver` 壞了。所以 net-fetch 那兩層對這條路徑來說是重複的，而且會遮掉下游的毛病。
 - **寫日誌這條的主人是 `appendLauncherLog` 自己的 try**。net-fetch 的同步 catch 根本接不到 async 的 reject，A 和 head 在這條路徑上沒有差別。拆掉 net-fetch 的 catch，對日誌故障的處理沒有任何影響。
 - **原本的錯誤不會被通知或日誌的故障蓋掉**：「兩次都 503」在 head、A、B 都丟原本的錯誤。
-- **既有測試**：B11（`test/net-fetch-download.test.cjs:319-358`）已經在真 bridge 上測「送畫面丟錯，下載照樣成功」。拆掉 `deliver` 的 catch，B11 在 head 和 A 上都會紅。紅的原因是它同時斷言了 `renderer_send_failed` 那兩筆日誌，所以它守的是 `deliver` 這個主人本身，分不出 net-fetch 那層在不在。
+- **既有測試**：B11（`test/net-fetch-download.test.cjs:319-358`）已經在真 bridge 上測「送畫面丟錯，下載照樣成功」。拆掉 `deliver` 的 catch，B11 在 head 和 A 上都會紅。紅的原因是它同時斷言了 `renderer_send_failed` 那兩筆日誌，所以它守的是 `deliver` 這個主人本身，分不出 net-fetch 那層在不在。〔對齊 2026-10-29：→ `1a7c9d3`（plans/cross-review-2026-10-phase6e.md CJS-FMT）：`test/net-fetch-download.test.cjs:319-358` 後 `:328-367`〕
 
 **兩案**（**已裁方案 A**，D-6E-RETRY-A；方案 B 留作紀錄）：
 - **方案 A**：拆掉 `:42` 和 `:162`，保證由正式接線的下游承擔：
   - 送畫面交給 `deliver`（Q3 裁決，B11 守）；
   - 寫日誌交給 `appendLauncherLog` 自己的 try；
   - 「依賴一定接上」交給 `configureNetFetch` 的必填檢查加 `app-ready.test`。
-  - 要同步改 `main/net-fetch.js:24-26` 的註解。那段寫的是「沒 configure 就用到會被下面兩個 best-effort 出口與 withRetries 吞掉」；方案 A 之後，這種情況會在第一次重試時大聲丟 TypeError。這跟 `REQUIRED_FUNCTIONS` 註解裡「忘了接就要大聲」的方向一致。
+  - 要同步改 `main/net-fetch.js:24-26` 的註解。那段寫的是「沒 configure 就用到會被下面兩個 best-effort 出口與 withRetries 吞掉」；方案 A 之後，這種情況會在第一次重試時大聲丟 TypeError。這跟 `REQUIRED_FUNCTIONS` 註解裡「忘了接就要大聲」的方向一致。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/net-fetch.js:24-26` 未移動，註解已照此原地改寫〕
   - 測試：不新增。B11 已經守住送畫面這條；本表的探針就是「拆掉下游保證會變紅」的反向對照。
 - **方案 B**：留 `withRetries` 的 catch，拆 `notifyRetryToUi` 的。理由是「通用的重試工具不信任呼叫端給的 callback」。代價有兩個：
   - 它會繼續遮住下游的毛病（見上表 head＋拆 `deliver` 那列）；
@@ -344,8 +362,8 @@ if (n.imageUrl)
 
 | 位置 | 失敗時應該怎樣 | 記不記日誌 |
 |---|---|---|
-| `main/app-ready.js:116` `app.setAppUserModelId("ggl3.launcher")` | 繼續啟動。這行的作用是讓工作列的識別跟 `package.json` `build.appId` 對齊（`:114` 註解、`package.json:49`）。設定失敗的後果最多是工作列圖示分組不一致；拆掉 try，後果會變成啟動器整個開不起來 | **不記**。啟動器沒有用 OS 的系統通知（`rg Notification main` 只命中站內通知的 IPC 與路徑，沒有 Electron 的 `Notification`〔查過 2026-10-29；對照組 `rg BrowserWindow main` 有命中〕），所以失敗的影響只有工作列分組。玩家幾乎不會為這個回報，記了也很少有人去看 |
-| `main/microsoft-auth.js:448` `loginWin.setMenuBarVisibility(false)` | 繼續登入。失敗的後果是登入視窗多一條選單列 | **不記**。症狀本身就看得到，記下來不會多提供任何診斷資訊 |
+| `main/app-ready.js:116` `app.setAppUserModelId("ggl3.launcher")` | 繼續啟動。這行的作用是讓工作列的識別跟 `package.json` `build.appId` 對齊（`:114` 註解、`package.json:49`）。設定失敗的後果最多是工作列圖示分組不一致；拆掉 try，後果會變成啟動器整個開不起來 | **不記**。啟動器沒有用 OS 的系統通知（`rg Notification main` 只命中站內通知的 IPC 與路徑，沒有 Electron 的 `Notification`〔查過 2026-10-29；對照組 `rg BrowserWindow main` 有命中〕），所以失敗的影響只有工作列分組。玩家幾乎不會為這個回報，記了也很少有人去看〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/app-ready.js:116` 原地改寫（catch 寫理由）、`:114` 未移動；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`package.json:49` 後 `:47`；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：→ `1a7c9d3`（plans/cross-review-2026-10-phase6e.md CJS-FMT）：`package.json:47`（上次對齊）未移動（本 commit 只原地改 `:17`）；其他行號指的檔不在本 commit〕 |
+| `main/microsoft-auth.js:448` `loginWin.setMenuBarVisibility(false)` | 繼續登入。失敗的後果是登入視窗多一條選單列 | **不記**。症狀本身就看得到，記下來不會多提供任何診斷資訊〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/microsoft-auth.js:448` 後 `:450`（catch 寫理由）〕 |
 
 - 兩處的 catch 都寫一行理由，說明「非致命：失敗只影響外觀，不得擋住啟動／登入」。
 - 這兩個 API 實際上什麼時候會丟錯，沒查〔未驗〕。不管會不會丟，「失敗時要不要中斷」這個判斷都成立。
@@ -357,7 +375,7 @@ if (n.imageUrl)
   - `main/ipc/instance-ipc.js:41-45` 的 `reportMovedAside` 在成功路徑上跳框。`movedAside` 在畫面端沒有任何程式讀它，所以這個對話框是唯一的告知管道。
   - 既有測試只有替身 `showInfoDialog: async () => {}`，沒有一個案例讓對話框失敗。
 - **改法**：
-  - `createShowInfoDialog` 多收一個記錄函式，接線只改 `main/start-main.js:180`，接既有的 `gglError`。
+  - `createShowInfoDialog` 多收一個記錄函式，接線只改 `main/start-main.js:180`，接既有的 `gglError`。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/start-main.js:180` 原地改寫（多傳 `gglError`）〕
   - catch 裡呼叫它，然後照舊吞掉，事件名用 `dialog_failed` 這類固定名稱。
 - **紀錄的邊界**〔讀碼〕：
   - `gglError` 寫進檔案的 `err` 不含 message，整行的家目錄會換成 `~`（`lib/ggl-structured-log.js:8`、`:138`）。
@@ -374,7 +392,7 @@ if (n.imageUrl)
 
 ### Q-SEEN（D-6E-SEEN）的施工前確認
 
-動 `renderer/notifications-ui.js:21` 之前先確認三件事：
+動 `renderer/notifications-ui.js:21` 之前先確認三件事：〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`renderer/notifications-ui.js:21` 後 `:23`（改成 `catch (err)`）〕
 1. 寫入失敗是不是真的只影響「已讀」的持久化。
 2. 會不會讓重要公告消失、被錯標成已讀，或造成其他實質的通知問題。
 3. 畫面端有沒有現成、受控的診斷通道可以記這類錯誤。
@@ -390,11 +408,21 @@ if (n.imageUrl)
 - 方案 A：0 紅〔實測，上表〕。不新增測試（D-6E-RETRY-A）。
 - 「刪〔待驗〕」的 2 處、`ensureWritableTree`、Q-DLG、Q-SEEN、改判成「清」的 3 處：沒有探針。施工時先在副本實跑，紅燈跟預期不同就停。
 
+**施工紀錄（6e-3）**：commit `6577be5`（20 檔，+179／-63），2026-10-29 owner 授權（「開始 6e-3 吧」），由新 session 施工（D-6E-SESS）。
+- 動工前 ESLint 乾跑 39 處（rpc-helper 9、其他 30），30 處位置跟上表逐一對上；施工後只剩 rpc-helper 9 處，留給 6e-5。
+- `safeLog`：副本實測拆掉 try 紅 1（T-I4 的同步丟錯案），跟測試帳不同，停下回報；owner 改判為「清」（D-6E-SAFELOG）。
+- Q-SEEN 施工前三項確認都通過：寫入失敗只讓下次開啟時紅點又亮（只會多算未讀，不會少算）；通知清單與「清除全部」不看這個值；畫面端有現成的 `gglError`（只送事件 ID）。照「有現成通道就用它」，在 `lib/renderer-error-events.js` 白名單加 `notifications_seen_save_failed`——上表沒列這個檔，owner 2026-10-29 轉貼的施工細節確認接受它是 Q-SEEN 的必要配套，條件是只記有限事件資訊、送出失敗不擋通知也不讓玩家看到錯誤。
+- Q-DLG：測試本來就有假 electron（`test/helpers/fake-electron.cjs`），`dialog` 不必注入；`createShowInfoDialog` 只多收記錄函式，並在建立時檢查它（沒接上的話，跳框失敗時 catch 反而會丟錯、蓋掉原本的結果）。同一份轉貼要求不加 adapter 或另一套對話框機制，照做。
+- 只改正式程式時紅 1（B10u，沒傳記錄函式），跟跑之前講的預期相同；改完 Node 24.14.1、22.23.4 全套都 1419／1419（新增 4 案：Q-DLG ×2、`ensureWritableTree`、通知 N4b）；`lint`、`check:ui-css`、`check:ui-css:strict` 過；防禦 grep 每條命中都已回答（驗收單）。
+- 反向對照 6 個突變都紅：跳框失敗不記、往外丟、附加資料帶本文；已讀寫入失敗不記、往外丟；`ensureWritableTree` 改回吞錯。
+- 隔離啟動一次，畫面與公告正常。owner 問「畫面有我需要驗收的東西嗎？」，CC 回：正常情況沒有變化，唯一看得到的改變是 `ensureWritableTree` 失敗時在按「啟動」當下報錯，只用單元測試驗過。
+- owner 驗收：「接受 6e-3，可以 commit，筆記收尾跟 snapshot 一起做」
+
 **打開規則（6e-5）**：
 - 內容：
   - `eslint.config.cjs` 的 `ignores` 加 `.claude/**`（不加的話，殘留 worktree 會讓 lint 紅）；
   - 加 `"no-empty": "error"`，以及 rpc-helper 的例外；
-  - `conventions.md:42` 的「空 catch（ESLint no-empty）」改精確成「`catch` 區塊」。
+  - `conventions.md:42` 的「空 catch（ESLint no-empty）」改精確成「`catch` 區塊」。〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動〕
 - **機器保證的缺口**：promise 的 `.catch(() => {})` 不歸 `no-empty` 管，正式程式裡有 11 處（N3）。已裁延後（D-6E-PCATCH）：本輪不建規則，結案批記進 future-work。
 
 ---
@@ -405,9 +433,9 @@ if (n.imageUrl)
 
 | 項 | 現讀 | 結論 |
 |---|---|---|
-| `check:renderer-scripts`（`package.json:22`） | 沒有呼叫者；`check:ui-css` 已經跑同一支腳本（`:20-21`）。`test/ui-check-scripts.test.cjs:17` 引用的是腳本檔名，不是這個 npm script〔查過 2026-10-29〕 | 改：刪 |
+| `check:renderer-scripts`（`package.json:22`） | 沒有呼叫者；`check:ui-css` 已經跑同一支腳本（`:20-21`）。`test/ui-check-scripts.test.cjs:17` 引用的是腳本檔名，不是這個 npm script〔查過 2026-10-29〕 | 改：刪〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`package.json:22` 刪除（`check:renderer-scripts`），`:20-21` 後 `:19-20`；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：→ `1a7c9d3`（plans/cross-review-2026-10-phase6e.md CJS-FMT）：`package.json:19-20`（上次對齊）未移動（本 commit 只原地改 `:17`）；其他行號指的檔不在本 commit〕 |
 | `build.files` 的 `!assets/rpc-helper.exe`、`!assets/*.mp4` | `files` 的正向清單只點名特定 assets，這兩條排除看起來不會生效〔待驗〕 | 已裁 D-6E-FILES：**6e-4 不動這兩條**。不單獨安排打包；在整合後共同回歸那次打包時檢查實際產物。判定界線：產物裡沒有這兩類檔，只證明「現在不在」，不等於「拿掉規則也不會進去」；證據不足以判定冗餘就走留-4，不刪 |
-| `scripts/build-icons.js:109` | `sizes`（`:99`）跟 `includes` 的清單一模一樣，條件永遠成立 | 改 |
+| `scripts/build-icons.js:109` | `sizes`（`:99`）跟 `includes` 的清單一模一樣，條件永遠成立 | 改〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`scripts/build-icons.js:109` 原地改寫（拿掉條件）、`:99` 未移動〕 |
 | `deepFreeze` 2 份、`pad2` 4 份 | 三行的小工具重複不算「同一個事實」；要合併得新開一個橫跨 lib／main／scripts 的共用模組 | 退回、留（判準檔 §退回） |
 | `.prettierignore` 重複 3 條 | 照 gitignore 語法：`dist/` 已涵蓋 `**/dist/`，`node_modules/` 已涵蓋 `rpc-helper/node_modules/`，`**/*.min.css` 已涵蓋 `assets/*.min.css` | 改；驗法：改前改後 `prettier --list-different` 的清單完全相同 |
 
@@ -420,13 +448,34 @@ if (n.imageUrl)
 - **工具修正（6e-4）**：**這批會改行為，不只是空白與換行**：改格式化指令、忽略規則，以及建置／檢查工具的部分行為。
   - 只留一條 `format`，範圍由 `.prettierignore` 決定：加 `_notes/`、`.claude/`、`CLAUDE.md`；
   - 刪 `format:ui`；
-  - `conventions.md:57` 與 `README.md:15` 改成指向 `format`；
+  - `conventions.md:57` 與 `README.md:15` 改成指向 `format`；〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:57`、`README.md:15` 原地改寫（改指 `format:file`，`format` 只給格式化批次）〕
   - 驗法：`npx prettier --file-info <檔>` 逐一看 `ignored`：`_notes/` 裡一份、`.claude/` 裡一份、`CLAUDE.md` 要是 `true`；`README.md`、`ARCHITECTURE.md`、`docs/` 裡一份、一支 `main/` 的 JS 要是 `false`（對照組）。
 - **全 repo 格式化（6e-6）**：這才是專門的格式化批次，只動空白與換行。
   - 相關線都合併之後才做；
   - 單獨一個 commit，可以獨立審查、獨立 revert；
   - **提交前**把實際 diff 給 owner 驗收；
   - 不混進任何功能修正。
+
+**施工紀錄（6e-4）**：commit `a7b623a`（5 檔，+6／-8），2026-10-29 owner 授權（「我是打算把 6e-4 開工。」），由新 session 施工（D-6E-SESS）。
+- `.prettierignore` 去重：改前改後 `prettier --list-different` 的清單，用 `format` 的 glob 和 `.` 兩種範圍各跑一次，都逐位元組相同。
+- 新加三行的 `--file-info`：`_notes/conventions.md`、`.claude/worktrees/upbeat-jepsen-a6383a/ARCHITECTURE.md`（特地挑不在 `_notes/` 底下的）、`CLAUDE.md` 是 `ignored: true`；`README.md`、`ARCHITECTURE.md`、`docs/site-format.md`、`main/app-ready.js` 是 `false`。改完後 `format` 還會改到的檔是 15 份，`_notes/`、`.claude/` 0 份。
+- `check:renderer-scripts`、`format:ui`：`rg` 掃 repo（`_notes/` 除外），只有 `package.json` 自己和 `README.md:15` 提到；對照組 `check:ui-css` 有命中。
+- `build-icons.js`：`assets/icon.png` 不在 repo，git 歷史也沒有（→ §新發現 N5），用自己生的 32×32 圖在 repo 外跑改前改後兩次，10 個產物逐位元組相同；突變（不放 16px）讓 `icon.ico` 不同，證明比法抓得到差異。
+- Node 24.14.1、22.23.4 全套都 1419／1419，跟預期的 0 紅相同；`lint`、`check:ui-css`、`check:ui-css:strict` 過；防禦 grep 0 命中（對照組 `6577be5` 25 條）。沒跑實際啟動：這批沒改到執行時會用到的檔。
+- CSS 分支（`1d66b3e`）在共用檔上動的欄位與行，跟本批不重疊；`README.md:14`／`:15`、`conventions.md:58`／`:57` 相鄰，CSS 線拉進 `main` 時會碰到文字衝突（§跨線契約 6）。
+- 驗收時 owner 裁 Q-FORMAT-USAGE 採 (b)（D-6E-FMT-USE），`conventions.md:57`、`README.md:15` 照此改寫，跟上面「改成指向 `format`」不同；另立 CJS-FMT（D-6E-CJS，見下）。
+- owner 驗收：「允許 commit，但須先完成以下收尾」（收尾四項完成後 commit）。
+
+**CJS-FMT**（D-6E-CJS）：`format` 的 glob 是 `**/*.{js,css,html,json,md,yml,yaml}`，不含 `.cjs`，`test/` 底下的測試檔永遠不會被格式化（6e-4 施工時發現）。
+- 內容：glob 加 `cjs`；對既有 `.cjs` 一次性格式化，要改哪些以實際 Prettier 結果為準（2026-10-29 是 52 份，全在 `test/`、`test/helpers/`）。
+- 要求：獨立 commit，不混功能修改；驗證差異只有格式；Node 22／24 全套、`lint` 與相關檢查；出現非預期的語意變化或範圍擴張就停。
+- 不擴張 6e-6；6e-6 不再重新討論 `.cjs`。
+
+**施工紀錄（CJS-FMT）**：commit `1a7c9d3`，53 檔：`package.json` 的 `format` 一行，加上 52 份 `.cjs`（`test/` 48 份、`test/helpers/` 4 份）〔查過 2026-10-29：`git show --name-only 1a7c9d3`〕。由另開的 CJS-FMT session 施工，以下測試與比對是它的回報：
+- 52 份施工前後轉成語法樹比對（含註解）0 處不一致；故意把一份的 `===` 改成 `!==`，比對抓得到。再跑一次 Prettier，`.cjs` 沒有要再改的。
+- Node 24.14.1、22.23.4 全套都 1419／1419；`lint`、`check:ui-css`、`check:ui-css:strict` 過。CSS 線擁有的 `scripts/check-ui-css.cjs`、`test/ui-check-scripts.test.cjs` 沒動。
+- 跟 CSS 分支合併 `package.json` 有一處已知衝突，owner 接受（D-6E-CJS-MERGE；整合時 → §跨線契約 7）。
+- owner 放行：同一份裁決「確認 `git diff` 沒有超出本卡範圍，再以單一 commit 提交」。
 
 ---
 
@@ -460,8 +509,8 @@ if (n.imageUrl)
   - U14：撤回清理、保留站台檔，附改判原因 N2（D-6E-U14）。
 - **`defense-cleanup.md`**：標題「盤點完成、未動工」改成結案狀態，並指到各 Phase。
 - **文件**：
-  - `README.md:15`、`conventions.md:57`（S-FMT）；
-  - `conventions.md:42`（§四）；
+  - `README.md:15`、`conventions.md:57`（S-FMT）；〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:57`、`README.md:15` 原地改寫（改指 `format:file`，`format` 只給格式化批次）〕
+  - `conventions.md:42`（§四）；〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動〕
   - `docs/site-format.md:39`（S-V2）、SF-L3／SF-L4（U13）；
   - `ARCHITECTURE.md` 只在本輪動到的地方跟著改。現掃 `ARCHITECTURE.md`、`README.md`、`CLAUDE.md`、`docs/` 裡指向 repo 內檔案的路徑，沒有指到已刪檔案的〔實測 2026-10-28，對照組有命中〕。
 - **其他**：
@@ -483,13 +532,13 @@ if (n.imageUrl)
 
 | 項 | 改的檔 | 可能跟 CSS 線共用的檔 |
 |---|---|---|
-| R-THUMB | `renderer/instance-ui.js`、`styles.css:17`（註解）、`test/site-format-doc.test.cjs`（SF-S3／S4） | `styles.css`（6e-0 落地後才開 CSS 線，之後 6e 不再碰）〔對齊 2026-10-29：`styles.css:17` → `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0） 後 `:17-19`；其他行號指的檔不在本 commit〕 |
+| R-THUMB | `renderer/instance-ui.js`、`styles.css:17`（註解）、`test/site-format-doc.test.cjs`（SF-S3／S4） | `styles.css`（6e-0 落地後才開 CSS 線，之後 6e 不再碰）〔對齊 2026-10-29：`styles.css:17` → `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0） 後 `:17-19`；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：→ `0f4cfe0`（plans/cross-review-2026-10-phase6e.md 6e-2）：本行的 `test/site-format-doc.test.cjs` 沒帶行號；`styles.css:17-19`（上次對齊）不在本 commit〕〔對齊 2026-10-29：→ `1a7c9d3`（plans/cross-review-2026-10-phase6e.md CJS-FMT）：本行的 `test/site-format-doc.test.cjs` 沒帶行號；其他行號指的檔不在本 commit〕 |
 | S-V2 | `scripts/lib/publish.js`、`scripts/lib/publish-report.js`、`test/sync-publish*.test.cjs`、`docs/site-format.md:39` | 無 |
 | U13 | `lib/sync/notice.js`、`main/sync/site-client.js`、`test/sync-notice*`、`test/site-format-doc.test.cjs`（SF-L）、抓取測試、`docs/site-format.md:174-185` | 無 |
 | `no-empty` 修正＋Q-DLG＋Q-RETRY | §四表中各檔、`main/ui-dialogs.js`、`main/start-main.js`、新測試 | 無〔推論：都是 `main/`、`renderer/lifetime.js`、`renderer/notifications-ui.js`、`scripts/` 底下非 CSS 的檔〕 |
-| S-CHECK（非 CSS） | `package.json` 兩個欄位、`scripts/build-icons.js`、`.prettierignore` 第 3、5、10 行 | `package.json`、`.prettierignore` |
-| S-FMT 工具 | `package.json`（`format`、`format:ui`）、`.prettierignore`、`README.md`、`conventions.md:57` | `package.json`、`.prettierignore`（CSS plan 預估會刪 `:4`）、`README.md`（CSS plan 預估會改 `:11`）、`conventions.md` |
-| 打開 `no-empty` | `eslint.config.cjs`、`conventions.md:42` | `conventions.md` |
+| S-CHECK（非 CSS） | `package.json` 兩個欄位、`scripts/build-icons.js`、`.prettierignore` 第 3、5、10 行 | `package.json`、`.prettierignore`〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`.prettierignore` 第 3、5、10 行刪除〕 |
+| S-FMT 工具 | `package.json`（`format`、`format:ui`）、`.prettierignore`、`README.md`、`conventions.md:57` | `package.json`、`.prettierignore`（CSS plan 預估會刪 `:4`）、`README.md`（CSS plan 預估會改 `:11`）、`conventions.md`〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:57` 原地改寫；`.prettierignore:4` 後 `:3`；`README.md:11` 未移動〕〔對齊 2026-10-29：→ `1a7c9d3`（plans/cross-review-2026-10-phase6e.md CJS-FMT）：本行的 `package.json` 沒帶行號（`format` 那行原地改寫）；其他行號指的檔不在本 commit〕 |
+| 打開 `no-empty` | `eslint.config.cjs`、`conventions.md:42` | `conventions.md`〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動〕 |
 | 全 repo 格式化 | 不定 | **所有檔** |
 
 CSS 線實際會改到哪些檔，以它合併時交出的清單為準（§跨線契約），不以任何一版 CSS plan 的預估為準。
@@ -535,8 +584,9 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 | 6e-1 | S-V2（§二） | `main`（D-6E-WHERE） | 6e-0 驗收（owner 裁定） | §二 的檔 | 52 → 6，外加 1 個綠的孤兒〔實測〕 | 否 | revert 1 commit |
 | 6e-2 | U13 方案 B（§三，D-6E-U13-B） | `main` | 6e-1（管理） | §三 的檔 | 紅 11〔實測〕 | 要：公告 log | revert 1 commit |
 | 6e-3 | `no-empty` 修正＋Q-DLG＋Q-RETRY 方案 A＋`ensureWritableTree`＋Q-SEEN（§四） | `main` | 6e-2（管理）；Q-SEEN 三項施工前確認（§四） | §四 的檔 | 部分實測、部分待驗（§四） | 否 | revert 1 commit |
-| 6e-4 | S-CHECK（非 CSS）＋S-FMT 工具（§五）：改格式化指令、忽略規則、建置／檢查工具，**不是純空白批** | `main` | 6e-3 局部驗收（D-6E-6E4-EARLY）；**不等** CSS 線合併 | `package.json` 的 6e 欄位（D-6E-PKG）、`.prettierignore`、`scripts/build-icons.js`、`README.md:15`、`conventions.md:57` | 未跑探針〔待驗〕：預期 0 紅 | 否 | revert 1 commit |
-| 6e-5 | 打開 `no-empty`（§四） | `main` | 6e-3 進 `main`（技術）；CSS 線已合併（管理） | `eslint.config.cjs`、`conventions.md:42` | 預期 lint 0 錯〔待驗：在合併後的 HEAD 上跑〕 | 否 | revert 1 commit |
+| 6e-4 | S-CHECK（非 CSS）＋S-FMT 工具（§五）：改格式化指令、忽略規則、建置／檢查工具，**不是純空白批** | `main` | 6e-3 局部驗收（D-6E-6E4-EARLY）；**不等** CSS 線合併 | `package.json` 的 6e 欄位（D-6E-PKG）、`.prettierignore`、`scripts/build-icons.js`、`README.md:15`、`conventions.md:57` | 0 紅〔實測〕 | 否 | revert 1 commit〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:57`、`README.md:15` 原地改寫（改指 `format:file`，`format` 只給格式化批次）〕 |
+| CJS-FMT | `.cjs` 納入 `format`＋既有 `.cjs` 一次性格式化（§五 CJS-FMT，D-6E-CJS） | `main` | owner 2026-10-29 要求現在施工（原裁 6e-6 之後） | `package.json` 的 `format`、要格式化的 `.cjs` | 0 紅〔實測〕 | 否 | revert 1 commit |
+| 6e-5 | 打開 `no-empty`（§四） | `main` | 6e-3 進 `main`（技術）；CSS 線已合併（管理） | `eslint.config.cjs`、`conventions.md:42` | 預期 lint 0 錯〔待驗：在合併後的 HEAD 上跑〕 | 否 | revert 1 commit〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動〕 |
 | 6e-6 | 全 repo 格式化（§五），唯一的純格式化批 | `main` | 6e-4、相關線都已合併（技術） | 不定（只有空白與換行） | 0 紅〔待驗〕 | 否；**提交前**給 owner 看實際 diff（D-6E-FMT） | revert 1 commit |
 | — | 整合後共同回歸 | `main` | 6e-6 | — | 見下 | **要**：主畫面整體 | — |
 | 6e-7 | Phase 6 整體結案（§六） | `main` | 全部；CSS 線交出母體項目的結論與證據（技術）；D-6E-CLOSE-SCOPE 五條 | 文件 | — | 否 | docs commit |
@@ -590,8 +640,8 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - §四表中的各檔；
 - `eslint.config.cjs`；
 - `package.json` 的 `check:renderer-scripts`、`format`、`format:ui`，以及 `build.files` 的兩條排除；
-- `.prettierignore` 第 3、5、10 行，以及 6e-4 新加的 `_notes/`、`.claude/`、`CLAUDE.md` 三行；
-- `conventions.md:42`、`:57`。
+- `.prettierignore` 第 3、5、10 行，以及 6e-4 新加的 `_notes/`、`.claude/`、`CLAUDE.md` 三行；〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`.prettierignore` 第 3、5、10 行刪除；新加的三行在 `:8-10`〕
+- `conventions.md:42`、`:57`。〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動、`:57` 原地改寫〕
 
 **4. 可能需要重新協調的部分**：CSS 線具體要改哪些共用檔、改哪幾行，不是永久邊界。CSS plan 的任何一版預估都不算數，以合併時交出的清單為準。清單裡如果出現第 3 點的檔，或者 CSS 改了樣式入口、打包內容、檢查器、共用檔的需求，6e 的整合介面要重新檢查。例如 `build.files`、打包檢查、`check:ui-css` 跑什麼，都不能默認舊的安排還有效。
 
@@ -601,6 +651,19 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - 跑整合後共同回歸。
 
 **6. 合併前置**：CSS 線合併之前，要先把當時最新的 `main` 拉進自己的分支，在分支上完成自己的局部驗收；然後在 `main` 上重新核對共用檔的實際改動。6e-4 可能比 CSS 線先進 `main`（D-6E-6E4-EARLY），這時 `package.json`、`.prettierignore`、`README.md`、`conventions.md` 的相鄰改動由 CSS 線在拉進 `main` 時處理，解完逐欄位對照 D-6E-PKG。
+
+**7. 已知的 `package.json` 衝突**（D-6E-CJS-MERGE）：
+- CSS 分支合併回 `main` 時，`package.json` 有一處已知衝突：`main` 的 `1a7c9d3` 改了 `format` 那行，CSS 分支改了相鄰的 `dist:win`、`pack:win`。CJS-FMT session 以 merge-base `26eddd5` 對 `1a7c9d3` 與 `css/css-2026-10`（`1d66b3e`）跑 `git merge-file` 預演，這個檔只有這 1 處衝突〔查過 2026-10-29：`git merge-tree` 以 `main`（`1a7c9d3`）對 `1d66b3e` 重跑，`package.json` 的衝突標記 1 組〕。
+- 解衝突時三樣都要留住：CSS 線的 `dist:win`、`pack:win`；CJS-FMT 的 `format`（含 `cjs`）；6e-4 刪掉 `format:ui` 的結果，不恢復。
+- 合併後檢查 `package.json` 最後的 scripts，重跑必要的格式與工程檢查。
+- 出現預演以外的衝突就停下回報 owner。D-6E-CJS-MERGE 只接受這一處，不是全面解除跨線衝突的停工規則。
+- 整次合併不只這一個檔會衝突〔查過 2026-10-29：`git merge-tree --write-tree --name-only main css/css-2026-10`，衝突檔 7 個：`package.json`、`.prettierignore`、`_notes/conventions.md`、`_notes/future-work.md`、`_notes/history.md`、`_notes/tools/.snapshot/conventions.md`、`_notes/tools/.snapshot/future-work.md`〕。這些都不在 D-6E-CJS-MERGE 的放行範圍內，各自的解法如下（衝突內容〔查過 2026-10-29：同一次 `git merge-tree` 的結果裡逐檔看衝突標記〕）：
+  - `.prettierignore`（第 6 點的共用檔）：`main` 刪了兩條重複規則（`**/dist/`、`assets/*.min.css`），CSS 刪了 `assets/tailwind.css`。兩邊的刪除都收下，三行都不留。
+  - `_notes/conventions.md`（第 6 點的共用檔）：`main` 照 D-6E-FMT-USE 改寫了格式化那句，CSS 刪了 `assets/tailwind.css` 那條。用 `main` 的格式化句，Tailwind 那條刪掉；`format:ui` 不能從 CSS 那側帶回來。
+  - `_notes/future-work.md`：`main` 新增兩條待辦（`ensureWritableTree` 那幾個資料夾、`build:icons` 跑不起來），CSS 移走已經做完的 Tailwind 那條。留 `main` 新增的兩條，Tailwind 那條照 CSS 移走。
+  - `_notes/history.md`：兩邊都在同一位置往後追加（`main` 是 6e 各批，CSS 是 CSS-1 起各批）。兩邊的紀錄都留，依時間排；不改任何一條的內文。
+  - 兩份快照（`_notes/tools/.snapshot/`）：是 `doc_check.py` 產生的檔，不手動合。合併時先任選一側，合併後跑 `python _notes/tools/doc_check.py snapshot`（帶當時未結案的 plan）重新產生。
+  - 兩邊之後還會再前進，以合併當下重跑的結果為準；出現這裡沒列到的衝突，就停下回報 owner。
 
 ---
 
@@ -619,7 +682,7 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
    - GGL 本體的 `main/` 沒有自己處理這個參數，所以跟著同一個機制走〔推論〕。
    - userData 以外還有三個位置〔讀碼〕：
      - 遊戲根目錄預設 `C:/Games/GGL`（`lib/server-config.js:33`）→ 隔離的 userData 裡預先放 `settings.json`，`launcherRootDir` 指到這條線專屬的資料夾；
-     - `launcher.log` 寫在桌面（`main/launcher-log.js:18`），只有 `debugLogging` 開著時才寫（`:22`）→ `settings.json` 明寫 `"debugLogging": false`；
+     - `launcher.log` 寫在桌面（`main/launcher-log.js:18`），只有 `debugLogging` 開著時才寫（`:22`）→ `settings.json` 明寫 `"debugLogging": false`；〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/launcher-log.js:18`、`:22` 未移動；其他行號指的檔不在本 commit〕
      - 診斷匯出會複製桌面的 `launcher.log`（`diagnostics-export.js:124`）→ 驗收時不按。
    - 隔離資料夾放暫存區或 `H:`，不放 `%APPDATA%`（memory「Claude 的 MSIX AppData 轉存」）。owner 看畫面用 owner 自己開的終端或捷徑。
    - **不能安全隔離就不跑。**
@@ -628,7 +691,7 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 
 | 共用資源 | 會不會互相干擾 | 根據 |
 |---|---|---|
-| 測試的暫存檔 | 不會〔推論〕。35 個測試檔用 `mkdtemp`；另外兩個固定名稱（`test/diagnostics-export.test.cjs:54`、`test/sync-plan.test.cjs:15`）讀碼看只當路徑字串，沒有寫入 | 〔讀碼 2026-10-29〕 |
+| 測試的暫存檔 | 不會〔推論〕。35 個測試檔用 `mkdtemp`；另外兩個固定名稱（`test/diagnostics-export.test.cjs:54`、`test/sync-plan.test.cjs:15`）讀碼看只當路徑字串，沒有寫入 | 〔讀碼 2026-10-29〕〔對齊 2026-10-29：→ `1a7c9d3`（plans/cross-review-2026-10-phase6e.md CJS-FMT）：`test/diagnostics-export.test.cjs:54`、`test/sync-plan.test.cjs:15` 未移動〕 |
 | 測試的連接埠 | 不會〔推論〕：一律 `listen(0, …)` | Crossfire CC 第一輪 §2-7-5 |
 | 正式站台與發包目錄 | 不會，前提是探針一律帶 `--site-root` | §二 隔離 |
 | 打包產物 | 不會：`build.directories.output` 是相對路徑 `dist`〔查過 2026-10-29：`package.json`〕 | — |
@@ -698,11 +761,12 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 
 - **N2**：U14 的前提「站台根目錄有 v2 殘留的 `changelog.json`、`notice-thumb.jpg`」**不成立**。v3 的 `notice.json` 現在正引用這兩個檔，`docs/site-format.md:19` 也把 `changelog.json` 列為站台的一部分。owner 依此裁 D-6E-U14。
 - **N3**：promise 的空 `.catch(() => {})` 有 11 處，不在 `no-empty` 的保護範圍內（§四）。已裁延後（D-6E-PCATCH）。
-- **N4**：`appendLauncherLog` 不會 reject 這個保證，主人是它自己的 try（`main/launcher-log.js:23-31`），但沒有任何測試釘住它〔查過 2026-10-29：`rg -l appendLauncherLog test`，沒有一份測它的失敗路徑〕。拆掉那個 try 的話，每次寫日誌失敗都會變成沒人接的 rejection（§四 探針）。這個 catch 在本檔分類成「清」，會留著，所以不影響本輪；要不要補測試另外決定。
+- **N4**：`appendLauncherLog` 不會 reject 這個保證，主人是它自己的 try（`main/launcher-log.js:23-31`），但沒有任何測試釘住它〔查過 2026-10-29：`rg -l appendLauncherLog test`，沒有一份測它的失敗路徑〕。拆掉那個 try 的話，每次寫日誌失敗都會變成沒人接的 rejection（§四 探針）。這個 catch 在本檔分類成「清」，會留著，所以不影響本輪；要不要補測試另外決定。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/launcher-log.js:23-31` 後 `:23-33`（try 仍在，catch 寫了理由）〕
+- **N5**：`build:icons` 的輸入 `assets/icon.png` 不在 repo，git 歷史也沒有〔查過 2026-10-29：`git log --all -- assets/icon.png` 0 筆，對照組 `assets/icon.ico` 1 筆〕，這支腳本現在跑不起來；6e-4 只能用自己生的圖驗 `build-icons.js` 的改動（§五 施工紀錄）。進 future-work。
 
 ## 未驗
 
-- 6e-4、6e-5、6e-6 的測試帳。
+- 6e-5、6e-6 的測試帳。
 - §四「刪〔待驗〕」的 2 處、`ensureWritableTree`、Q-DLG、改判成「清」的 3 處。
 - Q-SEEN 的三項施工前確認（§四），以及畫面端有沒有可用的既有診斷出口。
 - 「刪」的 5 處 0 紅：根據的是 9 處超集合那次探針，這 5 處沒有單獨重跑。
@@ -710,9 +774,8 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - 方案 A 剩下的缺口：`getMainWindow()`／`win.isDestroyed()` 丟錯（§四）。
 - 探針只在純 Node 裡跑，沒經過 Electron。在 Electron 主程序裡，沒人接的 rejection 會怎麼處理沒有驗；方案 A 不改變這件事，因為那個 try 留著。
 - `build.files` 的兩條排除：等整合後那次打包（D-6E-FILES），之前不宣稱已驗。
-- 6e-4 的 `prettier --file-info` 驗法：2026-10-29 只用 `assets/tailwind.css`（`ignored: true`）和 `README.md`（`ignored: false`）確認過這個指令會讀 `.prettierignore`〔實測〕，新加的三行還沒驗。
 - 6e-0「沒圖」與「公告消失」的真機畫面。
-- `net-fetch.js:220` 的寫入模式〔讀碼待確認〕。
+- `net-fetch.js:220` 的寫入模式〔讀碼待確認〕。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/net-fetch.js:220` 後 `:218`（寫入模式已確認，→ §四 施工紀錄）〕
 - `showMessageBox` 什麼時候會 reject。
 - 平行跑 `npm test` 不互相干擾：讀碼推論，沒有真的同時跑兩份。
 
@@ -747,10 +810,10 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - CSS 指針化：刪掉 CSS 線的批次名稱、內部檔案安排、computed 比對的細節，以及對 CSS plan 章節編號的引用。跨線契約改寫成交付保證（§跨線契約）。
 - 共用裁決、Q-CLOSE、施工環境、跨線邊界的家改到本檔（§權威遷移）。
 - `no-empty`：
-  - `main/net-fetch.js:42`、`:162`：「刪」→「重複，二選一」（Q-RETRY）。ChatGPT 第一輪用 `withRetries` 單體的探針，證明 `:162` 那層 catch 確實有作用。CC 追到正式接線，指出真正的主人是 `deliver`。本輪用正式接線的探針加反向對照釘住了這一點。
-  - `main/app-ready.js:116`：「刪〔待驗〕」→「清」。
-  - `main/microsoft-auth.js:448`：「刪」→「清」。
-  - `main/microsoft-auth.js:470`：「刪」→「清」（清理順序）。本輪讀碼新發現，第一輪審查沒有點名這一處。
+  - `main/net-fetch.js:42`、`:162`：「刪」→「重複，二選一」（Q-RETRY）。ChatGPT 第一輪用 `withRetries` 單體的探針，證明 `:162` 那層 catch 確實有作用。CC 追到正式接線，指出真正的主人是 `deliver`。本輪用正式接線的探針加反向對照釘住了這一點。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/net-fetch.js:42`、`:162` 刪除（方案 A）〕
+  - `main/app-ready.js:116`：「刪〔待驗〕」→「清」。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/app-ready.js:116` 原地改寫（catch 寫理由）〕
+  - `main/microsoft-auth.js:448`：「刪」→「清」。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/microsoft-auth.js:448` 後 `:450`（catch 寫理由）〕
+  - `main/microsoft-auth.js:470`：「刪」→「清」（清理順序）。本輪讀碼新發現，第一輪審查沒有點名這一處。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/microsoft-auth.js:470` 後 `:472`（catch 寫理由）〕
 - 6e-4、6e-5 的前置改標成管理選擇；技術依賴另外列出（§依賴分析）。
 - 新增 Q-RETRY、Q-CLOSE（從 CSS plan 搬來）、Q-6E4-WHEN；Q-6E-WHERE 補上合併前置。
 
@@ -762,6 +825,8 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - Q-SEEN 從「出聲」改成 best-effort，加施工前三項確認（§四）。
 - §六 結案條件照 D-6E-CLOSE-SCOPE 改寫，加兩條附帶規則；§跨線契約 1 多交一項「已驗收母體契約有沒有失效」。
 - §權威遷移改成「已完成」：CSS plan v2 修訂版已經改成指向本檔〔查過 2026-10-29〕。
-- 共用檔欄補上 `README.md`、`.prettierignore:4`（CSS plan §六-3 的 U11-C 清單會改到）。
+- 共用檔欄補上 `README.md`、`.prettierignore:4`（CSS plan §六-3 的 U11-C 清單會改到）。〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`.prettierignore:4` 後 `:3`〕
 
 **2026-10-29 Q-6E-WHERE 裁定、6e-0 授權**：owner 裁 Q-6E-WHERE 照建議（D-6E-WHERE），6e 線各批的「在哪做」改成 `main`；同日 owner：「好，正式授權。可以開工ㄌ。」授權 6e-0 R-THUMB 施工，照 D-6E-SESS 由新 session 接手。其餘各批仍要另行授權。
+
+**2026-10-29 6e-3 施工中改判**：`main/runtime/download.js:23`（`safeLog`）「刪〔待驗〕」→「清」（D-6E-SAFELOG）。原判依據是正式接線的 logger（`appendLauncherLog`）不會同步丟錯；副本實測拆掉 try 紅 T-I4（`test/sync-instance-record.test.cjs` 的同步丟錯案），這條保證由 N6-D2 要求、T-I4 釘住，主人就是 `safeLog` 自己。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：本段寫於本 commit 之後，`main/runtime/download.js:23` 已是本 commit 後的位置〕

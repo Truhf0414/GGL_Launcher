@@ -22,7 +22,9 @@ http.Server.prototype.emit = function (event, ...args) {
   if (event === "request" && seen++ % EVERY === OFFSET % EVERY) {
     frozen++;
     const end = performance.now() + FREEZE_MS;
-    while (performance.now() < end) {}
+    while (performance.now() < end) {
+      // 故意空轉：用忙等把事件迴圈卡住 FREEZE_MS
+    }
   }
   return origEmit.call(this, event, ...args);
 };

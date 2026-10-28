@@ -425,7 +425,7 @@ test("fetchNotice: logUrl is not refetched within 60 s", async (t) => {
       json(r, {
         notice: { title: "T", logUrl: `http://${q.headers.host}/log` },
       }),
-    "/log": (q, r) => (r.writeHead(200), r.end("x\ny")),
+    "/log": (q, r) => json(r, { log: ["x", "y"] }),
   });
   const c = createSiteClient();
   const index = await c.fetchIndex(`${srv.url}/s/manifest.json`);
@@ -453,8 +453,7 @@ async function logSite(t, logMode) {
         r.writeHead(200, { "content-length": "999" });
         return r.write("half\n");
       }
-      r.writeHead(200);
-      r.end(logMode.lines.join("\n"));
+      json(r, { log: logMode.lines });
     },
   });
 }

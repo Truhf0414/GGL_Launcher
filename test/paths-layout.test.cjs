@@ -20,7 +20,10 @@ test("getPaths: layout under root", () => {
 test("getPaths: sync record and in-progress marker live in instanceDir", () => {
   const p = getPaths({ launcherRootDir: "H:\Root" });
   assert.equal(p.syncRecordPath, path.join(p.instanceDir, "sync-record.json"));
-  assert.equal(p.syncInProgressPath, path.join(p.instanceDir, "sync-in-progress"));
+  assert.equal(
+    p.syncInProgressPath,
+    path.join(p.instanceDir, "sync-in-progress"),
+  );
 });
 
 // → _notes/plans/instance-sync-v3-commit4a.md T10
@@ -46,13 +49,16 @@ test("T1 javaExeFor：<root>/runtime/java-<major>/bin/java.exe；major 不是正
 
 // → _notes/plans/instance-sync-v3-commit4d.md K2
 test("K2 getPaths 的鍵：等於明列清單（多一個、少一個都紅）", () => {
-  assert.deepEqual(Object.keys(getPaths({ launcherRootDir: "H:\\Root" })).sort(), [
-    "gameDir",
-    "groupDir",
-    "instanceDir",
-    "root",
-    "syncInProgressPath",
-    "syncRecordPath",
-    "tempDir",
-  ]);
+  assert.deepEqual(
+    Object.keys(getPaths({ launcherRootDir: "H:\\Root" })).sort(),
+    [
+      "gameDir",
+      "groupDir",
+      "instanceDir",
+      "root",
+      "syncInProgressPath",
+      "syncRecordPath",
+      "tempDir",
+    ],
+  );
 });

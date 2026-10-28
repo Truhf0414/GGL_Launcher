@@ -23,7 +23,11 @@ const { writeRecord } = require("../main/sync/instance-record.js");
 const { getPaths } = require("../lib/paths-layout.js");
 const { registerSettingsIpc } = require("../main/ipc/settings-ipc.js");
 const { DEFAULT_SETTINGS } = require("../main/settings.js");
-const { RUNTIME, LAUNCH_ID, installRuntime } = require("./helpers/installed-runtime.cjs");
+const {
+  RUNTIME,
+  LAUNCH_ID,
+  installRuntime,
+} = require("./helpers/installed-runtime.cjs");
 const { LaunchError } = require("../main/minecraft-launch.js");
 
 function makeFakeIpcMain() {
@@ -52,12 +56,22 @@ function baseAccount(overrides = {}) {
 }
 
 function setupIpc(depsOverrides = {}) {
-  const calls = { refresh: 0, write: [], launch: [], dialogs: [], lock: 0, errors: [] };
+  const calls = {
+    refresh: 0,
+    write: [],
+    launch: [],
+    dialogs: [],
+    lock: 0,
+    errors: [],
+  };
   const deps = {
     // ④c：閘把那次讀到的 settings／paths／record 交給 fn（A1）
     withLaunchLock: async (fn) => {
       calls.lock += 1;
-      return fn({ kind: "up-to-date" }, { settings: { playerId: "P" }, paths: {}, record: { ...RUNTIME } });
+      return fn(
+        { kind: "up-to-date" },
+        { settings: { playerId: "P" }, paths: {}, record: { ...RUNTIME } },
+      );
     },
     readAccount: async () => baseAccount(),
     writeAccount: async (acct) => {
@@ -81,7 +95,11 @@ function setupIpc(depsOverrides = {}) {
     calls.dialogs.push({ title, message });
   };
   // 跟正式接線一樣：錯誤換成普通 Error 由 registerAllMainIpc 包的這一層做
-  registerMinecraftIpc({ ipcMain: plainErrorIpcMain(ipcMain), deps, showInfoDialog });
+  registerMinecraftIpc({
+    ipcMain: plainErrorIpcMain(ipcMain),
+    deps,
+    showInfoDialog,
+  });
   return { ipcMain, calls };
 }
 
@@ -322,7 +340,10 @@ for (const [label, identity] of [
     const setup = await setupRealStoreIpc(t, identity);
     await assertBlockedWithoutSideEffects(setup);
     assert.deepEqual(setup.calls.dialogs, [
-      { title: "需要登入", message: "登入狀態已失效，請重新登入 Microsoft 帳號。" },
+      {
+        title: "需要登入",
+        message: "登入狀態已失效，請重新登入 Microsoft 帳號。",
+      },
     ]);
   });
 
@@ -571,13 +592,17 @@ async function setupRealHub(t, ipcDepsOverrides = {}) {
   t.after(() => fsp.rm(root, { recursive: true, force: true }));
   const settings = { ...DEFAULT_SETTINGS, launcherRootDir: root };
   const paths = getPaths(settings);
-  await writeRecord(paths, {
-    format: 3,
-    version: HUB_RELEASE.version,
-    appliedAt: "2026-10-01T00:00:00.000Z",
-    files: HUB_RELEASE.files.map((f) => ({ path: f.path, sha256: f.sha256 })),
-    ...RUNTIME,
-  }, { log: () => {} });
+  await writeRecord(
+    paths,
+    {
+      format: 3,
+      version: HUB_RELEASE.version,
+      appliedAt: "2026-10-01T00:00:00.000Z",
+      files: HUB_RELEASE.files.map((f) => ({ path: f.path, sha256: f.sha256 })),
+      ...RUNTIME,
+    },
+    { log: () => {} },
+  );
   await installRuntime(paths);
   const site = { online: true };
   const sync = createInstanceSync({
@@ -713,10 +738,15 @@ test("C10 啟動丟 LaunchError ⇒ 找不到 Java 跳對應的框，其他 code
         throw new LaunchError(code, `msg ${code}`);
       },
     });
-    await rejectsWith(ipcMain.invoke(IPC.invoke.MINECRAFT_LAUNCH_OFFLINE), (e) =>
-      assert.equal(e.message, `msg ${code}`),
+    await rejectsWith(
+      ipcMain.invoke(IPC.invoke.MINECRAFT_LAUNCH_OFFLINE),
+      (e) => assert.equal(e.message, `msg ${code}`),
     );
-    assert.deepEqual(calls.dialogs.map((d) => d.title), title ? [title] : [], code);
+    assert.deepEqual(
+      calls.dialogs.map((d) => d.title),
+      title ? [title] : [],
+      code,
+    );
   }
 });
 
@@ -731,7 +761,11 @@ test("C14 real hub：launchMinecraft 拿到閘那次的 settings／paths／recor
   assert.equal(got.settings, h.settings);
   assert.deepEqual(got.paths, h.paths);
   assert.deepEqual(
-    { minecraft: got.record.minecraft, loader: got.record.loader, javaMajor: got.record.javaMajor },
+    {
+      minecraft: got.record.minecraft,
+      loader: got.record.loader,
+      javaMajor: got.record.javaMajor,
+    },
     RUNTIME,
   );
   assert.equal(got.auth.name, h.settings.playerId);

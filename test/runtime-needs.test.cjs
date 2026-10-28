@@ -28,8 +28,11 @@ const record = (over = {}) => ({
   ...over,
 });
 
-const needs = ({ rec = record(), target = ok(fx.fabric()), vanilla = ok(fx.vanilla()) } = {}) =>
-  runtimeNeeds({ record: rec, target, vanilla, env: ENV });
+const needs = ({
+  rec = record(),
+  target = ok(fx.fabric()),
+  vanilla = ok(fx.vanilla()),
+} = {}) => runtimeNeeds({ record: rec, target, vanilla, env: ENV });
 
 test("T7 兩支 fixture＋齊全的記錄 ⇒ 沒有 problem，files 等於獨立算出的白名單", () => {
   const r = needs();
@@ -43,7 +46,9 @@ test("T7 兩支 fixture＋齊全的記錄 ⇒ 沒有 problem，files 等於獨�
     `assets/indexes/${v.assetIndex.id}.json`,
     `assets/log_configs/${v.logging.client.file.id}`,
     ...vanillaLibs.map((p) => `libraries/${p}`),
-    ...fx.fabric().libraries.map((l) => `libraries/${fx.installerLibraryPath(l.name)}`),
+    ...fx
+      .fabric()
+      .libraries.map((l) => `libraries/${fx.installerLibraryPath(l.name)}`),
   ];
   assert.deepEqual(
     r.files.map((f) => f.rel).sort(),
@@ -84,7 +89,9 @@ test("T9 父子同 name 的 library ⇒ 只出現一次、取子那支", () => {
     vanilla: ok({ ...v, libraries: [...v.libraries, lib("p/parent.jar")] }),
   });
   assert.deepEqual(r.problems, []);
-  const libs = r.files.filter((x) => x.rel.startsWith("libraries/p/")).map((x) => x.rel);
+  const libs = r.files
+    .filter((x) => x.rel.startsWith("libraries/p/"))
+    .map((x) => x.rel);
   assert.deepEqual(libs, ["libraries/p/child.jar"]);
 });
 
@@ -120,9 +127,15 @@ test("T14 asset index id 跳出資料夾 ⇒ vanilla-json", () => {
 test("C1 兩份 json 改用安裝期的驗證：Fabric 少 mainClass ⇒ version-json；原版 id 不是記錄的 ⇒ vanilla-json", () => {
   const { mainClass, ...noMain } = fx.fabric();
   void mainClass;
-  assert.deepEqual(needs({ target: ok(noMain) }), { problems: ["version-json"], files: [] });
+  assert.deepEqual(needs({ target: ok(noMain) }), {
+    problems: ["version-json"],
+    files: [],
+  });
   const v = { ...fx.vanilla(), id: "1.21.10" };
-  assert.deepEqual(needs({ vanilla: ok(v) }), { problems: ["vanilla-json"], files: [] });
+  assert.deepEqual(needs({ vanilla: ok(v) }), {
+    problems: ["vanilla-json"],
+    files: [],
+  });
 });
 
 const logConfigs = (r) => r.files.filter((f) => f.item === "log-config");
@@ -151,7 +164,8 @@ test("K3 Fabric 自己有 logging ⇒ 用 Fabric 那份（子層不是 null 才�
 // 接手 → runtime-readiness 的 K8（記錄 null 那條路也丟）（_notes/plans/cross-review-2026-10-phase6c.md U3-a）
 
 // → _notes/plans/instance-sync-v3-commit5c.md N1、N5（P2′：就緒交出成品；D1：試組 argv）
-const libRels = (r) => r.files.filter((f) => f.item === "library").map((f) => f.rel);
+const libRels = (r) =>
+  r.files.filter((f) => f.item === "library").map((f) => f.rel);
 
 test("N1 兩份都過 ⇒ launch：合併結果、過濾後的 library（＝files 那份）、jar、log4j、env 原物件", () => {
   const r = needs();

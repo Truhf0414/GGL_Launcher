@@ -119,7 +119,10 @@ test("有記錄：同 hash、verifyAll、本機不同、非玩家可改 ⇒ down
     local: { "mods/a.jar": OTHER },
     verifyAll: true,
   });
-  assert.deepEqual(result.download.map((d) => d.path), ["mods/a.jar"]);
+  assert.deepEqual(
+    result.download.map((d) => d.path),
+    ["mods/a.jar"],
+  );
 });
 
 test("有記錄：同 hash、verifyAll、玩家可改 ⇒ keep 且不 hash（C5）", async () => {
@@ -148,7 +151,10 @@ test("有記錄：同 hash 但本機不存在 ⇒ download", async () => {
     previous: [{ path: "mods/a.jar", sha256: OLD }],
     next: [entry("mods/a.jar", OLD)],
   });
-  assert.deepEqual(result.download.map((d) => d.path), ["mods/a.jar"]);
+  assert.deepEqual(
+    result.download.map((d) => d.path),
+    ["mods/a.jar"],
+  );
 });
 
 test("有記錄：hash 變 ⇒ download（玩家可改檔亦同，整檔覆蓋）", async () => {
@@ -160,10 +166,10 @@ test("有記錄：hash 變 ⇒ download（玩家可改檔亦同，整檔覆蓋�
     next: [entry("mods/a.jar", NEW), entry("config/a.toml", NEW)],
     local: { "mods/a.jar": OLD, "config/a.toml": OTHER },
   });
-  assert.deepEqual(result.download.map((d) => d.path), [
-    "mods/a.jar",
-    "config/a.toml",
-  ]);
+  assert.deepEqual(
+    result.download.map((d) => d.path),
+    ["mods/a.jar", "config/a.toml"],
+  );
 });
 
 test("有記錄：hash 變但本機已是新值 ⇒ keep", async () => {
@@ -192,7 +198,10 @@ test("有記錄、previous 沒有、本機有玩家可改檔且 hash 不同 ⇒ 
     next: [entry("config/a.toml", NEW)],
     local: { "config/a.toml": OTHER },
   });
-  assert.deepEqual(result.download.map((d) => d.path), ["config/a.toml"]);
+  assert.deepEqual(
+    result.download.map((d) => d.path),
+    ["config/a.toml"],
+  );
 });
 
 test("有記錄：previous 有、next 沒有 ⇒ remove（玩家可改檔亦同）；本機不存在者不列", async () => {
@@ -217,7 +226,9 @@ test("改名：同 sha、本機在 ⇒ rename，probe 收到 previous 的寫法"
     next: [entry("mods/foo.jar", OLD)],
     local: { "mods/Foo.jar": OLD },
   });
-  assert.deepEqual(result.rename, [{ from: "mods/Foo.jar", to: "mods/foo.jar" }]);
+  assert.deepEqual(result.rename, [
+    { from: "mods/Foo.jar", to: "mods/foo.jar" },
+  ]);
   assert.deepEqual(result.remove, []);
   assert.deepEqual(calls.exists, ["mods/Foo.jar"]);
 });
@@ -227,7 +238,10 @@ test("改名：同 sha、本機不在 ⇒ download、無 rename", async () => {
     previous: [{ path: "mods/Foo.jar", sha256: OLD }],
     next: [entry("mods/foo.jar", OLD)],
   });
-  assert.deepEqual(result.download.map((d) => d.path), ["mods/foo.jar"]);
+  assert.deepEqual(
+    result.download.map((d) => d.path),
+    ["mods/foo.jar"],
+  );
   assert.deepEqual(result.rename, []);
 });
 
@@ -237,7 +251,10 @@ test("改名：sha 不同且本機不是新值 ⇒ download、無 rename、remov
     next: [entry("mods/foo.jar", NEW)],
     local: { "mods/Foo.jar": OLD },
   });
-  assert.deepEqual(result.download.map((d) => d.path), ["mods/foo.jar"]);
+  assert.deepEqual(
+    result.download.map((d) => d.path),
+    ["mods/foo.jar"],
+  );
   assert.deepEqual(result.rename, []);
   assert.deepEqual(result.remove, []);
 });
@@ -248,7 +265,9 @@ test("改名：sha 不同但本機已是新值 ⇒ rename、無 download", async
     next: [entry("mods/foo.jar", NEW)],
     local: { "mods/Foo.jar": NEW },
   });
-  assert.deepEqual(result.rename, [{ from: "mods/Foo.jar", to: "mods/foo.jar" }]);
+  assert.deepEqual(result.rename, [
+    { from: "mods/Foo.jar", to: "mods/foo.jar" },
+  ]);
   assert.deepEqual(result.download, []);
 });
 
@@ -279,10 +298,10 @@ test("沒有記錄：缺 ⇒ download；玩家可改且存在 ⇒ keep；非玩�
       "mods/extra.jar": OTHER,
     },
   });
-  assert.deepEqual(result.download.map((d) => d.path), [
-    "mods/missing.jar",
-    "mods/b.jar",
-  ]);
+  assert.deepEqual(
+    result.download.map((d) => d.path),
+    ["mods/missing.jar", "mods/b.jar"],
+  );
   assert.deepEqual(result.keep, ["config/a.toml", "mods/same.jar"]);
   assert.deepEqual(result.remove, []);
   assert.deepEqual(result.rename, []);
@@ -379,11 +398,14 @@ test("拒絕：保護名單（next 或 previous，不分大小寫）⇒ PROTECTE
 
 test("拒絕：gameDir 是磁碟根 ⇒ OUTSIDE_GAMEDIR", async () => {
   const root = path.parse(process.cwd()).root;
-  await assertRejected(plan({ gameDir: root, next: [entry("mods/a.jar", NEW)] }), {
-    code: "GGL_SYNC_OUTSIDE_GAMEDIR",
-    path: "mods/a.jar",
-    detail: undefined,
-  });
+  await assertRejected(
+    plan({ gameDir: root, next: [entry("mods/a.jar", NEW)] }),
+    {
+      code: "GGL_SYNC_OUTSIDE_GAMEDIR",
+      path: "mods/a.jar",
+      detail: undefined,
+    },
+  );
 });
 
 test("拒絕時一次 probe 都不呼叫", async () => {
@@ -449,13 +471,20 @@ test("assertRemovableStrayJars：形狀、清單內、保護名單", async () =>
   }
   await assertRejected(
     () => assertRemovableStrayJars(["mods/Sodium.jar"], opts),
-    { code: "GGL_SYNC_IN_MANIFEST", path: "mods/Sodium.jar", detail: undefined },
+    {
+      code: "GGL_SYNC_IN_MANIFEST",
+      path: "mods/Sodium.jar",
+      detail: undefined,
+    },
   );
-  await assertRejected(() => assertRemovableStrayJars(["mods/keep.jar"], opts), {
-    code: "GGL_SYNC_PROTECTED_PATH",
-    path: "mods/keep.jar",
-    detail: undefined,
-  });
+  await assertRejected(
+    () => assertRemovableStrayJars(["mods/keep.jar"], opts),
+    {
+      code: "GGL_SYNC_PROTECTED_PATH",
+      path: "mods/keep.jar",
+      detail: undefined,
+    },
+  );
   await assertRejected(() => assertRemovableStrayJars(["../a.jar"], opts), {
     code: "GGL_SYNC_BAD_PATH",
     path: "../a.jar",

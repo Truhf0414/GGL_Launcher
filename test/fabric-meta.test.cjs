@@ -23,7 +23,8 @@ test("T6 mavenUrlCandidates：Fabric maven 換三台主機、路徑不變；其�
     "https://maven2.fabricmc.net/a/b.jar",
     "https://maven3.fabricmc.net/a/b.jar",
   ]);
-  assert.deepEqual(mavenUrlCandidates("https://libraries.minecraft.net/x.jar"), [
-    "https://libraries.minecraft.net/x.jar",
-  ]);
+  assert.deepEqual(
+    mavenUrlCandidates("https://libraries.minecraft.net/x.jar"),
+    ["https://libraries.minecraft.net/x.jar"],
+  );
 });

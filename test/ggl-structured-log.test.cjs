@@ -167,7 +167,10 @@ test("L4: non-errno codes (incl. any GGL_ code) are never written", (t) => {
 test("V23: SettingsError keeps name and GGL_SETTINGS; other GGL_ codes still dropped; message and path never written", (t) => {
   const { SettingsError } = require("../main/settings.js");
   const s = setup(t);
-  const err = new SettingsError("missing", "C:\\Users\\someone\\FAKE_V23\\settings.json");
+  const err = new SettingsError(
+    "missing",
+    "C:\\Users\\someone\\FAKE_V23\\settings.json",
+  );
   s.log.gglError("main", "start_main_failed", err, {});
   const lookalike = samples.withCode("GGL_SETTINGS_FAKE", "x");
   s.log.gglError("main", "lookalike", lookalike, {});

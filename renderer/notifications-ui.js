@@ -15,10 +15,14 @@
       }
     }
 
+    // 已讀位置是便利性的 UI 狀態（D-6E-SEEN）：寫不進去只會讓下次開啟時紅點又亮，
+    // 不影響清單與已清除的通知。記一筆事件 ID、不帶內容，不讓玩家看到錯誤
     function saveLastSeenNotifKey(key) {
       try {
         localStorage.setItem(NOTIF_LAST_SEEN_KEY_STORAGE, String(key || ""));
-      } catch {}
+      } catch (err) {
+        gglError("renderer", "notifications_seen_save_failed", err);
+      }
     }
 
     let lastSeenNotifKey = loadLastSeenNotifKey();

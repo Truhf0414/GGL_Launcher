@@ -42,9 +42,7 @@ function tcpProbe(host, port, timeoutMs) {
     const finish = (ok) => {
       if (done) return;
       done = true;
-      try {
-        socket.destroy();
-      } catch {}
+      socket.destroy();
       resolve(ok);
     };
 
