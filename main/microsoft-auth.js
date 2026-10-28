@@ -439,13 +439,17 @@ async function loginMicrosoftAndMinecraft() {
   } catch (e) {
     try {
       server.close();
-    } catch {}
+    } catch {
+      // 清理：丟出原始錯誤之前關伺服器；關不了不得蓋掉原始錯誤
+    }
     throw makeLoginError("LOGIN_UI_FAILED", e?.message || String(e));
   }
 
   try {
     loginWin.setMenuBarVisibility(false);
-  } catch {}
+  } catch {
+    // 非致命：失敗只是登入視窗多一條選單列，不得擋住登入（D-6E-OSAPI）
+  }
 
   const authCode = await new Promise((resolve, reject) => {
     let settled = false;
@@ -456,18 +460,18 @@ async function loginMicrosoftAndMinecraft() {
       if (settled) return;
       settled = true;
       if (timeoutId) clearTimeout(timeoutId);
-      try {
-        loginWin.removeListener("closed", onClosed);
-      } catch {}
-      try {
-        server.off("request", onRequest);
-      } catch {}
+      loginWin.removeListener("closed", onClosed);
+      server.off("request", onRequest);
       try {
         server.close();
-      } catch {}
+      } catch {
+        // 清理：伺服器可能已經關了；關不了不得擋住後面的關窗與登入結果的回報
+      }
       try {
         if (!loginWin.isDestroyed()) loginWin.close();
-      } catch {}
+      } catch {
+        // 非致命：關窗失敗不得擋住登入結果的回報（下一行 action()；D-6E-OSAPI）
+      }
       action();
     };
 

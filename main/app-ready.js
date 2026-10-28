@@ -113,7 +113,9 @@ async function runMainAppReady(ctx) {
   try {
     // 與 electron-builder 的 build.appId 對齊，避免工作列/通知識別不一致
     app.setAppUserModelId("ggl3.launcher");
-  } catch {}
+  } catch {
+    // 非致命：失敗只影響工作列圖示分組，不得擋住啟動（D-6E-OSAPI）
+  }
 
   // 設定檔讀不到或不合法 ⇒ 丟 SettingsError，start-main 交給 startup-failure 跳框（D-SET-UI）
   const { settings: initialSettings, recovered } = await initSettingsAtBoot({
