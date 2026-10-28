@@ -20,7 +20,7 @@ Priority order:
 - The current release target is Windows x64.
 - Minecraft instance updates are separate from Electron launcher app updates.
 - Runtime resources that must live outside asar should be handled through `extraResources`.
-- Do not manually edit generated/vendor/build output, including `dist/`, `node_modules/`, `assets/tailwind.css`, or packed artifacts.
+- Do not manually edit generated/vendor/build output, including `dist/`, `node_modules/`, or packed artifacts.
 - Prefer minimal, release-safe fixes over broad rewrites.
 - Keep current behavior stable unless a change is required to remove a release-blocking risk.
 

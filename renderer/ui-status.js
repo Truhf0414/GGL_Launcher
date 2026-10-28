@@ -18,7 +18,7 @@
   }
 
   function setStatusVisibility({ statusText, btnLaunch }, visible) {
-    statusText.classList.toggle("launch-subtext--hidden", !visible);
+    statusText.classList.toggle("hidden", !visible);
     btnLaunch.classList.toggle("launch-btn--status-hidden", !visible);
   }
 
