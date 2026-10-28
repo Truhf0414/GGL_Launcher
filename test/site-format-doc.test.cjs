@@ -188,7 +188,6 @@ async function fetchNoticeWith(routes, { now } = {}) {
 const noticeRoute = (body) => ({ [NOTICE_URL]: { body } });
 
 function noticeCard() {
-  global.document = fakeDocument;
   const { GglRendererInstanceUi } = loadRendererModule(INSTANCE_UI);
   const el = {
     noticeTitle: makeEl(),
@@ -1066,26 +1065,23 @@ test("SF-S3 imageUrl 拿掉，縮圖維持上一張；連整個公告拿掉也�
   });
   show({ notice: { title: "T", subtitle: "", imageUrl: "", log: [] } });
   assert.equal(
-    el.noticeThumb.style.backgroundImage,
+    el.noticeThumb.style["--thumb-url"],
     'url("https://ggl.test/a.jpg")',
   );
   show({ notice: null, notifications: [] });
   assert.equal(
-    el.noticeThumb.style.backgroundImage,
+    el.noticeThumb.style["--thumb-url"],
     'url("https://ggl.test/a.jpg")',
   );
 });
 
 test('SF-S4 imageUrl 去掉頭尾空白後原樣當成圖片網址，不檢查開頭、也不會用站台網址補完："imageUrl": "thumb.jpg" ⇒ 圖片網址就是 thumb.jpg', () => {
+  // 去掉頭尾空白是 main 端的事（SF-N6），畫面收到的已經是去好的字串
   const { show, el } = noticeCard();
   show({
-    notice: { title: "T", subtitle: "", imageUrl: " thumb.jpg ", log: [] },
+    notice: { title: "T", subtitle: "", imageUrl: "thumb.jpg", log: [] },
   });
-  assert.equal(el.noticeThumb.style.backgroundImage, 'url("thumb.jpg")');
-  assert.equal(
-    fakeDocument.documentElement.style["--thumb-url"],
-    'url("thumb.jpg")',
-  );
+  assert.equal(el.noticeThumb.style["--thumb-url"], 'url("thumb.jpg")');
 });
 
 test('SF-S5 沒有公告 ⇒ 標題與副標回到預設、log 收起來：{"notice": null} ⇒ 顯示預設文字', () => {

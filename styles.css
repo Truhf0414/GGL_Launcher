@@ -14,7 +14,9 @@
   /* manifest 未帶 notice.imageUrl 時的佔位縮圖（中性灰底、無字） */
   --design-thumb-url: url("./assets/notice-thumb.svg");
 
-  /* Back-compat aliases */
+  /* --background-url：Back-compat alias。
+     --thumb-url：目前顯示的公告縮圖，不是別名。預設等於 --design-thumb-url（設計師定的預設圖，只在這裡改）；
+     公告有圖時由 renderer/instance-ui.js 寫在 .thumb 元素上，蓋過這裡的預設 */
   --background-url: var(--design-background-url);
   --thumb-url: var(--design-thumb-url);
 
