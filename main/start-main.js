@@ -177,7 +177,7 @@ function createMainAppReadyContext({ app, appRoot }) {
   } = bridge;
   configureMainWindow({ appRoot, sendWindowPower });
 
-  const showInfoDialog = createShowInfoDialog(getMainWindow);
+  const showInfoDialog = createShowInfoDialog(getMainWindow, gglError);
   // 註冊延到 app-ready 呼叫時（設定、log、各 configure* 之後）；只呼叫一次（→ main/ipc/index.js）
   const setupMainIpc = () => {
     const { ipcMain, shell, dialog } = require("electron");

@@ -230,33 +230,24 @@ async function readFilesDir(siteRoot) {
   return { blobs, staleTemps, nonBlobEntries: nonBlobEntries.sort(), links };
 }
 
-// 假設 16-5＋2b 上層沒列 2：舊 v2 manifest 要讓 owner 手動搬的欄位
-const LEGACY_MANIFEST_FIELDS = [
-  "notice",
-  "maintenance",
-  "minLauncherVersion",
-  "notifications",
-];
-
 const refusedManifest = (message, newer = false) => ({
   isV3: false,
-  legacyFields: null,
   refused: newer ? { message, newer } : { message },
 });
 
 /**
- * 站台上的索引走白名單（R9、R13）：沒有、v3、v2 舊索引（沒有 format 鍵且 schemaVersion 是 2，A4）三種，
- * 其餘一律帶 refused——不替認不得的索引收拾。不丟錯；拒發由發版計畫接（退版、--list 不寫索引，照常用）。
- * @returns {Promise<{ isV3: boolean, legacyFields: object | null, refused?: { message: string, newer?: true } }>}
+ * 站台上的索引走白名單（R9、R13）：沒有、v3 兩種，其餘一律帶 refused——不替認不得的索引收拾。
+ * 不丟錯；拒發由發版計畫接（退版、--list 不寫索引，照常用）。
+ * @returns {Promise<{ isV3: boolean, refused?: { message: string, newer?: true } }>}
  */
 async function readManifest(siteRoot) {
   const r = await readJson(path.join(siteRoot, "manifest.json"));
-  if (r.state === "missing") return { isV3: false, legacyFields: null };
+  if (r.state === "missing") return { isV3: false };
   if (r.state === "invalid") return refusedManifest(r.error);
   const value = r.value;
   if (isPlainObject(value) && Object.hasOwn(value, "format")) {
     const checked = validateIndex(value);
-    if (checked.ok) return { isV3: true, legacyFields: null };
+    if (checked.ok) return { isV3: true };
     if (checked.newer) {
       return refusedManifest(
         `站台的索引格式（format ${value.format}）比這個發版工具新，請用新版發版工具`,
@@ -265,19 +256,8 @@ async function readManifest(siteRoot) {
     }
     return refusedManifest(checked.error);
   }
-  // 只認數字 2 與字串 "2"：Number() 會把 [2]、"2.0" 也算成 2
-  if (
-    isPlainObject(value) &&
-    (value.schemaVersion === 2 || value.schemaVersion === "2")
-  ) {
-    const legacyFields = {};
-    for (const k of LEGACY_MANIFEST_FIELDS) {
-      if (value[k] !== undefined) legacyFields[k] = value[k];
-    }
-    return { isV3: false, legacyFields };
-  }
   return refusedManifest(
-    "認不出這份索引：沒有 format 鍵，也不是 v2 舊索引（schemaVersion 不是 2）；v3 索引請檢查 format 有沒有拼錯",
+    "認不出這份索引：沒有 format 鍵；v3 索引請檢查 format 有沒有拼錯",
   );
 }
 
@@ -621,7 +601,6 @@ function emptySummary({ sourceDir, siteRoot, siteRootIsDefault, apply }) {
     nonBlobEntries: [],
     unreadableArchives: [],
     currentWithoutArchive: null,
-    legacyManifestFields: null,
     errors: [],
     sanity: null,
     forced: false,
@@ -643,9 +622,6 @@ async function planPublish(opts) {
     staleTemps: site.staleTemps,
     nonBlobEntries: site.nonBlobEntries,
     unreadableArchives: site.unreadableArchives,
-    legacyManifestFields: site.manifest.isV3
-      ? null
-      : site.manifest.legacyFields,
     excluded: source.build ? source.build.excluded : [],
   });
   summary.errors.push(

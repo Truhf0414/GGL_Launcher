@@ -3,9 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const {
-  summarizeManifestFetchFailure,
-} = require("../lib/manifest-network.js");
+const { summarizeManifestFetchFailure } = require("../lib/manifest-network.js");
 
 test("summarizeManifestFetchFailure: timeout-ish", () => {
   const r = summarizeManifestFetchFailure(new Error("ETIMEDOUT"));

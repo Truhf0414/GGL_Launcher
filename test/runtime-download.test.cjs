@@ -54,7 +54,11 @@ async function tempDir(t) {
   return dir;
 }
 
-const exists = (p) => fsp.stat(p).then(() => true, () => false);
+const exists = (p) =>
+  fsp.stat(p).then(
+    () => true,
+    () => false,
+  );
 
 // ── T4 fetchJsonWithDeadline／fetchTextWithDeadline ──
 // 期限交給 mock 時鐘：正常的案不推進時間（期限不會自己到），停住的案等請求到了才推進
@@ -64,9 +68,12 @@ test("T4 fetchJsonWithDeadline: 正常 ⇒ 物件", async (t) => {
   useMockClock(t);
   const srv = await startServer(serve(Buffer.from('{"a":1}')));
   t.after(() => srv.close());
-  assert.deepEqual(await fetchJsonWithDeadline(srv.url, { deadlineMs: DEADLINE_MS }), {
-    a: 1,
-  });
+  assert.deepEqual(
+    await fetchJsonWithDeadline(srv.url, { deadlineMs: DEADLINE_MS }),
+    {
+      a: 1,
+    },
+  );
 });
 
 test(
@@ -91,14 +98,20 @@ test("T4 fetchJsonWithDeadline: 404 ⇒ 錯誤含 HTTP 404", async (t) => {
   useMockClock(t);
   const srv = await startServer(status(404));
   t.after(() => srv.close());
-  await assert.rejects(fetchJsonWithDeadline(srv.url, { deadlineMs: DEADLINE_MS }), /HTTP 404/);
+  await assert.rejects(
+    fetchJsonWithDeadline(srv.url, { deadlineMs: DEADLINE_MS }),
+    /HTTP 404/,
+  );
 });
 
 test("T4 fetchJsonWithDeadline: 不是 JSON ⇒ 丟錯", async (t) => {
   useMockClock(t);
   const srv = await startServer(serve(Buffer.from("<html>")));
   t.after(() => srv.close());
-  await assert.rejects(fetchJsonWithDeadline(srv.url, { deadlineMs: DEADLINE_MS }), /JSON/);
+  await assert.rejects(
+    fetchJsonWithDeadline(srv.url, { deadlineMs: DEADLINE_MS }),
+    /JSON/,
+  );
 });
 
 test(
@@ -110,7 +123,10 @@ test(
     const srv = await startServer(stallAfterHeaders);
     t.after(() => srv.close());
     const outer = new AbortController();
-    const p = fetchJsonWithDeadline(srv.url, { deadlineMs: 60_000, signal: outer.signal });
+    const p = fetchJsonWithDeadline(srv.url, {
+      deadlineMs: 60_000,
+      signal: outer.signal,
+    });
     const w = watch(p);
     await until(() => srv.requests.length === 1, "請求送達");
     assert.ok(await stillPending(w), "中止之前不該結束");
@@ -120,7 +136,9 @@ test(
     const pre = new AbortController();
     pre.abort();
     const before = srv.requests.length;
-    await assert.rejects(fetchJsonWithDeadline(srv.url, { signal: pre.signal }));
+    await assert.rejects(
+      fetchJsonWithDeadline(srv.url, { signal: pre.signal }),
+    );
     assert.equal(srv.requests.length, before);
   },
 );
@@ -253,110 +271,130 @@ test("T5 空陣列 ⇒ resolve；worker 同步 throw ⇒ 當成 reject", async (
 
 const SHA1 = sha("sha1", BODY);
 
-test("T6a 第一台 520、第二台正常 ⇒ 檔到、sha1 對", { timeout: HANG_LIMIT_MS }, async (t) => {
-  useMockClock(t);
-  const a = await startServer(status(520));
-  const b = await startServer(serve(BODY));
-  t.after(() => Promise.all([a.close(), b.close()]));
-  const dest = path.join(await tempDir(t), "f.jar");
-  await downloadRuntimeFile({
-    candidates: [
-      { source: "a", url: a.url },
-      { source: "b", url: b.url },
-    ],
-    dest,
-    sha1: SHA1,
-    deps: { stall: STALL },
-  });
-  assert.deepEqual(await fsp.readFile(dest), BODY);
-});
-
-test("T6b 第一台內容錯、第二台對 ⇒ 成功、dest 是對的內容", { timeout: HANG_LIMIT_MS }, async (t) => {
-  useMockClock(t);
-  const a = await startServer(serve(WRONG));
-  const b = await startServer(serve(BODY));
-  t.after(() => Promise.all([a.close(), b.close()]));
-  const dest = path.join(await tempDir(t), "f.jar");
-  await downloadRuntimeFile({
-    candidates: [
-      { source: "a", url: a.url },
-      { source: "b", url: b.url },
-    ],
-    dest,
-    sha1: SHA1,
-    deps: { stall: STALL },
-  });
-  assert.deepEqual(await fsp.readFile(dest), BODY);
-  assert.equal(a.requests.length, 1);
-});
-
-test("T6c 全部內容錯 ⇒ GGL_RUNTIME_DOWNLOAD_FAILED、訊息含每台、dest 與 .tmp 都不在", { timeout: HANG_LIMIT_MS }, async (t) => {
-  useMockClock(t);
-  const a = await startServer(serve(WRONG));
-  const b = await startServer(serve(WRONG));
-  t.after(() => Promise.all([a.close(), b.close()]));
-  const dir = await tempDir(t);
-  const dest = path.join(dir, "f.jar");
-  await assert.rejects(
-    downloadRuntimeFile({
-      candidates: [
-        { source: "src-a", url: a.url },
-        { source: "src-b", url: b.url },
-      ],
-      dest,
-      sha1: SHA1,
-      deps: { stall: STALL },
-    }),
-    (e) =>
-      e.code === "GGL_RUNTIME_DOWNLOAD_FAILED" &&
-      e.message.includes("src-a") &&
-      e.message.includes("src-b") &&
-      e.message.includes("sha1"),
-  );
-  assert.deepEqual(await fsp.readdir(dir), []);
-});
-
-test("T6d 外部中止 ⇒ 丟錯、第二台零請求", { timeout: HANG_LIMIT_MS }, async (t) => {
-  const a = await startServer(stallAfterHeaders);
-  const b = await startServer(serve(BODY));
-  t.after(() => Promise.all([a.close(), b.close()]));
-  const dest = path.join(await tempDir(t), "f.jar");
-  const outer = new AbortController();
-  setTimeout(() => outer.abort(), 100);
-  await assert.rejects(
-    downloadRuntimeFile({
+test(
+  "T6a 第一台 520、第二台正常 ⇒ 檔到、sha1 對",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    useMockClock(t);
+    const a = await startServer(status(520));
+    const b = await startServer(serve(BODY));
+    t.after(() => Promise.all([a.close(), b.close()]));
+    const dest = path.join(await tempDir(t), "f.jar");
+    await downloadRuntimeFile({
       candidates: [
         { source: "a", url: a.url },
         { source: "b", url: b.url },
       ],
       dest,
       sha1: SHA1,
-      signal: outer.signal,
-      deps: { stall: { windowMs: 60_000, minBytes: 1 } },
-    }),
-  );
-  assert.equal(b.requests.length, 0);
-  assert.equal(await exists(dest), false);
-});
+      deps: { stall: STALL },
+    });
+    assert.deepEqual(await fsp.readFile(dest), BODY);
+  },
+);
 
-test("T6e 每台各自的 sha256：第一台對不上、第二台對 ⇒ 成功", { timeout: HANG_LIMIT_MS }, async (t) => {
-  useMockClock(t);
-  const a = await startServer(serve(BODY));
-  const b = await startServer(serve(BODY));
-  t.after(() => Promise.all([a.close(), b.close()]));
-  const dest = path.join(await tempDir(t), "jre.zip");
-  await downloadRuntimeFile({
-    candidates: [
-      { source: "a", url: a.url, sha256: sha("sha256", WRONG) },
-      { source: "b", url: b.url, sha256: sha("sha256", BODY) },
-    ],
-    dest,
-    deps: { stall: STALL },
-  });
-  assert.equal(a.requests.length, 1);
-  assert.equal(b.requests.length, 1);
-  assert.deepEqual(await fsp.readFile(dest), BODY);
-});
+test(
+  "T6b 第一台內容錯、第二台對 ⇒ 成功、dest 是對的內容",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    useMockClock(t);
+    const a = await startServer(serve(WRONG));
+    const b = await startServer(serve(BODY));
+    t.after(() => Promise.all([a.close(), b.close()]));
+    const dest = path.join(await tempDir(t), "f.jar");
+    await downloadRuntimeFile({
+      candidates: [
+        { source: "a", url: a.url },
+        { source: "b", url: b.url },
+      ],
+      dest,
+      sha1: SHA1,
+      deps: { stall: STALL },
+    });
+    assert.deepEqual(await fsp.readFile(dest), BODY);
+    assert.equal(a.requests.length, 1);
+  },
+);
+
+test(
+  "T6c 全部內容錯 ⇒ GGL_RUNTIME_DOWNLOAD_FAILED、訊息含每台、dest 與 .tmp 都不在",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    useMockClock(t);
+    const a = await startServer(serve(WRONG));
+    const b = await startServer(serve(WRONG));
+    t.after(() => Promise.all([a.close(), b.close()]));
+    const dir = await tempDir(t);
+    const dest = path.join(dir, "f.jar");
+    await assert.rejects(
+      downloadRuntimeFile({
+        candidates: [
+          { source: "src-a", url: a.url },
+          { source: "src-b", url: b.url },
+        ],
+        dest,
+        sha1: SHA1,
+        deps: { stall: STALL },
+      }),
+      (e) =>
+        e.code === "GGL_RUNTIME_DOWNLOAD_FAILED" &&
+        e.message.includes("src-a") &&
+        e.message.includes("src-b") &&
+        e.message.includes("sha1"),
+    );
+    assert.deepEqual(await fsp.readdir(dir), []);
+  },
+);
+
+test(
+  "T6d 外部中止 ⇒ 丟錯、第二台零請求",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const a = await startServer(stallAfterHeaders);
+    const b = await startServer(serve(BODY));
+    t.after(() => Promise.all([a.close(), b.close()]));
+    const dest = path.join(await tempDir(t), "f.jar");
+    const outer = new AbortController();
+    setTimeout(() => outer.abort(), 100);
+    await assert.rejects(
+      downloadRuntimeFile({
+        candidates: [
+          { source: "a", url: a.url },
+          { source: "b", url: b.url },
+        ],
+        dest,
+        sha1: SHA1,
+        signal: outer.signal,
+        deps: { stall: { windowMs: 60_000, minBytes: 1 } },
+      }),
+    );
+    assert.equal(b.requests.length, 0);
+    assert.equal(await exists(dest), false);
+  },
+);
+
+test(
+  "T6e 每台各自的 sha256：第一台對不上、第二台對 ⇒ 成功",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    useMockClock(t);
+    const a = await startServer(serve(BODY));
+    const b = await startServer(serve(BODY));
+    t.after(() => Promise.all([a.close(), b.close()]));
+    const dest = path.join(await tempDir(t), "jre.zip");
+    await downloadRuntimeFile({
+      candidates: [
+        { source: "a", url: a.url, sha256: sha("sha256", WRONG) },
+        { source: "b", url: b.url, sha256: sha("sha256", BODY) },
+      ],
+      dest,
+      deps: { stall: STALL },
+    });
+    assert.equal(a.requests.length, 1);
+    assert.equal(b.requests.length, 1);
+    assert.deepEqual(await fsp.readFile(dest), BODY);
+  },
+);
 
 test("T6f sha1 39 位 ⇒ 一個請求都不發就丟錯", async (t) => {
   const a = await startServer(serve(BODY));
@@ -385,52 +423,39 @@ test("T6f sha1 39 位 ⇒ 一個請求都不發就丟錯", async (t) => {
 test("T7 createSourceHealth：排序穩定、降級的排最後、降兩個維持相對順序", () => {
   const h = createSourceHealth();
   const c = ["a", "b", "c", "d"].map((source) => ({ source, url: source }));
-  assert.deepEqual(h.order(c).map((x) => x.source), ["a", "b", "c", "d"]);
+  assert.deepEqual(
+    h.order(c).map((x) => x.source),
+    ["a", "b", "c", "d"],
+  );
   h.demote("b");
-  assert.deepEqual(h.order(c).map((x) => x.source), ["a", "c", "d", "b"]);
+  assert.deepEqual(
+    h.order(c).map((x) => x.source),
+    ["a", "c", "d", "b"],
+  );
   h.demote("a");
-  assert.deepEqual(h.order(c).map((x) => x.source), ["c", "d", "a", "b"]);
-  assert.deepEqual(c.map((x) => x.source), ["a", "b", "c", "d"], "不改到傳入的陣列");
+  assert.deepEqual(
+    h.order(c).map((x) => x.source),
+    ["c", "d", "a", "b"],
+  );
+  assert.deepEqual(
+    c.map((x) => x.source),
+    ["a", "b", "c", "d"],
+    "不改到傳入的陣列",
+  );
 });
 
-test("T7 停住一次就降級：第二個檔對第一台零請求", { timeout: HANG_LIMIT_MS }, async (t) => {
-  const clock = useMockClock(t);
-  const a = await startServer(stallAfterHeaders);
-  const b = await startServer(serve(BODY));
-  t.after(() => Promise.all([a.close(), b.close()]));
-  const dir = await tempDir(t);
-  const health = createSourceHealth();
-  const lines = [];
-  const opts = (name) => ({
-    candidates: [
-      { source: "a", url: `${a.url}/${name}` },
-      { source: "b", url: `${b.url}/${name}` },
-    ],
-    dest: path.join(dir, name),
-    sha1: SHA1,
-    health,
-    deps: { stall: STALL, log: (l) => lines.push(l) },
-  });
-  const one = downloadRuntimeFile(opts("one"));
-  await until(() => a.requests.length === 1, "第一台收到請求");
-  clock.advance(STALL.windowMs); // 第一台停住 ⇒ 看門狗中止、降級、改抓第二台
-  await one;
-  assert.equal(a.requests.length, 1);
-  await downloadRuntimeFile(opts("two"));
-  assert.equal(a.requests.length, 1, "第二個檔不該再試被降級的來源");
-  assert.ok(lines.some((l) => l.startsWith("RUNTIME_DEMOTE a")), lines.join("\n"));
-  assert.ok(lines.some((l) => l.startsWith("RUNTIME_SOURCE ")), lines.join("\n"));
-});
-
-test("T7 立刻失敗（520）不降級：第二個檔仍先試第一台（A13）", { timeout: HANG_LIMIT_MS }, async (t) => {
-  useMockClock(t);
-  const a = await startServer(status(520));
-  const b = await startServer(serve(BODY));
-  t.after(() => Promise.all([a.close(), b.close()]));
-  const dir = await tempDir(t);
-  const health = createSourceHealth();
-  for (const name of ["one", "two"]) {
-    await downloadRuntimeFile({
+test(
+  "T7 停住一次就降級：第二個檔對第一台零請求",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const clock = useMockClock(t);
+    const a = await startServer(stallAfterHeaders);
+    const b = await startServer(serve(BODY));
+    t.after(() => Promise.all([a.close(), b.close()]));
+    const dir = await tempDir(t);
+    const health = createSourceHealth();
+    const lines = [];
+    const opts = (name) => ({
       candidates: [
         { source: "a", url: `${a.url}/${name}` },
         { source: "b", url: `${b.url}/${name}` },
@@ -438,8 +463,48 @@ test("T7 立刻失敗（520）不降級：第二個檔仍先試第一台（A13�
       dest: path.join(dir, name),
       sha1: SHA1,
       health,
-      deps: { stall: STALL },
+      deps: { stall: STALL, log: (l) => lines.push(l) },
     });
-  }
-  assert.equal(a.requests.length, 2);
-});
+    const one = downloadRuntimeFile(opts("one"));
+    await until(() => a.requests.length === 1, "第一台收到請求");
+    clock.advance(STALL.windowMs); // 第一台停住 ⇒ 看門狗中止、降級、改抓第二台
+    await one;
+    assert.equal(a.requests.length, 1);
+    await downloadRuntimeFile(opts("two"));
+    assert.equal(a.requests.length, 1, "第二個檔不該再試被降級的來源");
+    assert.ok(
+      lines.some((l) => l.startsWith("RUNTIME_DEMOTE a")),
+      lines.join("\n"),
+    );
+    assert.ok(
+      lines.some((l) => l.startsWith("RUNTIME_SOURCE ")),
+      lines.join("\n"),
+    );
+  },
+);
+
+test(
+  "T7 立刻失敗（520）不降級：第二個檔仍先試第一台（A13）",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    useMockClock(t);
+    const a = await startServer(status(520));
+    const b = await startServer(serve(BODY));
+    t.after(() => Promise.all([a.close(), b.close()]));
+    const dir = await tempDir(t);
+    const health = createSourceHealth();
+    for (const name of ["one", "two"]) {
+      await downloadRuntimeFile({
+        candidates: [
+          { source: "a", url: `${a.url}/${name}` },
+          { source: "b", url: `${b.url}/${name}` },
+        ],
+        dest: path.join(dir, name),
+        sha1: SHA1,
+        health,
+        deps: { stall: STALL },
+      });
+    }
+    assert.equal(a.requests.length, 2);
+  },
+);

@@ -38,9 +38,7 @@ if (!fs.existsSync(input)) {
 const ffmpegPath = "ffmpeg";
 
 // Ensure temp output doesn't exist
-try {
-  if (fs.existsSync(tmpOut)) fs.unlinkSync(tmpOut);
-} catch {}
+if (fs.existsSync(tmpOut)) fs.unlinkSync(tmpOut);
 
 console.log(
   `[downscale-bg-video] encode width=${targetWidth} fps=${targetFps} crf=${crf} (overwrite original)`,

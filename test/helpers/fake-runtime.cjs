@@ -22,7 +22,8 @@ const { profileJsonUrls } = require("../../lib/fabric-meta.js");
 const MC = "1.21.11";
 const LOADER = { type: "fabric", version: "0.19.3" };
 const LAUNCH_ID = `fabric-loader-${LOADER.version}-${MC}`;
-const OFFICIAL_MANIFEST = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
+const OFFICIAL_MANIFEST =
+  "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 const OFFICIAL_RESOURCES = "https://resources.download.minecraft.net";
 
 const sha1 = (buf) => crypto.createHash("sha1").update(buf).digest("hex");
@@ -118,7 +119,9 @@ function makeFakeRuntime(base, { duplicateObject = false, indexJson } = {}) {
     : `https://piston-meta.mojang.com/v1/packages/${sha1(vanillaBytes)}/${MC}.json`;
   byUrl.set(versionJsonUrl, vanillaBytes);
   const wrong = Buffer.from("wrong version json");
-  const wrongUrl = local ? `${official}/wrong-version.json` : "https://piston-meta.mojang.com/v1/packages/wrong/1.21.10.json";
+  const wrongUrl = local
+    ? `${official}/wrong-version.json`
+    : "https://piston-meta.mojang.com/v1/packages/wrong/1.21.10.json";
   byUrl.set(wrongUrl, wrong);
   /** 每次請求時才序列化：測試改它（拿掉、改壞 sha1）就生效 */
   const manifest = {
@@ -128,10 +131,15 @@ function makeFakeRuntime(base, { duplicateObject = false, indexJson } = {}) {
     ],
   };
   const manifestUrl = local ? `${official}/manifest.json` : OFFICIAL_MANIFEST;
-  const profileUrls = local ? [1, 2, 3].map((n) => `${base}/fabric-${n}/profile.json`) : profileJsonUrls(MC, LOADER.version);
+  const profileUrls = local
+    ? [1, 2, 3].map((n) => `${base}/fabric-${n}/profile.json`)
+    : profileJsonUrls(MC, LOADER.version);
   for (const u of profileUrls) byUrl.set(u, fabricBuf);
 
-  const bytesAt = (url) => (url === manifestUrl ? Buffer.from(JSON.stringify(manifest)) : byUrl.get(url));
+  const bytesAt = (url) =>
+    url === manifestUrl
+      ? Buffer.from(JSON.stringify(manifest))
+      : byUrl.get(url);
 
   /** 請求路徑 ⇒ 自訂回應（優先於 byUrl；只有本機 server 用） */
   const overrides = new Map();
@@ -196,7 +204,9 @@ function makeFakeRuntime(base, { duplicateObject = false, indexJson } = {}) {
         ...fabric.libraries.map((l) => fixtures.installerLibraryPath(l.name)),
       ].map((rel) => `libraries/${rel}`),
     nonWindowsLibraryRels: () =>
-      fixtures.vanillaNonWindowsArtifactPaths(vanilla).map((rel) => `libraries/${rel}`),
+      fixtures
+        .vanillaNonWindowsArtifactPaths(vanilla)
+        .map((rel) => `libraries/${rel}`),
     logConfigRel: `assets/log_configs/${logFile.id}`,
   };
 }
@@ -216,7 +226,8 @@ async function startFakeRuntime(t, opts) {
     /** 把寫死的官方端點（manifest、Fabric meta、resources）指到這台 */
     endpoints: {
       manifestUrl: `${srv.url}/official/manifest.json`,
-      profileJsonUrls: () => [1, 2, 3].map((n) => `${srv.url}/fabric-${n}/profile.json`),
+      profileJsonUrls: () =>
+        [1, 2, 3].map((n) => `${srv.url}/fabric-${n}/profile.json`),
       resourcesBase: `${srv.url}/official/objects`,
     },
   });

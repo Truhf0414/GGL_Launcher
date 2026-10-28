@@ -9,7 +9,10 @@ const os = require("os");
 const path = require("path");
 
 const { startServer, serveWithRange } = require("./helpers/local-http.cjs");
-const { bridgeWithLiveWindow, throwOnSend } = require("./helpers/real-bridge.cjs");
+const {
+  bridgeWithLiveWindow,
+  throwOnSend,
+} = require("./helpers/real-bridge.cjs");
 const {
   useMockClock,
   until,
@@ -182,9 +185,15 @@ test(
       stallMessage: "測試：停住了",
     });
     const w = watch(p);
-    await until(() => srv.requests.length === 1 && chunks === 1, "第一次收到 100 bytes");
+    await until(
+      () => srv.requests.length === 1 && chunks === 1,
+      "第一次收到 100 bytes",
+    );
     clock.advance(GUARD.windowMs);
-    await until(() => srv.requests.length === 2 && chunks === 2, "帶 Range 重試、收到 100 bytes");
+    await until(
+      () => srv.requests.length === 2 && chunks === 2,
+      "帶 Range 重試、收到 100 bytes",
+    );
     assert.ok(await stillPending(w), "第二個窗口到之前不該結束");
     clock.advance(GUARD.windowMs);
     await assert.rejects(
@@ -688,10 +697,12 @@ async function assertRegularFile(p, bytes) {
 }
 
 function serveBody(t) {
-  return startServer((req, res) => serveWithRange(req, res, BODY)).then((srv) => {
-    t.after(() => srv.close());
-    return srv;
-  });
+  return startServer((req, res) => serveWithRange(req, res, BODY)).then(
+    (srv) => {
+      t.after(() => srv.close());
+      return srv;
+    },
+  );
 }
 
 test("T-N1 N6: .tmp is a file symlink ⇒ succeeds, outside untouched, target is a regular file, one log line", async (t) => {
@@ -742,7 +753,10 @@ test("T-N3 N6: .part is a file symlink exactly expectedSize long ⇒ the link is
   const lines = captureNetLog(t);
   const srv = await serveBody(t);
   const { target, outside } = await linkTarget(t);
-  await fsp.writeFile(path.join(outside, "victim.bin"), Buffer.alloc(BODY.length, 0x58));
+  await fsp.writeFile(
+    path.join(outside, "victim.bin"),
+    Buffer.alloc(BODY.length, 0x58),
+  );
   await fsp.symlink(path.join(outside, "victim.bin"), `${target}.part`, "file");
   const before = await snapshot(outside);
 
@@ -801,7 +815,9 @@ test("T-N6 N6: .tmp is a regular folder ⇒ still rejects EISDIR, the folder sta
   await fsp.mkdir(`${target}.tmp`);
   await fsp.writeFile(path.join(`${target}.tmp`, "inside.txt"), "inside");
 
-  await assert.rejects(downloadToFile(srv.url, target, null), { code: "EISDIR" });
+  await assert.rejects(downloadToFile(srv.url, target, null), {
+    code: "EISDIR",
+  });
   await settle();
 
   assert.deepEqual(await snapshot(`${target}.tmp`), {
@@ -841,7 +857,11 @@ for (const fail of ["throw", "reject"]) {
     const srv = await serveBody(t);
     const { target, outside } = await linkTarget(t);
     await fsp.writeFile(path.join(outside, "victim.bin"), "VICTIM");
-    await fsp.symlink(path.join(outside, "victim.bin"), `${target}.tmp`, "file");
+    await fsp.symlink(
+      path.join(outside, "victim.bin"),
+      `${target}.tmp`,
+      "file",
+    );
     const before = await snapshot(outside);
 
     await downloadToFile(srv.url, target, null);

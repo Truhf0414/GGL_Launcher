@@ -22,8 +22,8 @@ const REQUIRED_FUNCTIONS = [
 ];
 
 /**
- * 沒 configure 就用到 ⇒ TypeError，但會被下面兩個 best-effort 出口與 withRetries 吞掉（P4），
- * 「一定呼叫且給齊」靠 test/app-ready.test.cjs 釘
+ * 沒 configure 就用到 ⇒ 第一次重試時 notifyRetryToUi 丟 TypeError，大聲失敗（logToLauncher 那條仍是 best-effort、照吞）；
+ * 「一定呼叫且給齊」靠 test/app-ready.test.cjs 釘。送畫面失敗由 ipc-bridge 的 deliver 接（→ _notes/plans/cross-review-2026-10-phase6e.md Q-RETRY）
  * @type {null | { onRetryNotify: (text: string) => void, appendLauncherLog: (line: string) => unknown }}
  */
 let netDeps = null;
@@ -37,9 +37,7 @@ function configureNetFetch(next) {
 }
 
 function notifyRetryToUi(text) {
-  try {
-    netDeps.onRetryNotify(String(text || ""));
-  } catch {}
+  netDeps.onRetryNotify(String(text || ""));
 }
 
 /** debug log 是 best-effort：注入的 logger 同步丟錯或 reject 都不影響下載（→ _notes/plans/cross-review-2026-10-n6.md N6-D3） */
@@ -157,9 +155,7 @@ async function withRetries(
     } catch (e) {
       lastErr = e;
       if (i >= retries || !shouldRetry(e)) break;
-      try {
-        if (typeof onRetry === "function") onRetry(i + 1, retries, e);
-      } catch {}
+      if (typeof onRetry === "function") onRetry(i + 1, retries, e);
       const delay = baseDelayMs * Math.pow(2, i);
       await sleepMs(delay);
     }
@@ -199,7 +195,9 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
         try {
           const st = await fsp.stat(partPath);
           if (st.isFile()) existing = st.size;
-        } catch {}
+        } catch {
+          // 探測：讀不到半截的檔就當沒有，從頭下載
+        }
       }
 
       const headers = {};
@@ -217,7 +215,9 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
       if (resume && existing > 0 && res.status !== 206) {
         try {
           await fsp.rm(partPath, { force: true });
-        } catch {}
+        } catch {
+          // 清理：刪不掉也沒關係，existing 歸零後下面用 "w" 從頭覆寫
+        }
         existing = 0;
       }
 
@@ -267,10 +267,14 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
         reader.cancel().catch(() => {});
         try {
           file.destroy();
-        } catch {}
+        } catch {
+          // 清理：下載已經失敗，原始錯誤優先，關檔失敗不得蓋過它
+        }
         try {
           if (!resume) await fsp.rm(partPath, { force: true });
-        } catch {}
+        } catch {
+          // 清理：同上；刪不掉的 .tmp 下次下載會從頭覆寫
+        }
         throw e;
       }
     },

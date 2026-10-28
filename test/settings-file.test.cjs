@@ -58,7 +58,10 @@ async function rejectsWith(promise, check) {
 }
 
 const isSettingsError = (reason) => (e) => {
-  assert.ok(e instanceof SettingsError, `應為 SettingsError，實際 ${e?.name}：${e?.message}`);
+  assert.ok(
+    e instanceof SettingsError,
+    `應為 SettingsError，實際 ${e?.name}：${e?.message}`,
+  );
   assert.equal(e.name, "SettingsError");
   assert.equal(e.code, "GGL_SETTINGS");
   assert.equal(e.reason, reason, e.message);
@@ -81,7 +84,10 @@ async function gglRecords(dir, e) {
 }
 
 test("唯一一份預設：五個鍵都在、本身合法、根目錄是 server-config 的預設", () => {
-  assert.deepEqual(Object.keys(DEFAULT_SETTINGS).sort(), [...SETTINGS_KEYS].sort());
+  assert.deepEqual(
+    Object.keys(DEFAULT_SETTINGS).sort(),
+    [...SETTINGS_KEYS].sort(),
+  );
   assert.deepEqual(checkSettings(DEFAULT_SETTINGS), []);
   assert.deepEqual(DEFAULT_SETTINGS, {
     minMemoryGb: null,
@@ -96,7 +102,10 @@ test("唯一一份預設：五個鍵都在、本身合法、根目錄是 server-
 
 test("V1 檔不存在 ⇒ 建出完整預設（每個鍵都在、不帶 BOM）；之後讀得回同一份", async (t) => {
   const { file } = await useUserData(t);
-  assert.deepEqual(await boot(), { settings: DEFAULT_SETTINGS, recovered: null });
+  assert.deepEqual(await boot(), {
+    settings: DEFAULT_SETTINGS,
+    recovered: null,
+  });
   const bytes = await fsp.readFile(file);
   assert.notDeepEqual([...bytes.subarray(0, 3)], [...BOM]);
   assert.deepEqual(JSON.parse(bytes.toString("utf8")), DEFAULT_SETTINGS);
@@ -128,14 +137,21 @@ test("V2 合法且五個鍵都在（owner 那份拿掉 memoryGb）⇒ 開機後�
 
 test("V2 合法但缺鍵 ⇒ 開機不補寫、位元組不變；回的設定補上預設", async (t) => {
   const { file, dir } = await useUserData(t);
-  for (const partial of [{}, { playerId: "Steve" }, { maxMemoryGb: 8, debugLogging: true }]) {
+  for (const partial of [
+    {},
+    { playerId: "Steve" },
+    { maxMemoryGb: 8, debugLogging: true },
+  ]) {
     const bytes = Buffer.from(JSON.stringify(partial));
     await fsp.writeFile(file, bytes);
     const { settings, recovered } = await boot();
     assert.equal(recovered, null);
     assert.deepEqual(settings, { ...DEFAULT_SETTINGS, ...partial });
     assert.deepEqual(await readSettings(), { ...DEFAULT_SETTINGS, ...partial });
-    assert.ok((await fsp.readFile(file)).equals(bytes), JSON.stringify(partial));
+    assert.ok(
+      (await fsp.readFile(file)).equals(bytes),
+      JSON.stringify(partial),
+    );
   }
   assert.deepEqual(await listDir(dir), ["settings.json"]);
 });
@@ -180,7 +196,10 @@ test("V4 壞內容 ⇒ 備份＝原位元組、正式檔＝完整預設、回 re
     assert.deepEqual(r.settings, DEFAULT_SETTINGS, label);
     assert.equal(r.recovered.backupPath, backupPath, label);
     assert.equal(typeof r.recovered.why, "string", label);
-    assert.ok((await fsp.readFile(backupPath)).equals(bytes), `${label}：備份不等於原檔`);
+    assert.ok(
+      (await fsp.readFile(backupPath)).equals(bytes),
+      `${label}：備份不等於原檔`,
+    );
     assert.deepEqual(await readJson(file), DEFAULT_SETTINGS, label);
     assert.deepEqual(
       await listDir(dir),
@@ -192,8 +211,15 @@ test("V4 壞內容 ⇒ 備份＝原位元組、正式檔＝完整預設、回 re
     assert.deepEqual(events[0].d, { why: kind, backup: BACKUP_NAME }, label);
 
     // 再開一次：已經是合法的預設，不再恢復、不再多一份備份
-    assert.deepEqual(await boot(NOW + 60_000), { settings: DEFAULT_SETTINGS, recovered: null });
-    assert.deepEqual(await listDir(dir), ["ggl-launcher.log", BACKUP_NAME, "settings.json"]);
+    assert.deepEqual(await boot(NOW + 60_000), {
+      settings: DEFAULT_SETTINGS,
+      recovered: null,
+    });
+    assert.deepEqual(await listDir(dir), [
+      "ggl-launcher.log",
+      BACKUP_NAME,
+      "settings.json",
+    ]);
 
     if (!whyByKind.has(kind)) whyByKind.set(kind, new Set());
     whyByKind.get(kind).add(r.recovered.why.split("（")[0]);
@@ -216,10 +242,12 @@ test("V5 合法 JSON 但值不合法或有未知鍵 ⇒ 開機丟 SettingsError(
   });
   await fsp.writeFile(file, bytes);
   const err = await rejectsWith(boot(), isSettingsError("invalid"));
-  assert.deepEqual(
-    err.issues.map((i) => i.key).sort(),
-    ["launcherRootDri", "memoryGb", "minMemoryGb", "playerId"],
-  );
+  assert.deepEqual(err.issues.map((i) => i.key).sort(), [
+    "launcherRootDri",
+    "memoryGb",
+    "minMemoryGb",
+    "playerId",
+  ]);
   assert.ok((await fsp.readFile(file)).equals(bytes));
   assert.deepEqual(await listDir(dir), ["settings.json"]);
 
@@ -232,7 +260,13 @@ test("V5 合法 JSON 但值不合法或有未知鍵 ⇒ 開機丟 SettingsError(
   const box = boxes[0];
   assert.ok(!box.includes(err.stack), "開機框不放 stack");
   assert.ok(!/\n\s+at /.test(box), box);
-  for (const piece of ["memoryGb", "launcherRootDri", "minMemoryGb", '" Steve"', file]) {
+  for (const piece of [
+    "memoryGb",
+    "launcherRootDri",
+    "minMemoryGb",
+    '" Steve"',
+    file,
+  ]) {
     assert.ok(box.includes(piece), `框裡沒有 ${piece}：\n${box}`);
   }
   for (const issue of err.issues) {
@@ -253,7 +287,10 @@ test("V6 settings.json 是資料夾（EISDIR）⇒ SettingsError(unreadable)、�
   assert.deepEqual(await listDir(dir), ["settings.json"]);
   assert.deepEqual(await fsp.readdir(file), []);
   await rejectsWith(readSettings(), isSettingsError("unreadable"));
-  await rejectsWith(writeSettings({ playerId: "Steve" }), isSettingsError("unreadable"));
+  await rejectsWith(
+    writeSettings({ playerId: "Steve" }),
+    isSettingsError("unreadable"),
+  );
 });
 
 test("V6 不是 SettingsError 的例外（取路徑時的 TypeError）照原樣冒出", async (t) => {
@@ -263,7 +300,11 @@ test("V6 不是 SettingsError 的例外（取路徑時的 TypeError）照原樣�
   t.after(() => {
     electron.getPathThrows = null;
   });
-  for (const call of [boot, readSettings, () => writeSettings({ playerId: "Steve" })]) {
+  for (const call of [
+    boot,
+    readSettings,
+    () => writeSettings({ playerId: "Steve" }),
+  ]) {
     await rejectsWith(call(), (e) => {
       assert.equal(e, thrown);
     });
@@ -287,14 +328,19 @@ test("V7 執行中：檔不見 ⇒ missing（不建預設）；壞內容 ⇒ inv
 
   // 執行中也分得出 UTF-8 無效與 JSON 語法錯
   await fsp.writeFile(file, Buffer.from([0x80]));
-  const utf8 = (await rejectsWith(readSettings(), isSettingsError("invalid"))).message;
+  const utf8 = (await rejectsWith(readSettings(), isSettingsError("invalid")))
+    .message;
   await fsp.writeFile(file, "{");
-  const syntax = (await rejectsWith(readSettings(), isSettingsError("invalid"))).message;
+  const syntax = (await rejectsWith(readSettings(), isSettingsError("invalid")))
+    .message;
   assert.notEqual(utf8.split("\n")[1], syntax.split("\n")[1]);
 
   await fsp.writeFile(file, json({ memoryGb: 4 }));
   const err = await rejectsWith(readSettings(), isSettingsError("invalid"));
-  assert.deepEqual(err.issues.map((i) => i.key), ["memoryGb"]);
+  assert.deepEqual(
+    err.issues.map((i) => i.key),
+    ["memoryGb"],
+  );
 });
 
 // ── 寫 ──
@@ -303,7 +349,11 @@ test("writeSettings：寫出合併後的完整物件（null 照存）、回傳�
   const { file } = await useUserData(t);
   await fsp.writeFile(file, '{"maxMemoryGb":8}');
   const next = await writeSettings({ playerId: "Steve", maxMemoryGb: null });
-  const expected = { ...DEFAULT_SETTINGS, playerId: "Steve", maxMemoryGb: null };
+  const expected = {
+    ...DEFAULT_SETTINGS,
+    playerId: "Steve",
+    maxMemoryGb: null,
+  };
   assert.deepEqual(next, expected);
   assert.deepEqual(await readJson(file), expected);
   assert.deepEqual(await readSettings(), expected);
@@ -311,7 +361,13 @@ test("writeSettings：寫出合併後的完整物件（null 照存）、回傳�
 
 test("writeSettings 比對的是讀到的原始位元組：帶 BOM、缺鍵、四格縮排的合法檔 ⇒ 儲存成功、寫出完整設定（無 BOM）", async (t) => {
   const { file, dir } = await useUserData(t);
-  await fsp.writeFile(file, Buffer.concat([BOM, Buffer.from(JSON.stringify({ playerId: "Steve" }, null, 4))]));
+  await fsp.writeFile(
+    file,
+    Buffer.concat([
+      BOM,
+      Buffer.from(JSON.stringify({ playerId: "Steve" }, null, 4)),
+    ]),
+  );
   const next = await writeSettings({ maxMemoryGb: 8 });
   const expected = { ...DEFAULT_SETTINGS, playerId: "Steve", maxMemoryGb: 8 };
   assert.deepEqual(next, expected);
@@ -321,15 +377,24 @@ test("writeSettings 比對的是讀到的原始位元組：帶 BOM、缺鍵、�
 
 test("V20 writeSettings 遇壞檔或不合法的檔 ⇒ reject、位元組不變、沒有備份、沒有暫存", async (t) => {
   const { file, dir } = await useUserData(t);
-  const cases = [...BROKEN.map(([label, bytes]) => [label, bytes]), ["未知鍵", json({ memoryGb: 4 })]];
+  const cases = [
+    ...BROKEN.map(([label, bytes]) => [label, bytes]),
+    ["未知鍵", json({ memoryGb: 4 })],
+  ];
   for (const [label, bytes] of cases) {
     await fsp.writeFile(file, bytes);
-    await rejectsWith(writeSettings({ playerId: "Steve" }), isSettingsError("invalid"));
+    await rejectsWith(
+      writeSettings({ playerId: "Steve" }),
+      isSettingsError("invalid"),
+    );
     assert.ok((await fsp.readFile(file)).equals(bytes), label);
     assert.deepEqual(await listDir(dir), ["settings.json"], label);
   }
   await fsp.rm(file);
-  await rejectsWith(writeSettings({ playerId: "Steve" }), isSettingsError("missing"));
+  await rejectsWith(
+    writeSettings({ playerId: "Steve" }),
+    isSettingsError("missing"),
+  );
   assert.deepEqual(await listDir(dir), [], "檔不見時寫入不建檔");
 });
 
@@ -374,28 +439,45 @@ test("V25 不相交 patch 同時寫入 ⇒ 兩個都成功、檔裡兩個改動�
     readSettings(),
   ]);
   assert.equal(read.playerId, "B", "排在第一次寫之後的讀看得到它");
-  assert.deepEqual(await readJson(file), { ...DEFAULT_SETTINGS, playerId: "B", maxMemoryGb: 8 });
+  assert.deepEqual(await readJson(file), {
+    ...DEFAULT_SETTINGS,
+    playerId: "B",
+    maxMemoryGb: 8,
+  });
 });
 
-test("V26 讀、寫、複製交錯並行 ⇒ 全部在期限內結束；一次失敗不擋後面排隊的", { timeout: 10_000 }, async (t) => {
-  const { file, dir } = await useUserData(t);
-  await fsp.writeFile(file, json(DEFAULT_SETTINGS));
-  const ops = [];
-  for (let i = 0; i < 30; i++) {
-    ops.push(writeSettings({ playerId: `P${i}` }));
-    ops.push(readSettings());
-    ops.push(copySettingsFileTo(path.join(dir, `copy-${i}.json`)));
-    // 不合法的 patch：這一筆 reject，後面的照常
-    ops.push(writeSettings({ minMemoryGb: 0 }).then(() => assert.fail("應該 reject"), (e) => e));
-  }
-  const results = await Promise.all(ops);
-  for (let i = 0; i < 30; i++) {
-    const copied = await readJson(path.join(dir, `copy-${i}.json`));
-    assert.equal(copied.playerId, `P${i}`, `第 ${i} 份複本要是排在它前面那次寫入的結果`);
-    assert.ok(results[i * 4 + 3] instanceof Error);
-  }
-  assert.equal((await readSettings()).playerId, "P29");
-});
+test(
+  "V26 讀、寫、複製交錯並行 ⇒ 全部在期限內結束；一次失敗不擋後面排隊的",
+  { timeout: 10_000 },
+  async (t) => {
+    const { file, dir } = await useUserData(t);
+    await fsp.writeFile(file, json(DEFAULT_SETTINGS));
+    const ops = [];
+    for (let i = 0; i < 30; i++) {
+      ops.push(writeSettings({ playerId: `P${i}` }));
+      ops.push(readSettings());
+      ops.push(copySettingsFileTo(path.join(dir, `copy-${i}.json`)));
+      // 不合法的 patch：這一筆 reject，後面的照常
+      ops.push(
+        writeSettings({ minMemoryGb: 0 }).then(
+          () => assert.fail("應該 reject"),
+          (e) => e,
+        ),
+      );
+    }
+    const results = await Promise.all(ops);
+    for (let i = 0; i < 30; i++) {
+      const copied = await readJson(path.join(dir, `copy-${i}.json`));
+      assert.equal(
+        copied.playerId,
+        `P${i}`,
+        `第 ${i} 份複本要是排在它前面那次寫入的結果`,
+      );
+      assert.ok(results[i * 4 + 3] instanceof Error);
+    }
+    assert.equal((await readSettings()).playerId, "P29");
+  },
+);
 
 test("copySettingsFileTo：位元組原樣複製（含 BOM）；檔不見照樣 reject", async (t) => {
   const { file, dir } = await useUserData(t);
@@ -405,5 +487,7 @@ test("copySettingsFileTo：位元組原樣複製（含 BOM）；檔不見照樣 
   await copySettingsFileTo(dest);
   assert.ok((await fsp.readFile(dest)).equals(bytes));
   await fsp.rm(file);
-  await assert.rejects(copySettingsFileTo(path.join(dir, "out2.json")), { code: "ENOENT" });
+  await assert.rejects(copySettingsFileTo(path.join(dir, "out2.json")), {
+    code: "ENOENT",
+  });
 });

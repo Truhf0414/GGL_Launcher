@@ -169,5 +169,8 @@ test("N4 Fabric 帶 assetIndex ⇒ ok:false；null 或沒有這個鍵 ⇒ ok", (
   const r = checkFabricJson(j, fabricCtx);
   assert.equal(r.ok, false);
   assert.match(r.error, /assetIndex/);
-  assert.equal(checkFabricJson({ ...fixtures.fabric(), assetIndex: null }, fabricCtx).ok, true);
+  assert.equal(
+    checkFabricJson({ ...fixtures.fabric(), assetIndex: null }, fabricCtx).ok,
+    true,
+  );
 });

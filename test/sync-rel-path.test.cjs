@@ -84,34 +84,59 @@ test("checkStrictRelPath：像別名或保留名但不是的，放行", () => {
     "mods/com10.jar",
     "mods/.hidden",
   ]) {
-    assert.deepEqual(checkStrictRelPath(input), { ok: true, path: input }, input);
+    assert.deepEqual(
+      checkStrictRelPath(input),
+      { ok: true, path: input },
+      input,
+    );
   }
 });
 
 test("checkStrictRelPath pattern:false：實體檔路徑", () => {
-  assert.deepEqual(checkStrictRelPath("mods/"), { ok: false, code: "trailing-slash" });
-  assert.deepEqual(checkStrictRelPath("mods/*.jar"), { ok: false, code: "illegal-char" });
-  assert.deepEqual(checkStrictRelPath("mods/a.jar"), { ok: true, path: "mods/a.jar" });
+  assert.deepEqual(checkStrictRelPath("mods/"), {
+    ok: false,
+    code: "trailing-slash",
+  });
+  assert.deepEqual(checkStrictRelPath("mods/*.jar"), {
+    ok: false,
+    code: "illegal-char",
+  });
+  assert.deepEqual(checkStrictRelPath("mods/a.jar"), {
+    ok: true,
+    path: "mods/a.jar",
+  });
 });
 
 test("checkStrictRelPath pattern:true：允許 * 與單一結尾 /", () => {
   const opts = { pattern: true };
-  assert.deepEqual(checkStrictRelPath("config/", opts), { ok: true, path: "config/" });
+  assert.deepEqual(checkStrictRelPath("config/", opts), {
+    ok: true,
+    path: "config/",
+  });
   assert.deepEqual(checkStrictRelPath("shaderpacks/*.txt", opts), {
     ok: true,
     path: "shaderpacks/*.txt",
   });
-  assert.deepEqual(checkStrictRelPath("config//", opts), { ok: false, code: "empty-segment" });
+  assert.deepEqual(checkStrictRelPath("config//", opts), {
+    ok: false,
+    code: "empty-segment",
+  });
 });
 
 test("casefoldCollisions：大小寫不同才算，完全重複不算", () => {
-  assert.deepEqual(casefoldCollisions(["mods/A.jar", "mods/a.jar"]), [["mods/A.jar", "mods/a.jar"]]);
+  assert.deepEqual(casefoldCollisions(["mods/A.jar", "mods/a.jar"]), [
+    ["mods/A.jar", "mods/a.jar"],
+  ]);
   assert.deepEqual(casefoldCollisions(["a", "a"]), []);
   assert.deepEqual(casefoldCollisions(["a", "b"]), []);
 });
 
 test("prefixConflicts：某路徑是另一路徑的上層資料夾（不分大小寫）", () => {
-  assert.deepEqual(prefixConflicts(["a/b", "a/b/c.toml"]), [["a/b", "a/b/c.toml"]]);
-  assert.deepEqual(prefixConflicts(["Mods", "mods/a.jar"]), [["Mods", "mods/a.jar"]]);
+  assert.deepEqual(prefixConflicts(["a/b", "a/b/c.toml"]), [
+    ["a/b", "a/b/c.toml"],
+  ]);
+  assert.deepEqual(prefixConflicts(["Mods", "mods/a.jar"]), [
+    ["Mods", "mods/a.jar"],
+  ]);
   assert.deepEqual(prefixConflicts(["a/b", "a/bc"]), []);
 });

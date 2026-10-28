@@ -31,23 +31,17 @@ test("parseNoticeFields: trims strings, caps inline log at 150, ignores a non-ob
   });
 });
 
-test("parseNoticeLogText: JSON array / {log} / {lines} / plain text", () => {
-  assert.deepEqual(parseNoticeLogText('["a", 2]', "application/json"), [
-    "a",
-    "2",
-  ]);
-  assert.deepEqual(parseNoticeLogText('{"log":["a"]}', ""), ["a"]);
-  assert.deepEqual(parseNoticeLogText('{"lines":["b"]}', ""), ["b"]);
-  assert.deepEqual(parseNoticeLogText(" x \r\n\r\n y ", "text/plain"), [
-    "x",
-    "y",
-  ]);
+test("parseNoticeLogText: only { log: [...] }; JSON array / {lines} / plain text throw", () => {
+  assert.deepEqual(parseNoticeLogText('{"log":["a", 2]}'), ["a", "2"]);
+  for (const text of ['["a", 2]', '{"lines":["b"]}', " x \r\n\r\n y "]) {
+    assert.throws(() => parseNoticeLogText(text), undefined, text);
+  }
 });
 
-test("parseNoticeLogText: broken JSON falls back to lines; capped at 150", () => {
-  assert.deepEqual(parseNoticeLogText("{oops", "application/json"), ["{oops"]);
-  const many = Array.from({ length: 200 }, (_, i) => `l${i}`).join("\n");
-  assert.equal(parseNoticeLogText(many, "").length, 150);
+test("parseNoticeLogText: broken JSON throws; capped at 150", () => {
+  assert.throws(() => parseNoticeLogText("{oops"), SyntaxError);
+  const log = Array.from({ length: 200 }, (_, i) => `l${i}`);
+  assert.equal(parseNoticeLogText(JSON.stringify({ log })).length, 150);
 });
 
 test("assembleNotice: inline log wins; remote log used only when inline is empty", () => {

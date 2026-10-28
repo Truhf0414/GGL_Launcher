@@ -129,6 +129,26 @@ test("N4 讀得到通知 ⇒ 清單顯示、錯誤區藏起，看過的位置寫
   assert.deepEqual(h.written, [["ggl:notifLastSeenKey:v1", "5:a"]]);
 });
 
+test("N4b 已讀位置寫不進 localStorage ⇒ 清單照常、紅點熄、只記事件 ID（不帶內容）、玩家看不到錯誤（D-6E-SEEN）", async (t) => {
+  const h = setup(t, { get: async () => ({ items: [ITEM], unreadCount: 1 }) });
+  global.localStorage.setItem = () => {
+    throw new Error("QuotaExceededError");
+  };
+  h.el.btnBell.classList.add("has-unread");
+  h.ui.openNotif(h.el);
+  await h.settle();
+  assert.ok(h.shown("notifList"));
+  assert.equal(h.el.notifList.children.length, 1);
+  assert.ok(!h.el.btnBell.classList.contains("has-unread"));
+  assert.deepEqual(h.record.statusErrors, []);
+  assert.equal(h.record.errors.length, 1);
+  const [scope, id, , detail] = h.record.errors[0];
+  assert.deepEqual(
+    [scope, id, detail],
+    ["renderer", "notifications_seen_save_failed", undefined],
+  );
+});
+
 test("N5 清除成功、重新讀取失敗 ⇒ 面板說讀不到，不出現「清除通知失敗」", async (t) => {
   const h = setup(t, { get: failing });
   await h.ui.clearNotifs(h.el);

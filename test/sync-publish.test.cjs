@@ -161,12 +161,11 @@ test("readSite：站台根不存在 ⇒ 全空、不丟錯", async (t) => {
   assert.deepEqual(site.archives, []);
   assert.equal(site.blobs.size, 0);
   assert.deepEqual(site.staleTemps, []);
-  assert.equal(site.manifest.isV3, false);
-  assert.equal(site.manifest.legacyFields, null);
+  assert.deepEqual(site.manifest, { isV3: false });
   assert.equal(site.gateExists, false);
 });
 
-test("readSite：封存分類（B5）、殘骸分類（B6）、files/ 分類、舊 manifest 欄位", async (t) => {
+test("readSite：封存分類（B5）、殘骸分類（B6）、files/ 分類", async (t) => {
   const root = await tmpDir(t, "site");
   const r1 = RELEASE("v1", { "mods/a.jar": "A" }, "2026-09-20T10:00:00+08:00");
   const r2 = RELEASE("v2", { "mods/a.jar": "A2" }, "2026-09-21T10:00:00+08:00");
@@ -185,14 +184,6 @@ test("readSite：封存分類（B5）、殘骸分類（B6）、files/ 分類、�
     "files/bootstrap-x/a.txt": "legacy",
     "release.json.tmp": "tmp",
     "notes.tmp": "not mine",
-    "manifest.json": JSON.stringify({
-      schemaVersion: 2,
-      notice: { title: "T" },
-      maintenance: { enabled: false, message: "" },
-      minLauncherVersion: "1.0.0",
-      notifications: [{ id: "n1", title: "N1" }],
-      other: 1,
-    }),
     "gate.json": "{}",
   });
   const site = await readSite(root);
@@ -216,15 +207,6 @@ test("readSite：封存分類（B5）、殘骸分類（B6）、files/ 分類、�
     "files/bootstrap-x/",
     "files/foo.tmp",
   ]);
-  assert.deepEqual(site.manifest, {
-    isV3: false,
-    legacyFields: {
-      notice: { title: "T" },
-      maintenance: { enabled: false, message: "" },
-      minLauncherVersion: "1.0.0",
-      notifications: [{ id: "n1", title: "N1" }],
-    },
-  });
   assert.equal(site.gateExists, true);
   assert.equal(site.noticeExists, false);
 });
@@ -349,10 +331,9 @@ const V2_MANIFEST = {
   notifications: [{ id: "n1", title: "N1" }],
 };
 
-/** 仿真站台現況：v2 manifest（帶 notifications）、files/bootstrap-x/、changelog.json、根目錄雜檔 */
+/** 仿真站台：還沒有索引，帶 files/bootstrap-x/、changelog.json、根目錄雜檔 */
 async function legacySite(root) {
   await writeTree(root, {
-    "manifest.json": JSON.stringify(V2_MANIFEST, null, 2),
     "changelog.json": "[]",
     "notice-thumb.jpg": "jpg",
     Caddyfile: "caddy",
@@ -719,10 +700,6 @@ test("publish apply 首發：四支 json 過讀取端驗證、blob 白名單齊�
     assert.deepEqual(await fsp.readFile(path.join(siteRoot, f)), bytes, f);
   }
   assert.deepEqual(await read(`releases/${archiveOf("v1", at(20))}`), release);
-  assert.match(
-    r.report.join("\n"),
-    /舊 manifest 欄位（不會自動搬）：.*notice\.title=T.*maintenance\.enabled=false.*minLauncherVersion=1\.0\.0.*notifications=1 筆（N1）/,
-  );
   assert.deepEqual(r.summary.nonBlobEntries, ["files/bootstrap-x/"]);
 });
 
@@ -1247,7 +1224,7 @@ test("B4 修法②：刪掉 release.json 後重發 ⇒ 走首發、保留集內�
     assert.equal(site.blobs.has(sha256(v)), true, v);
 });
 
-// ── N32 站台索引的白名單（R9、R13）：認得的只有「沒有」「v3」「v2 舊索引」，其餘拒發 ──
+// ── N32 站台索引的白名單（R9、R13）：認得的只有「沒有」「v3」，其餘拒發 ──
 
 const V3_INDEX = {
   format: 3,
@@ -1257,7 +1234,6 @@ const V3_INDEX = {
   files: "files/",
 };
 const asJson = (x) => JSON.stringify(x);
-const LEGACY_LINE = /舊 manifest 欄位/;
 
 /** 換掉站台的 manifest.json；內容結尾 / ＝放一個同名資料夾 */
 async function putManifest(siteRoot, content) {
@@ -1329,7 +1305,19 @@ const MANIFEST_REFUSALS = [
     /認不出這份索引/,
     true,
   ],
-  // v2 只認數字 2 與字串 "2"：Number() 會把 [2]、"2.0" 也算成 2（owner 2026-10-04 裁收緊）
+  // v2 舊索引沒有 format 鍵，不接（conventions §防禦與相容 第 5 條）
+  [
+    "v2 舊索引 schemaVersion 數字 2",
+    asJson({ ...V2_MANIFEST, schemaVersion: 2 }),
+    /認不出這份索引/,
+    true,
+  ],
+  [
+    'v2 舊索引 schemaVersion 字串 "2"',
+    asJson({ ...V2_MANIFEST, schemaVersion: "2" }),
+    /認不出這份索引/,
+    true,
+  ],
   [
     "{ schemaVersion: [2] }",
     asJson({ schemaVersion: [2] }),
@@ -1344,8 +1332,8 @@ const MANIFEST_REFUSALS = [
   ],
 ];
 
-test("N32 拒發表共 18 格", () => {
-  assert.equal(MANIFEST_REFUSALS.length, 18);
+test("N32 拒發表共 20 格", () => {
+  assert.equal(MANIFEST_REFUSALS.length, 20);
 });
 
 for (const [name, content, cause, fixable] of MANIFEST_REFUSALS) {
@@ -1383,9 +1371,7 @@ for (const [name, content, cause, fixable] of MANIFEST_REFUSALS) {
         assert.equal(e.message.includes("Remove-Item"), false, e.message);
       }
       assert.deepEqual(await snapshot(siteRoot), before, where);
-      const report = r.report.join("\n");
-      assert.doesNotMatch(report, LEGACY_LINE, where);
-      assert.match(report, /拒絕發版，站台未動/, where);
+      assert.match(r.report.join("\n"), /拒絕發版，站台未動/, where);
     }
   });
 }
@@ -1399,26 +1385,6 @@ test("N32 放行：沒有 manifest.json ⇒ --apply 寫出標準索引", async (
   );
   assert.deepEqual(written, V3_INDEX);
 });
-
-for (const [label, schemaVersion] of [
-  ["數字 2", 2],
-  ['字串 "2"', "2"],
-]) {
-  test(`N32 放行：v2 舊索引 schemaVersion ${label} ⇒ 報告列舊欄位、--apply 寫出標準索引`, async (t) => {
-    const { siteRoot, srcRoot, run } = await newSite(t, "manifest-v2");
-    await putManifest(siteRoot, asJson({ ...V2_MANIFEST, schemaVersion }));
-    const r = await publishOk(
-      run,
-      await makeSource(srcRoot, "v1", V1_FILES),
-      at(20),
-    );
-    assert.match(r.report.join("\n"), LEGACY_LINE);
-    const written = JSON.parse(
-      await fsp.readFile(path.join(siteRoot, "manifest.json"), "utf8"),
-    );
-    assert.deepEqual(written, V3_INDEX);
-  });
-}
 
 test("N32 放行：合法的 v3 索引（gate 換別的檔名）⇒ --apply 之後一個位元組都沒變", async (t) => {
   const { siteRoot, srcRoot, run } = await newSite(t, "manifest-v3");

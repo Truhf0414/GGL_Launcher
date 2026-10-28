@@ -82,13 +82,25 @@ function goldenInput() {
 test("L1 evaluateRules：上層六案＋os.version、同一條全部成立", () => {
   assert.equal(evaluateRules(undefined, ENV), true);
   assert.equal(evaluateRules([], ENV), true);
-  assert.equal(evaluateRules([R("allow", { os: { name: "osx" } })], ENV), false);
-  assert.equal(evaluateRules([R("allow", { os: { name: "windows" } })], ENV), true);
   assert.equal(
-    evaluateRules([R("allow"), R("disallow", { os: { name: "windows" } })], ENV),
+    evaluateRules([R("allow", { os: { name: "osx" } })], ENV),
     false,
   );
-  assert.equal(evaluateRules([R("allow", { os: { arch: "x86" } })], ENV), false);
+  assert.equal(
+    evaluateRules([R("allow", { os: { name: "windows" } })], ENV),
+    true,
+  );
+  assert.equal(
+    evaluateRules(
+      [R("allow"), R("disallow", { os: { name: "windows" } })],
+      ENV,
+    ),
+    false,
+  );
+  assert.equal(
+    evaluateRules([R("allow", { os: { arch: "x86" } })], ENV),
+    false,
+  );
   const demo = [R("allow", { features: { is_demo_user: true } })];
   assert.equal(evaluateRules(demo, ENV), false);
   assert.equal(
@@ -96,7 +108,10 @@ test("L1 evaluateRules：上層六案＋os.version、同一條全部成立", () 
     true,
   );
   assert.equal(
-    evaluateRules([R("disallow"), R("allow", { os: { name: "windows" } })], ENV),
+    evaluateRules(
+      [R("disallow"), R("allow", { os: { name: "windows" } })],
+      ENV,
+    ),
     true,
   );
   const v10 = [R("allow", { os: { version: "^10\\." } })];
@@ -122,7 +137,10 @@ test("L3 mergeVersionChain：兩支 fixture", () => {
   assert.deepEqual(m.logging, v.logging);
   assert.equal(m.arguments.jvm.length, 12);
   assert.deepEqual(m.arguments.jvm.slice(0, 11), v.arguments.jvm);
-  assert.equal(m.arguments.jvm[11], "-DFabricMcEmu= net.minecraft.client.main.Main ");
+  assert.equal(
+    m.arguments.jvm[11],
+    "-DFabricMcEmu= net.minecraft.client.main.Main ",
+  );
   assert.deepEqual(m.arguments.game, v.arguments.game);
   assert.equal(m.arguments.game.length, 26);
   assert.equal(m.libraries.length, 115);
@@ -149,7 +167,12 @@ test("L4 mergeVersionChain：子層 null 不蓋、library 子覆蓋、單層、�
   ]).libraries;
   assert.deepEqual(libs, [{ name: "a:b:1", from: "child" }]);
   const one = mergeVersionChain([
-    { id: "x", mainClass: "M", arguments: { jvm: ["a"], game: ["b"] }, libraries: [] },
+    {
+      id: "x",
+      mainClass: "M",
+      arguments: { jvm: ["a"], game: ["b"] },
+      libraries: [],
+    },
   ]);
   assert.equal(one.id, "x");
   assert.equal(one.mainClass, "M");
@@ -172,7 +195,10 @@ test("L4 mergeVersionChain：子層 null 不蓋、library 子覆蓋、單層、�
     () => mergeVersionChain([{ arguments: { jvm: [5], game: [] } }]),
     bad(/參數項/),
   );
-  assert.throws(() => mergeVersionChain([{ libraries: "x" }]), bad(/libraries/));
+  assert.throws(
+    () => mergeVersionChain([{ libraries: "x" }]),
+    bad(/libraries/),
+  );
 });
 
 test("L5 filterLibraries：兩支 fixture ⇒ 恰好 83 支，等於不經實作的白名單", () => {
@@ -223,7 +249,11 @@ test("L8 expandArguments：null＝故意沒有、連旗標拿掉；漏給報錯�
     ["--a", "${clientid}${auth_xuid}"],
     ["--a", "${clientid}", "${auth_xuid}"],
   ]) {
-    assert.throws(() => ex(items, both), bad(/clientid|auth_xuid/), items.join(" "));
+    assert.throws(
+      () => ex(items, both),
+      bad(/clientid|auth_xuid/),
+      items.join(" "),
+    );
   }
   // 前一個是換出來的值、剛好以 -- 開頭：不是旗標
   assert.throws(
@@ -258,10 +288,13 @@ test("L8 expandArguments：null＝故意沒有、連旗標拿掉；漏給報錯�
     ["--username", "${auth_uuid}$&"],
   );
   assert.deepEqual(
-    ex([R("allow", { features: { is_demo_user: true } })].map((r) => ({
-      rules: [r],
-      value: "--demo",
-    })), {}),
+    ex(
+      [R("allow", { features: { is_demo_user: true } })].map((r) => ({
+        rules: [r],
+        value: "--demo",
+      })),
+      {},
+    ),
     [],
   );
 });
@@ -337,10 +370,14 @@ test("L10 獨立斷言：jvm 無條件字串與 classpath 集合直接拿 fixtur
   const v = fx.vanilla();
   const sub = (s) =>
     s
-      .split("${natives_directory}").join(NATIVES)
-      .split("${launcher_name}").join("LAUNCHER")
-      .split("${launcher_version}").join("0.0.0")
-      .split("${classpath}").join(cp);
+      .split("${natives_directory}")
+      .join(NATIVES)
+      .split("${launcher_name}")
+      .join("LAUNCHER")
+      .split("${launcher_version}")
+      .join("0.0.0")
+      .split("${classpath}")
+      .join(cp);
   for (const s of v.arguments.jvm.filter((x) => typeof x === "string")) {
     assert.ok(argv.includes(sub(s)), s);
   }
@@ -431,7 +468,11 @@ test("L13 logConfigFile", () => {
     ["sha1 不是 hex", (c) => (c.file.sha1 = "zz"), /sha1/],
     ["type 不認得", (c) => (c.type = "log4j2-json"), /log4j2-json/],
     ["argument 沒有 ${path}", (c) => (c.argument = "-Dx=1"), /argument/],
-    ["argument 另有 placeholder", (c) => (c.argument = "-Dx=${path}${foo}"), /argument/],
+    [
+      "argument 另有 placeholder",
+      (c) => (c.argument = "-Dx=${path}${foo}"),
+      /argument/,
+    ],
   ]) {
     assert.throws(() => logConfigFile(broken(fn)), bad(re), what);
   }
@@ -451,10 +492,22 @@ test("L14 checkLaunchSpec：fixture 過；各種壞法 ⇒ ok:false 指出哪一
       /bar/,
     ],
     ["rule 帶不認得的鍵", (v) => (v.arguments.jvm[0].rules[0].foo = 1), /foo/],
-    ["os.version 編不起來", (v) => (v.arguments.jvm[0].rules[0].os.version = "("), /正規式/],
+    [
+      "os.version 編不起來",
+      (v) => (v.arguments.jvm[0].rules[0].os.version = "("),
+      /正規式/,
+    ],
     // 下兩列從撤掉的 L2 搬來：evaluateRules 不再重驗，這兩種壞法只剩邊界擋（→ phase6c U3-c）
-    ["rule.os 帶不認得的鍵", (v) => (v.arguments.jvm[0].rules[0].os.foo = "x"), /foo/],
-    ["library 的 rules 不是陣列", (v) => (v.libraries.find((l) => l.rules).rules = "x"), /rules/],
+    [
+      "rule.os 帶不認得的鍵",
+      (v) => (v.arguments.jvm[0].rules[0].os.foo = "x"),
+      /foo/,
+    ],
+    [
+      "library 的 rules 不是陣列",
+      (v) => (v.libraries.find((l) => l.rules).rules = "x"),
+      /rules/,
+    ],
     [
       "只有 minecraftArguments",
       (v) => {
@@ -469,7 +522,11 @@ test("L14 checkLaunchSpec：fixture 過；各種壞法 ⇒ ok:false 指出哪一
       (v) => (v.libraries.find((l) => l.rules).rules[0].action = "maybe"),
       /maybe/,
     ],
-    ["log 設定 type 不認得", (v) => (v.logging.client.type = "log4j2-json"), /log4j2-json/],
+    [
+      "log 設定 type 不認得",
+      (v) => (v.logging.client.type = "log4j2-json"),
+      /log4j2-json/,
+    ],
   ]) {
     const v = fx.vanilla();
     fn(v);
@@ -499,7 +556,10 @@ test("K8 windowsEnv：形狀；osVersion 不是非空字串 ⇒ TypeError", () =
 test("K8 assertEnv：形狀對 ⇒ 不丟；缺 os.version、features 是 null ⇒ TypeError", () => {
   assert.doesNotThrow(() => assertEnv(ENV));
   assert.throws(() => assertEnv(undefined), TypeError);
-  assert.throws(() => assertEnv({ os: { name: "windows", arch: "x86_64" }, features: {} }), TypeError);
+  assert.throws(
+    () => assertEnv({ os: { name: "windows", arch: "x86_64" }, features: {} }),
+    TypeError,
+  );
   assert.throws(() => assertEnv({ ...ENV, features: null }), TypeError);
 });
 
@@ -530,7 +590,12 @@ const NULL_KEYS = [
 test("N3b launchPlaceholders：20 個 key 全給、沒值的 8 個是 null；線上／離線；type 不對 ⇒ 資料錯", () => {
   const p = launchPlaceholders(phInput());
   assert.deepEqual(Object.keys(p).sort(), [...PLACEHOLDER_KEYS].sort());
-  assert.deepEqual(Object.keys(p).filter((k) => p[k] === null).sort(), NULL_KEYS);
+  assert.deepEqual(
+    Object.keys(p)
+      .filter((k) => p[k] === null)
+      .sort(),
+    NULL_KEYS,
+  );
   assert.deepEqual(
     Object.fromEntries(Object.entries(p).filter(([, v]) => v !== null)),
     {
@@ -568,7 +633,10 @@ test("N3b launchPlaceholders：20 個 key 全給、沒值的 8 個是 null；線
     () => launchPlaceholders(phInput({ launcher: { name: "", version: "1" } })),
     misuse(/launcher/),
   );
-  assert.throws(() => launchPlaceholders(phInput({ classpath: "" })), misuse(/classpath/));
+  assert.throws(
+    () => launchPlaceholders(phInput({ classpath: "" })),
+    misuse(/classpath/),
+  );
 });
 
 const notOk = (r, re) => {
@@ -608,11 +676,20 @@ test("N3 checkLaunchable：fixture 過；就緒驗的＝啟動用的（type、nu
     },
   };
   notOk(check(osxOnly, f), /classpath/);
-  notOk(checkLaunchable({ ...mergeVersionChain([v, f]), mainClass: "" }, ENV), /mainClass/);
+  notOk(
+    checkLaunchable({ ...mergeVersionChain([v, f]), mainClass: "" }, ENV),
+    /mainClass/,
+  );
   // 啟動器沒有值的 key 無條件出現 ⇒ 整組省略、不算壞（R-l）
-  assert.deepEqual(check(v, withArgs(f, "game", ["--width", "${resolution_width}"])), { ok: true });
+  assert.deepEqual(
+    check(v, withArgs(f, "game", ["--width", "${resolution_width}"])),
+    { ok: true },
+  );
   // 程式錯照丟，不轉成「資料壞了」：env 給錯由 ruleMatches 丟 TypeError、merged 給錯由 launchPlaceholders 丟，都在 try 裡（突變 M4）
-  assert.throws(() => checkLaunchable(mergeVersionChain([v, f]), null), TypeError);
+  assert.throws(
+    () => checkLaunchable(mergeVersionChain([v, f]), null),
+    TypeError,
+  );
   assert.throws(() => checkLaunchable(null, ENV), misuse(/merged/));
 });
 
@@ -625,7 +702,10 @@ test("N3c buildLaunchArgv：${classpath} 套過 rules 才數——多一個不�
       ...m.arguments,
       jvm: [
         ...m.arguments.jvm,
-        { rules: [{ action: "allow", os: { name: "osx" } }], value: "${classpath}" },
+        {
+          rules: [{ action: "allow", os: { name: "osx" } }],
+          value: "${classpath}",
+        },
       ],
     },
   };

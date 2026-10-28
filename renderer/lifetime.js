@@ -34,12 +34,7 @@
     try {
       return await ggl.invoke(channel, ...args);
     } catch (e) {
-      const cleaned = formatInvokeError(e?.message ?? e);
-      const err = new Error(cleaned);
-      try {
-        err.cause = e;
-      } catch {}
-      throw err;
+      throw new Error(formatInvokeError(e?.message ?? e), { cause: e });
     }
   }
 

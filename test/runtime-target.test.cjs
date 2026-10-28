@@ -4,10 +4,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const {
-  launchIdFor,
-  sameRuntimeTarget,
-} = require("../lib/runtime-target.js");
+const { launchIdFor, sameRuntimeTarget } = require("../lib/runtime-target.js");
 
 const fabric = (version) => ({ type: "fabric", version });
 
@@ -58,20 +55,48 @@ test("T2 sameRuntimeTarget：三欄全同才 true", () => {
 });
 
 // → _notes/plans/instance-sync-v3-commit4c.md §設計「版本 id 的路徑邊界」、§同步端（SPR R#19、R#24）
-const { isSingleSegment, pickRuntimeFields } = require("../lib/runtime-target.js");
+const {
+  isSingleSegment,
+  pickRuntimeFields,
+} = require("../lib/runtime-target.js");
 
 test("C1 isSingleSegment：單一路徑段才 true", () => {
-  for (const id of ["1.21.11", "fabric-loader-0.19.3-1.21.11", "25w14a", "1.21-pre1"]) {
+  for (const id of [
+    "1.21.11",
+    "fabric-loader-0.19.3-1.21.11",
+    "25w14a",
+    "1.21-pre1",
+  ]) {
     assert.equal(isSingleSegment(id), true, id);
   }
-  for (const id of ["", ".", "..", "a/b", "../x", "a\\b", "x/..", 21, null, undefined]) {
+  for (const id of [
+    "",
+    ".",
+    "..",
+    "a/b",
+    "../x",
+    "a\\b",
+    "x/..",
+    21,
+    null,
+    undefined,
+  ]) {
     assert.equal(isSingleSegment(id), false, String(id));
   }
 });
 
 test("C4 pickRuntimeFields：只回三欄的新物件；任一不合法 ⇒ 丟錯", () => {
-  const good = { minecraft: "1.21.11", loader: fabric("0.19.3"), javaMajor: 21 };
-  const extra = { ...good, files: [], version: "x", loader: { ...fabric("0.19.3"), extra: 1 } };
+  const good = {
+    minecraft: "1.21.11",
+    loader: fabric("0.19.3"),
+    javaMajor: 21,
+  };
+  const extra = {
+    ...good,
+    files: [],
+    version: "x",
+    loader: { ...fabric("0.19.3"), extra: 1 },
+  };
   assert.deepEqual(pickRuntimeFields(extra), good);
   assert.notEqual(pickRuntimeFields(good).loader, good.loader);
   const bad = [
@@ -92,6 +117,10 @@ test("C4 pickRuntimeFields：只回三欄的新物件；任一不合法 ⇒ 丟�
     { ...good, javaMajor: "21" },
   ];
   for (const x of bad) {
-    assert.throws(() => pickRuntimeFields(x), /runtime 回傳值不合法/, JSON.stringify(x));
+    assert.throws(
+      () => pickRuntimeFields(x),
+      /runtime 回傳值不合法/,
+      JSON.stringify(x),
+    );
   }
 });

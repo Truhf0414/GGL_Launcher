@@ -16,16 +16,20 @@ const yieldIo = async (rounds = 30) => {
 };
 
 for (let i = 1; i <= 4; i++) {
-  test(`startServer：連線不留到下一案、mock 計時器照常觸發（第 ${i} 案）`, { timeout: 5000 }, async (t) => {
-    const clock = useMockClock(t);
-    let fired = false;
-    setTimeout(() => (fired = true), 300);
-    await yieldIo();
-    const srv = await startServer((req, res) => res.end("ok"));
-    t.after(() => srv.close());
-    assert.equal(await (await fetch(srv.url)).text(), "ok");
-    await yieldIo();
-    clock.advance(300);
-    assert.equal(fired, true);
-  });
+  test(
+    `startServer：連線不留到下一案、mock 計時器照常觸發（第 ${i} 案）`,
+    { timeout: 5000 },
+    async (t) => {
+      const clock = useMockClock(t);
+      let fired = false;
+      setTimeout(() => (fired = true), 300);
+      await yieldIo();
+      const srv = await startServer((req, res) => res.end("ok"));
+      t.after(() => srv.close());
+      assert.equal(await (await fetch(srv.url)).text(), "ok");
+      await yieldIo();
+      clock.advance(300);
+      assert.equal(fired, true);
+    },
+  );
 }

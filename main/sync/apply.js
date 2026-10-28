@@ -173,13 +173,16 @@ async function applyPlan({ plan, record, paths, filesBaseUrl, deps: given }) {
     appliedAt: deps.now().toISOString(),
   };
   await deps.writeRecord(paths, written, { log: deps.log });
-  // 記錄寫成功＝這次更新成功；之後的清理失敗留給下一次開頭處理
   try {
     await deps.clearInProgress(paths);
-  } catch {}
+  } catch {
+    // 清理：記錄寫成功＝這次更新成功；標記清不掉留給下一次開頭處理
+  }
   try {
     await fsp.rm(stagingDir, { recursive: true, force: true });
-  } catch {}
+  } catch {
+    // 清理：同上，暫存區刪不掉留給下一次開頭處理
+  }
   return { movedAside, record: written };
 }
 

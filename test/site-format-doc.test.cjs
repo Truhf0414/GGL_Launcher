@@ -71,7 +71,12 @@ const LAUNCHER = "1.0.0";
 const SHA = "a".repeat(64);
 const FILES = [{ path: "mods/a.jar", sha256: SHA, size: 1 }];
 // ④c 起「相同」也比 minecraft／loader，記錄帶 runtime 三欄（→ instance-sync-v3-commit4c.md）
-const RELEASE = { version: "v1", files: FILES, minecraft: RUNTIME.minecraft, loader: RUNTIME.loader };
+const RELEASE = {
+  version: "v1",
+  files: FILES,
+  minecraft: RUNTIME.minecraft,
+  loader: RUNTIME.loader,
+};
 const RECORD = {
   format: 3,
   version: "v1",
@@ -109,7 +114,6 @@ function fakeFetch(routes) {
       status,
       text: async () =>
         typeof body === "string" ? body : JSON.stringify(body),
-      headers: { get: () => r?.type ?? "application/json" },
       body: null,
     };
   };
@@ -371,7 +375,12 @@ test('SF-G8 gate.json 壞掉 ⇒ 不能安裝、更新、修復，維護與最�
     ],
     [
       "型別錯",
-      { body: { maintenance: { enabled: "true" }, minLauncherVersion: "99.0.0" } },
+      {
+        body: {
+          maintenance: { enabled: "true" },
+          minLauncherVersion: "99.0.0",
+        },
+      },
       "gate.maintenance.enabled: 必須是布林",
     ],
     [
@@ -414,7 +423,12 @@ test('SF-G8 gate.json 壞掉 ⇒ 不能安裝、更新、修復，維護與最�
       const notReady = statusWith(gate, opts);
       const at = `${label} ${JSON.stringify(opts)}`;
       assert.deepEqual(
-        [notReady.kind, notReady.button, notReady.canLaunch, notReady.canRepair],
+        [
+          notReady.kind,
+          notReady.button,
+          notReady.canLaunch,
+          notReady.canRepair,
+        ],
         ["invalid", "無法啟動", false, false],
         at,
       );
@@ -426,7 +440,11 @@ test('SF-G8 gate.json 壞掉 ⇒ 不能安裝、更新、修復，維護與最�
       release: { side: "unreachable", reason: "http", detail: "HTTP 530" },
     });
     assert.equal(offline.kind, "offline", label);
-    assert.deepEqual(offline.errorTexts, ["release.json：HTTP 530", line], label);
+    assert.deepEqual(
+      offline.errorTexts,
+      ["release.json：HTTP 530", line],
+      label,
+    );
     const unreadable = statusWith(gate, {
       local: { side: "unreadable", detail: "EACCES" },
     });
@@ -740,7 +758,7 @@ test('SF-N11 公告每一欄都是空的 ⇒ 等於沒有公告：{"notice": {"t
 test('SF-L1 logUrl 只認 http:// 或 https:// 開頭的完整網址，相對路徑不會去抓："logUrl": "changelog.json" ⇒ 沒有 log', async () => {
   const { got, fetchImpl } = await fetchNoticeWith({
     ...noticeRoute({ notice: { logUrl: "changelog.json" } }),
-    [LOG_URL]: { body: ["a"] },
+    [LOG_URL]: { body: { log: ["a"] } },
   });
   assert.equal(fetchImpl.count(LOG_URL), 0);
   assert.equal(fetchImpl.calls.length, 1);
@@ -752,44 +770,67 @@ test('SF-L1 logUrl 只認 http:// 或 https:// 開頭的完整網址，相對路
 test('SF-L2 有寫 log 就不抓 logUrl："log": ["a"], "logUrl": "https://…" ⇒ 只顯示 a', async () => {
   const { got, fetchImpl } = await fetchNoticeWith({
     ...noticeRoute({ notice: { log: ["a"], logUrl: LOG_URL } }),
-    [LOG_URL]: { body: ["b"] },
+    [LOG_URL]: { body: { log: ["b"] } },
   });
   assert.equal(fetchImpl.count(LOG_URL), 0);
   assert.deepEqual(got.notice.log, ["a"]);
 });
 
-test('SF-L3 logUrl 的內容可以是 JSON 陣列、{"log": […]}、{"lines": […]} 或純文字：純文字 " a \\n\\n b " ⇒ a、b', () => {
-  assert.deepEqual(parseNoticeLogText(" a \n\n b ", "text/plain"), ["a", "b"]);
-  assert.deepEqual(parseNoticeLogText('["  a ", "", 3]', "application/json"), [
-    "  a ",
+test('SF-L3 logUrl 的內容只能是 {"log": […]}：{"log": [" a ", "", 3]} ⇒ " a "、""、"3"', () => {
+  assert.deepEqual(parseNoticeLogText('{"log": [" a ", "", 3]}'), [
+    " a ",
     "",
     "3",
   ]);
-  assert.deepEqual(parseNoticeLogText('{"log": ["x"]}', ""), ["x"]);
-  assert.deepEqual(parseNoticeLogText('{"lines": ["y"]}', ""), ["y"]);
+  assert.deepEqual(parseNoticeLogText('{"log": []}'), []);
 });
 
-test("SF-L4 JSON 裡找不到內容 ⇒ 整份原文當成一行：[] ⇒ 顯示 []", () => {
-  assert.deepEqual(parseNoticeLogText("[]", "application/json"), ["[]"]);
-  assert.deepEqual(parseNoticeLogText('{"log": []}', ""), ['{"log": []}']);
-  assert.deepEqual(parseNoticeLogText('{"a": 1}', ""), ['{"a": 1}']);
+test("SF-L4 其他形狀都當成抓取失敗，沿用上次抓到的：[] ⇒ 沒有 log", async () => {
+  const others = [
+    "[]",
+    '["a"]',
+    '{"lines": ["y"]}',
+    " a \n b ",
+    '{"a": 1}',
+    "null",
+    "{oops",
+  ];
+  for (const text of others) {
+    assert.throws(() => parseNoticeLogText(text), undefined, text);
+  }
+  const clock = { now: NOW };
+  const routes = {
+    ...noticeRoute({ notice: { logUrl: LOG_URL } }),
+    [LOG_URL]: { body: "[]" },
+  };
+  const client = createSiteClient({
+    fetchImpl: fakeFetch(routes),
+    now: () => clock.now,
+  });
+  assert.deepEqual((await client.fetchNotice(OK_INDEX)).notice.log, []);
+  routes[LOG_URL] = { body: { log: ["v1"] } };
+  clock.now += 61_000;
+  assert.deepEqual((await client.fetchNotice(OK_INDEX)).notice.log, ["v1"]);
+  routes[LOG_URL] = { body: "[]" };
+  clock.now += 61_000;
+  assert.deepEqual((await client.fetchNotice(OK_INDEX)).notice.log, ["v1"]);
 });
 
 test("SF-L5 logUrl 的內容最多 150 行：200 行 ⇒ 只顯示前 150 行", () => {
-  const text = Array.from({ length: 200 }, (_, i) => `l${i}`).join("\n");
-  assert.equal(parseNoticeLogText(text, "text/plain").length, 150);
+  const log = Array.from({ length: 200 }, (_, i) => `l${i}`);
+  assert.equal(parseNoticeLogText(JSON.stringify({ log })).length, 150);
 });
 
 test("SF-L6 logUrl 抓到的內容沿用 60 秒；抓失敗就沿用上次的：改了 changelog ⇒ 最晚約 60 秒後出現", async () => {
   const clock = { now: NOW };
   const routes = {
     ...noticeRoute({ notice: { logUrl: LOG_URL } }),
-    [LOG_URL]: { body: ["v1"] },
+    [LOG_URL]: { body: { log: ["v1"] } },
   };
   const fetchImpl = fakeFetch(routes);
   const client = createSiteClient({ fetchImpl, now: () => clock.now });
   assert.deepEqual((await client.fetchNotice(OK_INDEX)).notice.log, ["v1"]);
-  routes[LOG_URL] = { body: ["v2"] };
+  routes[LOG_URL] = { body: { log: ["v2"] } };
   clock.now += 59_000;
   assert.deepEqual((await client.fetchNotice(OK_INDEX)).notice.log, ["v1"]);
   assert.equal(fetchImpl.count(LOG_URL), 1);

@@ -27,7 +27,12 @@ async function writeFile(p, content) {
 /** 就緒要求的 gameDir 底下的檔（相對、以 "/" 分隔），不含兩份 json */
 function runtimeFileRels() {
   const ok = (value) => ({ ok: true, value });
-  return runtimeNeeds({ record: RUNTIME, target: ok(fx.fabric()), vanilla: ok(fx.vanilla()), env: windowsEnv("10.0.26200") }).files.map((f) => f.rel);
+  return runtimeNeeds({
+    record: RUNTIME,
+    target: ok(fx.fabric()),
+    vanilla: ok(fx.vanilla()),
+    env: windowsEnv("10.0.26200"),
+  }).files.map((f) => f.rel);
 }
 
 async function installRuntime(paths) {
@@ -36,9 +41,13 @@ async function installRuntime(paths) {
     [`versions/${RUNTIME.minecraft}/${RUNTIME.minecraft}.json`, fx.vanilla()],
   ];
   for (const [rel, value] of json) {
-    await writeFile(path.join(paths.gameDir, ...rel.split("/")), JSON.stringify(value));
+    await writeFile(
+      path.join(paths.gameDir, ...rel.split("/")),
+      JSON.stringify(value),
+    );
   }
-  for (const rel of runtimeFileRels()) await writeFile(path.join(paths.gameDir, ...rel.split("/")), "");
+  for (const rel of runtimeFileRels())
+    await writeFile(path.join(paths.gameDir, ...rel.split("/")), "");
   await writeFile(javaExeFor(paths, RUNTIME.javaMajor), "");
 }
 

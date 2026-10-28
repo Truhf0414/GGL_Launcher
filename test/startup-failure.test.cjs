@@ -34,7 +34,8 @@ test("reportStartupFailure: Error ⇒ one box with message and stack, then quit"
 
 // → _notes/plans/cross-review-2026-10-phase4.md §驗收格 V17（D-SET-UI：設定錯誤不印 stack）
 test("V17 設定錯誤碼 ⇒ 框裡是說明與路徑、不含 stack；其他錯誤（含 errno 錯）仍含 stack", () => {
-  const settingsPath = "C:\\Users\\a\\AppData\\Roaming\\GGL_launcher\\settings.json";
+  const settingsPath =
+    "C:\\Users\\a\\AppData\\Roaming\\GGL_launcher\\settings.json";
   const errs = [
     new SettingsError("missing", settingsPath),
     new SettingsError("unreadable", settingsPath, {
@@ -55,12 +56,19 @@ test("V17 設定錯誤碼 ⇒ 框裡是說明與路徑、不含 stack；其他�
     assert.ok(!/\n\s+at /.test(box), box);
     assert.deepEqual(f.events, ["box", "quit"]);
   }
-  const fsErr = Object.assign(new Error("EPERM: operation not permitted, open"), {
-    code: "EPERM",
-    syscall: "open",
-  });
+  const fsErr = Object.assign(
+    new Error("EPERM: operation not permitted, open"),
+    {
+      code: "EPERM",
+      syscall: "open",
+    },
+  );
   const f = fakes();
-  reportStartupFailure({ app: f.app, showErrorBox: f.showErrorBox, err: fsErr });
+  reportStartupFailure({
+    app: f.app,
+    showErrorBox: f.showErrorBox,
+    err: fsErr,
+  });
   assert.ok(f.boxes[0].content.includes(fsErr.stack));
 });
 
