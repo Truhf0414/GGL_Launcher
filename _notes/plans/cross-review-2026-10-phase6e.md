@@ -1,4 +1,4 @@
-# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 已授權（owner 2026-10-29），其餘各批另行授權**）
+# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 完成（`3a57b5d`，經 owner 驗收放行），其餘各批另行授權**）
 
 **這是什麼**：Phase 6e 的施工權威，同時也是**兩條線共用的裁決、跨線整合、Phase 6 整體結案**的權威。2026-10-28 的初稿是以「七批串行」寫成的。2026-10-29 owner 把 CSS 拆成獨立工程，本檔依此改寫，之後經過兩輪審查修訂與一輪 owner 最終裁決（→ §改判紀錄）。**裁決不等於任何程式已經實作。**
 
@@ -211,12 +211,12 @@ if (n.imageUrl)
 ## 二、S-V2：發包工具不再接 v2 站台索引（6e-1）
 
 **現讀**：
-- `scripts/lib/publish.js`：`:233-281`（`LEGACY_MANIFEST_FIELDS`、`readManifest` 的 `schemaVersion` 分支）、`:624`、`:646-648`。
-- `scripts/lib/publish-report.js`：`:107-125`、`:187-190`。
-- `docs/site-format.md:39`。
+- `scripts/lib/publish.js`：`:233-281`（`LEGACY_MANIFEST_FIELDS`、`readManifest` 的 `schemaVersion` 分支）、`:624`、`:646-648`。〔對齊 2026-10-29：→ `3a57b5d`（plans/cross-review-2026-10-phase6e.md 6e-1）：`scripts/lib/publish.js:233-281` 整段改寫（`LEGACY_MANIFEST_FIELDS` 與 `schemaVersion` 分支刪除），`readManifest` 現在 `:243-262`；`:624`、`:646-648`（兩處 `legacyManifestFields`）刪除〕
+- `scripts/lib/publish-report.js`：`:107-125`、`:187-190`。〔對齊 2026-10-29：→ `3a57b5d`（plans/cross-review-2026-10-phase6e.md 6e-1）：`scripts/lib/publish-report.js:107-125`（`formatLegacyFields`）、`:187-190`（舊欄位那行）都刪除〕
+- `docs/site-format.md:39`。〔對齊 2026-10-29：→ `3a57b5d`（plans/cross-review-2026-10-phase6e.md 6e-1）：`docs/site-format.md:39` 未移動，原地改寫成「只認兩種情況」〕
 - 正式站台已經是 `format: 3`〔查過〕；conventions §5 寫「不接舊版」。
 
-**刪掉之後**：遇到 v2 索引，會走既有的 `refusedManifest`，拒絕發版，報告附兩條修法。接手的測試是 N32 那組，從「v2 照收」改成「v2 會被拒」；`:1289-1334` 已經在測各種錯誤形狀被拒。
+**刪掉之後**：遇到 v2 索引，會走既有的 `refusedManifest`，拒絕發版，報告附兩條修法。接手的測試是 N32 那組，從「v2 照收」改成「v2 會被拒」；`:1289-1334` 已經在測各種錯誤形狀被拒。〔對齊 2026-10-29：→ `3a57b5d`（plans/cross-review-2026-10-phase6e.md 6e-1）：`test/sync-publish.test.cjs:1289-1334`（拒發表）後 `:1265-1322`，表內多了 v2 兩格〕
 
 **測試帳**（實測，兩步）：
 - **只改正式程式**：紅 **52** 個。幾乎都是因為測試共用的 `newSite` → `legacySite` 從 v2 站台開始。
@@ -225,14 +225,21 @@ if (n.imageUrl)
   - `formatPublishReport --details`；
   - `publish apply 首發`；
   - `readSite` ×2。
-- **一處綠的孤兒**：`test/sync-publish-cli.test.cjs:168` 的假 summary 還帶著 `legacyManifestFields`，要清掉。
+- **一處綠的孤兒**：`test/sync-publish-cli.test.cjs:168` 的假 summary 還帶著 `legacyManifestFields`，要清掉。〔對齊 2026-10-29：→ `3a57b5d`（plans/cross-review-2026-10-phase6e.md 6e-1）：`test/sync-publish-cli.test.cjs:168` 刪除〕
 
 **回滾與發布成本**：只動發包工具和它的測試，站台不動，回滾就是 revert 一個 commit，不實際發版。
 
 **隔離**：
 - 發包工具的預設站台根目錄是正式目錄（`scripts/publish-config.js:14`，`--site-root` 可以蓋）。
-- 測試一律在 `os.tmpdir()` 底下建仿真站台（`test/sync-publish.test.cjs:27-34`）〔讀碼〕。
+- 測試一律在 `os.tmpdir()` 底下建仿真站台（`test/sync-publish.test.cjs:27-34`）〔讀碼〕。〔對齊 2026-10-29：→ `3a57b5d`（plans/cross-review-2026-10-phase6e.md 6e-1）：`test/sync-publish.test.cjs:27-34` 未移動〕
 - 施工與探針**不准**在沒帶 `--site-root <暫存區>` 的情況下跑 `publish` CLI。
+
+**施工紀錄（6e-1）**：commit `3a57b5d`（5 檔，+27／-116），2026-10-29 owner 授權（主 session 轉述：「我們來做 docs commit 後就往 6e-1 開始吧！」），由新 session 施工（D-6E-SESS）。
+- 只改正式程式時紅 52；拿掉仿真站台寫 `manifest.json` 那一行後紅 6，名單跟測試帳一致；改完 Node 24.14.1、22.23.4 全套都 1415／1415（刪 2 個 v2 放行測試、拒發表加 2 格）；`lint`、`check:ui-css`、`check:ui-css:strict` 過；防禦 grep 零命中（對照組有命中）。
+- 沒跑 `publish` CLI。隔離啟動一次，本體照常開；啟動器不載入發包工具，這次啟動觀察不到本批改動。
+- 拒發訊息改成「認不出這份索引：沒有 format 鍵；v3 索引請檢查 format 有沒有拼錯」。
+- 計畫外：拿掉 `LEGACY_LINE` 與它的斷言（舊欄位那行已不可能出現，斷言恆真）；改掉三處寫著「v2 照收」的測試註解。
+- owner 驗收：「接受 6e-1 的五個檔案變更、拒發訊息與孤兒清理 可以 commit。」
 
 ---
 
