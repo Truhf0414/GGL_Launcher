@@ -27,7 +27,6 @@
       const e = Boolean(enabled);
       btnOfflineLink.classList.toggle("hidden", !v);
       btnOfflineLink.disabled = !e;
-      btnOfflineLink.classList.toggle("offline-link--disabled", !e);
     }
 
     function updateLaunchButtonUi() {
@@ -51,7 +50,6 @@
 
       function setEnabled(enabled) {
         btnLaunch.disabled = !enabled;
-        btnLaunch.classList.toggle("launch-btn--disabled", !enabled);
       }
 
       if (gameRunning) {
