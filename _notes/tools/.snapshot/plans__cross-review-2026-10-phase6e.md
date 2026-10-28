@@ -1,4 +1,4 @@
-# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 完成（`3a57b5d`，經 owner 驗收放行），其餘各批另行授權**）
+# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 完成（`3a57b5d`，經 owner 驗收放行）；6e-2 完成（`0f4cfe0`，經 owner 驗收放行），其餘各批另行授權**）
 
 **這是什麼**：Phase 6e 的施工權威，同時也是**兩條線共用的裁決、跨線整合、Phase 6 整體結案**的權威。2026-10-28 的初稿是以「七批串行」寫成的。2026-10-29 owner 把 CSS 拆成獨立工程，本檔依此改寫，之後經過兩輪審查修訂與一輪 owner 最終裁決（→ §改判紀錄）。**裁決不等於任何程式已經實作。**
 
@@ -246,7 +246,7 @@ if (n.imageUrl)
 ## 三、U13：`logUrl` 內容的格式（6e-2；已裁方案 B，D-6E-U13-B）
 
 **事實**〔查過〕：
-- 解析器只有一處：`lib/sync/notice.js:28-57` 的 `parseNoticeLogText`，接受四種格式：JSON 陣列、`{log}`、`{lines}`、純文字。唯一的呼叫者是 `main/sync/site-client.js:131`。
+- 解析器只有一處：`lib/sync/notice.js:28-57` 的 `parseNoticeLogText`，接受四種格式：JSON 陣列、`{log}`、`{lines}`、純文字。唯一的呼叫者是 `main/sync/site-client.js:131`。〔對齊 2026-10-29：→ `0f4cfe0`（plans/cross-review-2026-10-phase6e.md 6e-2）：`lib/sync/notice.js:28-57` 整段改寫成只收 `{log}`，現在 `:30-42`；`main/sync/site-client.js:131` 未移動〕
 - 站上實際只用 `{ "log": [...] }`。
 - inline 的公告 log 也是一個叫 `log` 的陣列。
 - `future-work.md`「公告與通知顯示的毛病」(c)：JSON 解出空清單時，畫面顯示原始的 `[]`。SF-L4 把這個行為釘死了。
@@ -265,9 +265,16 @@ if (n.imageUrl)
 **已裁 B**（D-6E-U13-B）。6e-2 要做的：
 - `parseNoticeLogText` 只收 `{ "log": [...] }`，拿掉 JSON 陣列、`{lines}`、純文字三條路，不留相容分支；
 - 照上表 B 的測試帳更新：5 個直接測解析器的案例改斷言；6 個抓取測試的假 changelog 換成 `{log}` 形狀；
-- `docs/site-format.md:174-185` 與 SF-L3／SF-L4 同步改成只有一種格式；
+- `docs/site-format.md:174-185` 與 SF-L3／SF-L4 同步改成只有一種格式；〔對齊 2026-10-29：→ `0f4cfe0`（plans/cross-review-2026-10-phase6e.md 6e-2）：`docs/site-format.md:174-185` 後 `:174-184`〕
 - (c) 跟著消失：結案批把 `future-work.md` 那條移走（§六）。
 - 站台不動（站上那份本來就是 `{log}`〔實測〕）。
+
+**施工紀錄（6e-2）**：commit `0f4cfe0`（7 檔，+69／-72），2026-10-29 owner 授權（「好喔，開始 6e-2 吧！」），由新 session 施工（D-6E-SESS）。
+- 只改正式程式時紅 11，名單跟測試帳一致；改完 Node 24.14.1、22.23.4 全套都 1415／1415；`lint`、`check:ui-css`、`check:ui-css:strict` 過；防禦 grep 零命中（對照組有命中）。
+- 格式不符丟 `TypeError`（JSON 壞掉是 `SyntaxError`），由 `fetchLogLines` 既有的 catch 接成抓取失敗；`fetchText` 不再回 `contentType`（唯一讀它的地方拿掉了）。SF-L4 除了斷言丟錯，也經 `fetchNotice` 走過「從沒成功」「成功後變錯」兩段。
+- 隔離啟動看公告 log 五種畫面：正式站台 5 行；假站台 `{log}` 正常、換成陣列格式後沿用上一次、`{log: []}` 收起來（(c) 不再出現）、一開始就是陣列格式沒有 log。
+- 計畫外：測試假 fetch 的 `headers` 拿掉（正式程式不再讀）；SF-L1／SF-L2 的假 changelog 換成 `{log}`。
+- owner 驗收：「接受 6e-2，可以 commit，筆記收尾一起做」
 
 ---
 
@@ -490,7 +497,7 @@ if (n.imageUrl)
 
 | 項 | 改的檔 | 可能跟 CSS 線共用的檔 |
 |---|---|---|
-| R-THUMB | `renderer/instance-ui.js`、`styles.css:17`（註解）、`test/site-format-doc.test.cjs`（SF-S3／S4） | `styles.css`（6e-0 落地後才開 CSS 線，之後 6e 不再碰）〔對齊 2026-10-29：`styles.css:17` → `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0） 後 `:17-19`；其他行號指的檔不在本 commit〕 |
+| R-THUMB | `renderer/instance-ui.js`、`styles.css:17`（註解）、`test/site-format-doc.test.cjs`（SF-S3／S4） | `styles.css`（6e-0 落地後才開 CSS 線，之後 6e 不再碰）〔對齊 2026-10-29：`styles.css:17` → `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0） 後 `:17-19`；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：→ `0f4cfe0`（plans/cross-review-2026-10-phase6e.md 6e-2）：本行的 `test/site-format-doc.test.cjs` 沒帶行號；`styles.css:17-19`（上次對齊）不在本 commit〕 |
 | S-V2 | `scripts/lib/publish.js`、`scripts/lib/publish-report.js`、`test/sync-publish*.test.cjs`、`docs/site-format.md:39` | 無 |
 | U13 | `lib/sync/notice.js`、`main/sync/site-client.js`、`test/sync-notice*`、`test/site-format-doc.test.cjs`（SF-L）、抓取測試、`docs/site-format.md:174-185` | 無 |
 | `no-empty` 修正＋Q-DLG＋Q-RETRY | §四表中各檔、`main/ui-dialogs.js`、`main/start-main.js`、新測試 | 無〔推論：都是 `main/`、`renderer/lifetime.js`、`renderer/notifications-ui.js`、`scripts/` 底下非 CSS 的檔〕 |
