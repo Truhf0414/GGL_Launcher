@@ -8,6 +8,8 @@
       等於讓 .hidden 又可能藏不住。
    4) 新樣式寫在哪：元件規則寫在 @layer components 裡；只有 .hidden 這類狀態工具放
       @layer utilities；@font-face 留在層外。
+   5) 誰守：scripts/check-ui-css.cjs 第 (9) 段（npm run check:ui-css，pre-commit 與 CI 都跑），
+      擋層外規則、層的順序、多出來的層、第二份樣式表、.hidden 不在 utilities 或定義兩次。
    ========================================================= */
 @layer components, utilities;
 
