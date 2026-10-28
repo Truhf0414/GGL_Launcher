@@ -28,16 +28,13 @@
 
     let errorDetail = null;
 
+    // n 由 main 組好（lib/sync/notice.js 的 parseNoticeFields＋assembleNotice）：
+    // title／subtitle 是去掉頭尾空白的字串，log 是字串陣列
     function applyNotice(n) {
-      if (!n || typeof n !== "object") return;
+      // 標題空字串是合法的：沿用畫面上的標題（§4.1 第二類）
+      if (n.title) noticeTitle.textContent = n.title;
 
-      if (typeof n.title === "string" && n.title.trim())
-        noticeTitle.textContent = n.title.trim();
-
-      const subtitle = typeof n.subtitle === "string" ? n.subtitle.trim() : "";
-      noticeDate.textContent = subtitle
-        ? subtitle.replace(/\s*\/\s*/g, "\n")
-        : "";
+      noticeDate.textContent = n.subtitle.replace(/\s*\/\s*/g, "\n");
 
       if (typeof n.imageUrl === "string" && n.imageUrl.trim()) {
         const url = n.imageUrl.trim();
@@ -48,11 +45,8 @@
         );
       }
 
-      const lines = Array.isArray(n.log) ? n.log : [];
-      const text = lines
-        .map((x) => String(x))
-        .filter(Boolean)
-        .join("\n");
+      // logUrl 抓回的 JSON 陣列可以有空字串（parseNoticeLogText）：空行不顯示（第二類）
+      const text = n.log.filter(Boolean).join("\n");
       noticeLog.textContent = text;
       noticeLog.classList.toggle("hidden", !text);
     }
@@ -65,18 +59,17 @@
       noticeLog.classList.add("hidden");
     }
 
+    // payload 由 main 的 sendInstanceStatus 組好：text 是 { headline, details: string[] }，
+    // ui.button.note 是字串或 null，errorDetail 是字串或 null
     function renderStatus(payload) {
-      const headline = String(payload?.text?.headline ?? "");
-      const details = Array.isArray(payload?.text?.details)
-        ? payload.text.details.map((x) => String(x))
-        : [];
+      const { headline, details } = payload.text;
       instanceStatusText.textContent = [headline, ...details].join("\n");
 
-      const note = payload?.ui?.button?.note;
-      instanceStatusNote.textContent = note ? String(note) : "";
+      const { note } = payload.ui.button;
+      instanceStatusNote.textContent = note ?? "";
       instanceStatusNote.classList.toggle("hidden", !note);
 
-      errorDetail = payload?.errorDetail ? String(payload.errorDetail) : null;
+      errorDetail = payload.errorDetail;
       btnCopyErrorDetail.classList.toggle("hidden", !errorDetail);
     }
 
@@ -94,14 +87,15 @@
 
     function init() {
       onIpc("instance:status", (payload) => {
-        setInstanceStatusPayload(payload ?? null);
+        setInstanceStatusPayload(payload);
         renderStatus(payload);
         updateLaunchButtonUi();
         ensureReadyStatusText();
       });
 
+      // snapshot 一定是 { notice, notifications }（main/sync/notice-feed.js）；notice 是 null＝沒有公告
       onIpc("notice:changed", (snapshot) => {
-        if (snapshot?.notice) applyNotice(snapshot.notice);
+        if (snapshot.notice) applyNotice(snapshot.notice);
         else resetNotice();
       });
 

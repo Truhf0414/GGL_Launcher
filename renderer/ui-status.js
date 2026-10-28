@@ -7,17 +7,13 @@
 
   function openOverlay(elm) {
     elm.classList.remove("hidden");
-    try {
-      elm.setAttribute?.("aria-hidden", "false");
-    } catch {}
+    elm.setAttribute("aria-hidden", "false");
     requestAnimationFrame(() => elm.classList.add("is-open"));
   }
 
   function closeOverlay(elm) {
     elm.classList.remove("is-open");
-    try {
-      elm.setAttribute?.("aria-hidden", "true");
-    } catch {}
+    elm.setAttribute("aria-hidden", "true");
     trackTimeout(setTimeout(() => elm.classList.add("hidden"), ANIM_MS));
   }
 

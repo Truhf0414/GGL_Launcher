@@ -11,7 +11,7 @@
     ensureReadyStatusText,
   }) {
     const { safeInvoke, gglError, setStatus, setStatusError, onDom } = ctx.fx;
-    const { btnLogin, accountName, avatarEl } = ctx.ui;
+    const { btnLogin, accountName, avatarEl, topbarPill } = ctx.ui;
     const { ANIM_MS } = ctx.consts;
 
     let accountLoginInFlight = false;
@@ -98,7 +98,6 @@
       "https://www.minecraft.net/msaprofile/mygames/editprofile";
     const MC_SKIN_EDIT_URL =
       "https://www.minecraft.net/msaprofile/mygames/editskin";
-    const topbarPillEl = btnLogin.closest?.(".topbar-pill") ?? null;
     let accountMenuRafPending = false;
 
     function applyAccountToUi() {
@@ -172,9 +171,11 @@
 
       document.body.appendChild(root);
 
+      // 上面的 innerHTML 寫死了三顆按鈕與各自的標籤
       const btnEditId = root.querySelector("#accountMenuEditId");
       const btnEditSkin = root.querySelector("#accountMenuEditSkin");
       const btnLogout = root.querySelector("#accountMenuLogout");
+      const logoutLabel = btnLogout.querySelector(".account-menu__itemLabel");
 
       const resetLogoutArm = () => {
         logoutArmedUntil = 0;
@@ -182,12 +183,11 @@
           clearTimeout(logoutResetTimer);
           logoutResetTimer = null;
         }
-        const label = btnLogout?.querySelector(".account-menu__itemLabel");
-        if (label) label.textContent = "登出";
-        btnLogout?.classList?.remove("is-danger-armed");
+        logoutLabel.textContent = "登出";
+        btnLogout.classList.remove("is-danger-armed");
       };
 
-      btnEditId?.addEventListener("click", async () => {
+      btnEditId.addEventListener("click", async () => {
         try {
           closeAccountMenu();
           resetLogoutArm();
@@ -198,7 +198,7 @@
         }
       });
 
-      btnEditSkin?.addEventListener("click", async () => {
+      btnEditSkin.addEventListener("click", async () => {
         try {
           closeAccountMenu();
           resetLogoutArm();
@@ -209,13 +209,12 @@
         }
       });
 
-      btnLogout?.addEventListener("click", async () => {
+      btnLogout.addEventListener("click", async () => {
         const now = Date.now();
         // Two-step confirmation inside menu to avoid modal dialogs.
         if (now >= logoutArmedUntil) {
           logoutArmedUntil = now + LOGOUT_CONFIRM_WINDOW_MS;
-          const label = btnLogout.querySelector(".account-menu__itemLabel");
-          if (label) label.textContent = "再點一次登出";
+          logoutLabel.textContent = "再點一次登出";
           btnLogout.classList.add("is-danger-armed");
           if (logoutResetTimer) clearTimeout(logoutResetTimer);
           logoutResetTimer = setTimeout(
@@ -247,7 +246,7 @@
     function positionAccountMenu() {
       if (!accountMenuEl) return;
       const rect = btnLogin.getBoundingClientRect();
-      const pillRect = topbarPillEl?.getBoundingClientRect?.();
+      const pillRect = topbarPill.getBoundingClientRect();
 
       // Fixed overlay near the account pill.
       const pad = 8;
@@ -262,16 +261,14 @@
         Math.round(window.innerWidth - menuW - 8),
       );
       // Base align to outer topbar pill, then nudge by px for visual tuning.
-      const desiredLeft =
-        Math.round((pillRect?.left ?? rect.left) || 0) +
-        ACCOUNT_MENU_NUDGE_X_PX;
+      const desiredLeft = Math.round(pillRect.left) + ACCOUNT_MENU_NUDGE_X_PX;
       const left = Math.min(maxLeft, Math.max(minLeft, desiredLeft));
       accountMenuEl.style.left = `${left}px`;
     }
 
     function openAccountMenu() {
       const m = ensureAccountMenu();
-      m.__resetArm?.();
+      m.__resetArm();
       positionAccountMenu();
       if (accountMenuHideTimer) {
         clearTimeout(accountMenuHideTimer);
@@ -287,7 +284,7 @@
       accountMenuEl.classList.remove("is-open");
       if (accountMenuHideTimer) clearTimeout(accountMenuHideTimer);
       accountMenuHideTimer = setTimeout(() => {
-        accountMenuEl?.classList?.add("hidden");
+        accountMenuEl.classList.add("hidden");
         accountMenuHideTimer = null;
       }, ANIM_MS);
       accountMenuOpen = false;

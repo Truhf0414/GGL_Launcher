@@ -31,7 +31,6 @@
     // 與 main 同一份欄位規則（lib/settings-format.js，index.html 先載）；畫面只是提前回饋，main 照樣再驗
     const settingsFormat = window.GglSettingsFormat;
 
-    const modalPanel = settingsModal.querySelector?.(".modal-panel") ?? null;
     const SETTINGS_FOCUSABLE_SEL =
       'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -46,18 +45,11 @@
     function isElementTabbableVisible(n) {
       if (!(n instanceof HTMLElement)) return false;
       if (n.closest(".hidden")) return false;
-      if (typeof n.checkVisibility === "function") {
-        try {
-          return n.checkVisibility({
-            checkOpacity: false,
-            checkVisibilityCSS: true,
-          });
-        } catch {
-          /* ignore */
-        }
-      }
-      const style = window.getComputedStyle(n);
-      return style.display !== "none" && style.visibility !== "hidden";
+      // checkVisibility 與這兩個選項在 Electron 44（Chromium 152）都有（6d-4 實機確認）
+      return n.checkVisibility({
+        checkOpacity: false,
+        checkVisibilityCSS: true,
+      });
     }
 
     function setSettingsError(msg, { focusEl = null } = {}) {
@@ -75,12 +67,10 @@
         x.removeAttribute("aria-invalid");
       }
       if (focusEl) {
-        try {
-          focusEl.classList.add("input--error");
-          focusEl.setAttribute("aria-invalid", "true");
-          focusEl.focus();
-          focusEl.select?.();
-        } catch {}
+        focusEl.classList.add("input--error");
+        focusEl.setAttribute("aria-invalid", "true");
+        focusEl.focus();
+        focusEl.select();
       }
     }
 
@@ -106,13 +96,7 @@
       // Restore focus back to the opener (or settings button) after close animation.
       const toFocus = lastFocusBeforeSettings || btnSettings;
       lastFocusBeforeSettings = null;
-      trackTimeout(
-        setTimeout(() => {
-          try {
-            toFocus?.focus?.();
-          } catch {}
-        }, ANIM_MS + 20),
-      );
+      trackTimeout(setTimeout(() => toFocus.focus(), ANIM_MS + 20));
     }
 
     function handleSettingsModalKeydown(ev) {
@@ -126,13 +110,8 @@
 
       if (ev.key !== "Tab") return;
 
+      // 一定不是空的：× 、輸入框、儲存等從不停用也不藏（6d-4 查過，只有 btnRepair 會停用）
       const focusables = getFocusableInSettings();
-      if (focusables.length === 0) {
-        ev.preventDefault();
-        modalPanel?.focus?.();
-        return;
-      }
-
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
       const active = document.activeElement;
@@ -163,11 +142,7 @@
       openOverlay(settingsModal);
 
       // Focus first meaningful control after paint.
-      requestAnimationFrame(() => {
-        try {
-          (inputInstallDir || modalPanel)?.focus?.();
-        } catch {}
-      });
+      requestAnimationFrame(() => inputInstallDir.focus());
 
       settingsKeydownHandler = handleSettingsModalKeydown;
       document.addEventListener("keydown", settingsKeydownHandler, true);

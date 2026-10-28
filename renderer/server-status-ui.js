@@ -5,8 +5,9 @@
     const { onIpc } = ctx.fx;
     const { serverStatusDot, serverStatusText } = ctx.ui;
 
+    // state 只會是 online／offline／unknown（main/server-status.js 的 sendServerStatus）
     function setServerStatus(state) {
-      const s = state || "unknown";
+      const s = state;
       serverStatusDot.classList.remove(
         "status-dot--online",
         "status-dot--offline",
@@ -24,7 +25,7 @@
     }
 
     function init() {
-      onIpc("server:status", (payload) => setServerStatus(payload?.state));
+      onIpc("server:status", (payload) => setServerStatus(payload.state));
       setServerStatus("unknown");
     }
 

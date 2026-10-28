@@ -62,7 +62,7 @@
         passive: true,
       });
       onIpc("window:power", (payload) => {
-        isMinimized = Boolean(payload?.minimized);
+        isMinimized = payload.minimized;
         applyPowerState();
       });
       applyPowerState();

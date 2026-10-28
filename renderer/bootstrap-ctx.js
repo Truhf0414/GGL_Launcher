@@ -12,6 +12,7 @@
       btnSettings: el("btnSettings"),
       btnBell: el("btnBell"),
       btnLogin: el("btnLogin"),
+      topbarPill: el("topbarPill"),
       btnDiscord: el("btnDiscord"),
       btnLaunch: el("btnLaunch"),
       btnOfflineLink: el("btnOfflineLink"),

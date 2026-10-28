@@ -33,9 +33,8 @@ if (
     }),
   );
 
-  app.on("window-all-closed", () => {
-    if (process.platform !== "darwin") app.quit();
-  });
+  // 只發行 Windows（Linux 是未來可能）：關掉最後一個視窗就結束（6d Q4，不留 macOS 的「留在 Dock」）
+  app.on("window-all-closed", () => app.quit());
 }
 
 // 站台格式（manifest.json 等）見 docs/site-format.md；同步實作在 main/sync/。

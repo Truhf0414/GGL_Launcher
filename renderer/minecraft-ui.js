@@ -49,22 +49,23 @@
     }
 
     function init() {
+      // text 一定是非空字串（sendMcStatus 的每個呼叫端，6d-4 逐一追過）；isRunning 是布林（sendMcRunning）
       onIpc("minecraft:status", (payload) => {
-        const text = String(payload?.text ?? "").trim();
+        const { text } = payload;
         const looksEnded = /已(?:結束|退出|關閉)/.test(text);
 
         if (looksEnded) {
-          if (!isInstanceReady()) setStatus(text || "遊戲已結束");
+          if (!isInstanceReady()) setStatus(text);
           return;
         }
 
         const { gameRunning } = getBusyState();
         if (gameRunning) return;
-        setStatus(text || "啟動中…");
+        setStatus(text);
       });
 
       onIpc("minecraft:running", (payload) => {
-        const running = Boolean(payload?.isRunning);
+        const running = payload.isRunning;
         setBusyState({ gameRunning: running });
         updateLaunchButtonUi();
         if (running) {
