@@ -55,7 +55,6 @@
 - 畫面 `<script>` 的載入順序由 `scripts/check-renderer-scripts.cjs` 擋；增刪或調整順序要同步改它的 `expected`。
 - 畫面檔不碰 Node（不 `require`、不用 `fs`），一律走 preload 的 `window.ggl`〔ESLint 對畫面檔只開瀏覽器環境，`require` 被 no-undef 擋〕。主視窗不准開 `nodeIntegration`、不准關 `contextIsolation`（`main/main-window.js`）。素材路徑用 `window.ggl.assetUrl()`（ARCHITECTURE.md §Packaged asset paths）。
 - `check:ui-css` 與 `lint` 由 pre-commit 自動跑；改完 UI 自己要做的只有 `npm run format:ui`（單檔：`npm run format:file -- <檔>`）。
-- `assets/tailwind.css` 是 `npm run build:css` 的產物，不手改；不用 Tailwind CDN，打包後要能離線跑。
 - 出處：Cursor 時期 2026-04-17 定，原住 `.cursor/rules/`；owner 2026-10-13 裁刪 `.cursor`、有效條搬進本節（「我也選甲」）。
 
 ## 本機打包
