@@ -130,6 +130,14 @@ body {
   color: rgba(255, 255, 255, 0.92);
 }
 
+/* 整個視窗不給選取文字（輸入框例外，見下方 input 那條）；字體反鋸齒 */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* UA stylesheet 會對 button/input 套用 font shorthand；
    明確指定才能穩定使用自訂字型（不用 !important）。 */
 :where(button, input, textarea, select, option) {
@@ -144,7 +152,7 @@ body {
 .hidden {
   display: none;
 }
-/* Tailwind 有提供 `.sr-only`，但這裡也保留定義以防未來移除 tailwind.css */
+/* 視覺上藏起來、螢幕閱讀器照念（跟 .hidden 的 display: none 不同） */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -153,6 +161,7 @@ body {
   margin: -1px;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
 }
@@ -166,7 +175,7 @@ body {
   font-weight: 400;
 }
 
-/* 重要：即使整頁是 select-none，表單輸入仍必須可輸入/可選取 */
+/* 重要：即使整頁不給選取（見 body 那條），表單輸入仍必須可輸入/可選取 */
 input,
 textarea,
 [contenteditable="true"] {

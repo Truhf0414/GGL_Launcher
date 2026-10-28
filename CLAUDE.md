@@ -1,6 +1,6 @@
 # GGL3 Launcher
 
-Minecraft 模組伺服器的自製啟動器。Electron ＋ 原生 JS，無前端框架；Tailwind 只用來產 `assets/tailwind.css`。
+Minecraft 模組伺服器的自製啟動器。Electron ＋ 原生 JS，無前端框架。
 
 ## 開工先讀
 
