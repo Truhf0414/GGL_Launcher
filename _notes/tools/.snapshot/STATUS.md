@@ -2,7 +2,7 @@
 
 ## 現在
 
-| 未結案       | 交叉審查後的收斂施工（Phase 0–5、X1、N6、X1b ✅；6 進行中：6a、6b、6c ✅；6d 進行中；6e 未開始） | → plans/cross-review-2026-10.md |
-| 接續步驟     | 6d-1～6d-3 ✅；6d-4 待 owner 授權 | → plans/cross-review-2026-10-phase6d.md |
+| 未結案       | 交叉審查後的收斂施工（Phase 0–5、X1、N6、X1b ✅；6 進行中：6a、6b、6c ✅；6d 施工完成；6e 未開始） | → plans/cross-review-2026-10.md |
+| 接續步驟     | 6d 待 owner 宣告結案（6c 前例：push 後宣告）；之後開 6e 細部 plan，測試帳用探針實跑 | → plans/cross-review-2026-10-phase6d.md；learnings.md |
 | 卡住         | 否 | — |
 | 上一輪 retro | 2026-09-11 code review ✅ | → learnings.md |
