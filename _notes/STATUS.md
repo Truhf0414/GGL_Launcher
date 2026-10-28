@@ -2,7 +2,7 @@
 
 ## 現在
 
-| 未結案       | 交叉審查後的收斂施工（Phase 0–5、X1、N6、X1b ✅；6 進行中：6a～6d ✅；6e 未開始） | → plans/cross-review-2026-10.md |
-| 接續步驟     | 開 6e 細部 plan（測試帳用探針實跑） | → plans/cross-review-2026-10.md §8 6e 列；learnings.md |
+| 未結案       | 交叉審查後的收斂施工（Phase 0–5、X1、N6、X1b ✅；6 進行中：6a～6d ✅；6e 進行中：6e-0 ✅） | → plans/cross-review-2026-10.md |
+| 接續步驟     | 6e-1 S-V2（`main`） | → plans/cross-review-2026-10-phase6e.md §工作線與分批 |
 | 卡住         | 否 | — |
 | 上一輪 retro | 2026-09-11 code review ✅ | → learnings.md |
