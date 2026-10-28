@@ -1,4 +1,4 @@
-# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 完成（`3a57b5d`，經 owner 驗收放行）；6e-2 完成（`0f4cfe0`，經 owner 驗收放行），其餘各批另行授權**）
+# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 完成（`3a57b5d`，經 owner 驗收放行）；6e-2 完成（`0f4cfe0`，經 owner 驗收放行）；6e-3 完成（`6577be5`，經 owner 驗收放行），其餘各批另行授權**）
 
 **這是什麼**：Phase 6e 的施工權威，同時也是**兩條線共用的裁決、跨線整合、Phase 6 整體結案**的權威。2026-10-28 的初稿是以「七批串行」寫成的。2026-10-29 owner 把 CSS 拆成獨立工程，本檔依此改寫，之後經過兩輪審查修訂與一輪 owner 最終裁決（→ §改判紀錄）。**裁決不等於任何程式已經實作。**
 
@@ -60,6 +60,7 @@
 | D-6E-CLOSE | 收尾包含整個交叉審查事件的結案 | owner 2026-10-28：「收尾含結案」 |
 | D-6E-SPLIT-BATCH | `no-empty` 的修正（6e-3）與打開規則（6e-5）是兩個不同批次；全 repo 格式化（6e-6）不得搶在相關工作線合併之前 | Crossfire 收斂；owner 2026-10-29 最終裁決 §四列為「維持先前已裁事項」 |
 | D-6E-OSAPI | `setAppUserModelId`、`setMenuBarVisibility`、`loginWin.close()` 三處採「清」：catch 裡留具體的 best-effort 原因，非致命的外觀或關窗失敗不升級成啟動、登入故障；不為了滿足 ESLint 無條件刪掉這些 catch | owner 2026-10-29 最終裁決 §四 |
+| D-6E-SAFELOG | `safeLog`（`main/runtime/download.js:19-26`）從「刪〔待驗〕」改為「清」：catch 留著、寫理由。原判只看正式接線的 logger 不會同步丟錯，漏掉 N6-D2 要求在呼叫邊界隔離 logger 故障；T-I4 的同步丟錯案是反例 | owner 2026-10-29（6e-3 施工中停下回報後）：「原判「刪」依賴正式 logger 不會同步丟錯的現有接線，卻漏掉 N6-D2 已經要求呼叫邊界隔離 logger 故障；T-I4 反例推翻原判，因此改為「清」。」〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：本列寫於本 commit 之後，`main/runtime/download.js:19-26` 已是本 commit 後的位置〕 |
 
 **owner 2026-10-29 最終裁決**（D-6E-WHERE 以外，出處一律為 owner 轉貼的「Phase 6e — Final Owner Decisions & Plan Closure」，§二逐題裁、§三採既有建議）：
 
@@ -288,15 +289,15 @@ if (n.imageUrl)
 
 | 處置 | 位置 | 理由與證據 |
 |---|---|---|
-| **刪** | `main/microsoft-auth.js:461`、`:464`（`removeListener`、`server.off`）；`main/runtime/download.js:248`（`ac.abort()`）；`main/server-status.js:47`（`socket.destroy()`）；`renderer/lifetime.js:41`（改成 `new Error(cleaned, { cause: e })`） | Node 的 EventEmitter 方法、`AbortController.abort`、`socket.destroy` 帶合法參數不丟錯，在全新的 Error 上設屬性也不丟錯〔推論：讀碼〕。舊草稿那次 9 處一起拆的探針 0 紅、覆蓋率顯示這幾行都有被執行到〔實測 2026-10-28〕；這 5 處是那 9 處的子集 |
-| **刪**〔待驗〕 | `main/runtime/download.js:23` 的 `safeLog`（`:19-24`）；`scripts/downscale-bg-video.cjs:43` | `safeLog` 注入的是 `appendLauncherLog`，它是 async、整段包在自己的 try 裡，不會同步丟錯也不會 reject〔讀碼：`main/launcher-log.js:21-33`〕；施工時先確認每個呼叫者傳的都是它。`downscale-bg-video` 是開發用腳本，失敗大聲反而好 |
-| **刪**（重複；已裁方案 A，D-6E-RETRY-A） | `main/net-fetch.js:42`（`notifyRetryToUi`）、`:162`（`withRetries` 包 `onRetry`） | 見下方「重試通知的保證主人」 |
-| **清**（best-effort，在 catch 裡寫理由，不記日誌；D-6E-OSAPI） | `main/app-ready.js:116`（`setAppUserModelId`）；`main/microsoft-auth.js:448`（`setMenuBarVisibility`） | **改判**（原本是「刪」）。理由寫在下方「Electron／OS API」 |
-| **清**（清理順序；D-6E-OSAPI） | `main/microsoft-auth.js:470`（`if (!loginWin.isDestroyed()) loginWin.close()`） | **改判**（原本是「刪」）。它在 `cleanupAnd` 裡、排在 `action()` 之前（`:455-472`）。拆掉 try 的話，`close()` 一丟錯，`action()` 就不會跑，登入的 Promise 永遠不結束，畫面卡住。這是 Electron API，會不會丟錯沒查〔未驗〕；但萬一丟錯，後果是卡住而不是報錯，所以留著，理由寫「關窗失敗不得擋住登入結果的回報」 |
-| **清**（留著，在 catch 裡寫一行理由） | `main/launcher-log.js:31,46`（debug log 自己寫不進去，無處可報）、`:59,61`（輪替是盡力而為）；`main/microsoft-auth.js:442`（丟出原始錯誤之前關伺服器）、`:467`（`server.close()`，時序上可能已經關了〔推論〕）；`main/net-fetch.js:202`（探測有沒有半截的檔）、`:220`（伺服器不支援續傳，下一步用 `w` 從頭寫〔讀碼待確認〕）、`:270,273`（錯誤路徑的清理，原始錯誤優先）；`main/startup-failure.js:25`（最後一道報錯，有測試守）；`main/sync/apply.js:179,182`（上方已有註解，搬進 catch）；`scripts/freeze-on-request.cjs:25`（故意空轉）；`test/account-store.test.cjs:42`（測試的收尾） | §4：吞錯只限清理與探測 |
-| **出聲** | `main/fs-utils.js:33` `ensureWritableTree` | 啟動前建資料夾失敗被吞掉，遊戲之後才用比較模糊的方式壞掉。拆掉 try，讓失敗沿著啟動路徑丟出，玩家按「啟動」就看得到（原則 ①）；加一個測試。「這幾個資料夾需不需要啟動器先建」（`defense-cleanup.md` §待查）要真的啟動遊戲才驗得了 → 進 future-work |
-| **出聲**（已裁：D-6E-DLG） | `main/ui-dialogs.js:11` `showInfoDialog` | 見下方 Q-DLG 段 |
-| **best-effort**（已裁 D-6E-SEEN） | `renderer/notifications-ui.js:21` `localStorage.setItem` | 瀏覽器儲存是邊界；寫失敗的後果〔推論，施工前確認〕只是紅點下次又亮。已讀紅點是便利性的 UI 狀態，不是一定要存下來的玩家資料。施工見下方「Q-SEEN 的施工前確認」 |
+| **刪** | `main/microsoft-auth.js:461`、`:464`（`removeListener`、`server.off`）；`main/runtime/download.js:248`（`ac.abort()`）；`main/server-status.js:47`（`socket.destroy()`）；`renderer/lifetime.js:41`（改成 `new Error(cleaned, { cause: e })`） | Node 的 EventEmitter 方法、`AbortController.abort`、`socket.destroy` 帶合法參數不丟錯，在全新的 Error 上設屬性也不丟錯〔推論：讀碼〕。舊草稿那次 9 處一起拆的探針 0 紅、覆蓋率顯示這幾行都有被執行到〔實測 2026-10-28〕；這 5 處是那 9 處的子集〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/microsoft-auth.js:461`、`:464`、`main/runtime/download.js:248`、`main/server-status.js:47`、`renderer/lifetime.js:41` 的 try 照本列刪除（`lifetime.js` 改成 `new Error(…, { cause: e })`）〕 |
+| **刪**〔待驗〕 | `main/runtime/download.js:23` 的 `safeLog`（`:19-24`）；`scripts/downscale-bg-video.cjs:43` | `safeLog` 注入的是 `appendLauncherLog`，它是 async、整段包在自己的 try 裡，不會同步丟錯也不會 reject〔讀碼：`main/launcher-log.js:21-33`〕；施工時先確認每個呼叫者傳的都是它。`downscale-bg-video` 是開發用腳本，失敗大聲反而好〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/runtime/download.js:23` 照 owner 改判為「清」（D-6E-SAFELOG），catch 仍在 `:23`、寫了理由，`safeLog` 後 `:19-26`；`scripts/downscale-bg-video.cjs:43` 的 try 刪除；`main/launcher-log.js:21-33` 後 `:21-35`〕 |
+| **刪**（重複；已裁方案 A，D-6E-RETRY-A） | `main/net-fetch.js:42`（`notifyRetryToUi`）、`:162`（`withRetries` 包 `onRetry`） | 見下方「重試通知的保證主人」〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/net-fetch.js:42`、`:162` 的 catch 刪除（方案 A）〕 |
+| **清**（best-effort，在 catch 裡寫理由，不記日誌；D-6E-OSAPI） | `main/app-ready.js:116`（`setAppUserModelId`）；`main/microsoft-auth.js:448`（`setMenuBarVisibility`） | **改判**（原本是「刪」）。理由寫在下方「Electron／OS API」〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/app-ready.js:116` 原地改寫（catch 寫理由）；`main/microsoft-auth.js:448` 後 `:450`（catch 寫理由）〕 |
+| **清**（清理順序；D-6E-OSAPI） | `main/microsoft-auth.js:470`（`if (!loginWin.isDestroyed()) loginWin.close()`） | **改判**（原本是「刪」）。它在 `cleanupAnd` 裡、排在 `action()` 之前（`:455-472`）。拆掉 try 的話，`close()` 一丟錯，`action()` 就不會跑，登入的 Promise 永遠不結束，畫面卡住。這是 Electron API，會不會丟錯沒查〔未驗〕；但萬一丟錯，後果是卡住而不是報錯，所以留著，理由寫「關窗失敗不得擋住登入結果的回報」〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/microsoft-auth.js:470` 後 `:472`（catch 寫理由）；`cleanupAnd` `:455-472` 後 `:459-476`〕 |
+| **清**（留著，在 catch 裡寫一行理由） | `main/launcher-log.js:31,46`（debug log 自己寫不進去，無處可報）、`:59,61`（輪替是盡力而為）；`main/microsoft-auth.js:442`（丟出原始錯誤之前關伺服器）、`:467`（`server.close()`，時序上可能已經關了〔推論〕）；`main/net-fetch.js:202`（探測有沒有半截的檔）、`:220`（伺服器不支援續傳，下一步用 `w` 從頭寫〔讀碼待確認〕）、`:270,273`（錯誤路徑的清理，原始錯誤優先）；`main/startup-failure.js:25`（最後一道報錯，有測試守）；`main/sync/apply.js:179,182`（上方已有註解，搬進 catch）；`scripts/freeze-on-request.cjs:25`（故意空轉）；`test/account-store.test.cjs:42`（測試的收尾） | §4：吞錯只限清理與探測〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：都原地加理由：`main/launcher-log.js:31,46` 後 `:31,48`、`:59,61` 後 `:63,67`；`main/microsoft-auth.js:442`、`:467` 未移動；`main/net-fetch.js:202`、`:220` 後 `:198`、`:218`，`:270,273` 後 `:270,275`；`main/startup-failure.js:25` 未移動；`main/sync/apply.js:179,182` 後 `:178,183`；`scripts/freeze-on-request.cjs:25` 未移動；`test/account-store.test.cjs:42` 未移動〕 |
+| **出聲** | `main/fs-utils.js:33` `ensureWritableTree` | 啟動前建資料夾失敗被吞掉，遊戲之後才用比較模糊的方式壞掉。拆掉 try，讓失敗沿著啟動路徑丟出，玩家按「啟動」就看得到（原則 ①）；加一個測試。「這幾個資料夾需不需要啟動器先建」（`defense-cleanup.md` §待查）要真的啟動遊戲才驗得了 → 進 future-work〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/fs-utils.js:33` 的 try 刪除，`ensureWritableTree` 的 `mkdir` 現在在 `:31`〕 |
+| **出聲**（已裁：D-6E-DLG） | `main/ui-dialogs.js:11` `showInfoDialog` | 見下方 Q-DLG 段〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/ui-dialogs.js:11` 改成 `catch (err)` 記 `dialog_failed`，後 `:13`〕 |
+| **best-effort**（已裁 D-6E-SEEN） | `renderer/notifications-ui.js:21` `localStorage.setItem` | 瀏覽器儲存是邊界；寫失敗的後果〔推論，施工前確認〕只是紅點下次又亮。已讀紅點是便利性的 UI 狀態，不是一定要存下來的玩家資料。施工見下方「Q-SEEN 的施工前確認」〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`renderer/notifications-ui.js:21` 改成 `catch (err)` 記 `notifications_seen_save_failed`，後 `:23`〕 |
 
 **「清」的註解規則**（Crossfire 收斂）：實測 `catch { /* reason */ }` 不會被 `no-empty` 報（Crossfire CC 第二輪 §四），所以只要有註解，這條規則就會變綠。「清」的註解必須寫出具體理由：屬於哪個出口（留-1 到留-4，或 §4 的清理／探測），或者上表寫的那種非致命理由。只寫「忽略」不算。這條靠審查守，機器擋不到。
 
@@ -309,13 +310,13 @@ if (n.imageUrl)
   - 測試直接呼叫 `withRetries` 的案例都沒有讓 `onRetry` 丟錯（`test/net-fetch-logic.test.cjs:55`、`test/net-fetch-download.test.cjs:439-457`）。
   - 沒有其他模組依賴 `withRetries` 去隔離 callback 的錯誤。
 - `notifyRetryToUi`（`:39-43`）用 try 包住 `netDeps.onRetryNotify`。
-- `onRetryNotify` 在 `main/app-ready.js:135-138` 組成：呼叫 `sendSyncStatus` 和 `sendMcStatus`。這兩個 sender 各自先 `void deps.appendLauncherLog(...)`，再 `send` → `deliver`（`main/ipc-bridge.js:57-81`）。
-- `deliver`（`main/ipc-bridge.js:22-31`）：`webContents.send` 丟錯時記 `renderer_send_failed`、回 false，不往外丟。這是 owner 2026-10-25 的 Q3 裁決，`main/app-ready.js:133` 的註解也直接寫「重試的通知不會打斷下載」。
-- `appendLauncherLog`（`main/launcher-log.js:21-33`）：async 函式，debug 關著就直接 return，開著的話整段包在 try 裡。所以它**不會同步丟錯**，正常也**不會 reject**。呼叫端一律 `void`，所以就算它 reject，也打斷不了重試，但會變成沒人接的 rejection。
+- `onRetryNotify` 在 `main/app-ready.js:135-138` 組成：呼叫 `sendSyncStatus` 和 `sendMcStatus`。這兩個 sender 各自先 `void deps.appendLauncherLog(...)`，再 `send` → `deliver`（`main/ipc-bridge.js:57-81`）。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/app-ready.js:135-138` 後 `:137-140`；其他行號指的檔不在本 commit〕
+- `deliver`（`main/ipc-bridge.js:22-31`）：`webContents.send` 丟錯時記 `renderer_send_failed`、回 false，不往外丟。這是 owner 2026-10-25 的 Q3 裁決，`main/app-ready.js:133` 的註解也直接寫「重試的通知不會打斷下載」。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/app-ready.js:133` 後 `:135`；其他行號指的檔不在本 commit〕
+- `appendLauncherLog`（`main/launcher-log.js:21-33`）：async 函式，debug 關著就直接 return，開著的話整段包在 try 裡。所以它**不會同步丟錯**，正常也**不會 reject**。呼叫端一律 `void`，所以就算它 reject，也打斷不了重試，但會變成沒人接的 rejection。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/launcher-log.js:21-33` 後 `:21-35`〕
 - `configureNetFetch` 缺任何一個必填依賴就丟錯（`:17-22`、`:31-36`）。「開機一定會呼叫、而且兩個都給」由 `test/app-ready.test.cjs:105-113` 釘住。
 
 **探針**〔實測 2026-10-29，Node 24.14.1，repo 外副本，暫存區 `6e2/`〕：
-- **接線**：照 `main/app-ready.js:133-140` 組正式接線，用真的 `net-fetch`、真的 `ipc-bridge`、真的 `launcher-log`。
+- **接線**：照 `main/app-ready.js:133-140` 組正式接線，用真的 `net-fetch`、真的 `ipc-bridge`、真的 `launcher-log`。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/app-ready.js:133-140` 後 `:135-142`〕
 - **注入兩種下游故障**：
   - 假視窗的 `webContents.send` 同步丟錯；
   - debug log 打開，但把桌面路徑指到一個「檔案」底下，讓 `mkdir` 真的失敗（ENOTDIR）。
@@ -346,7 +347,7 @@ if (n.imageUrl)
   - 送畫面交給 `deliver`（Q3 裁決，B11 守）；
   - 寫日誌交給 `appendLauncherLog` 自己的 try；
   - 「依賴一定接上」交給 `configureNetFetch` 的必填檢查加 `app-ready.test`。
-  - 要同步改 `main/net-fetch.js:24-26` 的註解。那段寫的是「沒 configure 就用到會被下面兩個 best-effort 出口與 withRetries 吞掉」；方案 A 之後，這種情況會在第一次重試時大聲丟 TypeError。這跟 `REQUIRED_FUNCTIONS` 註解裡「忘了接就要大聲」的方向一致。
+  - 要同步改 `main/net-fetch.js:24-26` 的註解。那段寫的是「沒 configure 就用到會被下面兩個 best-effort 出口與 withRetries 吞掉」；方案 A 之後，這種情況會在第一次重試時大聲丟 TypeError。這跟 `REQUIRED_FUNCTIONS` 註解裡「忘了接就要大聲」的方向一致。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/net-fetch.js:24-26` 未移動，註解已照此原地改寫〕
   - 測試：不新增。B11 已經守住送畫面這條；本表的探針就是「拆掉下游保證會變紅」的反向對照。
 - **方案 B**：留 `withRetries` 的 catch，拆 `notifyRetryToUi` 的。理由是「通用的重試工具不信任呼叫端給的 callback」。代價有兩個：
   - 它會繼續遮住下游的毛病（見上表 head＋拆 `deliver` 那列）；
@@ -358,8 +359,8 @@ if (n.imageUrl)
 
 | 位置 | 失敗時應該怎樣 | 記不記日誌 |
 |---|---|---|
-| `main/app-ready.js:116` `app.setAppUserModelId("ggl3.launcher")` | 繼續啟動。這行的作用是讓工作列的識別跟 `package.json` `build.appId` 對齊（`:114` 註解、`package.json:49`）。設定失敗的後果最多是工作列圖示分組不一致；拆掉 try，後果會變成啟動器整個開不起來 | **不記**。啟動器沒有用 OS 的系統通知（`rg Notification main` 只命中站內通知的 IPC 與路徑，沒有 Electron 的 `Notification`〔查過 2026-10-29；對照組 `rg BrowserWindow main` 有命中〕），所以失敗的影響只有工作列分組。玩家幾乎不會為這個回報，記了也很少有人去看 |
-| `main/microsoft-auth.js:448` `loginWin.setMenuBarVisibility(false)` | 繼續登入。失敗的後果是登入視窗多一條選單列 | **不記**。症狀本身就看得到，記下來不會多提供任何診斷資訊 |
+| `main/app-ready.js:116` `app.setAppUserModelId("ggl3.launcher")` | 繼續啟動。這行的作用是讓工作列的識別跟 `package.json` `build.appId` 對齊（`:114` 註解、`package.json:49`）。設定失敗的後果最多是工作列圖示分組不一致；拆掉 try，後果會變成啟動器整個開不起來 | **不記**。啟動器沒有用 OS 的系統通知（`rg Notification main` 只命中站內通知的 IPC 與路徑，沒有 Electron 的 `Notification`〔查過 2026-10-29；對照組 `rg BrowserWindow main` 有命中〕），所以失敗的影響只有工作列分組。玩家幾乎不會為這個回報，記了也很少有人去看〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/app-ready.js:116` 原地改寫（catch 寫理由）、`:114` 未移動；其他行號指的檔不在本 commit〕 |
+| `main/microsoft-auth.js:448` `loginWin.setMenuBarVisibility(false)` | 繼續登入。失敗的後果是登入視窗多一條選單列 | **不記**。症狀本身就看得到，記下來不會多提供任何診斷資訊〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/microsoft-auth.js:448` 後 `:450`（catch 寫理由）〕 |
 
 - 兩處的 catch 都寫一行理由，說明「非致命：失敗只影響外觀，不得擋住啟動／登入」。
 - 這兩個 API 實際上什麼時候會丟錯，沒查〔未驗〕。不管會不會丟，「失敗時要不要中斷」這個判斷都成立。
@@ -371,7 +372,7 @@ if (n.imageUrl)
   - `main/ipc/instance-ipc.js:41-45` 的 `reportMovedAside` 在成功路徑上跳框。`movedAside` 在畫面端沒有任何程式讀它，所以這個對話框是唯一的告知管道。
   - 既有測試只有替身 `showInfoDialog: async () => {}`，沒有一個案例讓對話框失敗。
 - **改法**：
-  - `createShowInfoDialog` 多收一個記錄函式，接線只改 `main/start-main.js:180`，接既有的 `gglError`。
+  - `createShowInfoDialog` 多收一個記錄函式，接線只改 `main/start-main.js:180`，接既有的 `gglError`。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/start-main.js:180` 原地改寫（多傳 `gglError`）〕
   - catch 裡呼叫它，然後照舊吞掉，事件名用 `dialog_failed` 這類固定名稱。
 - **紀錄的邊界**〔讀碼〕：
   - `gglError` 寫進檔案的 `err` 不含 message，整行的家目錄會換成 `~`（`lib/ggl-structured-log.js:8`、`:138`）。
@@ -388,7 +389,7 @@ if (n.imageUrl)
 
 ### Q-SEEN（D-6E-SEEN）的施工前確認
 
-動 `renderer/notifications-ui.js:21` 之前先確認三件事：
+動 `renderer/notifications-ui.js:21` 之前先確認三件事：〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`renderer/notifications-ui.js:21` 後 `:23`（改成 `catch (err)`）〕
 1. 寫入失敗是不是真的只影響「已讀」的持久化。
 2. 會不會讓重要公告消失、被錯標成已讀，或造成其他實質的通知問題。
 3. 畫面端有沒有現成、受控的診斷通道可以記這類錯誤。
@@ -403,6 +404,16 @@ if (n.imageUrl)
 - 「刪」的 5 處：0 紅〔推論：它們是 2026-10-28 那次 9 處 0 紅探針的子集〕。
 - 方案 A：0 紅〔實測，上表〕。不新增測試（D-6E-RETRY-A）。
 - 「刪〔待驗〕」的 2 處、`ensureWritableTree`、Q-DLG、Q-SEEN、改判成「清」的 3 處：沒有探針。施工時先在副本實跑，紅燈跟預期不同就停。
+
+**施工紀錄（6e-3）**：commit `6577be5`（20 檔，+179／-63），2026-10-29 owner 授權（「開始 6e-3 吧」），由新 session 施工（D-6E-SESS）。
+- 動工前 ESLint 乾跑 39 處（rpc-helper 9、其他 30），30 處位置跟上表逐一對上；施工後只剩 rpc-helper 9 處，留給 6e-5。
+- `safeLog`：副本實測拆掉 try 紅 1（T-I4 的同步丟錯案），跟測試帳不同，停下回報；owner 改判為「清」（D-6E-SAFELOG）。
+- Q-SEEN 施工前三項確認都通過：寫入失敗只讓下次開啟時紅點又亮（只會多算未讀，不會少算）；通知清單與「清除全部」不看這個值；畫面端有現成的 `gglError`（只送事件 ID）。照「有現成通道就用它」，在 `lib/renderer-error-events.js` 白名單加 `notifications_seen_save_failed`——上表沒列這個檔，owner 2026-10-29 轉貼的施工細節確認接受它是 Q-SEEN 的必要配套，條件是只記有限事件資訊、送出失敗不擋通知也不讓玩家看到錯誤。
+- Q-DLG：測試本來就有假 electron（`test/helpers/fake-electron.cjs`），`dialog` 不必注入；`createShowInfoDialog` 只多收記錄函式，並在建立時檢查它（沒接上的話，跳框失敗時 catch 反而會丟錯、蓋掉原本的結果）。同一份轉貼要求不加 adapter 或另一套對話框機制，照做。
+- 只改正式程式時紅 1（B10u，沒傳記錄函式），跟跑之前講的預期相同；改完 Node 24.14.1、22.23.4 全套都 1419／1419（新增 4 案：Q-DLG ×2、`ensureWritableTree`、通知 N4b）；`lint`、`check:ui-css`、`check:ui-css:strict` 過；防禦 grep 每條命中都已回答（驗收單）。
+- 反向對照 6 個突變都紅：跳框失敗不記、往外丟、附加資料帶本文；已讀寫入失敗不記、往外丟；`ensureWritableTree` 改回吞錯。
+- 隔離啟動一次，畫面與公告正常。owner 問「畫面有我需要驗收的東西嗎？」，CC 回：正常情況沒有變化，唯一看得到的改變是 `ensureWritableTree` 失敗時在按「啟動」當下報錯，只用單元測試驗過。
+- owner 驗收：「接受 6e-3，可以 commit，筆記收尾跟 snapshot 一起做」
 
 **打開規則（6e-5）**：
 - 內容：
@@ -633,7 +644,7 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
    - GGL 本體的 `main/` 沒有自己處理這個參數，所以跟著同一個機制走〔推論〕。
    - userData 以外還有三個位置〔讀碼〕：
      - 遊戲根目錄預設 `C:/Games/GGL`（`lib/server-config.js:33`）→ 隔離的 userData 裡預先放 `settings.json`，`launcherRootDir` 指到這條線專屬的資料夾；
-     - `launcher.log` 寫在桌面（`main/launcher-log.js:18`），只有 `debugLogging` 開著時才寫（`:22`）→ `settings.json` 明寫 `"debugLogging": false`；
+     - `launcher.log` 寫在桌面（`main/launcher-log.js:18`），只有 `debugLogging` 開著時才寫（`:22`）→ `settings.json` 明寫 `"debugLogging": false`；〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/launcher-log.js:18`、`:22` 未移動；其他行號指的檔不在本 commit〕
      - 診斷匯出會複製桌面的 `launcher.log`（`diagnostics-export.js:124`）→ 驗收時不按。
    - 隔離資料夾放暫存區或 `H:`，不放 `%APPDATA%`（memory「Claude 的 MSIX AppData 轉存」）。owner 看畫面用 owner 自己開的終端或捷徑。
    - **不能安全隔離就不跑。**
@@ -712,7 +723,7 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 
 - **N2**：U14 的前提「站台根目錄有 v2 殘留的 `changelog.json`、`notice-thumb.jpg`」**不成立**。v3 的 `notice.json` 現在正引用這兩個檔，`docs/site-format.md:19` 也把 `changelog.json` 列為站台的一部分。owner 依此裁 D-6E-U14。
 - **N3**：promise 的空 `.catch(() => {})` 有 11 處，不在 `no-empty` 的保護範圍內（§四）。已裁延後（D-6E-PCATCH）。
-- **N4**：`appendLauncherLog` 不會 reject 這個保證，主人是它自己的 try（`main/launcher-log.js:23-31`），但沒有任何測試釘住它〔查過 2026-10-29：`rg -l appendLauncherLog test`，沒有一份測它的失敗路徑〕。拆掉那個 try 的話，每次寫日誌失敗都會變成沒人接的 rejection（§四 探針）。這個 catch 在本檔分類成「清」，會留著，所以不影響本輪；要不要補測試另外決定。
+- **N4**：`appendLauncherLog` 不會 reject 這個保證，主人是它自己的 try（`main/launcher-log.js:23-31`），但沒有任何測試釘住它〔查過 2026-10-29：`rg -l appendLauncherLog test`，沒有一份測它的失敗路徑〕。拆掉那個 try 的話，每次寫日誌失敗都會變成沒人接的 rejection（§四 探針）。這個 catch 在本檔分類成「清」，會留著，所以不影響本輪；要不要補測試另外決定。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/launcher-log.js:23-31` 後 `:23-33`（try 仍在，catch 寫了理由）〕
 
 ## 未驗
 
@@ -726,7 +737,7 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - `build.files` 的兩條排除：等整合後那次打包（D-6E-FILES），之前不宣稱已驗。
 - 6e-4 的 `prettier --file-info` 驗法：2026-10-29 只用 `assets/tailwind.css`（`ignored: true`）和 `README.md`（`ignored: false`）確認過這個指令會讀 `.prettierignore`〔實測〕，新加的三行還沒驗。
 - 6e-0「沒圖」與「公告消失」的真機畫面。
-- `net-fetch.js:220` 的寫入模式〔讀碼待確認〕。
+- `net-fetch.js:220` 的寫入模式〔讀碼待確認〕。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/net-fetch.js:220` 後 `:218`（寫入模式已確認，→ §四 施工紀錄）〕
 - `showMessageBox` 什麼時候會 reject。
 - 平行跑 `npm test` 不互相干擾：讀碼推論，沒有真的同時跑兩份。
 
@@ -761,10 +772,10 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - CSS 指針化：刪掉 CSS 線的批次名稱、內部檔案安排、computed 比對的細節，以及對 CSS plan 章節編號的引用。跨線契約改寫成交付保證（§跨線契約）。
 - 共用裁決、Q-CLOSE、施工環境、跨線邊界的家改到本檔（§權威遷移）。
 - `no-empty`：
-  - `main/net-fetch.js:42`、`:162`：「刪」→「重複，二選一」（Q-RETRY）。ChatGPT 第一輪用 `withRetries` 單體的探針，證明 `:162` 那層 catch 確實有作用。CC 追到正式接線，指出真正的主人是 `deliver`。本輪用正式接線的探針加反向對照釘住了這一點。
-  - `main/app-ready.js:116`：「刪〔待驗〕」→「清」。
-  - `main/microsoft-auth.js:448`：「刪」→「清」。
-  - `main/microsoft-auth.js:470`：「刪」→「清」（清理順序）。本輪讀碼新發現，第一輪審查沒有點名這一處。
+  - `main/net-fetch.js:42`、`:162`：「刪」→「重複，二選一」（Q-RETRY）。ChatGPT 第一輪用 `withRetries` 單體的探針，證明 `:162` 那層 catch 確實有作用。CC 追到正式接線，指出真正的主人是 `deliver`。本輪用正式接線的探針加反向對照釘住了這一點。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/net-fetch.js:42`、`:162` 刪除（方案 A）〕
+  - `main/app-ready.js:116`：「刪〔待驗〕」→「清」。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/app-ready.js:116` 原地改寫（catch 寫理由）〕
+  - `main/microsoft-auth.js:448`：「刪」→「清」。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/microsoft-auth.js:448` 後 `:450`（catch 寫理由）〕
+  - `main/microsoft-auth.js:470`：「刪」→「清」（清理順序）。本輪讀碼新發現，第一輪審查沒有點名這一處。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/microsoft-auth.js:470` 後 `:472`（catch 寫理由）〕
 - 6e-4、6e-5 的前置改標成管理選擇；技術依賴另外列出（§依賴分析）。
 - 新增 Q-RETRY、Q-CLOSE（從 CSS plan 搬來）、Q-6E4-WHEN；Q-6E-WHERE 補上合併前置。
 
@@ -779,3 +790,5 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - 共用檔欄補上 `README.md`、`.prettierignore:4`（CSS plan §六-3 的 U11-C 清單會改到）。
 
 **2026-10-29 Q-6E-WHERE 裁定、6e-0 授權**：owner 裁 Q-6E-WHERE 照建議（D-6E-WHERE），6e 線各批的「在哪做」改成 `main`；同日 owner：「好，正式授權。可以開工ㄌ。」授權 6e-0 R-THUMB 施工，照 D-6E-SESS 由新 session 接手。其餘各批仍要另行授權。
+
+**2026-10-29 6e-3 施工中改判**：`main/runtime/download.js:23`（`safeLog`）「刪〔待驗〕」→「清」（D-6E-SAFELOG）。原判依據是正式接線的 logger（`appendLauncherLog`）不會同步丟錯；副本實測拆掉 try 紅 T-I4（`test/sync-instance-record.test.cjs` 的同步丟錯案），這條保證由 N6-D2 要求、T-I4 釘住，主人就是 `safeLog` 自己。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：本段寫於本 commit 之後，`main/runtime/download.js:23` 已是本 commit 後的位置〕
