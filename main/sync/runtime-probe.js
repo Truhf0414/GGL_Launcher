@@ -12,7 +12,8 @@ const ABSENT = new Set(["ENOENT", "ENOTDIR"]);
 function makeRuntimeProbe(paths, { fsp = defaultFsp } = {}) {
   const bases = { gameDir: paths.gameDir, root: paths.root };
   const abs = (base, rel) => {
-    if (!(base in bases)) throw new TypeError(`runtime probe: 不認得的 base ${base}`);
+    if (!(base in bases))
+      throw new TypeError(`runtime probe: 不認得的 base ${base}`);
     return path.join(bases[base], ...rel.split("/"));
   };
   return {
