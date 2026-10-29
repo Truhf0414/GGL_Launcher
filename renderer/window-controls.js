@@ -20,7 +20,7 @@
       onDom(btnDiscord, "click", async () => {
         try {
           const defaults = await loadServerDefaults();
-          await safeInvoke("openExternal", defaults?.discordInviteUrl);
+          await safeInvoke("openExternal", defaults.discordInviteUrl);
         } catch (e) {
           sayFailed("無法開啟 Discord 邀請")(e);
         }

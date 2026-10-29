@@ -31,6 +31,7 @@ function setup(depsOverrides = {}) {
       calls.list++;
       return [];
     },
+    appendLauncherLog: async () => {},
     ...depsOverrides,
   };
   registerInstanceIpc({

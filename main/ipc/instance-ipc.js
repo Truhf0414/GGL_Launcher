@@ -32,7 +32,7 @@ function registerInstanceIpc(ctx) {
   // 錯誤丟回畫面之後就只剩畫面那行字：失敗原因同時寫進 launcher.log，診斷報告才看得到
   function fail(channel, err, prefix) {
     const code = typeof err?.code === "string" && err.code ? err.code : "-";
-    void deps.appendLauncherLog?.(
+    void deps.appendLauncherLog(
       `IPC_ERROR ${channel} ${code} ${String(err?.message ?? err)}`,
     );
     return toPlainError(err, prefix);

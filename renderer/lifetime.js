@@ -45,7 +45,6 @@
   }
 
   function onDom(target, type, handler, options) {
-    if (!target?.addEventListener) return () => {};
     target.addEventListener(type, handler, options);
     const off = () => {
       try {
@@ -69,7 +68,6 @@
   }
 
   function trackDomCleanup(off) {
-    if (typeof off !== "function") return () => {};
     domUnsubscribers.push(off);
     return off;
   }

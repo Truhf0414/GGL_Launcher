@@ -8,24 +8,13 @@ function registerNotificationsIpc(ctx) {
     const broadcast = deps.getNotifications();
     if (broadcast.length === 0) return { items: [], unreadCount: 0 };
     const dismissed = await deps.readDismissedNotificationIds();
-    const items = broadcast
-      .filter((n) => !dismissed.has(String(n.id || "")))
-      .slice(0, 20)
-      .map((n) => ({
-        id: String(n.id || ""),
-        title: String(n.title || ""),
-        body: String(n.body || ""),
-        timeText: String(n.timeText || ""),
-        createdAtMs: Number(n.createdAtMs) || 0,
-        priority: Number(n.priority) || 0,
-        key: String(n.key || ""),
-      }));
+    const items = broadcast.filter((n) => !dismissed.has(n.id)).slice(0, 20);
 
     let unreadCount = 0;
     if (!lastSeenKey) unreadCount = items.length;
     else {
       for (const n of items) {
-        if (String(n.key || "") > lastSeenKey) unreadCount += 1;
+        if (n.key > lastSeenKey) unreadCount += 1;
       }
     }
     return { items, unreadCount };
@@ -35,7 +24,7 @@ function registerNotificationsIpc(ctx) {
     const broadcast = deps.getNotifications();
     if (broadcast.length === 0) return true;
     const dismissed = await deps.readDismissedNotificationIds();
-    for (const n of broadcast) dismissed.add(String(n.id || ""));
+    for (const n of broadcast) dismissed.add(n.id);
     await deps.writeDismissedNotificationIds(dismissed);
     return true;
   });

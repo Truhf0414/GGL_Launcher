@@ -21,7 +21,7 @@ let sendRpcNotice = null;
 let gglError = null;
 /** 正式路徑不注入，預設就是 child_process.spawn；測試換成假的 ChildProcess（6b-3 Q6 核實清單，只批准這一個縫） */
 let spawn = childProcessSpawn;
-/** server-config 的 discord 區塊；未注入時為 null，此時不啟動 helper */
+/** server-config 的 discord 區塊；configure 時必填（Client ID 沒設是合法未啟用，啟動 helper 時才判） */
 let discordConfig = null;
 
 function configureDiscordRpc(deps) {
@@ -32,10 +32,10 @@ function configureDiscordRpc(deps) {
       throw new TypeError(`configureDiscordRpc: ${key} 必須是函式`);
     }
   }
-  ({ sendRpcNotice, gglError, spawn } = next);
-  if (deps.discord && typeof deps.discord === "object") {
-    discordConfig = deps.discord;
+  if (!next.discord || typeof next.discord !== "object") {
+    throw new TypeError("configureDiscordRpc: discord 必須是物件");
   }
+  ({ sendRpcNotice, gglError, spawn, discord: discordConfig } = next);
 }
 
 function resolveDiscordRpcHelperExePath() {
@@ -50,10 +50,6 @@ async function tryStartDiscordRpcHelper({ mcPid }) {
   const pid = Number(mcPid);
   if (!Number.isFinite(pid) || pid <= 0) {
     void appendRpcDiagLog(`skip: invalid mcPid=${String(mcPid)}`);
-    return;
-  }
-  if (!discordConfig) {
-    void appendRpcDiagLog("skip: discord config not injected");
     return;
   }
 

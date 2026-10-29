@@ -111,14 +111,15 @@ function debugLogOn(t) {
   t.after(() => setDebugLoggingEnabled(false));
 }
 
-test("D1 缺必要接線（sendRpcNotice、gglError）或型別不符（含 spawn）⇒ configure 丟 TypeError、訊息含鍵名", () => {
+test("D1 缺必要接線（sendRpcNotice、gglError、discord）或型別不符（含 spawn）⇒ configure 丟 TypeError、訊息含鍵名", () => {
   const base = {
     sendRpcNotice: () => {},
     gglError: () => {},
     discord: UNSET,
   };
   assert.doesNotThrow(() => configureDiscordRpc(base), "對照：spawn 可省略");
-  for (const key of ["sendRpcNotice", "gglError", "spawn"]) {
+  // discord 的 "not-a-function" 是字串，當「不是物件」用
+  for (const key of ["sendRpcNotice", "gglError", "spawn", "discord"]) {
     for (const value of ["absent", undefined, "not-a-function"]) {
       if (key === "spawn" && value === "absent") continue;
       const deps = { ...base };
