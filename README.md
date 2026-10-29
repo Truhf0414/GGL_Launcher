@@ -15,7 +15,7 @@ npm start
 
 ## Project rules
 
-- **Rules (UI / CSS, defensive code, packaging…)**: `_notes/conventions.md` (local notes, not in git)
+- **Rules (UI / CSS, defensive code, packaging…)**: `_notes/conventions.md`
 - **Architecture / IPC channel list**: `ARCHITECTURE.md`
 
 ## Structured logs (support / debugging)

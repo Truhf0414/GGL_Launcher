@@ -1,4 +1,4 @@
-# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 完成（`3a57b5d`，經 owner 驗收放行）；6e-2 完成（`0f4cfe0`，經 owner 驗收放行）；6e-3 完成（`6577be5`，經 owner 驗收放行）；6e-4 完成（`a7b623a`，經 owner 驗收放行）；CJS-FMT 完成（`1a7c9d3`，照 owner 裁定以單一 commit 提交）；CSS 線已合併（`1aa8798`，→ §跨線契約 整合紀錄）；6e-5 完成（`79edbb3`，經 owner 驗收放行）；6e-6 完成（`1d6721c`＋`4ae31e7`，經 owner 驗收放行），其餘各批另行授權**）
+# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 完成（`3a57b5d`，經 owner 驗收放行）；6e-2 完成（`0f4cfe0`，經 owner 驗收放行）；6e-3 完成（`6577be5`，經 owner 驗收放行）；6e-4 完成（`a7b623a`，經 owner 驗收放行）；CJS-FMT 完成（`1a7c9d3`，照 owner 裁定以單一 commit 提交）；CSS 線已合併（`1aa8798`，→ §跨線契約 整合紀錄）；6e-5 完成（`79edbb3`，經 owner 驗收放行）；6e-6 完成（`1d6721c`＋`4ae31e7`，經 owner 驗收放行）；整合後共同回歸完成（`2a91e12`，經 owner 驗收放行），其餘各批另行授權**）
 
 **這是什麼**：Phase 6e 的施工權威，同時也是**兩條線共用的裁決、跨線整合、Phase 6 整體結案**的權威。2026-10-28 的初稿是以「七批串行」寫成的。2026-10-29 owner 把 CSS 拆成獨立工程，本檔依此改寫，之後經過兩輪審查修訂與一輪 owner 最終裁決（→ §改判紀錄）。**裁決不等於任何程式已經實作。**
 
@@ -628,6 +628,16 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - `docs/site-format.md` 通讀一次。
 - 照 conventions §本機打包 打包一次，確認打包流程走得完；同一次打包檢查 `build.files` 那兩條排除的實際產物（D-6E-FILES，判定界線見 §五）。打包流程要不要寫進 Release Gate，不在本檔。
 
+**施工紀錄（整合後共同回歸）**：在 `2a91e12` 上跑，沒改程式；2026-10-29 owner 授權（「開始整合後共同回歸吧！」），在 6e-4 的 session 進行。
+- Node 24.14.1、22.23.4 全套都 1430／1430；`lint`（`no-empty` 已開）、`check:ui-css:strict` 過。
+- 打包：照 conventions §本機打包，產物輸出到 session 暫存區（不覆蓋 `dist/` 的舊產物），22 秒走完、`check:packaged-artifacts` 過；app.asar 的 `/assets/` 只有字型、`icon.ico`、`notice-thumb.svg`，沒有 Tailwind。
+- `build.files` 兩條排除（D-6E-FILES）：app.asar 裡沒有 `rpc-helper.exe`、mp4，兩支由 `extraResources` 放在 `resources/assets/`。這只證明「現在不在」，不足以判定規則冗餘，照判定界線走留-4：**兩條都留**。
+- 實際啟動：打包版的 exe 用隔離 userData 開，主畫面正常（背景影片、公告縮圖與 log、「尚未安裝（最新版 alpha1）」）；`C:/Games/GGL` 沒被建立、桌面 `launcher.log` 沒變。owner 看畫面：「可以，畫面正常。」
+- CSS 線交付的回歸項目（`css-2026-10.md` §整合後共同回歸）：owner 轉給 CSS 施工 session 跑。computed 對 `a444cf4` 有影片、無影片都是標準屬性 0、自訂屬性 0（534 個元素），cascade 全部 0 差異，每項的對照組（`a444cf4` 對自己）都是 0。比對範圍是 `a444cf4..2a91e12`，不只 6e-6：碰到畫面的只有 `6577be5` 的 `renderer/lifetime.js`、`renderer/notifications-ui.js`（6e 這邊用 `git diff --stat` 核對過）。沒驗：真滑鼠互動、動畫、開機預設以外的狀態、螢幕閱讀器。
+- 通讀 `docs/site-format.md`：6e 動過的條目（`:39`、SF-L3／SF-L4、SF-S3／SF-S4）跟程式對得上。另外 `:5`、`:7` 與 `README.md:18` 說筆記「只在本機」，但 `_notes/` 已在 git 也已推上 origin；owner 裁定改掉，跟本輪筆記收尾同一個 commit。
+- `node_modules` 殘留的 Tailwind：owner 要清。`~/.npmrc` 的 allow-scripts 會擋套件的安裝腳本，`npm ci` 重裝可能讓 Electron 等裝不完整，所以改用 `npm prune`（只刪 lockfile 外的 17 個套件，不重裝），再 `rmdir` 空的 `@tailwindcss`；lockfile 沒變、`npm ls` 沒有問題，兩版 Node 全套重跑仍 1430／1430。
+- owner 驗收：「接受共同回歸，筆記收尾跟 snapshot 一起做。」
+
 ---
 
 ## 跨線契約（與 CSS 線）
@@ -796,7 +806,6 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - `setAppUserModelId`、`setMenuBarVisibility`、`loginWin.close()` 什麼時候會丟錯。
 - 方案 A 剩下的缺口：`getMainWindow()`／`win.isDestroyed()` 丟錯（§四）。
 - 探針只在純 Node 裡跑，沒經過 Electron。在 Electron 主程序裡，沒人接的 rejection 會怎麼處理沒有驗；方案 A 不改變這件事，因為那個 try 留著。
-- `build.files` 的兩條排除：等整合後那次打包（D-6E-FILES），之前不宣稱已驗。
 - 6e-0「沒圖」與「公告消失」的真機畫面。
 - `net-fetch.js:220` 的寫入模式〔讀碼待確認〕。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/net-fetch.js:220` 後 `:218`（寫入模式已確認，→ §四 施工紀錄）〕
 - `showMessageBox` 什麼時候會 reject。
