@@ -1,4 +1,4 @@
-# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 完成（`3a57b5d`，經 owner 驗收放行）；6e-2 完成（`0f4cfe0`，經 owner 驗收放行）；6e-3 完成（`6577be5`，經 owner 驗收放行）；6e-4 完成（`a7b623a`，經 owner 驗收放行）；CJS-FMT 完成（`1a7c9d3`，照 owner 裁定以單一 commit 提交）；CSS 線已合併（`1aa8798`，→ §跨線契約 整合紀錄），其餘各批另行授權**）
+# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 完成（`3a57b5d`，經 owner 驗收放行）；6e-2 完成（`0f4cfe0`，經 owner 驗收放行）；6e-3 完成（`6577be5`，經 owner 驗收放行）；6e-4 完成（`a7b623a`，經 owner 驗收放行）；CJS-FMT 完成（`1a7c9d3`，照 owner 裁定以單一 commit 提交）；CSS 線已合併（`1aa8798`，→ §跨線契約 整合紀錄）；6e-5 完成（`79edbb3`，經 owner 驗收放行），其餘各批另行授權**）
 
 **這是什麼**：Phase 6e 的施工權威，同時也是**兩條線共用的裁決、跨線整合、Phase 6 整體結案**的權威。2026-10-28 的初稿是以「七批串行」寫成的。2026-10-29 owner 把 CSS 拆成獨立工程，本檔依此改寫，之後經過兩輪審查修訂與一輪 owner 最終裁決（→ §改判紀錄）。**裁決不等於任何程式已經實作。**
 
@@ -422,8 +422,15 @@ if (n.imageUrl)
 - 內容：
   - `eslint.config.cjs` 的 `ignores` 加 `.claude/**`（不加的話，殘留 worktree 會讓 lint 紅）；
   - 加 `"no-empty": "error"`，以及 rpc-helper 的例外；
-  - `conventions.md:42` 的「空 catch（ESLint no-empty）」改精確成「`catch` 區塊」。〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動〕
+  - `conventions.md:42` 的「空 catch（ESLint no-empty）」改精確成「`catch` 區塊」。〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md:42` 原地改寫（改成機器擋空區塊、`rpc-helper/` 例外）〕
 - **機器保證的缺口**：promise 的 `.catch(() => {})` 不歸 `no-empty` 管，正式程式裡有 11 處（N3）。已裁延後（D-6E-PCATCH）：本輪不建規則，結案批記進 future-work。
+
+**施工紀錄（6e-5）**：commit `79edbb3`（2 檔，+10／-3），2026-10-29 owner 授權（「CSS 合併好了，開始 6e-5 吧」），在 6e-4 的 session 施工（owner 選「在這裡做」，不另開 session）。
+- 前置：`main` 已含 CSS 分支（`1aa8798`）。在它上面乾跑 `no-empty`：repo 本體只剩 `rpc-helper/index.js` 9 處，跟上面的施工紀錄（6e-3）相同；`.claude/` 底下 39 處。
+- 設定：`ignores` 加 `.claude/**`；`no-empty` 跟 `no-undef` 放在同一塊（`**/*.js`、`**/*.cjs`）；另一塊讓 `rpc-helper/**` 關掉 `no-empty`，註解寫 U10；檔頭註解改成三條規則。`conventions.md:42` 寫成「空區塊，含 `catch` 區塊」：`no-empty` 擋的是所有空區塊，不只 catch。
+- 驗法：`npm run lint` 0 錯；用 `--stdin-filename` 餵空 catch 與空 if：`main/`、`renderer/` 都報 `no-empty`，`rpc-helper/` 不報，catch 裡寫一行理由不報；`.claude/` 的檔加 `--no-ignore` 才抓得到（1 處），證明是 ignore 讓它過。Node 24.14.1、22.23.4 全套都 1430／1430（CSS 線帶進 11 案）；`check:ui-css`、`check:ui-css:strict` 過；`eslint.config.cjs` 過 `prettier --check`；防禦 grep 3 條命中都是註解或筆記的字面。沒跑實際啟動：只改 lint 設定。
+- 已知限度：`catch` 裡只要有一行註解就算不空，理由寫得好不好還是靠人看；promise 的 `.catch(() => {})` 照 D-6E-PCATCH 延後。
+- owner 驗收：「接受 6e-5，可以 commit，筆記收尾跟 snapshot 一起做」
 
 ---
 
@@ -448,7 +455,7 @@ if (n.imageUrl)
 - **工具修正（6e-4）**：**這批會改行為，不只是空白與換行**：改格式化指令、忽略規則，以及建置／檢查工具的部分行為。
   - 只留一條 `format`，範圍由 `.prettierignore` 決定：加 `_notes/`、`.claude/`、`CLAUDE.md`；
   - 刪 `format:ui`；
-  - `conventions.md:57` 與 `README.md:15` 改成指向 `format`；〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:57`、`README.md:15` 原地改寫（改指 `format:file`，`format` 只給格式化批次）〕
+  - `conventions.md:57` 與 `README.md:15` 改成指向 `format`；〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:57`、`README.md:15` 原地改寫（改指 `format:file`，`format` 只給格式化批次）〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md` 的行號未移動（本 commit 只原地改 `:42`）〕
   - 驗法：`npx prettier --file-info <檔>` 逐一看 `ignored`：`_notes/` 裡一份、`.claude/` 裡一份、`CLAUDE.md` 要是 `true`；`README.md`、`ARCHITECTURE.md`、`docs/` 裡一份、一支 `main/` 的 JS 要是 `false`（對照組）。
 - **全 repo 格式化（6e-6）**：這才是專門的格式化批次，只動空白與換行。
   - 相關線都合併之後才做；
@@ -462,8 +469,8 @@ if (n.imageUrl)
 - `check:renderer-scripts`、`format:ui`：`rg` 掃 repo（`_notes/` 除外），只有 `package.json` 自己和 `README.md:15` 提到；對照組 `check:ui-css` 有命中。
 - `build-icons.js`：`assets/icon.png` 不在 repo，git 歷史也沒有（→ §新發現 N5），用自己生的 32×32 圖在 repo 外跑改前改後兩次，10 個產物逐位元組相同；突變（不放 16px）讓 `icon.ico` 不同，證明比法抓得到差異。
 - Node 24.14.1、22.23.4 全套都 1419／1419，跟預期的 0 紅相同；`lint`、`check:ui-css`、`check:ui-css:strict` 過；防禦 grep 0 命中（對照組 `6577be5` 25 條）。沒跑實際啟動：這批沒改到執行時會用到的檔。
-- CSS 分支（`1d66b3e`）在共用檔上動的欄位與行，跟本批不重疊；`README.md:14`／`:15`、`conventions.md:58`／`:57` 相鄰，CSS 線拉進 `main` 時會碰到文字衝突（§跨線契約 6）。〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`README.md:14`／`:15` 後 `:12`／`:13`；`conventions.md:58`（Tailwind 那條）已刪，`:57` 未移動〕
-- 驗收時 owner 裁 Q-FORMAT-USAGE 採 (b)（D-6E-FMT-USE），`conventions.md:57`、`README.md:15` 照此改寫，跟上面「改成指向 `format`」不同；另立 CJS-FMT（D-6E-CJS，見下）。
+- CSS 分支（`1d66b3e`）在共用檔上動的欄位與行，跟本批不重疊；`README.md:14`／`:15`、`conventions.md:58`／`:57` 相鄰，CSS 線拉進 `main` 時會碰到文字衝突（§跨線契約 6）。〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`README.md:14`／`:15` 後 `:12`／`:13`；`conventions.md:58`（Tailwind 那條）已刪，`:57` 未移動〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md` 的行號未移動（本 commit 只原地改 `:42`）〕
+- 驗收時 owner 裁 Q-FORMAT-USAGE 採 (b)（D-6E-FMT-USE），`conventions.md:57`、`README.md:15` 照此改寫，跟上面「改成指向 `format`」不同；另立 CJS-FMT（D-6E-CJS，見下）。〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md` 的行號未移動（本 commit 只原地改 `:42`）〕
 - owner 驗收：「允許 commit，但須先完成以下收尾」（收尾四項完成後 commit）。
 
 **CJS-FMT**（D-6E-CJS）：`format` 的 glob 是 `**/*.{js,css,html,json,md,yml,yaml}`，不含 `.cjs`，`test/` 底下的測試檔永遠不會被格式化（6e-4 施工時發現）。
@@ -509,8 +516,8 @@ if (n.imageUrl)
   - U14：撤回清理、保留站台檔，附改判原因 N2（D-6E-U14）。
 - **`defense-cleanup.md`**：標題「盤點完成、未動工」改成結案狀態，並指到各 Phase。
 - **文件**：
-  - `README.md:15`、`conventions.md:57`（S-FMT）；〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:57`、`README.md:15` 原地改寫（改指 `format:file`，`format` 只給格式化批次）〕
-  - `conventions.md:42`（§四）；〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動〕
+  - `README.md:15`、`conventions.md:57`（S-FMT）；〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:57`、`README.md:15` 原地改寫（改指 `format:file`，`format` 只給格式化批次）〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md` 的行號未移動（本 commit 只原地改 `:42`）〕
+  - `conventions.md:42`（§四）；〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md:42` 原地改寫（改成機器擋空區塊、`rpc-helper/` 例外）〕
   - `docs/site-format.md:39`（S-V2）、SF-L3／SF-L4（U13）；
   - `ARCHITECTURE.md` 只在本輪動到的地方跟著改。現掃 `ARCHITECTURE.md`、`README.md`、`CLAUDE.md`、`docs/` 裡指向 repo 內檔案的路徑，沒有指到已刪檔案的〔實測 2026-10-28，對照組有命中〕。
 - **其他**：
@@ -537,8 +544,8 @@ if (n.imageUrl)
 | U13 | `lib/sync/notice.js`、`main/sync/site-client.js`、`test/sync-notice*`、`test/site-format-doc.test.cjs`（SF-L）、抓取測試、`docs/site-format.md:174-185` | 無 |
 | `no-empty` 修正＋Q-DLG＋Q-RETRY | §四表中各檔、`main/ui-dialogs.js`、`main/start-main.js`、新測試 | 無〔推論：都是 `main/`、`renderer/lifetime.js`、`renderer/notifications-ui.js`、`scripts/` 底下非 CSS 的檔〕 |
 | S-CHECK（非 CSS） | `package.json` 兩個欄位、`scripts/build-icons.js`、`.prettierignore` 第 3、5、10 行 | `package.json`、`.prettierignore`〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`.prettierignore` 第 3、5、10 行刪除〕 |
-| S-FMT 工具 | `package.json`（`format`、`format:ui`）、`.prettierignore`、`README.md`、`conventions.md:57` | `package.json`、`.prettierignore`（CSS plan 預估會刪 `:4`）、`README.md`（CSS plan 預估會改 `:11`）、`conventions.md`〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:57` 原地改寫；`.prettierignore:4` 後 `:3`；`README.md:11` 未移動〕〔對齊 2026-10-29：→ `1a7c9d3`（plans/cross-review-2026-10-phase6e.md CJS-FMT）：本行的 `package.json` 沒帶行號（`format` 那行原地改寫）；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`conventions.md:57` 未移動；`.prettierignore:4`（`a7b623a` 後 `:3`）與 `README.md:11`（`build:css` 那行）都已在 `8186b3a` 刪除〕 |
-| 打開 `no-empty` | `eslint.config.cjs`、`conventions.md:42` | `conventions.md`〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動〕 |
+| S-FMT 工具 | `package.json`（`format`、`format:ui`）、`.prettierignore`、`README.md`、`conventions.md:57` | `package.json`、`.prettierignore`（CSS plan 預估會刪 `:4`）、`README.md`（CSS plan 預估會改 `:11`）、`conventions.md`〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:57` 原地改寫；`.prettierignore:4` 後 `:3`；`README.md:11` 未移動〕〔對齊 2026-10-29：→ `1a7c9d3`（plans/cross-review-2026-10-phase6e.md CJS-FMT）：本行的 `package.json` 沒帶行號（`format` 那行原地改寫）；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`conventions.md:57` 未移動；`.prettierignore:4`（`a7b623a` 後 `:3`）與 `README.md:11`（`build:css` 那行）都已在 `8186b3a` 刪除〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md` 的行號未移動（本 commit 只原地改 `:42`）〕 |
+| 打開 `no-empty` | `eslint.config.cjs`、`conventions.md:42` | `conventions.md`〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md:42` 原地改寫（改成機器擋空區塊、`rpc-helper/` 例外）〕 |
 | 全 repo 格式化 | 不定 | **所有檔** |
 
 CSS 線實際會改到哪些檔，以它合併時交出的清單為準（§跨線契約），不以任何一版 CSS plan 的預估為準。
@@ -584,9 +591,9 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 | 6e-1 | S-V2（§二） | `main`（D-6E-WHERE） | 6e-0 驗收（owner 裁定） | §二 的檔 | 52 → 6，外加 1 個綠的孤兒〔實測〕 | 否 | revert 1 commit |
 | 6e-2 | U13 方案 B（§三，D-6E-U13-B） | `main` | 6e-1（管理） | §三 的檔 | 紅 11〔實測〕 | 要：公告 log | revert 1 commit |
 | 6e-3 | `no-empty` 修正＋Q-DLG＋Q-RETRY 方案 A＋`ensureWritableTree`＋Q-SEEN（§四） | `main` | 6e-2（管理）；Q-SEEN 三項施工前確認（§四） | §四 的檔 | 部分實測、部分待驗（§四） | 否 | revert 1 commit |
-| 6e-4 | S-CHECK（非 CSS）＋S-FMT 工具（§五）：改格式化指令、忽略規則、建置／檢查工具，**不是純空白批** | `main` | 6e-3 局部驗收（D-6E-6E4-EARLY）；**不等** CSS 線合併 | `package.json` 的 6e 欄位（D-6E-PKG）、`.prettierignore`、`scripts/build-icons.js`、`README.md:15`、`conventions.md:57` | 0 紅〔實測〕 | 否 | revert 1 commit〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:57`、`README.md:15` 原地改寫（改指 `format:file`，`format` 只給格式化批次）〕 |
+| 6e-4 | S-CHECK（非 CSS）＋S-FMT 工具（§五）：改格式化指令、忽略規則、建置／檢查工具，**不是純空白批** | `main` | 6e-3 局部驗收（D-6E-6E4-EARLY）；**不等** CSS 線合併 | `package.json` 的 6e 欄位（D-6E-PKG）、`.prettierignore`、`scripts/build-icons.js`、`README.md:15`、`conventions.md:57` | 0 紅〔實測〕 | 否 | revert 1 commit〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:57`、`README.md:15` 原地改寫（改指 `format:file`，`format` 只給格式化批次）〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md` 的行號未移動（本 commit 只原地改 `:42`）〕 |
 | CJS-FMT | `.cjs` 納入 `format`＋既有 `.cjs` 一次性格式化（§五 CJS-FMT，D-6E-CJS） | `main` | owner 2026-10-29 要求現在施工（原裁 6e-6 之後） | `package.json` 的 `format`、要格式化的 `.cjs` | 0 紅〔實測〕 | 否 | revert 1 commit |
-| 6e-5 | 打開 `no-empty`（§四） | `main` | 6e-3 進 `main`（技術）；CSS 線已合併（管理） | `eslint.config.cjs`、`conventions.md:42` | 預期 lint 0 錯〔待驗：在合併後的 HEAD 上跑〕 | 否 | revert 1 commit〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動〕 |
+| 6e-5 | 打開 `no-empty`（§四） | `main` | 6e-3 進 `main`（技術）；CSS 線已合併（管理） | `eslint.config.cjs`、`conventions.md:42` | lint 0 錯〔實測：合併後的 `1aa8798`〕 | 否 | revert 1 commit〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md:42` 原地改寫（改成機器擋空區塊、`rpc-helper/` 例外）〕 |
 | 6e-6 | 全 repo 格式化（§五），唯一的純格式化批 | `main` | 6e-4、相關線都已合併（技術） | 不定（只有空白與換行） | 0 紅〔待驗〕 | 否；**提交前**給 owner 看實際 diff（D-6E-FMT） | revert 1 commit |
 | — | 整合後共同回歸 | `main` | 6e-6 | — | 見下 | **要**：主畫面整體 | — |
 | 6e-7 | Phase 6 整體結案（§六） | `main` | 全部；CSS 線交出母體項目的結論與證據（技術）；D-6E-CLOSE-SCOPE 五條 | 文件 | — | 否 | docs commit |
@@ -641,7 +648,7 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - `eslint.config.cjs`；
 - `package.json` 的 `check:renderer-scripts`、`format`、`format:ui`，以及 `build.files` 的兩條排除；
 - `.prettierignore` 第 3、5、10 行，以及 6e-4 新加的 `_notes/`、`.claude/`、`CLAUDE.md` 三行；〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`.prettierignore` 第 3、5、10 行刪除；新加的三行在 `:8-10`〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：6e-4 新加的三行 `:8-10`（上次對齊）後 `:7-9`（`8186b3a` 刪了前面的 `assets/tailwind.css`）〕
-- `conventions.md:42`、`:57`。〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動、`:57` 原地改寫〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`conventions.md:42`、`:57` 都未移動〕
+- `conventions.md:42`、`:57`。〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動、`:57` 原地改寫〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`conventions.md:42`、`:57` 都未移動〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md:42` 原地改寫（改成機器擋空區塊、`rpc-helper/` 例外）、`:57` 未移動〕
 
 **4. 可能需要重新協調的部分**：CSS 線具體要改哪些共用檔、改哪幾行，不是永久邊界。CSS plan 的任何一版預估都不算數，以合併時交出的清單為準。清單裡如果出現第 3 點的檔，或者 CSS 改了樣式入口、打包內容、檢查器、共用檔的需求，6e 的整合介面要重新檢查。例如 `build.files`、打包檢查、`check:ui-css` 跑什麼，都不能默認舊的安排還有效。
 
@@ -774,7 +781,7 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 
 ## 未驗
 
-- 6e-5、6e-6 的測試帳。
+- 6e-6 的測試帳。
 - §四「刪〔待驗〕」的 2 處、`ensureWritableTree`、Q-DLG、改判成「清」的 3 處。
 - Q-SEEN 的三項施工前確認（§四），以及畫面端有沒有可用的既有診斷出口。
 - 「刪」的 5 處 0 紅：根據的是 9 處超集合那次探針，這 5 處沒有單獨重跑。
