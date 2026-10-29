@@ -1,4 +1,4 @@
-# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 完成（`3a57b5d`，經 owner 驗收放行）；6e-2 完成（`0f4cfe0`，經 owner 驗收放行）；6e-3 完成（`6577be5`，經 owner 驗收放行）；6e-4 完成（`a7b623a`，經 owner 驗收放行）；CJS-FMT 完成（`1a7c9d3`，照 owner 裁定以單一 commit 提交）；CSS 線已合併（`1aa8798`，→ §跨線契約 整合紀錄）；6e-5 完成（`79edbb3`，經 owner 驗收放行）；6e-6 完成（`1d6721c`＋`4ae31e7`，經 owner 驗收放行）；整合後共同回歸完成（`2a91e12`，經 owner 驗收放行），其餘各批另行授權**）
+# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 完成（`3a57b5d`，經 owner 驗收放行）；6e-2 完成（`0f4cfe0`，經 owner 驗收放行）；6e-3 完成（`6577be5`，經 owner 驗收放行）；6e-4 完成（`a7b623a`，經 owner 驗收放行）；CJS-FMT 完成（`1a7c9d3`，照 owner 裁定以單一 commit 提交）；CSS 線已合併（`1aa8798`，→ §跨線契約 整合紀錄）；6e-5 完成（`79edbb3`，經 owner 驗收放行）；6e-6 完成（`1d6721c`＋`4ae31e7`，經 owner 驗收放行）；整合後共同回歸完成（`2a91e12`，經 owner 驗收放行）；6e-6a 完成（`b77b37a`，經 owner 驗收放行；→ §6e-6a 施工紀錄），其餘各批另行授權**）
 
 **這是什麼**：Phase 6e 的施工權威，同時也是**兩條線共用的裁決、跨線整合、Phase 6 整體結案**的權威。2026-10-28 的初稿是以「七批串行」寫成的。2026-10-29 owner 把 CSS 拆成獨立工程，本檔依此改寫，之後經過兩輪審查修訂與一輪 owner 最終裁決（→ §改判紀錄）。**裁決不等於任何程式已經實作。**
 
@@ -84,6 +84,11 @@
 | D-6E-CJS | Q-CJS-SCOPE | 另立施工卡 CJS-FMT：`.cjs` 納入 `npm run format`，既有適用的 `.cjs` 一次性格式化；不納入 6e-4、不擴張 6e-6；獨立 commit；以實際 Prettier 結果確認要改的檔；驗證差異只有格式並跑 Node 22／24 全套、lint 與相關檢查；非預期的語意變化或範圍擴張就停。時點原裁「排在 6e-6 完成之後」，同日 owner 要求現在開卡施工（CC 解讀為不等 6e-6，交辦時明寫此假設） | owner 2026-10-29 同一份轉貼 §2；時點：owner 2026-10-29「請你現在就開一張卡片做 Q-CJS-SCOPE 好了，我不想拖。」 |
 | D-6E-CJS-MERGE | CJS-FMT 跨線合併衝突 | CJS-FMT 現在施工，接受跟 CSS 分支在 `package.json` 的一處已知合併衝突：CSS 線改 `dist:win`／`pack:win`，CJS-FMT 改 `format`，欄位責任不重疊；三方合併實測確認衝突會明確出現、不會靜默覆寫。整合時的處理 → §跨線契約 7。只接受這一處已確認的相鄰行衝突，不是全面解除跨線衝突的停工規則 | owner 2026-10-29 在 CJS-FMT session 轉貼「Owner 裁決 — CJS-FMT 跨線合併衝突」：「採 (a)：現在施工，接受已知的單一 `package.json` 合併衝突。」 |
 | D-6E-FIXTURE | 6e-6 上游 JSON fixture | `.prettierignore` 只精確排除 `test/fixtures/vanilla-1.21.11.json`、`test/fixtures/fabric-0.19.3-1.21.11.json`，不排除整個 `test/fixtures/`；兩支內容與既有 sha256 紀錄不動；這行設定獨立一個小 commit，之後 6e-6 照原定純格式化批做。這是維護 ④a 的上游原樣契約，不是廣泛的 fixture 排除政策；其他需要保留原始位元組的上游檔，先給證據再決定 | owner 2026-10-29「Owner 裁決 — 6e-6 上游 JSON Fixture」：「採用方案一：精確排除兩支上游原樣 fixture，工具設定獨立 commit，之後繼續 6e-6。」 |
+| D-6E-IPC-DEPS | 6e-6a ②③（`appendLauncherLog?.()`、`exportDiagnostics?.()`） | 採 A：本輪直接移除可選呼叫，跟同一包 `ipcDeps` 其他必要依賴一樣直接呼叫；不為這兩項單獨加初始化檢查，不擴張到整包 IPC 依賴。驗收看「漏接線不再被靜默略過、照實核對錯誤怎麼傳出、接線錯誤與日誌寫入失敗分開、日誌照舊 best-effort、真正匯出失敗照樣明確回報」，不宣稱必然在初始化時報錯；接受接線 bug 在 `fail()` 裡可能蓋掉原本的更新錯誤，不為此加 catch 或 fallback。IPC 必要依賴的初始化契約另立 `FW-IPC-DEPS-INIT`：未來須正式評選、尚未授權施工，評選範圍與要回答的問題 → `future-work.md` 同名條 | owner 2026-10-29 轉貼「Owner 裁決修訂 — Phase 6 有限補遺與 IPC 初始化契約 Future-work」§一：「`appendLauncherLog?.()` 與 `exportDiagnostics?.()` 改為直接呼叫。」§二：「這是未來必須正式進行的架構評選，不是隨手記下的可選想法。」落點：owner 同日「future-work 照你說的放」（裁決進本表、條目進 `future-work.md`） |
+| D-6E-6A | 6e-6a 批次本身與原六項的方向 | 新立 6e-6a，排在整合後共同回歸之後、6e-7 之前，收掉母體裡沒有處置的子位置。① 通知 IPC 的 `:12`、`:28`、`:38` 三個子位置跟七欄位 `.map()` 一起收：過濾、未讀比較、已讀寫入的語意保留，改成直接用 `n.id`／`n.key`；`lastSeenKey` 的 IPC 輸入處理保留。②③ → D-6E-IPC-DEPS。④ 刪 `trackDomCleanup` 的非函式 fallback，清理迴圈每項各自的 try 保留。⑤ 只改 `styles.css` 公告預設縮圖的註解，不動宣告。⑥ `configureDiscordRpc` 必收 `discord`，拿掉啟動時的靜默 skip；Client ID 沒設照舊是合法未啟用，helper 缺或 spawn 失敗照舊不擋 Minecraft。施工與驗收 → §6e-6a | owner 2026-10-30 轉貼「GGL_Launcher — Owner 最終交辦：6e-6a 母體核銷補遺 Plan」§一：「建議批名：`6e-6a — Phase 6 母體核銷補遺`」；§三 標題「維持 Owner 已裁方向」。同日轉貼「Owner 裁決確認」：「① 通知 IPC 的三個子位置全部一起收，採你的修正。」〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`main/ipc/notifications-ipc.js` 的 `:12`、`:28`、`:38` 照本列原地改寫，七欄位 `.map()` 刪除，後 `:11`、`:17`、`:27`；本行的 `styles.css` 沒帶行號〕 |
+| D-6E-6A-CSS | 稽核新增的 CSS 殘留（`styles.css` 的 `.input.input--error`） | 選 (a)，併入 6e-6a：刪冗餘選擇器 `.input.input--error,`，保留 `.ctl.input--error` 的樣式，修正「Back-compat」註解；不刪 `.input` 本體，不重新設計樣式。驗收做 computed 前後比對，除了預設狀態，還要讓設定輸入框真的進入 `input--error` 狀態 | 同一份交辦 §四：「此處併入 6e-6a。」「刪除冗餘選擇器 `.input.input--error,`。」 |
+| D-6E-6A-EXTRA | 母體外順帶看到的六處 | 具名的有限增補，是對母體凍結規則的明確例外：A `renderer/lifetime.js:48`（併 ④）、B `main/ipc/diagnostics-ipc.js:11-13` 的註解與 `renderer/settings-modal.js:251` 的文案（併 ③）、C `lib/launch-args.js:502`、D `renderer/window-controls.js:23`、E `renderer/settings-modal.js:182-184` 改；F `main/microsoft-auth.js:108,136` 保留，對齊 6b 對值型預設的裁決（→ §6e-6a）。不解除整體母體凍結：其他新發現照舊預設進 future-work，不開放自由施工；這六處不另開 future-work | 同一份交辦 §一：「本次 Owner 授權母體外六處作為具名的有限範圍增補。這是對母體凍結規則的明確例外，不是重新開放 Phase 6 的自由探索。」同日「Owner 裁決確認」：「母體外六處建立獨立 D 裁決列。」〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`renderer/lifetime.js:48` 刪除；`main/ipc/diagnostics-ipc.js:11-13` 未移動（`:12` 註解改寫）；`renderer/settings-modal.js:251` 改寫後 `:249`，`:182-184` 改寫成一行 `:182`；`lib/launch-args.js:502`、`renderer/window-controls.js:23` 原地改寫；其他行號指的檔不在本 commit〕 |
+| D-6E-6A-LEDGER | 母體稽核的總帳 | `283 = 228 + 8 + 2 + 45`。228 是「改了」，含 Phase 4／5 已改的 17 處，也含兩列「改了；存活判斷留-1」的複合標籤（原始標籤照留）；8 沒有處置；2 判不出；45 ＝ 28 留-未標＋11 退回＋4 留-2＋1 留-4＋1 留-3。17 處不另計。總帳在 6e-7 寫進結案文件（§六）。2 個判不出（都在 S-CSS 死碼，`styles.css` 行號是 HEAD `54436e2`）的最終分類如下，稽核當時的類別照留，不回頭改帳：`:1323-1324` `.input.input--error, .ctl.input--error` 判**改**（6e-6a，D-6E-6A-CSS）；`:1317-1322` `.input` 判**退回 → 留**，照 §6e-6a 的退回紀錄 | 同日「Owner 裁決確認」：「總帳接受你的勘誤。」最終分類：owner 2026-10-30「請補正 CSS 兩個「判不出」的最終分類」〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`styles.css:1323-1324` 刪 `.input.input--error,` 後只剩 `:1323` `.ctl.input--error {`；`:1317-1322` 未移動（`:1317` 註解改寫）〕 |
 
 **Crossfire 收斂、owner 沒有逐條裁的**（當設計依據用，不當門檻；owner 可推翻）：
 - 註解不能拿來當 lint 的通行證（§四「清」的註解規則）。
@@ -159,7 +164,7 @@
 
 **現讀**：
 - `renderer/instance-ui.js:38-45` 同時寫兩條路：縮圖元素的 inline `backgroundImage`，以及 `documentElement` 的 `--thumb-url`。〔對齊 2026-10-29：`renderer/instance-ui.js:38-45` → `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0） 整段改寫成一條寫法，後 `:39-41`〕
-- CSS 的顯示出口只有一處：`.thumb { background: var(--thumb-url) }`（`styles.css:671`）。預設值是 `:root` 的 `--thumb-url: var(--design-thumb-url)`（`:15,19`）。〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css:671` 後 `:673`；`:15,19` 後 `:15,21`〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`styles.css:673`（上次對齊）後 `:662`；`:15,21` 後 `:43,47`（CSS-3 整份縮進 `@layer`，以內容對）〕
+- CSS 的顯示出口只有一處：`.thumb { background: var(--thumb-url) }`（`styles.css:671`）。預設值是 `:root` 的 `--thumb-url: var(--design-thumb-url)`（`:15,19`）。〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css:671` 後 `:673`；`:15,19` 後 `:15,21`〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`styles.css:673`（上次對齊）後 `:662`；`:15,21` 後 `:43,47`（CSS-3 整份縮進 `@layer`，以內容對）〕〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`styles.css:662`（上次對齊）、`:43,47` 未移動〕
 - 實測 HEAD：inline 那條也有寫，而且 inline 一定贏。
 - 同一段還有三個多餘的重驗：
   - `typeof n.imageUrl === "string"` 和 `.trim()`：main 端的 `parseNoticeFields` 已經保證它是去掉頭尾空白的字串，SF-N6 守著。
@@ -185,7 +190,7 @@ if (n.imageUrl)
 2. **兩個變數的角色（這就是縮圖契約，D-6E-THUMB-FIRST）**：
    - `--design-thumb-url` 是設計師定的預設圖，屬於設計 token，只在 `:root` 改。
    - `--thumb-url` 是「目前顯示的縮圖」，預設等於前者；公告有圖時，由 JS 寫在元素上。
-   - 兩層各有用途，不是別名。`styles.css:17` 那行「Back-compat aliases」註解改寫成說明這件事。這是 6e 對 `styles.css` 唯一的改動。〔對齊 2026-10-29：`styles.css:17` → `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0） 註解改成三行，後 `:17-19`〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`styles.css:17-19`（上次對齊）後 `:45-46`（CSS-2 刪掉 `--background-url` 那半句；CSS-3 縮排）〕
+   - 兩層各有用途，不是別名。`styles.css:17` 那行「Back-compat aliases」註解改寫成說明這件事。這是 6e 對 `styles.css` 唯一的改動。〔對齊 2026-10-29：`styles.css:17` → `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0） 註解改成三行，後 `:17-19`〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`styles.css:17-19`（上次對齊）後 `:45-46`（CSS-2 刪掉 `--background-url` 那半句；CSS-3 縮排）〕〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`styles.css:45-46`（上次對齊）未移動〕
 3. **CSS 由哪個屬性決定**：`.thumb` 的 `background` 簡寫，值是 `var(--thumb-url)`。探針量到 inline 是空的，computed `background-image` 是遠端那張圖，等於元素上的 `--thumb-url`〔實測〕。
 4. **既有行為不變**：
    - **預設圖**：元素上沒有 `--thumb-url`，從 `:root` 繼承。
@@ -293,7 +298,7 @@ if (n.imageUrl)
 
 | 處置 | 位置 | 理由與證據 |
 |---|---|---|
-| **刪** | `main/microsoft-auth.js:461`、`:464`（`removeListener`、`server.off`）；`main/runtime/download.js:248`（`ac.abort()`）；`main/server-status.js:47`（`socket.destroy()`）；`renderer/lifetime.js:41`（改成 `new Error(cleaned, { cause: e })`） | Node 的 EventEmitter 方法、`AbortController.abort`、`socket.destroy` 帶合法參數不丟錯，在全新的 Error 上設屬性也不丟錯〔推論：讀碼〕。舊草稿那次 9 處一起拆的探針 0 紅、覆蓋率顯示這幾行都有被執行到〔實測 2026-10-28〕；這 5 處是那 9 處的子集〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/microsoft-auth.js:461`、`:464`、`main/runtime/download.js:248`、`main/server-status.js:47`、`renderer/lifetime.js:41` 的 try 照本列刪除（`lifetime.js` 改成 `new Error(…, { cause: e })`）〕 |
+| **刪** | `main/microsoft-auth.js:461`、`:464`（`removeListener`、`server.off`）；`main/runtime/download.js:248`（`ac.abort()`）；`main/server-status.js:47`（`socket.destroy()`）；`renderer/lifetime.js:41`（改成 `new Error(cleaned, { cause: e })`） | Node 的 EventEmitter 方法、`AbortController.abort`、`socket.destroy` 帶合法參數不丟錯，在全新的 Error 上設屬性也不丟錯〔推論：讀碼〕。舊草稿那次 9 處一起拆的探針 0 紅、覆蓋率顯示這幾行都有被執行到〔實測 2026-10-28〕；這 5 處是那 9 處的子集〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/microsoft-auth.js:461`、`:464`、`main/runtime/download.js:248`、`main/server-status.js:47`、`renderer/lifetime.js:41` 的 try 照本列刪除（`lifetime.js` 改成 `new Error(…, { cause: e })`）〕〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`renderer/lifetime.js:41` 未移動（本 commit 刪的是 `:48`、`:72`）；其他行號指的檔不在本 commit〕 |
 | **刪**〔待驗〕 | `main/runtime/download.js:23` 的 `safeLog`（`:19-24`）；`scripts/downscale-bg-video.cjs:43` | `safeLog` 注入的是 `appendLauncherLog`，它是 async、整段包在自己的 try 裡，不會同步丟錯也不會 reject〔讀碼：`main/launcher-log.js:21-33`〕；施工時先確認每個呼叫者傳的都是它。`downscale-bg-video` 是開發用腳本，失敗大聲反而好〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/runtime/download.js:23` 照 owner 改判為「清」（D-6E-SAFELOG），catch 仍在 `:23`、寫了理由，`safeLog` 後 `:19-26`；`scripts/downscale-bg-video.cjs:43` 的 try 刪除；`main/launcher-log.js:21-33` 後 `:21-35`〕 |
 | **刪**（重複；已裁方案 A，D-6E-RETRY-A） | `main/net-fetch.js:42`（`notifyRetryToUi`）、`:162`（`withRetries` 包 `onRetry`） | 見下方「重試通知的保證主人」〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/net-fetch.js:42`、`:162` 的 catch 刪除（方案 A）〕 |
 | **清**（best-effort，在 catch 裡寫理由，不記日誌；D-6E-OSAPI） | `main/app-ready.js:116`（`setAppUserModelId`）；`main/microsoft-auth.js:448`（`setMenuBarVisibility`） | **改判**（原本是「刪」）。理由寫在下方「Electron／OS API」〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/app-ready.js:116` 原地改寫（catch 寫理由）；`main/microsoft-auth.js:448` 後 `:450`（catch 寫理由）〕 |
@@ -373,14 +378,14 @@ if (n.imageUrl)
 
 - **錯誤傳播路徑**〔讀碼，Crossfire CC 第一輪 §2-6〕：
   - `main/ipc/minecraft-ipc.js:59-66` 先 `await showInfoDialog(...)`，再 `throw e`；`:76`、`:88`、`:111`、`:116` 同形狀。
-  - `main/ipc/instance-ipc.js:41-45` 的 `reportMovedAside` 在成功路徑上跳框。`movedAside` 在畫面端沒有任何程式讀它，所以這個對話框是唯一的告知管道。
+  - `main/ipc/instance-ipc.js:41-45` 的 `reportMovedAside` 在成功路徑上跳框。`movedAside` 在畫面端沒有任何程式讀它，所以這個對話框是唯一的告知管道。〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`main/ipc/instance-ipc.js:41-45` 未移動〕
   - 既有測試只有替身 `showInfoDialog: async () => {}`，沒有一個案例讓對話框失敗。
 - **改法**：
   - `createShowInfoDialog` 多收一個記錄函式，接線只改 `main/start-main.js:180`，接既有的 `gglError`。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/start-main.js:180` 原地改寫（多傳 `gglError`）〕
   - catch 裡呼叫它，然後照舊吞掉，事件名用 `dialog_failed` 這類固定名稱。
 - **紀錄的邊界**〔讀碼〕：
   - `gglError` 寫進檔案的 `err` 不含 message，整行的家目錄會換成 `~`（`lib/ggl-structured-log.js:8`、`:138`）。
-  - 附加資料（第四個參數）會原樣寫進去。`describeMovedAside` 產生的本文每一行都是玩家的路徑（`instance-ipc.js:15-23`），遊戲根目錄預設 `C:/Games/GGL`（`lib/server-config.js:33`）又不在家目錄底下。
+  - 附加資料（第四個參數）會原樣寫進去。`describeMovedAside` 產生的本文每一行都是玩家的路徑（`instance-ipc.js:15-23`），遊戲根目錄預設 `C:/Games/GGL`（`lib/server-config.js:33`）又不在家目錄底下。〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`instance-ipc.js:15-23` 未移動；其他行號指的檔不在本 commit〕
   - 所以附加資料**只放 `title`**。
 - **驗收**：
   - 新增失敗注入測試：讓 `dialog.showMessageBox` reject，斷言三件事：
@@ -495,13 +500,181 @@ if (n.imageUrl)
 
 ---
 
+## 6e-6a：Phase 6 母體核銷補遺（D-6E-6A；狀態：2026-10-30 完成，`b77b37a`，經 owner 驗收放行）
+
+**為什麼有這批**：2026-10-29 開 6e-7 時核對 §六 結案條件 1，母體裡有子位置沒有任何處置，6e-7 暫停。同日派唯讀 agent 對 HEAD `54436e2` 逐列稽核母體（defense-cleanup §清理清單＋G1～G3，50 列、283 個子位置）。結果：8 個子位置沒有處置，全落在本批 ①～⑥；2 個判不出，都在 `styles.css`，最終分類在 D-6E-6A-LEDGER 和下面的退回紀錄；沒有「plan 說改了、HEAD 還在」的。總帳 → D-6E-6A-LEDGER。稽核表原文連同查核限制，歸檔在 `reviews/cross-review-2026-10-phase6-population-audit-h54436e2-20261029.md`；結案文件怎麼寫覆蓋限制 → §六。
+
+**退回紀錄**（criteria §退回）：`styles.css:1317-1322` 的 `.input`。〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`styles.css:1317-1322` 未移動（`:1317` 註解改寫，本體不動）〕
+- 盤點說它是「標 Back-compat 的部分重複」，被現讀推翻。它在 HEAD 和盤點基準 `6cf5d4e` 都只定義一次；`index.html:351,387,401,410` 四個輸入框在用；`flex: 1`、`user-select: text` 在 `.ctl`（`styles.css:1260-1274`）裡沒有。〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`styles.css:1260-1274` 未移動；其他行號指的檔不在本 commit〕
+- 不是重複，也不是死碼，判**留**。本體不動，只有註解在 6e-6a 修正（D-6E-6A-CSS）。
+- E5：這是 CSS 規則，不是 `?.` 或防禦，留它不影響 conventions §2 的推定。
+- 列進 6e-6a 驗收單一行。
+
+**位置**：整合後共同回歸之後、6e-7 之前，在 `main` 上做。本批完成是 6e-7 的前置。
+
+**授權**：
+- 2026-10-30 owner 先授權到 Plan 與測試帳為止。
+- 同日 owner 驗收 Plan 並授權施工：「6e-6a Plan 驗收通過。」「正式授權依 D-6E-SESS 開新 session 施工 6e-6a。按既有測試帳修正測試替身、完成驗證，停在 Ready for Owner Review。未經 Owner 放行不得 commit 或 push。」
+
+**範圍**：只有下表列的位置，加上必要的直接測試與文件。不重新探索鄰近的 `?.`、`??`、catch、預設值；不新增通用 Validator、Manager、Adapter 或另一套依賴管理。
+
+### 施工項目
+
+行號都是 HEAD `54436e2`。
+
+| 項 | 位置 | 改什麼 | 保留什麼 | 前提〔查過 2026-10-30〕 |
+|---|---|---|---|---|
+| ①-12 | `main/ipc/notifications-ipc.js:12` | `dismissed.has(String(n.id \|\| ""))` → `dismissed.has(n.id)` | dismissed 過濾 | `noticeFeed.get()` 走 `snapshotOf`，裡面呼叫 `normalizeBroadcastNotifications`（`main/sync/notice-feed.js:59-62,129`）；它只輸出 7 個欄位：`id`、`title`、`body`、`timeText`、`priority`、`createdAtMs`、`key`（`lib/notifications-broadcast.js:60-68`）。正式接線 `getNotifications: () => noticeFeed.get().notifications`（`main/start-main.js:161`）〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：本列照改，後 `:11`〕 |
+| ①-map | 同檔 `:14-22` | 整段 `.map()` 刪掉，`.slice(0, 20)` 收尾 | `.slice(0, 20)` | 同上：`.map()` 只把同樣 7 個欄位再轉型一次，沒有挑欄位、也沒有改名 |
+| ①-28 | 同檔 `:28` | `String(n.key \|\| "") > lastSeenKey` → `n.key > lastSeenKey` | 未讀計數、字串比較的語意；`:7` 對畫面傳進來的 `opts.lastSeenKey` 的處理 | 同上；`lastSeenKey` 是 IPC 參數，跟內部公告欄位不是同一個信任來源，`:7` 不動 |
+| ①-38 | 同檔 `:38` | `dismissed.add(String(n.id \|\| ""))` → `dismissed.add(n.id)` | 已讀紀錄寫入 | 同上 |
+| ② | `main/ipc/instance-ipc.js:35` | `deps.appendLauncherLog?.(` → `deps.appendLauncherLog(` | `main/launcher-log.js:21-34` 自己吞錯的 best-effort 寫入（不動、不加 catch） | 正式 `ipcDeps` 有給（`main/start-main.js:134`）。D-6E-IPC-DEPS〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：本列照改，原地 `:35`〕 |
+| ③ | `main/ipc/diagnostics-ipc.js:6` | `deps.exportDiagnostics?.()` → `deps.exportDiagnostics()` | `:7-8` 空路徑就丟「無法匯出診斷報告。」（真正匯出失敗的出口） | D-6E-IPC-DEPS〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：本列照改，原地 `:6`；`:7-8` 未移動〕 |
+| B | 同檔 `:11-13`；`renderer/settings-modal.js:251` | catch 裡的 `// ignore` 換成說明責任分開的註解；文案「會自動打開資料夾」→「會嘗試自動開啟資料夾」 | 開資料夾失敗不推翻匯出結果；不新增兩段式回傳、不新增開啟失敗的提示；成功後顯示路徑（`renderer/settings-modal.js:253` 現在就有，**保留**，不是新功能） | `shell.openPath` 失敗時多半是 resolve 一個錯誤字串，不是 reject〔據 Electron 文件，未實測〕：註解不能寫成「丟錯才算失敗」〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：本列照改：`diagnostics-ipc.js:11-13` 未移動（`:12` 註解改寫）；`renderer/settings-modal.js:251` 後 `:249`、`:253` 後 `:251`〕 |
+| ④ | `renderer/lifetime.js:72` | 刪 `if (typeof off !== "function") return () => {};` | `:97-103` 清理迴圈每項各自的 try（卸載時的故障隔離） | 正式呼叫端都傳函式〔讀碼〕〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`renderer/lifetime.js:72` 照本列刪除；`:97-103` 後 `:95-101`〕 |
+| A | `renderer/lifetime.js:48` | 刪 `if (!target?.addEventListener) return () => {};` | `:49-56` 的掛上與拔除 | 正式呼叫端傳的是 `buildUiRefs` 保證存在的元素，或 `window`／`document`（`rg -n "onDom\("`）。測試的 `test/helpers/fake-dom.cjs:97` 有自己一份 `onDom`，不經過這行〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`renderer/lifetime.js:48` 照本列刪除；`:49-56` 後 `:48-55`〕 |
+| ⑤ | `styles.css:42` | 註解改成：預設縮圖；之後 `notice.json` 的公告沒帶 `imageUrl` 就沿用目前那張，不會換回預設圖 | `--design-thumb-url` 的宣告 | 來源是 `notice.json` 的 `notice.imageUrl`（`lib/sync/notice.js:19`、`docs/site-format.md:157`）；沒圖時沿用（`renderer/instance-ui.js:39-41`）〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`styles.css:42` 照本列原地改寫〕 |
+| CSS | `styles.css:1317`、`:1323` | 「Back-compat」註解改成說明 `.input` 的實際用途；刪 `.input.input--error,` 這一行 | `.input` 本體（`flex: 1`、`user-select`）；`.ctl.input--error` 的樣式 | 四個 `.input` 都同時帶 `ctl`（`index.html:351,387,401,410`），`input--error` 只由 `renderer/settings-modal.js:60-73` 加在這四個上。D-6E-6A-CSS〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`styles.css:1317` 原地改寫、`:1323` 刪除；`renderer/settings-modal.js:60-73` 未移動；其他行號指的檔不在本 commit〕 |
+| ⑥ | `main/discord-rpc.js:24`、`:35-38`、`:55-58` | configure 時 `discord` 不是物件就丟 `TypeError`（跟同一函式既有三個鍵同一形狀，訊息含鍵名），一起解構進 `discordConfig`；刪 `tryStartDiscordRpcHelper` 的 `skip: discord config not injected`；`:24` 註解跟著改 | `:73-79` Client ID 沒設＝合法未啟用；`:83-91` helper 不在、`:98-120` spawn 失敗只提示一次，都不擋 Minecraft | 正式接線傳 `serverConfig.discord`（`main/app-ready.js:167`）〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`main/discord-rpc.js:24` 原地改寫；`:35-38` 改寫後 `:35-37`；`:55-58` 刪除；`:73-79` 後 `:69-75`、`:83-91` 後 `:79-87`、`:98-120` 後 `:94-116`；其他行號指的檔不在本 commit〕 |
+| C | `lib/launch-args.js:502` | `auth?.uuid && auth?.accessToken` → `auth.uuid && auth.accessToken` | 離線、假跑沒有 UUID／token 時用零 UUID 與 `"0"`；線上／離線的判斷 | `:505` 本來就直接讀 `auth.name`：`auth` 是 null 的話現在也會丟，只是改在 `:502` 丟〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`lib/launch-args.js:502` 照本列原地改寫；`:505` 未移動〕 |
+| D | `renderer/window-controls.js:23` | `defaults?.discordInviteUrl` → `defaults.discordInviteUrl` | `:24-26` 失敗在狀態區說；邀請網址可以合法為空，`openExternal` 在 main 的網址檢查不動 | `loadServerDefaults` 失敗是 reject，不會 resolve 成 null（`renderer/bootstrap.js:49-58`）；handler 永遠回兩個鍵（`main/ipc/server-config-ipc.js:6-9`）〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`renderer/window-controls.js:23` 照本列原地改寫；`:24-26` 未移動；其他行號指的檔不在本 commit〕 |
+| E | `renderer/settings-modal.js:182-184` | `String(d?.launcherRootDir \|\| "")` → 直接取 `launcherRootDir` | 欄位空白才拿伺服器預設當起點；玩家自己輸入、設定驗證、選資料夾的行為 | 同 D；值是 `lib/server-config.js:33` 深凍結的字串常數。`dialog:selectDirectory` 在 main 會自己檢查 `defaultPath`（`main/ipc/dialog-ipc.js:12-15`）〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`renderer/settings-modal.js:182-184` 照本列改寫成一行 `:182`；其他行號指的檔不在本 commit〕 |
+| F | `main/microsoft-auth.js:108,136` | **不改** | `String(deps.msClientId \|\| "").trim()` | `msClientId` 是可以合法為空字串的設定值，登入入口有「尚未設定」的處理（`:670-684`）。6b 已裁值型預設照舊（`plans/cross-review-2026-10-phase6b.md:376`「值型照舊（U4）」），這裡只是對齊，不是新問題；也不併進 `FW-IPC-DEPS-INIT` |
+
+候選改動的實際寫法，以探針用的那份為準；施工時註解文字可以微調，語意不能變。探針的腳本在 `C:/Users/Mochi122/AppData/Local/Temp/claude/H--GGL3-Launcher/59bc1d41-d235-4d7d-8465-bef2c60a8861/scratchpad/6e6a/patch_cand.py`。它放在 session 暫存區，封存後可能就不見了；本節的結論與數字都已經寫在這裡。
+
+### 各項失敗時會怎樣
+
+都是讀碼推論；測得到的部分在下面的測試帳。
+
+- **② 漏接 `appendLauncherLog`**：`fail()` 丟 `TypeError`，**蓋掉原本的操作錯誤**。這是 D-6E-IPC-DEPS 接受的代價，測試帳的 W5、W6、D7 就是這個樣子。日誌寫入失敗是另一件事，照舊被 `launcher-log.js` 吞掉。
+- **③ 漏接 `exportDiagnostics`**：IPC reject，畫面照 `renderer/settings-modal.js:254-255` 顯示「匯出失敗：…」。報錯時間是玩家按下去的時候，不是開機時。〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`renderer/settings-modal.js:254-255` 後 `:252-253`〕
+- **④ 傳進非函式**：會被收進清單，卸載時才在那項自己的 try 裡丟錯被吞掉。**不是立刻丟錯**。
+- **A 傳進 null**：在那個模組的 `init` 立刻丟 `TypeError`，走開機故障出口。
+- **⑥ 漏接 `discord`**：`configureDiscordRpc` 丟 `TypeError`，跟漏接其他三個鍵同一條路。
+- **C**：跟現在一樣丟錯，只是早一行。
+- **D、E**：取預設失敗照舊走 catch，訊息照舊。
+
+### 測試帳
+
+〔實測 2026-10-30，repo 外副本：`git ls-files -co --exclude-standard` 複製，`node_modules` 用 junction 接回 repo；候選副本只改正式程式〕
+
+- **對照（HEAD 副本，Node 24.14.1）**：1430 個，1430 過。
+- **候選副本**：Node 24.14.1、22.23.4 都是 1430 個、1425 過、5 紅，兩版紅的是同一組。
+
+| 紅燈 | 為什麼紅 | 分類 | 施工時怎麼修 |
+|---|---|---|---|
+| `test/instance-ipc.test.cjs:138` W5、`:181` W6 | `setup()` 的假 deps 沒有 `appendLauncherLog`，`TypeError` 蓋掉了測試要看的原始錯誤 | 合法契約收緊：正式 `ipcDeps` 有這個鍵；也正好示範了 ② 接受的代價 | `setup()` 的 deps 補 `appendLauncherLog: async () => {}`〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`test/instance-ipc.test.cjs:138` 後 `:139`、`:181` 後 `:182`（`setup()` 補一行）〕 |
+| `test/sync-apply.test.cjs:1251` D7 | `registerInstanceIpc` 的假 deps 只給 `updateInstance` | 同上 | 補 `appendLauncherLog`〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`test/sync-apply.test.cjs:1251` 未移動〕 |
+| `test/renderer-boot.test.cjs:687` Q5 的 btnDiscord 子測試（父測試跟著紅，算 2 個） | `failOn`（`:611-619`）對 `serverConfig:getDefaults` 回 `undefined` | 合法契約收緊：main 永遠回兩個鍵 | `failOn` 照 main 的形狀回 `{ launcherRootDir, discordInviteUrl }`（跟同一函式裡 `notifications:get` 的寫法一樣）〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`test/renderer-boot.test.cjs:611-619` 後 `:611-624`、`:687` 後 `:692`〕 |
+
+沒有一個紅是候選改動弄壞正式路徑。**修紅燈時只能改測試替身，不能改斷言。**
+
+**要補的測試**（候選副本裡本來就是綠的，但驗收需要）：
+- ⑥：把 `discord` 加進 `test/discord-rpc.test.cjs:114` D1 的迴圈，測沒給、`undefined`、不是物件三種，都要丟 `TypeError` 且訊息含 `discord`。Client ID 沒設、helper 不在、spawn 失敗照用既有的 D 系列測試。〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`test/discord-rpc.test.cjs:114` 原地（D1 標題加 `discord`）〕
+- E：`test/renderer-settings-modal.test.cjs:52` 假 `loadServerDefaults` 的預設值 `({})` 改成 main 的形狀；新增 P4「欄位空白、取得預設 ⇒ 用 `launcherRootDir` 開對話框」。這條路改前改後都沒有測試蓋到（P2 只測失敗，P3 欄位不是空的）。〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`test/renderer-settings-modal.test.cjs:52` 原寫有誤，當時是 `:53`；改寫後 `:59`〕
+- 施工後預期 1431 個全過（多出的是 P4）。實跑跟這個數字不同就停。
+
+**其他項不加測試**：
+- ①：既有的 notifications-ipc 測試在候選副本是綠的。
+- C：`test/launch-args.test.cjs:591`（線上）、`:616`（離線，只有 `name`）在候選副本是綠的，正常結果沒變。
+- ②③④A：交辦不要求證明「一定立刻丟錯」，也沒有要新增的保證。
+
+**CSS computed 比對**〔實測 2026-10-30，Electron 44.3.0，隔離 userData，探針 `probe-main.js` 在同一個暫存資料夾〕：
+
+| 比對 | 標準屬性差異 | 說明 |
+|---|---|---|
+| 預設狀態：HEAD 對候選 | 0（534 個元素，自訂屬性也 0） | — |
+| 錯誤狀態：HEAD 對候選 | 0 | 打開設定視窗，四個輸入框加 `input--error`，第一個 focus |
+| 對照：預設對預設（HEAD 跑兩次） | 0 | 量法本身穩定 |
+| 對照：錯誤對錯誤（HEAD 跑兩次） | 26 | 全部是尺寸、位置類屬性，落在 `#instanceStatusText` 與它外層的兩層容器、`#btnLaunch` 裡兩層 `div`；不在設定視窗裡。〔推論〕開機時狀態文字的時間差 |
+| 對照：預設對錯誤（HEAD） | 420 | 證明錯誤狀態真的套上了 |
+
+- 兩邊錯誤狀態的輸入框都是 `border-color: rgba(255, 120, 120, 0.55)`、`box-shadow: rgba(255, 90, 90, 0.12) 0px 0px 0px 3px`、`flex-grow: 1`、`user-select: text`。
+- 候選副本開機正常（同樣 534 個元素、0 差異），所以 A／④ 拿掉後，開機沒有走到故障出口。
+- 缺口：
+  - 第一次冷啟動的探針沒有寫出 dump，也沒觸發 watchdog 就結束了，重跑正常，原因沒查。
+  - 沒量 hover。
+  - 沒量 focus 在其他輸入框的情況。
+
+### 施工後的驗收
+
+以下在施工時都跑過，結果 → 下面的施工紀錄（6e-6a）：
+- Node 24、Node 22 全套（Node 22 用當時 CI 的版本）；`npm run lint`；`npm run check:ui-css`、`npm run check:ui-css:strict`；改到的檔跑 `npm run format:file -- <檔>`（D-6E-FMT-USE），之後 Prettier 檢查沒有要改的。
+- `git diff --cached -U0 | rg '^\+.*(\?\.|\?\?|catch|typeof)'`：命中的每一條都要回答。
+- 用 `rg -F` 確認這些字串在對應的檔裡已經沒了：`appendLauncherLog?.(`、`exportDiagnostics?.(`、`.input.input--error`、`skip: discord config not injected`、`Back-compat`、`manifest 未帶`、`String(n.id`、`String(n.key`、`d?.launcherRootDir`、`defaults?.discordInviteUrl`、`auth?.uuid`。也確認 `diagnostics-ipc.js` 已經沒有 `// ignore`。拿一個還在的字串當對照組。
+- 用施工後的實際 diff 重跑 computed 比對，預設與錯誤狀態都要，對照組照上表。
+- 實際啟動一次（§施工環境）。owner 看畫面：
+  - 設定視窗匯出診斷時的文案；
+  - 設定裡輸入不合法的值時的紅框；
+  - Discord 鈕能開邀請。
+- 驗收單把母體的 8 個沒有處置子位置和 `styles.css:1323-1324` 逐一列成「改了」，附 commit；`styles.css:1317-1322` 照上面的退回紀錄列一行。另外列 D-6E-6A-EXTRA 的 A～E 與 F 的保留理由。〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`styles.css:1323-1324` 後 `:1323`；`:1317-1322` 未移動〕
+
+### 停止條件
+
+- 實際紅燈跟上面的測試帳不同。修完測試替身後應該是 0 紅。
+- HEAD、正式資料流或實測推翻了某一項的前提：只停那一項，附證據請 owner 改判。其他已授權、彼此獨立的項目照做。
+- 要動到上表以外的檔或位置。
+- computed 比對出現對照組以外的差異。
+- 某項似乎需要新的驗證器或管理層才能成立。
+
+### commit 與後續
+
+1. owner 另外授權施工後，開新 session 施工，做到驗收單，停在 Ready for Owner Review。
+2. owner 放行後提交兩個 commit：
+   - 程式 commit：正式程式加測試。
+   - docs commit：本節的施工紀錄、D-6E-IPC-DEPS、D-6E-6A 系列，以及 `FW-IPC-DEPS-INIT`。
+3. 回到 6e-7（§六）。
+
+### 施工紀錄（6e-6a）
+
+`b77b37a`（14 檔，+49／−39：正式程式 9 支、測試 5 支），2026-10-30 在新的施工 session 做（D-6E-SESS），直接在 `main` 上。
+
+- **正式程式**：施工項目表的 ①～⑥、A～E、CSS 都照表改，F 不改。寫法照探針用的 `patch_cand.py`，每個錨點剛好命中一次，註解文字沒有微調。`npm run format:file` 只動了 `notifications-ipc.js`：拿掉 `.map()` 後，Prettier 把它收成一行。
+- **測試**：只改測試替身和新增測試，沒有改斷言。
+  - 替身：`instance-ipc` 的 `setup()`、`sync-apply` D7 補 `appendLauncherLog`；`renderer-boot` 的 `failOn` 對 `serverConfig:getDefaults` 回兩個鍵。
+  - D1 迴圈加 `discord`；`renderer-settings-modal` 加 `SERVER_DEFAULTS` 當假 `loadServerDefaults` 的預設，新增 P4。
+- **測試帳**〔實測，repo 外副本〕：
+  - 只改正式程式、測試用 HEAD 的：1430 個，紅 5 個。紅的是 W5、W6、Q5 的 btnDiscord 子測試加父測試、D7，跟上面的測試帳相同。
+  - HEAD 正式程式加新測試：只紅 D1，表示新加的 discord 斷言抓得到舊行為。
+- **全套**：Node 24.14.1、22.23.4（最近一次 CI run `40616578700` 的版本）都是 1431／1431。`lint`、`check:ui-css`、`check:ui-css:strict` 都過，改到的檔 Prettier 沒有要改的。
+- **防禦掃描**：`+` 行只命中 `if (!next.discord || typeof next.discord !== "object")`。這是 configure 時的依賴檢查，屬於 conventions §2「依賴缺了在建立時丟錯」。對照組：`-` 行命中 8 條。
+  - 沒用 `--cached`：施工時 index 跟 6e plan session 共用，所以沒有 stage，改用這 14 檔的工作樹 diff。commit 前另外跑過 `--cached`，結果一樣。
+- **`rg -F`**：上面列的字串，加上 `// ignore`、A／④ 兩行、舊文案，在對應的檔裡都是 0；HEAD 副本都 ≥1，所以對照組成立。
+- **computed**（Electron 44.3.0，隔離 userData；每次 534 筆，就是 178 個元素各算本體、`::before`、`::after`）：
+  - 預設、錯誤狀態，HEAD 對施工後：標準屬性與自訂屬性都是 0。
+  - 對照組：HEAD 預設跑兩次、錯誤狀態跑兩次都是 0（plan 階段錯誤對錯誤是 26，這次沒出現）；預設對錯誤是 420，全部在 `#settingsModal` 底下。
+- **隔離實際啟動 repo**：主視窗在，常駐日誌只有正常的開機事件；`C:/Games/GGL` 沒被建立，桌面 `launcher.log` 前後相同。
+- **owner 看畫面**（隔離 userData）：
+  - 匯出文案：「有看到。但資料夾沒被打開。」
+    - 匯出本身成功，兩份報告都完整。
+    - 開資料夾那行 `shell.openPath` 這次沒改；用 repo 外的小探針對同一個資料夾呼叫，resolve 成 `""`，檔案總管有跳出來。
+    - owner 查到原因是自己的 Files 檔案管理器沒有回應，裁定「不用記」。
+  - 紅框：「如預期。」
+  - Discord 鈕：「可以。」
+- **母體核銷**（行號是 HEAD `54436e2`）：
+  - 下列 8 個沒有處置的子位置都已改，在 `b77b37a`：
+    - M-IPCARG `notifications-ipc.js:12-21`（①-12、①-map）、`:28`（①-28）、`:38`（①-38）；
+    - M-IPCARG `instance-ipc.js:35`（②）、`diagnostics-ipc.js:6`（③；稽核表寫 `:7`）；
+    - R-CONTRACT `lifetime.js:72`（④）；
+    - S-V2 `styles.css:42`（⑤）；
+    - M-DI `discord-rpc.js:35-38,55-58`（⑥）。
+  - S-CSS 死碼 `styles.css:1323-1324`：改了，在 `b77b37a`（D-6E-6A-CSS）。
+  - `styles.css:1317-1322`：照上面的退回紀錄**留**。
+  - D-6E-6A-EXTRA：A～E 改了，在 `b77b37a`；F 照施工項目表保留。
+  - 結案文件怎麼寫，歸 6e-7（§六）。
+- **測試帳行號勘誤**：上面測試帳寫的 `test/renderer-settings-modal.test.cjs:52`，當時其實是 `:53`（已在該行加對齊註記）。
+- owner 放行原話：「有跳出來，放行，可以 commit。」docs commit 照 owner 在施工 session 的指令「跑 docs commit 吧！」，由施工 session 做，不是原先安排的 6e plan session。
+
+---
+
 ## 六、Phase 6 整體結案（6e-7，文件；D-6E-CLOSE-SCOPE 住這裡）
 
 **三件事要分開**：
 
 | | 怎樣算完成 | 誰提供證據 | 誰放行 |
 |---|---|---|---|
-| **6e 自身施工完成** | 本檔擁有的項目都已處理並驗收（6e-0～6e-6）。**這不等於 Phase 6 完成** | 本檔各批的驗收單 | owner |
+| **6e 自身施工完成** | 本檔擁有的項目都已處理並驗收（6e-0～6e-6、6e-6a）。**這不等於 Phase 6 完成** | 本檔各批的驗收單 | owner |
 | **CSS 工程完成** | 以 `css-2026-10.md` 的完成定義為準 | CSS 線 | owner |
 | **Phase 6 整體結案** | 見下 | 本檔核對 | owner |
 
@@ -524,6 +697,21 @@ if (n.imageUrl)
   - U13：方案 B（D-6E-U13-B）；
   - U14：撤回清理、保留站台檔，附改判原因 N2（D-6E-U14）。
 - **`defense-cleanup.md`**：標題「盤點完成、未動工」改成結案狀態，並指到各 Phase。
+- **母體核銷**（前置：6e-6a 完成，8 個沒有處置、2 個判不出的子位置都已核銷）。每條附 CC 建議的標籤，列進驗收單由 owner 放行；不寫成先前就裁過：
+  - 總帳照 D-6E-6A-LEDGER；
+  - 28 處留-未標，逐一對到留-1～留-4；
+  - 17 處 Phase 4／5 已改的位置，補歷史標記；
+  - 退回項沒有驗收紀錄的：6b Q6、`deepFreeze`／`pad2`。§五 寫 `pad2` 4 份，HEAD 是 5 份〔查過 2026-10-30：`rg -n "function pad2|const pad2"`〕；
+  - 盤點描述被現讀推翻、但沒留退回紀錄的勘誤：`--thumb-url`、`buildRootCtx`、`ggl-log` 兩份；
+  - 留-4 沒有逐項列收益與成本的：`build.files` 排除、`status-text.js:183,196`；
+  - 稽核的證據覆蓋限制：
+    - G2 約 40 處空值檢查只抽 3 個檔；
+    - `bootstrap.js` 重寫後，舊行號靠關鍵字追；
+    - Phase 4／5 列只用 `git log -S` 查；
+    - 驗收單有部分只在對話裡；
+    - 基準 `6cf5d4e` 是假設的。
+  - 不能寫成「283 處都逐行獨立驗過」。
+  - 稽核表原文：`reviews/cross-review-2026-10-phase6-population-audit-h54436e2-20261029.md`，內容固定在 HEAD `54436e2`。
 - **文件**：
   - `README.md:15`、`conventions.md:57`（S-FMT）；〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:57`、`README.md:15` 原地改寫（改指 `format:file`，`format` 只給格式化批次）〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md` 的行號未移動（本 commit 只原地改 `:42`）〕
   - `conventions.md:42`（§四）；〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md:42` 原地改寫（改成機器擋空區塊、`rpc-helper/` 例外）〕
@@ -548,7 +736,7 @@ if (n.imageUrl)
 
 | 項 | 改的檔 | 可能跟 CSS 線共用的檔 |
 |---|---|---|
-| R-THUMB | `renderer/instance-ui.js`、`styles.css:17`（註解）、`test/site-format-doc.test.cjs`（SF-S3／S4） | `styles.css`（6e-0 落地後才開 CSS 線，之後 6e 不再碰）〔對齊 2026-10-29：`styles.css:17` → `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0） 後 `:17-19`；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：→ `0f4cfe0`（plans/cross-review-2026-10-phase6e.md 6e-2）：本行的 `test/site-format-doc.test.cjs` 沒帶行號；`styles.css:17-19`（上次對齊）不在本 commit〕〔對齊 2026-10-29：→ `1a7c9d3`（plans/cross-review-2026-10-phase6e.md CJS-FMT）：本行的 `test/site-format-doc.test.cjs` 沒帶行號；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`styles.css:17`（`1852a1d` 後 `:17-19`）後 `:45-46`〕 |
+| R-THUMB | `renderer/instance-ui.js`、`styles.css:17`（註解）、`test/site-format-doc.test.cjs`（SF-S3／S4） | `styles.css`（6e-0 落地後才開 CSS 線，之後 6e 不再碰）〔對齊 2026-10-29：`styles.css:17` → `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0） 後 `:17-19`；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：→ `0f4cfe0`（plans/cross-review-2026-10-phase6e.md 6e-2）：本行的 `test/site-format-doc.test.cjs` 沒帶行號；`styles.css:17-19`（上次對齊）不在本 commit〕〔對齊 2026-10-29：→ `1a7c9d3`（plans/cross-review-2026-10-phase6e.md CJS-FMT）：本行的 `test/site-format-doc.test.cjs` 沒帶行號；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`styles.css:17`（`1852a1d` 後 `:17-19`）後 `:45-46`〕〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`styles.css:45-46`（上次對齊）未移動；本行的 `test/site-format-doc.test.cjs` 沒帶行號〕 |
 | S-V2 | `scripts/lib/publish.js`、`scripts/lib/publish-report.js`、`test/sync-publish*.test.cjs`、`docs/site-format.md:39` | 無 |
 | U13 | `lib/sync/notice.js`、`main/sync/site-client.js`、`test/sync-notice*`、`test/site-format-doc.test.cjs`（SF-L）、抓取測試、`docs/site-format.md:174-185` | 無 |
 | `no-empty` 修正＋Q-DLG＋Q-RETRY | §四表中各檔、`main/ui-dialogs.js`、`main/start-main.js`、新測試 | 無〔推論：都是 `main/`、`renderer/lifetime.js`、`renderer/notifications-ui.js`、`scripts/` 底下非 CSS 的檔〕 |
@@ -588,7 +776,7 @@ CSS 線實際會改到哪些檔，以它合併時交出的清單為準（§跨�
 ```
 6e-0 R-THUMB（main）── owner 驗收 ──┬─ CSS 線：見 css-2026-10.md（repo 外 worktree）
                                     └─ 6e 線（main）：6e-1 S-V2 → 6e-2 U13 → 6e-3 no-empty 修正 → 6e-4 S-CHECK／S-FMT 工具
-CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸 → 6e-7 結案
+CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸 → 6e-6a 母體核銷補遺 → 6e-7 結案
 ```
 
 - 每一批都要 owner 另外明示授權才開工；做完開驗收單，驗收過才進下一批。兩條線各自送驗收（D-6E-LINES）。
@@ -596,7 +784,7 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 
 | 批 | 內容 | 在哪做 | 前置（技術／管理） | 擁有的檔 | 測試帳 | owner 看畫面 | 回滾 |
 |---|---|---|---|---|---|---|---|
-| 6e-0 | R-THUMB（§一） | `main` | owner 授權 | `renderer/instance-ui.js`、`styles.css:17`、SF-S3／S4 | 紅 2〔實測〕 | **要**：有圖、沒圖、公告消失 | revert 1 commit〔對齊 2026-10-29：`styles.css:17` → `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0） 後 `:17-19`〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`styles.css:17`（`1852a1d` 後 `:17-19`）後 `:45-46`〕 |
+| 6e-0 | R-THUMB（§一） | `main` | owner 授權 | `renderer/instance-ui.js`、`styles.css:17`、SF-S3／S4 | 紅 2〔實測〕 | **要**：有圖、沒圖、公告消失 | revert 1 commit〔對齊 2026-10-29：`styles.css:17` → `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0） 後 `:17-19`〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`styles.css:17`（`1852a1d` 後 `:17-19`）後 `:45-46`〕〔對齊 2026-10-30：→ `b77b37a`（plans/cross-review-2026-10-phase6e.md 6e-6a）：`styles.css:45-46`（上次對齊）未移動〕 |
 | 6e-1 | S-V2（§二） | `main`（D-6E-WHERE） | 6e-0 驗收（owner 裁定） | §二 的檔 | 52 → 6，外加 1 個綠的孤兒〔實測〕 | 否 | revert 1 commit |
 | 6e-2 | U13 方案 B（§三，D-6E-U13-B） | `main` | 6e-1（管理） | §三 的檔 | 紅 11〔實測〕 | 要：公告 log | revert 1 commit |
 | 6e-3 | `no-empty` 修正＋Q-DLG＋Q-RETRY 方案 A＋`ensureWritableTree`＋Q-SEEN（§四） | `main` | 6e-2（管理）；Q-SEEN 三項施工前確認（§四） | §四 的檔 | 部分實測、部分待驗（§四） | 否 | revert 1 commit |
@@ -605,7 +793,8 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 | 6e-5 | 打開 `no-empty`（§四） | `main` | 6e-3 進 `main`（技術）；CSS 線已合併（管理） | `eslint.config.cjs`、`conventions.md:42` | lint 0 錯〔實測：合併後的 `1aa8798`〕 | 否 | revert 1 commit〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md:42` 原地改寫（改成機器擋空區塊、`rpc-helper/` 例外）〕 |
 | 6e-6 | 全 repo 格式化（§五），唯一的純格式化批 | `main` | 6e-4、相關線都已合併（技術） | 不定（只有空白與換行） | 0 紅〔實測〕 | 否；**提交前**給 owner 看實際 diff（D-6E-FMT） | revert 1 commit |
 | — | 整合後共同回歸 | `main` | 6e-6 | — | 見下 | **要**：主畫面整體 | — |
-| 6e-7 | Phase 6 整體結案（§六） | `main` | 全部；CSS 線交出母體項目的結論與證據（技術）；D-6E-CLOSE-SCOPE 五條 | 文件 | — | 否 | docs commit |
+| 6e-6a | Phase 6 母體核銷補遺（§6e-6a，D-6E-6A） | `main` | 整合後共同回歸；owner 2026-10-30 已授權施工 | §6e-6a 施工項目表的檔與直接測試 | 紅 5〔實測〕，修測試替身後 0 | **要**：設定視窗文案、輸入框紅框、Discord 鈕 | 程式 commit 與 docs commit 各自 revert |
+| 6e-7 | Phase 6 整體結案（§六） | `main` | 全部（含 6e-6a）；CSS 線交出母體項目的結論與證據（技術）；D-6E-CLOSE-SCOPE 五條 | 文件 | — | 否 | docs commit |
 
 **各批局部驗收**（不拿 commit exit 0 當驗收）：
 - `npm test` 跑 Node 24 與 Node 22（memory「Node 22 在哪」：CI 的 22 會浮動，以當時 CI 的版本為準）。
@@ -741,7 +930,8 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - 6e-0 是全案第一批；
 - 6e 線直接在 `main` 上做（D-6E-WHERE）；
 - 6e-4 在 6e-3 局部驗收後做，不等 CSS 線合併（D-6E-6E4-EARLY）；
-- 6e-5 之後的批等 CSS 線合併（6e-5 是管理選擇，6e-6 是技術依賴）。
+- 6e-5 之後的批等 CSS 線合併（6e-5 是管理選擇，6e-6 是技術依賴）；
+- 6e-7 等 6e-6a 驗收並提交（D-6E-6A）。
 
 **停止**（任一出現就停下回報，不自行擴大範圍）：
 - 任何一批的實際紅燈跟本檔的測試帳不同；
@@ -785,6 +975,7 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - `deepFreeze`／`pad2` 的重複（§五，退回後判留）。
 - rpc-helper 的空 catch（U10）。
 - `launch-ui.js` 裡其他的 `?.`（不在本輪母體）。
+- `main/microsoft-auth.js:108,136` 的 `String(deps.msClientId || "")`（D-6E-6A-EXTRA 的 F，理由 → §6e-6a）。
 - 公告 URL 直接拼進 CSS `url("…")`、沒有跳脫：值來自 owner 自己管的站台，不在本輪母體；已記在 future-work 第 6 行。
 - CSS 線擁有的一切。
 - 站台的 `changelog.json`、`notice-thumb.jpg`（D-6E-U14）；`ci.yml`（D-6E-U12）。
@@ -792,6 +983,8 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - 殘留的 `.claude/worktrees/upbeat-jepsen-a6383a`：本輪與各施工批都不刪，清理另取授權（D-6E-WT）。
 
 ## 新發現（盤點外，預設進 future-work，owner 可改）
+
+- 2026-10-29 母體稽核順帶看到的六處：owner 改判為本輪有限處置，不進 future-work（D-6E-6A-EXTRA，→ §6e-6a）。
 
 - **N2**：U14 的前提「站台根目錄有 v2 殘留的 `changelog.json`、`notice-thumb.jpg`」**不成立**。v3 的 `notice.json` 現在正引用這兩個檔，`docs/site-format.md:19` 也把 `changelog.json` 列為站台的一部分。owner 依此裁 D-6E-U14。
 - **N3**：promise 的空 `.catch(() => {})` 有 11 處，不在 `no-empty` 的保護範圍內（§四）。已裁延後（D-6E-PCATCH）。
@@ -810,6 +1003,7 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - `net-fetch.js:220` 的寫入模式〔讀碼待確認〕。〔對齊 2026-10-29：→ `6577be5`（plans/cross-review-2026-10-phase6e.md 6e-3）：`main/net-fetch.js:220` 後 `:218`（寫入模式已確認，→ §四 施工紀錄）〕
 - `showMessageBox` 什麼時候會 reject。
 - 平行跑 `npm test` 不互相干擾：讀碼推論，沒有真的同時跑兩份。
+- 6e-6a：各項失敗時的行為是讀碼推論；`shell.openPath` 失敗時 resolve 錯誤字串是照文件寫的；computed 比對沒量 hover，也沒量 focus 在其他輸入框；第一次冷啟動探針沒寫出 dump，原因沒查（施工時 6 次探針都寫出，沒重現）；錯誤狀態的 computed 是探針直接加 class，真的輸入錯值只有 owner 看畫面（§6e-6a）。
 
 ## 這套平行安排可能失敗的地方
 
