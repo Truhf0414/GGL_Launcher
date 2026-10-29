@@ -1,4 +1,6 @@
-# 防禦與相容清理（狀態：盤點完成、未動工）
+# 防禦與相容清理（狀態：清單已由 Phase 1～6 處置；Phase 6 結案狀態 → `plans/cross-review-2026-10-phase6e.md` §六）
+
+**處置在哪**：各 Phase 的施工 → `plans/cross-review-2026-10.md` §8 與各 Phase 的細部 plan。Phase 6 母體逐列的處置 → `reviews/cross-review-2026-10-phase6-population-audit-h54436e2-20261029.md`（HEAD `54436e2` 的稽核）；稽核之後的補遺與標籤 → `plans/cross-review-2026-10-phase6e.md` §6e-6a、§六 6e-7 結案紀錄。本檔的清單是盤點當時的樣子，不回頭改。
 
 **目標**：把 Cursor 時期留下的「防不可能的狀態／對不存在的舊版相容／同一件事第二條路／無聲吞錯」清掉，並讓它不再長回來。
 **判準**：conventions.md §防禦與相容（本檔以條號引用：§1 邊界上驗一次、§2 邊界內信任、§3 出聲、§4 吞錯、§5 不接舊版、§6 一條路）。本檔不重述判準。

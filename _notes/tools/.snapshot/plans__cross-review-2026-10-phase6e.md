@@ -1,4 +1,4 @@
-# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 完成（`3a57b5d`，經 owner 驗收放行）；6e-2 完成（`0f4cfe0`，經 owner 驗收放行）；6e-3 完成（`6577be5`，經 owner 驗收放行）；6e-4 完成（`a7b623a`，經 owner 驗收放行）；CJS-FMT 完成（`1a7c9d3`，照 owner 裁定以單一 commit 提交）；CSS 線已合併（`1aa8798`，→ §跨線契約 整合紀錄）；6e-5 完成（`79edbb3`，經 owner 驗收放行）；6e-6 完成（`1d6721c`＋`4ae31e7`，經 owner 驗收放行）；整合後共同回歸完成（`2a91e12`，經 owner 驗收放行）；6e-6a 完成（`b77b37a`，經 owner 驗收放行；→ §6e-6a 施工紀錄），其餘各批另行授權**）
+# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 完成（`3a57b5d`，經 owner 驗收放行）；6e-2 完成（`0f4cfe0`，經 owner 驗收放行）；6e-3 完成（`6577be5`，經 owner 驗收放行）；6e-4 完成（`a7b623a`，經 owner 驗收放行）；CJS-FMT 完成（`1a7c9d3`，照 owner 裁定以單一 commit 提交）；CSS 線已合併（`1aa8798`，→ §跨線契約 整合紀錄）；6e-5 完成（`79edbb3`，經 owner 驗收放行）；6e-6 完成（`1d6721c`＋`4ae31e7`，經 owner 驗收放行）；整合後共同回歸完成（`2a91e12`，經 owner 驗收放行）；6e-6a 完成（`b77b37a`，經 owner 驗收放行；→ §6e-6a 施工紀錄）；2026-10-30 6e-7 完成，owner 正式宣告 Phase 6 結案（→ §六 6e-7 結案紀錄）**）
 
 **這是什麼**：Phase 6e 的施工權威，同時也是**兩條線共用的裁決、跨線整合、Phase 6 整體結案**的權威。2026-10-28 的初稿是以「七批串行」寫成的。2026-10-29 owner 把 CSS 拆成獨立工程，本檔依此改寫，之後經過兩輪審查修訂與一輪 owner 最終裁決（→ §改判紀錄）。**裁決不等於任何程式已經實作。**
 
@@ -584,14 +584,14 @@ if (n.imageUrl)
 
 | 比對 | 標準屬性差異 | 說明 |
 |---|---|---|
-| 預設狀態：HEAD 對候選 | 0（534 個元素，自訂屬性也 0） | — |
+| 預設狀態：HEAD 對候選 | 0（534 筆，即 178 個元素各算本體、`::before`、`::after`；自訂屬性也 0） | — |
 | 錯誤狀態：HEAD 對候選 | 0 | 打開設定視窗，四個輸入框加 `input--error`，第一個 focus |
 | 對照：預設對預設（HEAD 跑兩次） | 0 | 量法本身穩定 |
 | 對照：錯誤對錯誤（HEAD 跑兩次） | 26 | 全部是尺寸、位置類屬性，落在 `#instanceStatusText` 與它外層的兩層容器、`#btnLaunch` 裡兩層 `div`；不在設定視窗裡。〔推論〕開機時狀態文字的時間差 |
 | 對照：預設對錯誤（HEAD） | 420 | 證明錯誤狀態真的套上了 |
 
 - 兩邊錯誤狀態的輸入框都是 `border-color: rgba(255, 120, 120, 0.55)`、`box-shadow: rgba(255, 90, 90, 0.12) 0px 0px 0px 3px`、`flex-grow: 1`、`user-select: text`。
-- 候選副本開機正常（同樣 534 個元素、0 差異），所以 A／④ 拿掉後，開機沒有走到故障出口。
+- 候選副本開機正常（同樣 534 筆、0 差異），所以 A／④ 拿掉後，開機沒有走到故障出口。
 - 缺口：
   - 第一次冷啟動的探針沒有寫出 dump，也沒觸發 watchdog 就結束了，重跑正常，原因沒查。
   - 沒量 hover。
@@ -727,6 +727,121 @@ if (n.imageUrl)
   - 哪些冗餘防禦移除了；
   - 哪些保證仍須保留；
   - 本輪在哪裡選擇停止。
+
+### 6e-7 結案紀錄（2026-10-30；owner 正式宣告 Phase 6 結案）
+
+owner 2026-10-30 授權在 6e plan session 做 6e-7：「在這邊做 6e-7 吧！」。CC 初稿交出後，owner 同日轉貼外部審查「6e-7 文件審查已完成」，條件放行六組驗收事項並要求修正；owner 同日裁定「好，照你說的改」。以下標籤照該審查與 owner 的裁定落定。這些都是 2026-10-30 才補的紀錄，不是以前就裁過的。審查原文：「此處是外部審查的條件放行，不代替 Owner 的 Phase 6 最終放行。」修正後，owner 同日轉貼「Owner 最終裁決 — 6e-7 文件驗收」：「接受 ChatGPT 本輪審查建議，六組事項依下列結論放行」；同一份裁決也寫明「目前尚未授權 docs commit、push，也尚未宣告 Phase 6 最終結案。這三者仍須分別取得 Owner 放行。」
+
+**結案條件逐條核對**（本節上方五條）：
+1. **每一項都有實際處置**：8 個沒有處置的子位置與 2 個判不出，6e-6a 已經收完（`b77b37a`；→ §6e-6a 施工紀錄）。剩下的是標籤沒對到字面，下面的「母體核銷」已補上，owner 2026-10-30 放行；這條成立。
+2. **移交 CSS 線的項目**：CSS plan §八「合併交付」列了實際處置。
+   - B2 改了（`e6bebf4`）；
+   - S-CSS 照該檔 §六-2 處理（`75df93f`）；
+   - S-CHECK 的 `UI_CSS_STRICT` 刪了、(7) 改成錯誤（`2da4b38`）。
+   - 合併後在 `a444cf4` 重驗過 → §跨線契約 整合紀錄。〔查過 2026-10-30：`css-2026-10.md` §八 合併交付〕
+3. **既有保證沒丟**：D-6E-CHECKER 的 `no-drag` 檢查還在（`scripts/check-ui-css.cjs:221-237`〔查過 2026-10-30〕），6e-6a 施工時 `check:ui-css` 與 strict 都過。退回項都在驗收單上：先前各批的在各批驗收單；沒列過的在下面的「退回補紀錄」。
+4. **整合後共同回歸**：通過（`2a91e12`，§工作線與分批）。之後 6e-6a 動到畫面，它自己重驗過 computed 與兩版 Node 全套。
+5. **owner 最終放行**：owner 2026-10-30 轉貼「Phase 6 — 最終結案放行」：「正式宣告：Phase 6 結案。」同一份放行也寫明：「本次結案不代表所有 future-work 已完成，也不代表 GGL Launcher 已通過首次正式發版的 Release Gate。」
+
+**文件項目**（本節「結案批要改的文件」）〔查過 2026-10-30〕：
+- 已在前面各批做完：
+  - `README.md` 的 `format:file`（現在在 `:13`）、`conventions.md:57`；
+  - `conventions.md:42` 的 `no-empty`；
+  - `docs/site-format.md:39`（只認 v3）、SF-L3／SF-L4（只收 `{"log": […]}`）。
+- 這次改：
+  - 上層 plan 的狀態列與 §4.2 U10～U14 的出口；
+  - `defense-cleanup.md` 的標題；
+  - `future-work.md`：(c) 移走、N3、N4 新增；
+  - history、STATUS。
+
+#### 母體核銷
+
+**總帳**：照 D-6E-6A-LEDGER。稽核原文與查核限制 → `reviews/cross-review-2026-10-phase6-population-audit-h54436e2-20261029.md`。
+
+**不能說成「283 處都逐行獨立驗過」**。主要限制：
+- G2 約 40 處空值檢查只抽了 3 個檔；
+- `bootstrap.js` 重寫後，舊行號靠關鍵字追；
+- Phase 4／5 的列只用 `git log -S` 查；
+- 交給 owner 的驗收單有一部分只在對話裡；
+- 盤點基準 `6cf5d4e` 是照 6c、6d plan 的記載假設的。
+
+**17 處 Phase 4／5 已改的位置**：標**留-2**（owner 2026-10-30 放行）。它們在 Phase 6 開工前就被改掉了；原本的處置只出現在 `defense-cleanup.md` 的對齊註記，以及 6b 的「已處理」。
+
+| commit | 位置（稽核表的盤點行號） |
+|---|---|
+| `a4d4eb9`（Phase 4，12 處） | M-SET ①：`assets/default-settings.json`、`main/settings.js:14-27`、`:58-79`、`:29-40,113-124`；M-SET ②：`main/settings.js:58-64,69`、`main/minecraft-launch.js:210-212`、`lib/settings-logic.js:42,58-61`、三層記憶體預設；M-SET ③：`main/microsoft-auth.js:663`；M-IPCARG：`main/ipc/settings-ipc.js:9-10,13`；M-SILENT：`main/settings.js:95-111`、`:125-138` |
+| `7141f9f`（Phase 5a，2 處） | M-SILENT：`main/runtime/java.js:122-124`、`:171-173` |
+| `4f1f777`（Phase 5b，3 處） | M-OTHER：`main/mc-mirror.js:113`、`main/runtime/minecraft.js:40`、`main/net-fetch.js` 的「切換鏡像」字面 |
+
+兩列複合標籤 `main/game-closed-dialog.js:32`、`main/microsoft-auth.js:544`（「改了；存活判斷留-1」）照稽核原樣記：送畫面的寫法改了（`48452a9`），視窗還在不在的判斷是時序邊界，留-1。
+
+**28 處「留-未標」的最終分類**（owner 2026-10-30 放行）：10 留-1＋2 安全閥＋9 留-3＋3 留-4＋4 退回後撤回清理主張＝28。
+
+| 分類 | 位置（稽核表的盤點行號） | 理由 |
+|---|---|---|
+| **留-1**（10 處） | `main/system-memory.js` 的 `<= 0 ⇒ null`；`renderer/instance-ui.js:38-60` 第二類；清理時的 try：`lifetime.js:100-108`、`background-video.js:55-61`、`settings-modal.js:328-330`、`account-ui.js:440-442`、`minecraft-ui.js:87-89`；`lib/launch-args.js:51` `assertEnv`、`lib/runtime-readiness.js:30`、`lib/sync/rel-path.js:16` | 跨的邊界依序是：<br>• Electron／OS API（6b-4 Q7）<br>• 站台資料（6d §4.1）<br>• 時序：視窗卸載中（conventions 第 4 條清理）<br>• 環境變數與入口（owner 已裁 U3-a「留真正的入口」）<br>• IPC 參數：畫面送來的刪除清單，路徑安全的第二層（owner 已裁 U3-e） |
+| **既有出口無法描述**（安全閥，2 處） | `renderer/ggl-log.js:32-37`、`:42-51` | 見下面的 **Q-RETAG-1** |
+| **留-3（U10）**（9 處） | `rpc-helper/index.js:34-37`、`:46-53`、`:96`、`:105`、`:118`、`:152`、`:60-62`、`:202-204`、`:211-216` | Discord RPC 去留未裁；`:168-175` 原本就標了留-3（本節上方 §四），這 9 處同一個理由 |
+| **留-4**（3 處） | `MAIN_APP_READY_KEYS`（`main/app-ready.js:11-38`）、`app-ready.js:79-106` 的解構、`start-main.js:148-175` 的回傳 | E／C 見下面的「留-4 的收益與成本」 |
+| **退回 → 撤回清理主張**（4 處） | `bootstrap-ctx.js` 的 `buildRootCtx`；`renderer/ggl-log.js` 與 `lib/ggl-structured-log.js` 兩份；`styles.css` 的 `--thumb-url`、`--offline-link-offset-y` | 原盤點的重複／別名指控被現讀推翻：撤回清理主張、保留現況。不是「確認違規、選擇容忍」。見下面的「退回補紀錄」 |
+
+**Q-RETAG-1**（安全閥；外部審查建議，owner 2026-10-30 最終裁決「Q-RETAG-1：採 A。」）：`renderer/ggl-log.js` 讀 `err.stack` 的 try 和序列化退路。
+- **責任**：畫面的錯誤回報出口，輸入是任何被丟出的值（6d §4.4）。吞錯屬於 conventions §防禦與相容 第 4 條的「探測」，catch 裡寫了理由。
+- **不是留-1**：留-1 要說出跨過邊界清單上的哪一條。「探測」不在清單上，硬套等於擴張邊界清單。CC 初稿標留-1，這裡撤回。
+- **不是留-2～4**：它還在，不等任何 U 項，也不是成本大於效益的取捨。
+- 所以照判準檔 §留的出口 的安全閥，標「既有出口無法描述」，由 owner 確認例外。不新建類別，不擴張邊界清單。
+
+**留-4 的收益與成本**（判準檔 §收益與成本 的詞彙）：
+
+| 項目 | 收益 E | 成本 C | 判斷 |
+|---|---|---|---|
+| 三份鍵名（`MAIN_APP_READY_KEYS`、解構、`start-main` 回傳） | E3 沒達成：增刪一個鍵仍要改三處。E1／E2 已經有人守：三份不一致時，開機斷言或 `test/app-ready.test.cjs` 會叫（6b O1） | O3 合成一份會失去唯一的接線測試點；O2 約 30 處改寫，保證跟現在一樣（`cross-review-2026-10-phase6b.md:431-433`）。C1 大、C3 會變差 | 剩下的收益只有「改一處」，成本是失去測試點或大改寫 → 留（owner 2026-10-25 已接受 O1） |
+| `build.files` 的 `!assets/rpc-helper.exe`、`!assets/*.mp4` | E4：規則如果其實沒作用，刪掉少兩行看似有用的設定。有沒有作用未知：產物裡沒有這兩類檔，只證明「現在不在」（D-6E-FILES） | C1：打包一次加檢查產物（整合回歸那次 22 秒）。另外，`scripts/check-packaged-artifacts.cjs:33-35` 會擋 `rpc-helper.exe` 與 `sakura_field_BG.mp4` 進 asar〔查過 2026-10-30〕：刪錯了，打包檢查會叫。但它只點名這一支 mp4，`*.mp4` 涵蓋的其他檔不會叫 | 收益小且未知，錯了只有部分會叫 → 照 D-6E-FILES 留。**新發現**：有打包檢查在，「刪掉再打包驗」比當初估的便宜，owner 可以改判 |
+| `lib/sync/status-text.js:183,196` 的兩個 `??`（進度文字預設） | E4／E5：少兩個 `??`；`describeRuntimeProgress` 的 JSDoc 已寫明理由（`8989833`），所以「看到 `??` 就推定跨邊界」只在這一個函式裡不成立 | 直接拿掉而不補機制，畫面會顯示 `undefined`；補機制（在生產者驗 stage／group 列舉）要動 3 個檔（6c §退回） | 成本大於兩個 `??` → 留（已列進 6c 退回驗收單） |
+
+**退回補紀錄**（判準檔 §退回：寫理由、列驗收單、E5 入帳；先前沒留痕的才列在這裡）：
+
+| 項目 | 退回理由 | 結論 | E5 |
+|---|---|---|---|
+| `main/minecraft-launch.js` 的 `spawn` 預設（6b Q6，含 Q6 範圍表的其他項） | 判不出算不算違規：conventions §2 字面禁空函式預設，但 owner 放行的介面把這幾項列為「選填（預設）」；追到 R14 為止（6b §Q6） | 留（owner 2026-10-25 裁 Q6 A） | 只在 Q6 範圍表的模組裡，「有預設＝跨邊界」的推論不成立 |
+| `scripts/publish-config.js:6-11` 的 `deepFreeze` 複本、`scripts/lib/release-build.js:16` 的 `pad2` 複本 | 判不出值不值得改：三行的小工具重複不算「同一個事實」，要合併得新開橫跨 lib／main／scripts 的共用模組（§五）。`pad2` 在 HEAD 有 5 份（§五 寫 4 份） | 留 | 不是 `?.` 或防禦，不影響推論 |
+| `renderer/bootstrap-ctx.js` 的 `buildRootCtx` | 盤點說「只轉參數」，被推翻：它是正式程式裡唯一組出 `{ fx, ui, consts }` 的地方（`cross-review-2026-10-phase6d.md:537`） | 撤回清理主張、保留現況 | 不影響 |
+| `renderer/ggl-log.js` 與 `lib/ggl-structured-log.js` | 盤點說是重複，被推翻：兩份不是同一件事（6d §4.5） | 撤回清理主張、保留現況 | 不影響 |
+| `styles.css` 的 `--thumb-url` | 盤點說是別名，被推翻：兩層各有用途（§一；`1852a1d` 改註解） | 撤回清理主張、保留現況 | 不影響 |
+| `styles.css` 的 `--offline-link-offset-y` | 盤點說是「再取名」，被推翻：用了 3 次，不是單次轉手（CSS plan §六-2、B-7 的尺） | 撤回清理主張、保留現況 | 不影響 |
+
+`styles.css:1317-1322` 的 `.input` 已在 6e-6a 走過退回（→ §6e-6a 退回紀錄），不重列。
+
+#### retro（D-6E-RETRO）
+
+- **錯誤主張與撤回**：
+  - 舊草稿被推翻的說法 → §舊草稿對照；
+  - `safeLog` 原判「刪」，副本實測紅 1 → 改判「清」（D-6E-SAFELOG）；
+  - U14 的前提「站台有 v2 殘留」不成立（N2）；
+  - 6e-6a plan 把 534 筆 computed 寫成「534 個元素」，施工時更正；
+  - 通知 IPC 原本只打算刪 `.map()`，稽核才發現同一列還有 3 個子位置，不一起收的話 6e-7 會再卡一次；
+  - 6e-7 初稿把 `ggl-log` 兩處標留-1，等於把「探測」偷偷算成邊界；外部審查指出後改判安全閥（Q-RETAG-1）；
+  - 6e-7 初稿的 retro 把「228 個改了」放在「移除的冗餘防禦」底下，會讀成刪了 228 項防禦；已改寫成下面那條。
+- **改變責任判斷的反向對照**：
+  - §四 拆掉 `deliver` 的保證，看誰變紅，決定重試通知由誰負責（D-6E-RETRY-A）；
+  - 6e-6a 的測試帳：拆掉 `appendLauncherLog?.()` 後，3 個測試的原始錯誤被 `TypeError` 蓋掉，證實 D-6E-IPC-DEPS 接受的代價真的存在。
+- **冗餘防禦的處置**：
+  - 母體 283 個子位置中，228 個標「改了」（D-6E-6A-LEDGER）。這是「已修改的子位置」，含 Phase 4／5 的 17 處歷史處置；改法包括刪除與改寫，不等於刪掉了 228 項防禦。
+  - 6e-6a 再收掉沒有處置的 8 個子位置，以及 `.input.input--error` 冗餘選擇器。
+- **仍須保留的保證**：
+  - 上表的留-1：時序、OS API、站台資料、IPC 參數、入口；
+  - 畫面錯誤回報出口的探測（安全閥，Q-RETAG-1）；
+  - D-6E-OSAPI 的 best-effort；
+  - `appendLauncherLog` 自己吞錯（N4）；
+  - 診斷匯出時開資料夾是 best-effort；
+  - Q6 的測試縫；
+  - Client ID 沒設是合法的未啟用狀態。
+- **選擇停在哪裡**：
+  - rpc-helper 等 U10；
+  - IPC 依賴的初始化契約另立 `FW-IPC-DEPS-INIT`；
+  - promise 空 `.catch` 的機器擋延後（D-6E-PCATCH）；
+  - `msClientId` 照 6b 的 U4 不動；
+  - 三份鍵名、`build.files`、`status-text` 的兩個 `??` 走留-4。
 
 ---
 
