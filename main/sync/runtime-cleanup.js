@@ -9,7 +9,8 @@ const defaultFsp = require("fs/promises");
 const { staleRuntimeDirs } = require("../../lib/runtime-cleanup.js");
 const { launchIdFor } = require("../../lib/runtime-target.js");
 
-const isObject = (x) => x !== null && typeof x === "object" && !Array.isArray(x);
+const isObject = (x) =>
+  x !== null && typeof x === "object" && !Array.isArray(x);
 
 async function listDirs(fsp, dir) {
   try {
@@ -24,7 +25,9 @@ async function listDirs(fsp, dir) {
 /** 原版資料夾＝<name>/<name>.json 讀得到、是物件、沒有 inheritsFrom；讀不到或壞掉一律不算（A6） */
 async function isVanillaDir(fsp, versionsDir, name) {
   try {
-    const json = JSON.parse(await fsp.readFile(path.join(versionsDir, name, `${name}.json`), "utf8"));
+    const json = JSON.parse(
+      await fsp.readFile(path.join(versionsDir, name, `${name}.json`), "utf8"),
+    );
     return isObject(json) && json.inheritsFrom === undefined;
   } catch {
     return false;
@@ -36,7 +39,13 @@ async function isVanillaDir(fsp, versionsDir, name) {
  *   record: { minecraft: string, loader: object, javaMajor: number },
  *   log: (line: string) => void, fsp?: object, now?: () => Date }} input
  */
-async function removeStaleRuntime({ paths, record, log, fsp = defaultFsp, now = () => new Date() }) {
+async function removeStaleRuntime({
+  paths,
+  record,
+  log,
+  fsp = defaultFsp,
+  now = () => new Date(),
+}) {
   const trash = path.join(paths.tempDir, "runtime-trash");
   const step = async (what, fn) => {
     try {
@@ -58,12 +67,19 @@ async function removeStaleRuntime({ paths, record, log, fsp = defaultFsp, now = 
   }
   const versions = [];
   for (const name of listed.versions) {
-    versions.push({ name, isVanilla: await isVanillaDir(fsp, bases.versions, name) });
+    versions.push({
+      name,
+      isVanilla: await isVanillaDir(fsp, bases.versions, name),
+    });
   }
 
   const stale = await step("算出要清的", () =>
     staleRuntimeDirs({
-      keep: { minecraft: record.minecraft, launchId: launchIdFor(record), javaMajor: record.javaMajor },
+      keep: {
+        minecraft: record.minecraft,
+        launchId: launchIdFor(record),
+        javaMajor: record.javaMajor,
+      },
       versions,
       runtime: listed.runtime,
     }),
@@ -76,7 +92,10 @@ async function removeStaleRuntime({ paths, record, log, fsp = defaultFsp, now = 
       // 整個資料夾一次換走：刪到一半失敗不會在原地留下半套（R#18）
       await step(`搬走 ${base}/${name}`, async () => {
         await fsp.mkdir(trash, { recursive: true });
-        await fsp.rename(path.join(bases[base], name), path.join(trash, `${stamp}-${base}-${name}`));
+        await fsp.rename(
+          path.join(bases[base], name),
+          path.join(trash, `${stamp}-${base}-${name}`),
+        );
         log(`RUNTIME_CLEANUP moved ${base}/${name}`);
       });
     }
