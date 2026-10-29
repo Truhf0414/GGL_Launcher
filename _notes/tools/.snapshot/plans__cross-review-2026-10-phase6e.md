@@ -1,4 +1,4 @@
-# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 完成（`3a57b5d`，經 owner 驗收放行）；6e-2 完成（`0f4cfe0`，經 owner 驗收放行）；6e-3 完成（`6577be5`，經 owner 驗收放行）；6e-4 完成（`a7b623a`，經 owner 驗收放行）；CJS-FMT 完成（`1a7c9d3`，照 owner 裁定以單一 commit 提交）；CSS 線已合併（`1aa8798`，→ §跨線契約 整合紀錄）；6e-5 完成（`79edbb3`，經 owner 驗收放行），其餘各批另行授權**）
+# Phase 6e — R-THUMB、S-V2、U13、S-CHECK／S-FMT（非 CSS 部分）、ESLint `no-empty`、Phase 6 整體結案：細部 plan（狀態：**2026-10-29 最終收斂，基準 `e5bc6cc`；14 題全部已裁；6e-0 完成（`1852a1d`，經 owner 驗收放行）；6e-1 完成（`3a57b5d`，經 owner 驗收放行）；6e-2 完成（`0f4cfe0`，經 owner 驗收放行）；6e-3 完成（`6577be5`，經 owner 驗收放行）；6e-4 完成（`a7b623a`，經 owner 驗收放行）；CJS-FMT 完成（`1a7c9d3`，照 owner 裁定以單一 commit 提交）；CSS 線已合併（`1aa8798`，→ §跨線契約 整合紀錄）；6e-5 完成（`79edbb3`，經 owner 驗收放行）；6e-6 完成（`1d6721c`＋`4ae31e7`，經 owner 驗收放行），其餘各批另行授權**）
 
 **這是什麼**：Phase 6e 的施工權威，同時也是**兩條線共用的裁決、跨線整合、Phase 6 整體結案**的權威。2026-10-28 的初稿是以「七批串行」寫成的。2026-10-29 owner 把 CSS 拆成獨立工程，本檔依此改寫，之後經過兩輪審查修訂與一輪 owner 最終裁決（→ §改判紀錄）。**裁決不等於任何程式已經實作。**
 
@@ -83,6 +83,7 @@
 | D-6E-FMT-USE | Q-FORMAT-USAGE | 日常：對本次改到、Prettier 管得到的檔跑 `npm run format:file -- <檔>`；`npm run format` 是全 repo 格式化，只留給專門的格式化批次。改 `conventions.md` 並讓 `README.md` 一致，納入 6e-4 | owner 2026-10-29 轉貼「Owner 裁決 — 6e-4 最終收尾」§1：「採 (b)。」 |
 | D-6E-CJS | Q-CJS-SCOPE | 另立施工卡 CJS-FMT：`.cjs` 納入 `npm run format`，既有適用的 `.cjs` 一次性格式化；不納入 6e-4、不擴張 6e-6；獨立 commit；以實際 Prettier 結果確認要改的檔；驗證差異只有格式並跑 Node 22／24 全套、lint 與相關檢查；非預期的語意變化或範圍擴張就停。時點原裁「排在 6e-6 完成之後」，同日 owner 要求現在開卡施工（CC 解讀為不等 6e-6，交辦時明寫此假設） | owner 2026-10-29 同一份轉貼 §2；時點：owner 2026-10-29「請你現在就開一張卡片做 Q-CJS-SCOPE 好了，我不想拖。」 |
 | D-6E-CJS-MERGE | CJS-FMT 跨線合併衝突 | CJS-FMT 現在施工，接受跟 CSS 分支在 `package.json` 的一處已知合併衝突：CSS 線改 `dist:win`／`pack:win`，CJS-FMT 改 `format`，欄位責任不重疊；三方合併實測確認衝突會明確出現、不會靜默覆寫。整合時的處理 → §跨線契約 7。只接受這一處已確認的相鄰行衝突，不是全面解除跨線衝突的停工規則 | owner 2026-10-29 在 CJS-FMT session 轉貼「Owner 裁決 — CJS-FMT 跨線合併衝突」：「採 (a)：現在施工，接受已知的單一 `package.json` 合併衝突。」 |
+| D-6E-FIXTURE | 6e-6 上游 JSON fixture | `.prettierignore` 只精確排除 `test/fixtures/vanilla-1.21.11.json`、`test/fixtures/fabric-0.19.3-1.21.11.json`，不排除整個 `test/fixtures/`；兩支內容與既有 sha256 紀錄不動；這行設定獨立一個小 commit，之後 6e-6 照原定純格式化批做。這是維護 ④a 的上游原樣契約，不是廣泛的 fixture 排除政策；其他需要保留原始位元組的上游檔，先給證據再決定 | owner 2026-10-29「Owner 裁決 — 6e-6 上游 JSON Fixture」：「採用方案一：精確排除兩支上游原樣 fixture，工具設定獨立 commit，之後繼續 6e-6。」 |
 
 **Crossfire 收斂、owner 沒有逐條裁的**（當設計依據用，不當門檻；owner 可推翻）：
 - 註解不能拿來當 lint 的通行證（§四「清」的註解規則）。
@@ -484,6 +485,14 @@ if (n.imageUrl)
 - 跟 CSS 分支合併 `package.json` 有一處已知衝突，owner 接受（D-6E-CJS-MERGE；整合時 → §跨線契約 7）。
 - owner 放行：同一份裁決「確認 `git diff` 沒有超出本卡範圍，再以單一 commit 提交」。
 
+**施工紀錄（6e-6）**：前置 `1d6721c`（1 檔，`.prettierignore` +2）、格式化 `4ae31e7`（10 檔，+174／-85），2026-10-29 owner 授權（「直接往下 6e-6 吧！」），在 6e-4 的 session 施工。
+- 開工前 `--list-different` 列 13 檔：6e-4 施工紀錄的 15 檔扣掉已刪的兩個 Tailwind 檔，其中含兩支上游 fixture 與 `rpc-helper/index.js`。fixture 照 ④a（`plans/instance-sync-v3-commit4a.md` A4、驗收第 2 步）是「原樣，不重排」，格式化會展開成 1379 與 76 行，停下請 owner 裁（D-6E-FIXTURE）。
+- `1d6721c`：兩支的 sha256 跟加入時的 `3a8dabb` 相同，也對上 `plans/instance-sync-v3-commit5a.md` 記的前後綴；`--file-info` 兩支 `true`，`expected-argv-1.21.11.json`、`package.json` 是 `false`；在 `test/fixtures/` 放一支沒格式化的探針 JSON 仍會被列出（試完刪掉）。
+- `4ae31e7`：8 支 JS 前後解析成相同的 ESTree（去掉位置、註解內容也比），對照組把 `===` 改成 `!==` 會被抓到；`ARCHITECTURE.md` 忽略空白後只剩表格分隔線的 `-` 數；`docs/player-troubleshooting.md` 兩處清單前補空行、刪檔尾空行；對格式化後的 `ARCHITECTURE.md` 跑 `docs:ipc` 不變。正式跑 `npm run format` 後狀態與 diff 跟先前逐位元組相同，再跑一次 `--list-different` 是空的。
+- `rpc-helper/index.js` 也在清單上，但只是工作樹副本是 CRLF：Prettier 輸出跟 HEAD 的 blob 相同，沒有 stage，commit 後用 `git checkout` 還原工作樹。
+- Node 24.14.1、22.23.4 全套都 1430／1430；`lint`、`check:ui-css`、`check:ui-css:strict` 過；防禦 grep 5 條命中都是既有程式被重新換行。沒跑實際啟動：留給整合後共同回歸。
+- 提交前在 diff 面板給 owner 看未 commit 的改動（D-6E-FMT）；owner 驗收：「接受 6e-6，可以 commit，筆記收尾跟 snapshot 一起做」
+
 ---
 
 ## 六、Phase 6 整體結案（6e-7，文件；D-6E-CLOSE-SCOPE 住這裡）
@@ -544,7 +553,7 @@ if (n.imageUrl)
 | U13 | `lib/sync/notice.js`、`main/sync/site-client.js`、`test/sync-notice*`、`test/site-format-doc.test.cjs`（SF-L）、抓取測試、`docs/site-format.md:174-185` | 無 |
 | `no-empty` 修正＋Q-DLG＋Q-RETRY | §四表中各檔、`main/ui-dialogs.js`、`main/start-main.js`、新測試 | 無〔推論：都是 `main/`、`renderer/lifetime.js`、`renderer/notifications-ui.js`、`scripts/` 底下非 CSS 的檔〕 |
 | S-CHECK（非 CSS） | `package.json` 兩個欄位、`scripts/build-icons.js`、`.prettierignore` 第 3、5、10 行 | `package.json`、`.prettierignore`〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`.prettierignore` 第 3、5、10 行刪除〕 |
-| S-FMT 工具 | `package.json`（`format`、`format:ui`）、`.prettierignore`、`README.md`、`conventions.md:57` | `package.json`、`.prettierignore`（CSS plan 預估會刪 `:4`）、`README.md`（CSS plan 預估會改 `:11`）、`conventions.md`〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:57` 原地改寫；`.prettierignore:4` 後 `:3`；`README.md:11` 未移動〕〔對齊 2026-10-29：→ `1a7c9d3`（plans/cross-review-2026-10-phase6e.md CJS-FMT）：本行的 `package.json` 沒帶行號（`format` 那行原地改寫）；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`conventions.md:57` 未移動；`.prettierignore:4`（`a7b623a` 後 `:3`）與 `README.md:11`（`build:css` 那行）都已在 `8186b3a` 刪除〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md` 的行號未移動（本 commit 只原地改 `:42`）〕 |
+| S-FMT 工具 | `package.json`（`format`、`format:ui`）、`.prettierignore`、`README.md`、`conventions.md:57` | `package.json`、`.prettierignore`（CSS plan 預估會刪 `:4`）、`README.md`（CSS plan 預估會改 `:11`）、`conventions.md`〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:57` 原地改寫；`.prettierignore:4` 後 `:3`；`README.md:11` 未移動〕〔對齊 2026-10-29：→ `1a7c9d3`（plans/cross-review-2026-10-phase6e.md CJS-FMT）：本行的 `package.json` 沒帶行號（`format` 那行原地改寫）；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`conventions.md:57` 未移動；`.prettierignore:4`（`a7b623a` 後 `:3`）與 `README.md:11`（`build:css` 那行）都已在 `8186b3a` 刪除〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md` 的行號未移動（本 commit 只原地改 `:42`）〕〔對齊 2026-10-29：→ `1d6721c`（plans/cross-review-2026-10-phase6e.md 6e-6 前置）：`.prettierignore` 既有各行未移動（本 commit 只在檔尾 `:10-11` 加兩支上游 fixture）〕 |
 | 打開 `no-empty` | `eslint.config.cjs`、`conventions.md:42` | `conventions.md`〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md:42` 原地改寫（改成機器擋空區塊、`rpc-helper/` 例外）〕 |
 | 全 repo 格式化 | 不定 | **所有檔** |
 
@@ -591,10 +600,10 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 | 6e-1 | S-V2（§二） | `main`（D-6E-WHERE） | 6e-0 驗收（owner 裁定） | §二 的檔 | 52 → 6，外加 1 個綠的孤兒〔實測〕 | 否 | revert 1 commit |
 | 6e-2 | U13 方案 B（§三，D-6E-U13-B） | `main` | 6e-1（管理） | §三 的檔 | 紅 11〔實測〕 | 要：公告 log | revert 1 commit |
 | 6e-3 | `no-empty` 修正＋Q-DLG＋Q-RETRY 方案 A＋`ensureWritableTree`＋Q-SEEN（§四） | `main` | 6e-2（管理）；Q-SEEN 三項施工前確認（§四） | §四 的檔 | 部分實測、部分待驗（§四） | 否 | revert 1 commit |
-| 6e-4 | S-CHECK（非 CSS）＋S-FMT 工具（§五）：改格式化指令、忽略規則、建置／檢查工具，**不是純空白批** | `main` | 6e-3 局部驗收（D-6E-6E4-EARLY）；**不等** CSS 線合併 | `package.json` 的 6e 欄位（D-6E-PKG）、`.prettierignore`、`scripts/build-icons.js`、`README.md:15`、`conventions.md:57` | 0 紅〔實測〕 | 否 | revert 1 commit〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:57`、`README.md:15` 原地改寫（改指 `format:file`，`format` 只給格式化批次）〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md` 的行號未移動（本 commit 只原地改 `:42`）〕 |
+| 6e-4 | S-CHECK（非 CSS）＋S-FMT 工具（§五）：改格式化指令、忽略規則、建置／檢查工具，**不是純空白批** | `main` | 6e-3 局部驗收（D-6E-6E4-EARLY）；**不等** CSS 線合併 | `package.json` 的 6e 欄位（D-6E-PKG）、`.prettierignore`、`scripts/build-icons.js`、`README.md:15`、`conventions.md:57` | 0 紅〔實測〕 | 否 | revert 1 commit〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:57`、`README.md:15` 原地改寫（改指 `format:file`，`format` 只給格式化批次）〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md` 的行號未移動（本 commit 只原地改 `:42`）〕〔對齊 2026-10-29：→ `1d6721c`（plans/cross-review-2026-10-phase6e.md 6e-6 前置）：`.prettierignore` 既有各行未移動（本 commit 只在檔尾 `:10-11` 加兩支上游 fixture）〕 |
 | CJS-FMT | `.cjs` 納入 `format`＋既有 `.cjs` 一次性格式化（§五 CJS-FMT，D-6E-CJS） | `main` | owner 2026-10-29 要求現在施工（原裁 6e-6 之後） | `package.json` 的 `format`、要格式化的 `.cjs` | 0 紅〔實測〕 | 否 | revert 1 commit |
 | 6e-5 | 打開 `no-empty`（§四） | `main` | 6e-3 進 `main`（技術）；CSS 線已合併（管理） | `eslint.config.cjs`、`conventions.md:42` | lint 0 錯〔實測：合併後的 `1aa8798`〕 | 否 | revert 1 commit〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md:42` 原地改寫（改成機器擋空區塊、`rpc-helper/` 例外）〕 |
-| 6e-6 | 全 repo 格式化（§五），唯一的純格式化批 | `main` | 6e-4、相關線都已合併（技術） | 不定（只有空白與換行） | 0 紅〔待驗〕 | 否；**提交前**給 owner 看實際 diff（D-6E-FMT） | revert 1 commit |
+| 6e-6 | 全 repo 格式化（§五），唯一的純格式化批 | `main` | 6e-4、相關線都已合併（技術） | 不定（只有空白與換行） | 0 紅〔實測〕 | 否；**提交前**給 owner 看實際 diff（D-6E-FMT） | revert 1 commit |
 | — | 整合後共同回歸 | `main` | 6e-6 | — | 見下 | **要**：主畫面整體 | — |
 | 6e-7 | Phase 6 整體結案（§六） | `main` | 全部；CSS 線交出母體項目的結論與證據（技術）；D-6E-CLOSE-SCOPE 五條 | 文件 | — | 否 | docs commit |
 
@@ -647,7 +656,7 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - §四表中的各檔；
 - `eslint.config.cjs`；
 - `package.json` 的 `check:renderer-scripts`、`format`、`format:ui`，以及 `build.files` 的兩條排除；
-- `.prettierignore` 第 3、5、10 行，以及 6e-4 新加的 `_notes/`、`.claude/`、`CLAUDE.md` 三行；〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`.prettierignore` 第 3、5、10 行刪除；新加的三行在 `:8-10`〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：6e-4 新加的三行 `:8-10`（上次對齊）後 `:7-9`（`8186b3a` 刪了前面的 `assets/tailwind.css`）〕
+- `.prettierignore` 第 3、5、10 行，以及 6e-4 新加的 `_notes/`、`.claude/`、`CLAUDE.md` 三行；〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`.prettierignore` 第 3、5、10 行刪除；新加的三行在 `:8-10`〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：6e-4 新加的三行 `:8-10`（上次對齊）後 `:7-9`（`8186b3a` 刪了前面的 `assets/tailwind.css`）〕〔對齊 2026-10-29：→ `1d6721c`（plans/cross-review-2026-10-phase6e.md 6e-6 前置）：`.prettierignore` 既有各行未移動（本 commit 只在檔尾 `:10-11` 加兩支上游 fixture）〕
 - `conventions.md:42`、`:57`。〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`conventions.md:42` 未移動、`:57` 原地改寫〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`conventions.md:42`、`:57` 都未移動〕〔對齊 2026-10-29：→ `79edbb3`（plans/cross-review-2026-10-phase6e.md 6e-5）：`conventions.md:42` 原地改寫（改成機器擋空區塊、`rpc-helper/` 例外）、`:57` 未移動〕
 
 **4. 可能需要重新協調的部分**：CSS 線具體要改哪些共用檔、改哪幾行，不是永久邊界。CSS plan 的任何一版預估都不算數，以合併時交出的清單為準。清單裡如果出現第 3 點的檔，或者 CSS 改了樣式入口、打包內容、檢查器、共用檔的需求，6e 的整合介面要重新檢查。例如 `build.files`、打包檢查、`check:ui-css` 跑什麼，都不能默認舊的安排還有效。
@@ -781,7 +790,6 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 
 ## 未驗
 
-- 6e-6 的測試帳。
 - §四「刪〔待驗〕」的 2 處、`ensureWritableTree`、Q-DLG、改判成「清」的 3 處。
 - Q-SEEN 的三項施工前確認（§四），以及畫面端有沒有可用的既有診斷出口。
 - 「刪」的 5 處 0 紅：根據的是 9 處超集合那次探針，這 5 處沒有單獨重跑。
@@ -840,7 +848,7 @@ CSS 線交付並合併之後（main）：6e-5 → 6e-6 → 整合後共同回歸
 - Q-SEEN 從「出聲」改成 best-effort，加施工前三項確認（§四）。
 - §六 結案條件照 D-6E-CLOSE-SCOPE 改寫，加兩條附帶規則；§跨線契約 1 多交一項「已驗收母體契約有沒有失效」。
 - §權威遷移改成「已完成」：CSS plan v2 修訂版已經改成指向本檔〔查過 2026-10-29〕。
-- 共用檔欄補上 `README.md`、`.prettierignore:4`（CSS plan §六-3 的 U11-C 清單會改到）。〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`.prettierignore:4` 後 `:3`〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`.prettierignore:3`（上次對齊）已在 `8186b3a` 刪除，就是本行說的 U11-C 那行〕
+- 共用檔欄補上 `README.md`、`.prettierignore:4`（CSS plan §六-3 的 U11-C 清單會改到）。〔對齊 2026-10-29：→ `a7b623a`（plans/cross-review-2026-10-phase6e.md 6e-4）：`.prettierignore:4` 後 `:3`〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/css-2026-10.md；CSS 線的 `8186b3a`、`75df93f`、`e6bebf4`、`2da4b38`、`a6e4e78`、`9aca8a1`、`a444cf4`）：`.prettierignore:3`（上次對齊）已在 `8186b3a` 刪除，就是本行說的 U11-C 那行〕〔對齊 2026-10-29：→ `1d6721c`（plans/cross-review-2026-10-phase6e.md 6e-6 前置）：`.prettierignore` 既有各行未移動（本 commit 只在檔尾 `:10-11` 加兩支上游 fixture）〕
 
 **2026-10-29 Q-6E-WHERE 裁定、6e-0 授權**：owner 裁 Q-6E-WHERE 照建議（D-6E-WHERE），6e 線各批的「在哪做」改成 `main`；同日 owner：「好，正式授權。可以開工ㄌ。」授權 6e-0 R-THUMB 施工，照 D-6E-SESS 由新 session 接手。其餘各批仍要另行授權。
 
