@@ -1,6 +1,6 @@
 # CSS 工程 Plan v2：已知問題修復（Part A）＋架構調查與有根據的重構（Part B）
 
-**狀態**：2026-10-29 初稿（基準 `e5bc6cc`）；同日依 ChatGPT 第一輪審查修訂為二稿；同日依 owner 轉貼的 v2 重構指示整份重寫為 v2；同日回寫 owner 對 v2 的第一輪裁決，共用裁決改由 6e plan 擁有；同日最終收斂輪：CSS-5 提前到 CSS-4 之前、重新定義 computed 比對基準、同步 Q-CLOSE（→ §沿革）。同日 owner 授權 CSS 施工 session 建 worktree 並施工 CSS-1；CSS-1 完成（`8186b3a`，經 owner 驗收放行，→ §八 施工紀錄）。同日 owner 授權 CSS-2；CSS-2 完成（`75df93f`，經 owner 視覺驗收與 ChatGPT 唯讀靜態審查後放行，→ §八 施工紀錄）。同日 owner 授權 CSS-3；CSS-3 完成（`e6bebf4`，經 owner 看畫面後放行，→ §八 施工紀錄）。同日 owner 授權 CSS-5；CSS-5 完成（`2da4b38`，經 owner 有條件放行、補驗背景影片時機固定後的 computed 對照後提交，→ §八 施工紀錄）。同日 owner 授權 CSS-4；CSS-4 完成（`a6e4e78` B-4／B-5、`9aca8a1` B-3 選 A、`a444cf4` B-9 斷點 1000px，各經 owner 驗收後提交，→ §八 施工紀錄）。五批都已施工；§二「做完」的 owner 驗收與交給 6e（§二 第 6 點）還沒辦。
+**狀態**：2026-10-29 初稿（基準 `e5bc6cc`）；同日依 ChatGPT 第一輪審查修訂為二稿；同日依 owner 轉貼的 v2 重構指示整份重寫為 v2；同日回寫 owner 對 v2 的第一輪裁決，共用裁決改由 6e plan 擁有；同日最終收斂輪：CSS-5 提前到 CSS-4 之前、重新定義 computed 比對基準、同步 Q-CLOSE（→ §沿革）。同日 owner 授權 CSS 施工 session 建 worktree 並施工 CSS-1；CSS-1 完成（`8186b3a`，經 owner 驗收放行，→ §八 施工紀錄）。同日 owner 授權 CSS-2；CSS-2 完成（`75df93f`，經 owner 視覺驗收與 ChatGPT 唯讀靜態審查後放行，→ §八 施工紀錄）。同日 owner 授權 CSS-3；CSS-3 完成（`e6bebf4`，經 owner 看畫面後放行，→ §八 施工紀錄）。同日 owner 授權 CSS-5；CSS-5 完成（`2da4b38`，經 owner 有條件放行、補驗背景影片時機固定後的 computed 對照後提交，→ §八 施工紀錄）。同日 owner 授權 CSS-4；CSS-4 完成（`a6e4e78` B-4／B-5、`9aca8a1` B-3 選 A、`a444cf4` B-9 斷點 1000px，各經 owner 驗收後提交，→ §八 施工紀錄）。五批都已施工。同日併回 `main`（`1aa8798`；先把 `main` 合進分支，`66ed4f3`），→ §八 合併交付；§二「做完」的 owner 驗收還沒辦。
 
 **這是什麼**：CSS 工程本身的**唯一權威**，管 CSS 架構與技術方案、Part A／Part B 的調查與裁決、施工分批、驗收、停止條件，以及 CSS 自己完成的證據。
 
@@ -513,7 +513,7 @@
 | B. 完整 `@import "tailwindcss"` | 整包，有 preflight | 5850 bytes，全在 `@layer` | 能 | **會變**（box-sizing、margin、按鈕與標題外觀）；而且 Tailwind 的層名就是 `components`、`utilities`（`node_modules/tailwindcss/index.css:1,942`【現讀可證】），**一定跟 B2 撞名** |
 | C. 不用 Tailwind | `body` 兩個屬性搬進 `styles.css`；`.sr-only` 補 `clip-path: inset(50%)`；刪整套 | 沒有產物 | 不再有這一步 | 補 `clip-path` 後 **0 差異**【隔離實測：`c-sr` 對 HEAD】；不補差 1 處（`.sr-only` 的 `clip-path`）【隔離實測：`c`】 |
 
-**選項 C 要動的地方**（U11 報告 10 項＋二稿現掃 6 項）：`tailwind.css`、`tailwind.config.js`、`assets/tailwind.css`、`index.html:10` 的 `<link>` 與 `:13` 的 `body` class、`package.json` 的 `build:css` 與兩個 devDependency（＋lockfile）、`build.files` 的 `assets/tailwind.css`、`dist:win`／`pack:win` 裡的 `build:css`、`check-packaged-artifacts.cjs:24`（必備清單）與 `:48-49`（`forbiddenDevDependencyRoots` 的兩行，依賴拿掉後永遠不會觸發；D-CSS-U11-C「檢查器裡失效的 Tailwind 契約」一併移除）、`.prettierignore:4`、`styles.css:145` 的註解與 `.sr-only` 補行、`README.md:11`、`docs/pre-release-audit-source-of-truth.md:23`、專案 `CLAUDE.md:3`（→ §十）、conventions §UI / CSS 那條（→ §十）。施工時再用 `rg 'build:css'` 補掃一次。〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css:145` 後 `:147`；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：本行列的就是 `8186b3a`（plans/css-2026-10.md CSS-1） 改掉的地方：`index.html:10` 已刪、`:13` 改成 `<body>`；`check-packaged-artifacts.cjs:24`、`:48-49` 已刪；`.prettierignore:4` 已刪；`styles.css:147`（上次對齊）的註解改寫，後 `:155`，`.sr-only` 補行在 `:164`；`README.md:11` 已刪（另刪 `:5` 的 `npm run build:css`）；`docs/pre-release-audit-source-of-truth.md:23`、`CLAUDE.md:3` 改寫；conventions 那條已刪〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css` 的 `:155`（上次對齊）後 `:146`、`:164` 後 `:155`；`index.html` 的 `<link>` `:10` 與 `<body>` `:12` 未移動〕〔對齊 2026-10-29：→ `e6bebf4`（plans/css-2026-10.md CSS-3）（整份縮進 `@layer` 並加檔頭說明）：`styles.css` 的 `:146`（上次對齊）後 `:157`、`:155` 後 `:166`〕〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`styles.css` 的 `:157`（上次對齊）後 `:159`、`:166` 後 `:168`〕〔對齊 2026-10-29：→ `a6e4e78`、`9aca8a1`、`a444cf4`（plans/css-2026-10.md CSS-4）：`styles.css` 的 `:159`、`:168`（上次對齊）與 `index.html:10` `a6e4e78`、`9aca8a1`、`a444cf4` 都未移動〕
+**選項 C 要動的地方**（U11 報告 10 項＋二稿現掃 6 項）：`tailwind.css`、`tailwind.config.js`、`assets/tailwind.css`、`index.html:10` 的 `<link>` 與 `:13` 的 `body` class、`package.json` 的 `build:css` 與兩個 devDependency（＋lockfile）、`build.files` 的 `assets/tailwind.css`、`dist:win`／`pack:win` 裡的 `build:css`、`check-packaged-artifacts.cjs:24`（必備清單）與 `:48-49`（`forbiddenDevDependencyRoots` 的兩行，依賴拿掉後永遠不會觸發；D-CSS-U11-C「檢查器裡失效的 Tailwind 契約」一併移除）、`.prettierignore:4`、`styles.css:145` 的註解與 `.sr-only` 補行、`README.md:11`、`docs/pre-release-audit-source-of-truth.md:23`、專案 `CLAUDE.md:3`（→ §十）、conventions §UI / CSS 那條（→ §十）。施工時再用 `rg 'build:css'` 補掃一次。〔對齊 2026-10-29：→ `1852a1d`（plans/cross-review-2026-10-phase6e.md 6e-0）：`styles.css:145` 後 `:147`；其他行號指的檔不在本 commit〕〔對齊 2026-10-29：本行列的就是 `8186b3a`（plans/css-2026-10.md CSS-1） 改掉的地方：`index.html:10` 已刪、`:13` 改成 `<body>`；`check-packaged-artifacts.cjs:24`、`:48-49` 已刪；`.prettierignore:4` 已刪；`styles.css:147`（上次對齊）的註解改寫，後 `:155`，`.sr-only` 補行在 `:164`；`README.md:11` 已刪（另刪 `:5` 的 `npm run build:css`）；`docs/pre-release-audit-source-of-truth.md:23`、`CLAUDE.md:3` 改寫；conventions 那條已刪〕〔對齊 2026-10-29：→ `75df93f`（plans/css-2026-10.md CSS-2）：`styles.css` 的 `:155`（上次對齊）後 `:146`、`:164` 後 `:155`；`index.html` 的 `<link>` `:10` 與 `<body>` `:12` 未移動〕〔對齊 2026-10-29：→ `e6bebf4`（plans/css-2026-10.md CSS-3）（整份縮進 `@layer` 並加檔頭說明）：`styles.css` 的 `:146`（上次對齊）後 `:157`、`:155` 後 `:166`〕〔對齊 2026-10-29：→ `2da4b38`（plans/css-2026-10.md CSS-5）：`styles.css` 的 `:157`（上次對齊）後 `:159`、`:166` 後 `:168`〕〔對齊 2026-10-29：→ `a6e4e78`、`9aca8a1`、`a444cf4`（plans/css-2026-10.md CSS-4）：`styles.css` 的 `:159`、`:168`（上次對齊）與 `index.html:10` `a6e4e78`、`9aca8a1`、`a444cf4` 都未移動〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/cross-review-2026-10-phase6e.md §跨線契約；`main` 的 `a7b623a`、`1a7c9d3`）：`README.md:11` 已在 `8186b3a` 刪除，`a7b623a` 改的是後面的格式化那行；`package.json` 沒帶行號；其他行號指的檔不在這兩個 commit〕
 
 **跟 B2 的耦合**：
 - `.hidden` 只能有一份權威。B2 之後 `styles.css` 那份在層裡，Tailwind 那份沒分層，會贏過所有分層規則、把 B2 的驗收遮住【隔離實測：結果見 §六-1 表】。選 C 這件事消失；選 A／A' 時產物仍有 `hidden`、是否分層【靜態推論待驗】，要嘛把產物放進比 `utilities` 更前面的層、要嘛別讓它產 `hidden`，都是多出來的工。
@@ -714,6 +714,23 @@ v2 原稿寫「CSS-4 一個 commit、三項可各自 revert」，這不精確：
 - 沒驗：B-9 用真滑鼠拖視窗（owner 沒說有拖過）；1000 在 1／1.25／1.5／1.75 以外的縮放；打包流程。
 - 回退：`git revert a444cf4`、`git revert 9aca8a1`、`git revert a6e4e78`，各自獨立。
 
+**合併交付**（2026-10-29；照 6e plan §跨線契約 第 1 點；整合怎麼做的在 6e plan §跨線契約「整合紀錄」）
+- 施工成果：`css/css-2026-10` 到 `1d34691`，CSS-1～CSS-5 各經 owner 驗收（→ 上面各批施工紀錄）。
+- 共用檔清單【實際跑過：`git diff --stat 515794f 1aa8798`】：`package.json`（`build:css`、`dist:win`／`pack:win`、兩個 Tailwind devDependency、`build.files` 的 `assets/tailwind.css`）、`package-lock.json`（少 50 個 Tailwind 專屬套件）、`.prettierignore`（`assets/tailwind.css`）、`index.html`（CSS-1、CSS-2、CSS-4）、`README.md`、`CLAUDE.md`、`_notes/conventions.md`、`_notes/future-work.md`、`docs/pre-release-audit-source-of-truth.md`、`scripts/check-packaged-artifacts.cjs`、`renderer/launch-ui.js`、`renderer/ui-status.js`；刪除 `tailwind.css`、`tailwind.config.js`、`assets/tailwind.css`。CSS 線自己的：`styles.css`、`scripts/check-ui-css.cjs`、`test/ui-check-scripts.test.cjs`。6e plan §跨線契約 第 3 點的檔一個都沒動。
+- 測試、反向對照、看畫面的證據：→ 上面各批施工紀錄。
+- 跨線契約的變更：
+  - 樣式入口仍是 `index.html` 一個 `<link>` 指 `./styles.css`，少了 Tailwind 那份；`styles.css` 整份在 `@layer` 裡，新規則要寫在層裡（檢查器 (9) 擋）。
+  - 打包內容少了 `assets/tailwind.css`（`build.files`、`check-packaged-artifacts.cjs` 同步改）；`build:css` 不存在，`dist:win`／`pack:win` 不再跑它。
+  - 檢查器：`UI_CSS_STRICT` 拿掉；(7) 在兩種模式都是錯誤；新增 (9)（L1，`@layer` 契約）。
+  - 禁用只看 `disabled` 屬性，`launch-btn--disabled`、`offline-link--disabled` 兩個 class 不存在了；`glass-card--changelog` 也拿掉了。
+- Phase 6 母體項的實際處置（§十 第 2 點）：B2 改了（CSS-3 `e6bebf4`）；S-CSS 照 §六-2 盤點表處理（CSS-2 `75df93f`，`--thumb-url` 那列不歸本線）；S-CHECK 的 `UI_CSS_STRICT` 刪了（C1）、(7) 改成錯誤（C2）（CSS-5 `2da4b38`）。
+- 已驗收的母體契約有沒有失效：CSS-4 碰到 B2 的離線鈕與 S-CSS 合併過的禁用規則，重驗見 CSS-4 紀錄；合併後的重驗（computed 對 `a444cf4`、檢查器、全套測試）→ 6e plan §跨線契約 整合紀錄。
+- 已知沒驗、整合時要注意的：
+  - 打包流程（`dist:win`／`pack:win`）CSS 線整條沒跑過，併入整合後那次打包（6e plan D-6E-FILES）；
+  - 螢幕閱讀器、真滑鼠拖視窗（B-9）沒驗；
+  - `H:/GGL3 Launcher` 的 `node_modules` 還有 Tailwind 套件（lockfile 已經沒有，`npm ci` 會清掉）；
+  - 交給整合後共同回歸的項目：在那時的 HEAD 上用相同條件重跑 computed，對照 `a444cf4`（→ 本節「整合後共同回歸」）；探針在 CSS 施工 session 的暫存區，不在 repo。
+
 ---
 
 ## 九、施工環境
@@ -775,7 +792,7 @@ v2 原稿寫「CSS-4 一個 commit、三項可各自 revert」，這不精確：
   - 「`assets/tailwind.css` 是 `npm run build:css` 的產物」那條：刪（D-CSS-U11-C）。
   - 加一條：「`.hidden` 這類狀態工具 class 住在 `utilities` 層；元件規則住 `components` 層；隱藏一律用 `.hidden`」，並寫明由 L1 守〔check:ui-css 擋〕。
   - 加一句「禁用狀態看原生 `disabled`（CSS 用 `:disabled`、hover 用 `:enabled`），不另設 class」（B-4／B-5）。
-  - `format:ui` 那句（`conventions.md:57`）與 `:42` 歸 6e（6e plan §跨線契約 第 3 點），本線不動。`conventions.md` 是共用檔，本線的改動列進交付清單。〔對齊 2026-10-29：`8186b3a`（plans/css-2026-10.md CSS-1） 刪的是 `conventions.md:58`，`:57`、`:42` 未移動〕
+  - `format:ui` 那句（`conventions.md:57`）與 `:42` 歸 6e（6e plan §跨線契約 第 3 點），本線不動。`conventions.md` 是共用檔，本線的改動列進交付清單。〔對齊 2026-10-29：`8186b3a`（plans/css-2026-10.md CSS-1） 刪的是 `conventions.md:58`，`:57`、`:42` 未移動〕〔對齊 2026-10-29：→ CSS 線合併 `1aa8798`（plans/cross-review-2026-10-phase6e.md §跨線契約；`main` 的 `a7b623a`、`1a7c9d3`）：`conventions.md:42` 未移動；`:57` 被 `a7b623a` 原地改寫，不再提 `format:ui`〕
 - **專案 `CLAUDE.md:3`**：「Tailwind 只用來產 `assets/tailwind.css`」要改（D-CSS-U11-C）。
 - **history**：每批收尾一條；U11 的根因（Tailwind 掃到 `_notes/` 裡的路徑）、`b096753`、v2 找到的三個畫面錯誤寫在這裡。
 - **learnings**：候選兩條，等施工完看是不是真的重複才決定（全域 CLAUDE.md「一次性事故不制度化」）：「建置工具的輸入範圍要是明確清單，不靠工具預設的掃描」；「證明 CSS 機制有效要有負面對照：故意弄壞、確認會變紅」。
