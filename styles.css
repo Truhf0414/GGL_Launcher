@@ -39,7 +39,7 @@
       #0d1528 72%,
       #0b1020 100%
     );
-    /* manifest 未帶 notice.imageUrl 時的佔位縮圖（中性灰底、無字） */
+    /* 預設縮圖（中性灰底、無字）：開機時顯示；之後 notice.json 的公告沒帶 imageUrl 就沿用目前那張，不會換回這張 */
     --design-thumb-url: url("./assets/notice-thumb.svg");
 
     /* --thumb-url：目前顯示的公告縮圖，不是別名。預設等於 --design-thumb-url（設計師定的預設圖，只在這裡改）；
@@ -1314,13 +1314,12 @@
     transform: translateY(0.5px);
   }
 
-  /* Back-compat: keep existing semantic classnames working. */
+  /* 設定視窗的輸入框（index.html 的 class="input ctl"）：撐滿一列、可選取文字；驗證失敗由 settings-modal.js 加 input--error */
   .input {
     flex: 1;
     -webkit-user-select: text;
     user-select: text;
   }
-  .input.input--error,
   .ctl.input--error {
     border-color: rgba(255, 120, 120, 0.55);
     box-shadow: 0 0 0 3px rgba(255, 90, 90, 0.12);

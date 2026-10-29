@@ -28,6 +28,12 @@ const SAVED = {
   systemMemoryGb: 16,
 };
 
+// serverConfig:getDefaults 的形狀（main/ipc/server-config-ipc.js 永遠回這兩個鍵）
+const SERVER_DEFAULTS = {
+  launcherRootDir: "C:\\Games\\GGL",
+  discordInviteUrl: "https://discord.gg/x",
+};
+
 const INPUTS = [
   "inputInstallDir",
   "inputOfflinePlayerId",
@@ -50,7 +56,7 @@ function setup(
     set = async (p) => p,
     recheck = async () => {},
     selectDirectory = async () => null,
-    loadServerDefaults = async () => ({}),
+    loadServerDefaults = async () => ({ ...SERVER_DEFAULTS }),
   } = {},
 ) {
   global.document = {
@@ -321,6 +327,22 @@ test("P3 對照：選到資料夾 ⇒ 填進欄位、沒有錯誤", async (t) =>
   await until(
     () => h.refs.inputInstallDir.value === "E:\\Games\\GGL",
     "填進欄位",
+  );
+  assert.equal(h.errorText(), "");
+});
+
+test("P4 欄位空白、取得伺服器預設 ⇒ 用 launcherRootDir 開對話框、沒有錯誤", async (t) => {
+  const h = setup(t);
+  await h.open();
+  h.refs.inputInstallDir.value = "";
+  await h.refs.btnPickDir.fire("click");
+  await until(
+    () => h.channels().includes("dialog:selectDirectory"),
+    "開對話框",
+  );
+  assert.deepEqual(
+    h.record.invoked.find(([ch]) => ch === "dialog:selectDirectory"),
+    ["dialog:selectDirectory", SERVER_DEFAULTS.launcherRootDir],
   );
   assert.equal(h.errorText(), "");
 });

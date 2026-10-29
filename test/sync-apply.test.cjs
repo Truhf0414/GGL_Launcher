@@ -1306,6 +1306,7 @@ test(
         updateInstance: async () => {
           throw refused;
         },
+        appendLauncherLog: async () => {},
       },
       showInfoDialog: async () => {},
     });

@@ -615,6 +615,11 @@ function failOn(...fails) {
     if (channel === "account:get")
       return { state: "logged-out", name: "", uuid: "" };
     if (channel === "notifications:get") return { items: [], unreadCount: 0 };
+    if (channel === "serverConfig:getDefaults")
+      return {
+        launcherRootDir: "C:\\Games\\GGL",
+        discordInviteUrl: "https://discord.gg/x",
+      };
     return undefined;
   };
 }

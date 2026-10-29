@@ -179,9 +179,7 @@
         let startDir = inputInstallDir.value.trim();
         if (!startDir) {
           // 欄位空白才拿伺服器預設當起點（出貨常數，取不到只剩接線壞）
-          startDir = await loadServerDefaults().then((d) =>
-            String(d?.launcherRootDir || ""),
-          );
+          startDir = (await loadServerDefaults()).launcherRootDir;
         }
         const chosen = await safeInvoke("dialog:selectDirectory", startDir);
         if (chosen) inputInstallDir.value = chosen;
@@ -248,7 +246,7 @@
 
     async function exportDiagnostics() {
       try {
-        setSettingsError("正在匯出診斷報告…（會自動打開資料夾）");
+        setSettingsError("正在匯出診斷報告…（會嘗試自動開啟資料夾）");
         const dir = await safeInvoke("diagnostics:export");
         setSettingsError(`已匯出診斷報告：${String(dir || "")}`);
       } catch (e) {
