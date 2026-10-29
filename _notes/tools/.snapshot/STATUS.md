@@ -2,7 +2,7 @@
 
 ## 現在
 
-| 未結案       | 交叉審查後的收斂施工（Phase 0–5、X1、N6、X1b ✅；6 進行中：6a～6d ✅；6e 進行中：6e-0～6e-6、CJS-FMT、CSS 線合併、整合後共同回歸 ✅） | → plans/cross-review-2026-10.md |
+| 未結案       | 交叉審查後的收斂施工（Phase 0–5、X1、N6、X1b ✅；6 進行中：6a～6d ✅；6e 進行中：6e-0～6e-6、CJS-FMT、CSS 線合併、整合後共同回歸、6e-6a ✅） | → plans/cross-review-2026-10.md |
 | 接續步驟     | 6e-7 Phase 6 整體結案（`main`；待 owner 授權） | → plans/cross-review-2026-10-phase6e.md §工作線與分批 |
 | 卡住         | 否 | — |
 | 上一輪 retro | 2026-09-11 code review ✅ | → learnings.md |
