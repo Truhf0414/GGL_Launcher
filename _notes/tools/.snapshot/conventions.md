@@ -39,7 +39,7 @@
 **怎麼執行**
 - 寫的當下：每寫一個 `?.`、`||`／`??` 預設、`typeof`、`catch`，先答「這個值跨過哪個邊界？」答不出來就不寫。
 - commit 前：`git diff --cached -U0 | rg '^\+.*(\?\.|\?\?|catch|typeof)'`，命中的逐條答同一題。
-- 機器擋：載入順序（`scripts/check-renderer-scripts.cjs`）；空 catch（ESLint `no-empty`，舊的清完才開）。
+- 機器擋：載入順序（`scripts/check-renderer-scripts.cjs`）；空區塊，含 `catch` 區塊（ESLint `no-empty`；`rpc-helper/` 例外，等 U10 裁定）。
 - 既有的違規：清單在 `plans/defense-cleanup.md`，照 plan 分批清；新寫的不准再犯，舊的不在別的 commit 裡順手清。改／留怎麼判 → `plans/cross-review-2026-10-phase6-criteria.md`。
 - 出處：owner 2026-10-11「從來沒發行過，所以沒有玩家有東西。」；只有 owner 一台：owner 2026-10-22「測試者從頭到尾只有我。」；owner 2026-10-13「我想完全治本，不是這種修修補補的。」，判準 owner 2026-10-13「可以，重寫版好多了。」。
 
