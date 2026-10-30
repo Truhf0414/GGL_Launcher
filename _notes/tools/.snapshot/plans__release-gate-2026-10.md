@@ -1,4 +1,4 @@
-# Release Gate 2026-10：首次 Windows x64 對外發版前的缺口審查與驗收計畫（狀態：**2026-10-30 第四稿，基準 `05cadf3`（`main`，與 `origin/main` 同步）；已回寫 owner 四輪裁決與回饋，§5.10 六題與發版時序全數裁畢；owner 已終審：Plan 通過設計審查、五個 CC 假設全部接受（含兩處文字校正）；這只是 Plan 通過，**不是 Release Gate 已通過**，Gate 仍未通過；只讀調查與寫本檔，未授權施工、commit、push、發版、改站台；待 owner 授權執行（Ready for Release Gate Execution Authorization）；其後 G-5（`255a03a`）、G-4（`1fbac0f`）、G-6（`d3ad1eb`）已施工並經 owner 驗收，Gate 仍未通過、B1 未開始**）
+# Release Gate 2026-10：首次 Windows x64 對外發版前的缺口審查與驗收計畫（狀態：**2026-10-30 第四稿，基準 `05cadf3`（`main`，與 `origin/main` 同步）；已回寫 owner 四輪裁決與回饋，§5.10 六題與發版時序全數裁畢；owner 已終審：Plan 通過設計審查、五個 CC 假設全部接受（含兩處文字校正）；這只是 Plan 通過，**不是 Release Gate 已通過**，Gate 仍未通過；只讀調查與寫本檔，未授權施工、commit、push、發版、改站台；待 owner 授權執行（Ready for Release Gate Execution Authorization）；其後 G-5（`255a03a`）、G-4（`1fbac0f`）、G-6（`d3ad1eb`）已施工並經 owner 驗收，Gate 仍未通過；B1 已執行並對最終候選 `7bafc4c` 對齊，見 §四 B1 證據紀錄**）
 
 **這是什麼**：首次對外發版的「還欠哪些保證」的唯一權威：缺口審查（§二～§三）、Gate 施工與驗收批次（§四、§六）、owner 裁決紀錄與未決題（§五）、不擋發版的清單（§七）。已結案的 cross-review／CSS 工程不重開；本檔引用它們的裁決，不複述。
 
@@ -197,8 +197,13 @@ README 重製（OD-7）**不阻擋**發版，第四輪 owner 選 C：首發只�
 
 - 結果：M-1 通過、M-2 通過、M-5 通過；**M-3 未取得**（候選未 push）；M-6：helper 雜湊核對通過，Discord 啟動、狀態更新、退出清理三項也已在 owner 在場下實測通過（同日稍後，範圍與未涵蓋項目見 `history.md` 該條；符不符合需求由 owner 裁）。四種結果不混用：通過＝候選 commit 的要求已實際滿足；未取得＝尚無對應環境或證據。
 - 發現並已修正的兩件文件問題（`96af4cb`）：①`git archive` 在 `core.autocrlf=true` 的環境會把 7 個檔轉成 CRLF，runbook §3 改成帶 `-c core.autocrlf=false -c core.eol=lf`，並要求匯出後逐檔核對 blob；②README 的 Discord 說明不實（helper 不讀 `latest.log`），改為如實描述。安裝檔仍對應建置 commit `3272fe5`，不得改稱由文件 commit 建置。
-- 【Owner 裁，B1 驗收】Discord RPC 驗收由 owner 與 CC 另行執行、結果獨立記錄（步驟在 `H:\ggl-b1\discord\STEPS.md`，結果在同資料夾 `RESULT.md`，已執行）；M-3 等候選 commit 的 CI 證據；候選 commit 要不要更新、正式建置證據與 CI 怎麼重新對齊，待文件 commit 完成後決定。
-- **仍待**：M-3 的 CI（要 push，另行授權）；B2 正式身分安裝；候選 commit 的更新與重新對齊；RV-7、Draft Release 以後全部。
+- 【Owner 裁，B1 驗收】Discord RPC 驗收由 owner 與 CC 另行執行、結果獨立記錄（步驟在 `H:\ggl-b1\discord\STEPS.md`，結果在同資料夾 `RESULT.md`，已執行）；M-3 等候選 commit 的 CI 證據；候選 commit 要不要更新、正式建置證據與 CI 怎麼重新對齊，待文件 commit 完成後決定（已裁，見下「最終候選對齊」）。
+- **最終候選對齊**（2026-10-31；owner 裁：M-6 通過、接受 `3272fe5` 的 M-1／M-2／M-5 原始證據、正式候選改為 `7bafc4c6f0b24983d39116172133941713c0fc26` 並凍結，後續驗收結果先存 repo 外，不為回寫結果而不斷產生新候選 commit；新安裝檔 sha256、路徑、新舊對照與逐項結果的唯一寫處是 `history.md` 2026-10-31 的兩條，這裡不複製）：
+  - 新候選的 M-1（Node 22.23.4 與 Node 24.14.1 各 1454／1454）、M-2、M-5 與 helper 雜湊（等於 M-6 實測那顆）都已在 `7bafc4c` 上重跑並有證據；舊安裝檔（`3272fe5` 建）留作歷史證據，不再是預計發布的資產。
+  - **M-3 已取得**：push 後 CI run 41091792352 在 `7bafc4c` 上 success（Node v22.23.4、npm 10.9.9、1454／1454）；符不符合需求由 owner 裁。CI 不產生安裝檔，不證明安裝檔本身。
+  - 本條所在的 docs commit 排在凍結候選之後、只動文件，不改候選；它被 push 後 CI 會另跑一次，那一次不是候選的證據。
+  - 新舊安裝檔的 Uninstall 程式位元組不同、原因未查明，建置非逐位元組可重現（出貨內容相同）；詳見 history。
+- **仍待**：B2 正式身分安裝（owner 授權後）；RV-7（SmartScreen／Defender 畫面、最低 Windows 版本）；M-6 沒涵蓋的 Electron 接線、第二位觀看者看到的按鈕、單實例鎖、Discord 沒開；Draft Release 以後全部。
 - 這不是 Gate 通過。
 
 ### 依賴與批次
@@ -222,7 +227,7 @@ B0 owner 終審本檔 ──┬─▶ G-4／G-5／G-6 施工授權（逐項）�
 | 批 | 內容 | 在哪跑 | 授權 | 責任 |
 |---|---|---|---|---|
 | B0 | owner 終審本檔；逐項授權 G-4／G-5／G-6／G-3 的施工 | — | owner 回覆 | owner |
-| B1（2026-10-30 已執行一次，見上「B1 證據紀錄」；M-3 尚未取得） | RV-1／RV-1b：`git archive <候選 commit>` 到 repo 外短路徑新資料夾、`npm ci`、完整 `dist:win`、`check:packaged-artifacts`、7z 列 asar、sha256；核對出貨 `rpc-helper.exe` sha256；Discord RPC 行為實測（需 owner 的 Discord 用戶端） | repo 外隔離目錄 | owner 授權（下載數百 MB、約十來分鐘磁碟與時間；Discord 行為屬有狀態） | CC 跑、owner 看結果 |
+| B1（2026-10-30 已執行一次、2026-10-31 對最終候選 `7bafc4c` 對齊重建，見上「B1 證據紀錄」；M-3 已取得） | RV-1／RV-1b：`git archive <候選 commit>` 到 repo 外短路徑新資料夾、`npm ci`、完整 `dist:win`、`check:packaged-artifacts`、7z 列 asar、sha256；核對出貨 `rpc-helper.exe` sha256；Discord RPC 行為實測（需 owner 的 Discord 用戶端） | repo 外隔離目錄 | owner 授權（下載數百 MB、約十來分鐘磁碟與時間；Discord 行為屬有狀態） | CC 跑、owner 看結果 |
 | B2 | RV-2／3／6／7；同時取 README 用的真實截圖（測試身分或遮蔽帳號名稱、UUID、路徑） | **乾淨環境**：獨立 Windows 使用者帳號或 VM。**不要裝在 owner 日常帳號**：正式身分的 userData 名稱 `GGL_launcher` 與 `npm start` 開發版相同（`package.json` `name`；X1b 實測測試身分 `GGL_launcher_x1btest`），會和 owner 真實的設定與帳號混在一起 | owner 逐項授權（寫登錄檔、開始選單、`%LOCALAPPDATA%`） | owner 操作、CC 旁觀紀錄（唯讀） |
 | B3 | G-0～G-3 | repo | 動 `_notes/` 與 `docs/` 前 owner 授權；commit 另授權 | CC 寫、owner 審 |
 | B4 | RV-5S／RV-12／RV-13／RV-14；RV-10 探針 | staging（見下）；探針在隔離 Electron | owner 授權建 staging；探針無狀態 | CC 建置與觀察、owner 授權 |
