@@ -8,14 +8,15 @@
 - 產物由 `scripts/publish.js` 生（v3 站台，2026-10-07 起）：預設乾跑，`--apply` 才寫入；`--list`／`--rollback --to <編號>` 切換封存的版本。用法見 README §Instance update。
 - 網域拆兩個：檔案／manifest 走 `ggl.leaharmonic.com`（Cloudflare Tunnel 到本機 Caddy），伺服器在線偵測（TCP 25565）走 `ggl3.leaharmonic.com`。兩者都在 lib/server-config.js。出處：學長 2026-04-30 Cursor「連線逾時問題」原話「檔案伺服器的網域是ggl.leaharmonic.com」「伺服器在線偵測是ggl3.leaharmonic.com」。
 - 首頁 `leaharmonic.com` 也走同一條 Cloudflare Tunnel（到本機 Caddy 的 `leaharmonic.com:80` 區塊），不指家裡 IP。所以 router 只轉發 TCP 25565；ddns-go 只管 `ggl3.leaharmonic.com`。新增對外網址一律加在 Tunnel 的 Published application routes，不開埠。現況查法：`nslookup -type=A <網域> keaton.ns.cloudflare.com`（Tunnel 的網域會解析成 Cloudflare IP，`ggl3` 會解析成家裡 IP）、`curl -s http://127.0.0.1:20241/ready`（Tunnel 連線數）、ddns-go 設定 `C:\Users\Mochi122\.ddns_go_config.yaml`。出處：學長 2026-09-15 問「我有辦法換一個地方嗎？像是先用一個文件當暫時首頁之類的」，照建議改走 Tunnel 並親手完成後台設定 → history.md §專案進程 2026-09-15。
-- 不做程式碼簽章，安裝檔直接放檔案伺服器發給人，SmartScreen 擋就擋。出處：學長 2026-04-30 Cursor「連線逾時問題」原話「蛤 300多台幣一個月喔」「我把它丟在檔案伺服器是可以的嗎? 擋就擋吧哈哈」。
+- 不做程式碼簽章，SmartScreen 擋就擋。出處：學長 2026-04-30 Cursor「連線逾時問題」原話「蛤 300多台幣一個月喔」「我把它丟在檔案伺服器是可以的嗎? 擋就擋吧哈哈」。
+- 安裝檔的正式發行來源只有 GitHub Releases（`https://github.com/Truhf0414/GGL_Launcher/releases`），不放檔案伺服器；日後官網的下載入口指向它，不另存一份。模組包仍由 GGL3 站台與 Sync v3 負責。這取代上一條 2026-04-30 把安裝檔放檔案伺服器的做法。出處：owner 2026-10-30 Release Gate OD-1 → `plans/release-gate-2026-10.md` §5.0。建置與發版的步驟 → `docs/release-runbook.md`。
 
 ## main → 畫面的事件
 - 講「現在的狀態」的事件（目前是 `instance:status`、`notice:changed`、`server:status`、`window:power`）一律經 `main/ipc-bridge.js` 的 `sendState` 送：送出時記住最後一筆，畫面在 `renderer/bootstrap.js` 的 `start()` 最後喊 `renderer:ready`，main 把記住的各重送一筆給喊的那個 `webContents`。新增這類事件就加進 `STATE_CHANNELS`；畫面端要在 `renderer:ready` 之前同步掛好監聽。不這樣送，送出當下畫面還沒在聽（開啟、Ctrl+R）就漏掉。出處：owner 2026-10-07 G6「要要要哈哈，非常要。」→ plans/instance-sync-v3-commit3b2b.md B10。
 - handler 丟回畫面的錯誤一律是普通 Error：Electron 以 `<name>: <message>` 交給畫面，只有 message 帶得過去，自訂類別的名稱會黏在玩家看到的字上。`main/ipc-runtime.js` 拿到 `ipcMain` 時用 `lib/ipc-plain-errors.js` 統一包一次（名稱已是 `Error` 的原樣放行），各 `register*` 照寫 `ipcMain.handle`，不必各自轉；要加「哪個動作失敗」的前綴就自己丟 `new Error(前綴 + 訊息, { cause })`（範本：`main/ipc/instance-ipc.js` 的 `toPlainError`）。出處：owner 2026-10-07 → plans/instance-sync-v3-commit3b2b.md B14；統一包：owner 2026-10-22「走 B，先寫紅燈測試吧」→ history 2026-10-22。
 
 ## 防禦與相容
-前提：啟動器從未發行，沒有玩家裝過；舊東西只在 owner 的機器上，丟掉重來即可。第 5 條在首次對外發版前要重審（提醒掛在 future-work.md「打包邊界」）。
+前提〔2026-10-30 起〕：首發版本是 `1.0.0`，發版之後世上就會有舊版啟動器與舊資料，第 5 條照發版後的相容規則寫。1.0.0 之前的開發期格式沒有玩家用過（owner 2026-10-11「從來沒發行過，所以沒有玩家有東西。」），不接、不轉，丟掉重來即可；1.0.0 起新增的格式變更才適用第 5 條。
 
 **一把尺：值從哪來。** 外部邊界只有這些：
 - 網路回應（站台、Mojang／Fabric、Java 來源、微軟登入）
@@ -33,7 +34,10 @@
    - `gglError` 的 `detail` 放什麼由呼叫處決定（白名單）：不放 token、帳號物件、完整 JVM 參數、OAuth 原始回應、帶敏感參數的完整 URL；限長、截 stack 不算脫敏。不建泛用的敏感字串掃描器。出處 → `plans/cross-review-2026-10.md` D-LOG-PRIVACY。
    - 檔裡的 `err` 只留：`name`（清單內，否則 `OtherError`）、`code`（errno 的鍵；GGL 碼要進明確的允許清單，不看 `GGL_` 前綴——清單在接到需要它的路徑時才建）、`syscall`（清單內）、`st`（app 內 `.js` 的相對位置，最多 4 個）。`err.message` 永遠不寫；家目錄換成 `~`。實作在 `lib/ggl-structured-log.js`。出處 → 同檔 D-LOG-FIELDS、D-LOG-MSG、D-LOG-HOME。
 4. **吞錯只限清理與探測**：`catch` 裡寫一行為什麼可以吞。
-5. **不接舊版**：舊版程式、舊格式資料、舊檔名、舊欄位，一律不接、不轉；遇到舊資料就走第 1 條，拒絕或丟掉重來（例：`main/account-store.js` 舊 schema 當登出）。
+5. **發版後的相容**（4a／4b／4c）。不新增通用相容層、不預先建通用遷移框架、不加靜默修復：
+   - **4a 設定格式**：維持嚴格驗證（不認得的鍵、不合法的值一律拒絕，`lib/settings-format.js`）。要改持久化設定的格式（新增、改名、刪鍵、改型別）之前，先寫出兩件事：**降級後果**（現況：新版新增的設定鍵，換回舊版會被拒，訊息指出鍵名與「刪掉這個鍵」，D-SET-UNKNOWN → `plans/cross-review-2026-10.md` §6.5）與**恢復方法**（錯誤出聲的方式、玩家怎麼救）。
+   - **4b 其他持久化資料**（帳號、同步紀錄、通知已讀紀錄等）：改格式之前評估既有資料的讀取、遷移、回退風險，按各自的責任處理。
+   - **4c 站台與啟動器版本**：站台維持與「當前受支援」的啟動器版本相容。「當前受支援」＝**明確的最低支援版本**：首發是 `1.0.0`；只有實際相容需求成立才調高；**不因為新版發布就自動淘汰舊版**，也不承諾永久相容。不相容的變更必須明確升級站台格式或最低支援版本，並提供更新入口（`launcher-too-old` 畫面的下載入口，`lib/server-config.js` 的 `launcherDownloadUrl`）。調高最低版本＝改站台 `gate.json` 的 `minLauncherVersion`，是既有機制（`docs/site-format.md` SF-G11、SF-G12）；既有的過舊提示與「啟動／同步分離」（過舊只擋安裝、更新、修復，不擋已就緒者啟動）不動。日後導入自動更新，也不取消這些基本相容性檢查。
 6. **一條路**：改名、搬家一次改到底，所有呼叫者同一個 commit 改完；一個函式只收一種輸入形狀，測試用同一個簽名餵。
 
 **怎麼執行**
@@ -41,7 +45,7 @@
 - commit 前：`git diff --cached -U0 | rg '^\+.*(\?\.|\?\?|catch|typeof)'`，命中的逐條答同一題。
 - 機器擋：載入順序（`scripts/check-renderer-scripts.cjs`）；空區塊，含 `catch` 區塊（ESLint `no-empty`；`rpc-helper/` 例外，等 U10 裁定）。
 - 既有的違規：清單在 `plans/defense-cleanup.md`，照 plan 分批清；新寫的不准再犯，舊的不在別的 commit 裡順手清。改／留怎麼判 → `plans/cross-review-2026-10-phase6-criteria.md`。
-- 出處：owner 2026-10-11「從來沒發行過，所以沒有玩家有東西。」；只有 owner 一台：owner 2026-10-22「測試者從頭到尾只有我。」；owner 2026-10-13「我想完全治本，不是這種修修補補的。」，判準 owner 2026-10-13「可以，重寫版好多了。」。
+- 出處：owner 2026-10-11「從來沒發行過，所以沒有玩家有東西。」；只有 owner 一台：owner 2026-10-22「測試者從頭到尾只有我。」；owner 2026-10-13「我想完全治本，不是這種修修補補的。」，判準 owner 2026-10-13「可以，重寫版好多了。」。第 5 條：owner 2026-10-30 Release Gate OD-4（4c 的「當前受支援」＝明確的最低支援版本，第四輪）→ `plans/release-gate-2026-10.md` §5.4。
 
 ## 下載來源
 - 內容的正確答案由發布者給，下載點只負責搬。會被安裝或執行的檔，它的 hash、清單、版本描述只能來自該內容的發布者（GGL3 站台管模組與設定檔、Mojang 管 Minecraft、Fabric 管 loader、各 Java 發行商管自己的 JRE）；發布者有給 hash 就必須驗；沒給 hash 的官方發行物，照該來源已裁的驗證方式（例如 Java 的完整安裝驗證，→ `plans/cross-review-2026-10.md` D-JAVA）；第三方搬運者（鏡像、轉址節點）不得提供或改寫正確答案。新增下載來源時以此為判準。〔2026-10-14 起。現有程式自 Phase 5 起符合：Java（`7141f9f`）與 Minecraft（`4f1f777`）的第三方鏡像都已刪除，只走發布者的主機、發布者給的 hash 都驗（→ `plans/cross-review-2026-10-phase5a.md`、`plans/cross-review-2026-10-phase5b.md`）〕
@@ -58,7 +62,8 @@
 - 出處：Cursor 時期 2026-04-17 定，原住 `.cursor/rules/`；owner 2026-10-13 裁刪 `.cursor`、有效條搬進本節（「我也選甲」）。
 
 ## 本機打包
-- 本機 `~/.npmrc` 的 allow-scripts 設定會讓 `npm run pack:win` 在 rpc-helper install 那步失敗；驗打包直接跑：`node scripts/generate-electron-builder-config.cjs && npx electron-builder --config scripts/.electron-builder.generated.json --win dir --x64 && npm run check:packaged-artifacts`。
+- `npm run dist:win`／`pack:win` 不會重建 `rpc-helper.exe`（G-5，`255a03a`）：出貨的是 repo 追蹤的 `assets/rpc-helper.exe`；只有 `rpc-helper/` 原始碼改過才手動 `npm run build:rpc-helper`，重建後重算 sha256 並重新驗收 Discord 行為（→ `docs/release-runbook.md` 的「rpc-helper」一節）。〔2026-10-30 隔離副本實測：兩條命令 exit 0、helper 的 sha256 前後不變、`check:packaged-artifacts` 過。**完整發行鏈（候選 commit 的 B1 建置、安裝、出貨 helper 的 Discord 行為）尚未驗。**〕
+- owner 開發機的 `~/.npmrc` 有 `allow-scripts`，會讓**手動** `npm run build:rpc-helper` 在 rpc-helper install 那步失敗（`EALLOWSCRIPTS`，單一環境，繞法在 runbook）。舊寫法「`pack:win` 會在那步失敗」已不成立，因為兩條打包命令不再呼叫它。
 
 ## 測試
 - 會等計時器的測試（期限、看門狗、重試等待）：時間交給 `test/helpers/mock-clock.cjs` 的 `useMockClock`，事情發生了（請求到、資料到）才 `advance`，一次不跨過一個窗口；不拿真時鐘的短窗口去賭「正常的事一定在期限前做完」。

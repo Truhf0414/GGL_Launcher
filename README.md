@@ -1,3 +1,78 @@
+# GGL Launcher
+
+GGL3 Minecraft 模組伺服器（Fabric）的自製啟動器：幫你安裝與更新模組包、準備遊戲所需的環境，然後啟動遊戲。
+
+## 下載
+
+到 GitHub Releases 下載最新版的安裝檔 `GGL-Launcher-Setup-<版本>.exe`：
+
+**<https://github.com/Truhf0414/GGL_Launcher/releases>**
+
+**只從這個網址下載。** 下載頁每個版本的說明會寫該安裝檔的 SHA-256，下載後請對照（做法在 [docs/player-troubleshooting.md](docs/player-troubleshooting.md) 第 6 節）。啟動器版本過舊時，畫面上的「開啟下載頁」鈕也會帶你到這裡。
+
+## 系統需求
+
+- **Windows，64 位元（x64）。** 最低支援的 Windows 版本**尚待確認**（還沒在乾淨的 Windows 上驗證）。
+- 要有網路：第一次安裝要下載模組包、遊戲本體與 Java，需要時間與磁碟空間。Java 由啟動器自己準備，不用另外裝。
+- 要連上 GGL3 伺服器，需要擁有 Minecraft Java 版的 Microsoft 帳號。
+
+## 它能做什麼
+
+只列已經驗證過的：
+
+- **安裝、更新、修復模組包**：從 GGL3 站台讀取版本與檔案清單，只下載或換掉內容不一樣的檔案；設定與存檔等你自己改過的東西有保護規則（見 [疑難排解](docs/player-troubleshooting.md)）。
+- **準備遊戲環境並啟動**：下載需要的 Minecraft、Fabric 與 Java，用你設定的記憶體上限啟動遊戲。
+- **Microsoft 登入**：已用作者自己的帳號驗證過；**其他帳號的登入還在驗證中**。
+- **站台維護或連不上時，已經裝好的仍然可以啟動**；維護期間不能安裝或更新。
+- **離線啟動（不登入）**：可以用離線身分啟動 Minecraft，例如單人遊玩。GGL3 伺服器要求正版登入，所以離線身分不能通過它的驗證。
+- **公告與通知、伺服器是否在線**的顯示。
+- **匯出診斷報告**：在設定裡按「匯出診斷報告」（內容與分享前的檢查見疑難排解第 7 節）。
+- **Discord 狀態顯示（選用）**：功能存在，但**出貨版本的行為還沒驗收**。
+
+## 基本操作
+
+1. 安裝並打開啟動器。可以在設定裡選遊戲的安裝位置。
+2. 要上伺服器，先按右上角的「登入」，用 Microsoft 帳號登入。
+3. 主畫面右下角的大按鈕會依狀態顯示成「安裝」、「更新」或「啟動」，照它做。
+4. 遊戲檔案不見了或壞了：設定裡有「檢查並修復檔案」。
+5. 狀態卡顯示「啟動器版本過舊」：按「開啟下載頁」下載新版。
+
+## 遇到問題
+
+- 先看 **[docs/player-troubleshooting.md](docs/player-troubleshooting.md)**：更新卡住、維護中、版本過舊、檔案壞掉、Windows 擋住安裝檔，以及怎麼匯出診斷報告。
+- 要回報問題時，診斷報告**可能含有你的 Windows 使用者名稱與路徑**，分享前要先自己檢查，不要貼到公開的地方；回報管道以 GGL 管理者公布的為準。
+
+## Windows 可能會警告安裝檔
+
+安裝檔**沒有程式碼簽章**，Windows 的 SmartScreen 可能對它跳出警告。警告本身不代表檔案有問題，也不代表安全：請確認是從上面的下載頁下載、並對照 SHA-256 之後再決定。做法與注意事項見 [docs/player-troubleshooting.md](docs/player-troubleshooting.md) 第 6 節。
+
+## 隱私與網路連線
+
+- **沒有分析或遙測**：啟動器不會把使用資料回傳給作者。
+- 啟動器會連到下面這些地方；**任何連線都會讓對方看到你的 IP 位址**。
+
+  | 對象                                                                                                                                                                                                                | 用途                                 | 送出的資料                                                                              |
+  | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------- |
+  | GGL3 站台（`ggl.leaharmonic.com`）                                                                                                                                                                                  | 版本索引、維護狀態、公告、模組包檔案 | 一般的網路請求（IP、請求的檔案）；公告的圖片與更新紀錄網址由站台指定，可能在別的主機    |
+  | 遊戲伺服器（`ggl3.leaharmonic.com:25565`）                                                                                                                                                                          | 顯示伺服器是否在線；進遊戲時的連線   | 連線本身                                                                                |
+  | Mojang（`piston-meta.mojang.com`、`launchermeta.mojang.com`、`resources.download.minecraft.net`）、Fabric（`fabricmc.net`）、Java 來源（`api.azul.com`、`api.adoptium.net`、`api.github.com` 與它們指向的下載主機） | 下載遊戲本體、資源、載入器與 Java    | 一般的網路請求                                                                          |
+  | Microsoft／Xbox／Minecraft 服務（`login.live.com`、`*.auth.xboxlive.com`、`api.minecraftservices.com`）                                                                                                             | 只有登入或啟動帳號時                 | 登入流程需要的資料                                                                      |
+  | **頭像服務**：`crafatar.com`、`visage.surgeplay.com`、`mc-heads.net`                                                                                                                                                | 登入後在畫面上顯示你的頭像           | 前兩者收到你的 **Minecraft UUID**；前兩者都失敗時，`mc-heads.net` 收到你的 **玩家名稱** |
+
+- **Discord 狀態（選用）**：遊戲啟動後，一支輔助程式會讀遊戲日誌判斷你在單人還是伺服器，並透過你電腦上的 Discord 用戶端顯示狀態；啟動器本身不會把它傳到別處。
+- 你按下連結時，才會用瀏覽器開啟外部網站（例如 Discord 邀請、GitHub、minecraft.net）。
+- **留在你電腦上的**：設定與帳號資料在 `%APPDATA%` 底下的啟動器資料夾，登入憑證以 Electron `safeStorage` 加密保存；遊戲檔案在你選的安裝位置。診斷報告只會存在本機，不會自動傳出去。
+
+## 技術文件
+
+- [docs/release-runbook.md](docs/release-runbook.md)：建置安裝檔與發版的步驟（哪些做過、哪些還沒）
+- [docs/site-format.md](docs/site-format.md)：站台檔案格式
+- [docs/player-troubleshooting.md](docs/player-troubleshooting.md)：給玩家的疑難排解
+- [ARCHITECTURE.md](ARCHITECTURE.md)：架構與 IPC 清單
+- [\_notes/conventions.md](_notes/conventions.md)：這專案怎麼做事
+
+---
+
 ## Quick start (dev)
 
 ```powershell
@@ -8,7 +83,7 @@ npm start
 ## Useful commands
 
 - **Build Discord RPC helper exe**: `npm run build:rpc-helper`
-- **(Later) Package installer (NSIS)**: `npm run dist:win`
+- **Package installer (NSIS)**: `npm run dist:win` (does not rebuild `rpc-helper.exe`; build and release steps: `docs/release-runbook.md`)
 - **UI checks**: `npm run check:ui-css` (errors fail, warnings only warn; also run by pre-commit), `npm run check:ui-css:strict` (used before packaging)
 - **Format after UI edits**: run `npm run format:file -- <file>` on the files you changed (e.g. `npm run format:file -- styles.css`); `npm run format` formats the whole repo (scope set by `.prettierignore`) and is only for dedicated formatting commits
 - **Timing-test stress check**: `npm run test:freeze` blocks the event loop on every 8th fake-server request (`FREEZE_MS`, default 350); run it with `FREEZE_OFFSET=0` … `7` to hit every request once. Tests that bet on the real clock fail here (see `test/helpers/mock-clock.cjs`).
@@ -22,38 +97,6 @@ npm start
 
 - Main process: `main/ggl-log.js` (`gglEvent` / `gglError`) prints one line per event: prefix `[GGL]` + JSON (easy to `grep` / share in screenshots). Every event is also written to `userData/ggl-launcher.log` (even with debug logging off), with error messages left out and the home directory replaced by `~`.
 - Renderer: `renderer/ggl-log.js` exposes `window.GglStructuredLog` with the same shape. `gglError` also sends the event ID to main (`log:rendererError`); only IDs listed in `lib/renderer-error-events.js` reach `ggl-launcher.log`.
-
----
-
-## GGL Launcher
-
-Electron-based Minecraft launcher for a community modpack (Fabric).
-
-This repository contains the launcher application (UI + update + launch logic).
-
-## What it does
-
-- **Instance update**: reads the v3 site (`manifest.json` index + `release.json` file list) and installs/updates/repairs only the files whose sha256 differ
-- **Runtime bootstrap**: can download/ensure required Minecraft/Fabric runtime files and assets for offline play
-- **Launch**: launches Minecraft (Fabric) with configurable JVM memory (Xms/Xmx)
-- **Discord Rich Presence (optional)**: shows `GGL` + image + single/multiplayer status via an external helper exe
-- **Offline mode**: can launch in offline mode (no Microsoft sign-in)
-- **Optional Microsoft sign-in**: sign-in support is implemented, but may require Microsoft/Minecraft approval depending on your App registration status
-
-## Privacy / data handling
-
-- **No external analytics**: this launcher does not intentionally send analytics/telemetry to our own servers
-- **Network usage** is limited to:
-  - downloading update files from the configured update source (`manifest.json`, `gate.json`, `notice.json`, `release.json`, `files/…`)
-  - downloading official runtime/assets from Mojang/Fabric/Adoptium when needed
-  - optional Microsoft/Xbox/Minecraft authentication calls when sign-in is enabled
-- **Local storage only**:
-  - settings/account cache are stored locally under Electron `userData`
-  - game files are installed under the user-selected install directory
-
-## Contact
-
-If you need to reach the maintainer, use the contact method listed in the project distribution page (e.g. GitHub project page or community Discord).
 
 ---
 
@@ -88,7 +131,7 @@ npm install
 npm run build:rpc-helper
 ```
 
-成功後會產生：`assets/rpc-helper.exe`
+成功後會產生：`assets/rpc-helper.exe`。`npm run dist:win`／`pack:win` **不會**自動重建它，出貨的是 repo 追蹤的那顆；只有 `rpc-helper/` 原始碼改過才需要手動重建，重建後要重算 sha256 並重新驗收 Discord 行為（→ `docs/release-runbook.md`）。
 
 ### 4) 設定檔 settings.json（第一次啟動自動生成）
 
