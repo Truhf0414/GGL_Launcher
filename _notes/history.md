@@ -180,6 +180,8 @@
 - 2026-10-30 cross-review Phase 6e-6a commit `b77b37a`（14 檔，+49／−39）：母體核銷補遺。8 個沒有處置的子位置、`.input.input--error` 冗餘選擇器、D-6E-6A-EXTRA 的 A～E 都已改；F 保留。測試只補替身、新增 D1 discord 與 P4。只改正式程式時紅的 5 個跟測試帳相同；兩版 Node 全套 1431／1431；computed 在預設與錯誤狀態都是 0 差異；owner 看過匯出文案、紅框、Discord 鈕。撞到：owner 按匯出時資料夾沒開，探針呼叫 `shell.openPath` 是成功的，原因是 owner 的 Files 檔案管理器沒有回應，不記；測試帳的 `renderer-settings-modal.test.cjs:52` 原寫有誤，實為 `:53` → plans/cross-review-2026-10-phase6e.md §6e-6a 施工紀錄（6e-6a）
 - 2026-10-30 cross-review Phase 6e-7 結案文件寫好並經 owner 驗收（未 commit；Phase 6 尚未宣告結案）：母體核銷補標——17 處 Phase 4／5 已改的位置標留-2；28 處留-未標分成 10 留-1、2 安全閥、9 留-3、3 留-4、4 退回後保留；6 行退回補紀錄；3 組留-4 補上收益與成本；retro；learnings 新增「留下的位置當批就標出口」。撞到：初稿把 `ggl-log` 的探測算成留-1（等於擴張邊界清單），retro 把「228 個改了」寫成像刪了 228 項防禦，外部審查指出後改正 → plans/cross-review-2026-10-phase6e.md §六 6e-7 結案紀錄
 - 2026-10-30 cross-review Phase 6 結案：owner 正式宣告（「正式宣告：Phase 6 結案。」），接受 6e-7 的最終驗收——五條結案條件滿足，母體處置、歷史裁決、保留理由、退回紀錄與驗證證據都已核銷。結案不代表所有 future-work 已完成，也不代表已通過首次正式發版的 Release Gate。母體不再擴張，已完成的工程裁決不重開。同日 owner 依 D-6E-CLOSE 宣告整個 cross-review-2026-10 事件結案（「整個交叉審查事件正式結案。」）；future-work、CSS 獨立工程未完成的事項、Release Gate 與正式安裝檔驗收不因此視為完成 → plans/cross-review-2026-10-phase6e.md §六 6e-7 結案紀錄；plans/cross-review-2026-10.md 狀態列
+- 2026-10-30 Release Gate Plan 落檔 commit `1cb49c4`（1 檔）：首次 Windows x64 發版前的缺口審查與驗收計畫，經 owner 四輪裁決後通過設計審查；通過的是 Plan，不是 Release Gate，Gate 仍未通過 → plans/release-gate-2026-10.md
+- 2026-10-30 Release Gate G-5 commit `255a03a`（2 檔）：`dist:win`、`pack:win` 不再自動重建 `rpc-helper.exe`，並新增只含 G-5 部分的 `docs/release-runbook.md`。隔離副本實跑：改前原樣 `pack:win` 在這台機器先撞 `EALLOWSCRIPTS`（使用者層 `.npmrc`，單一環境），繞過後才看到它把 helper 重建成不同 sha256（對照組）；改後兩條命令 helper sha256 都不變、打包產物檢查過。Node 22 照 owner 決定保留到發版候選 → plans/release-gate-2026-10.md §四 G-5 施工紀錄
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
