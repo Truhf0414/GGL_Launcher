@@ -273,3 +273,17 @@
 
 - 只有檔名是 64 位小寫 hex（`^[0-9a-f]{64}$`）的一般檔案才算檔案本體；其他東西發版工具一律不碰，只在報告列出。
 - 唯一例外是發版工具自己留下的暫存檔 `<sha256>.tmp`，下一次 `--apply` 會清掉。
+
+## 發版前檢查工具（scripts/check-site.js）
+
+手改 `gate.json`、`notice.json` 之後、對外生效之前，先跑一次：
+
+```
+node scripts/check-site.js <站台根目錄>
+```
+
+- **只讀**：只讀 `manifest.json`、`gate.json`、`notice.json`、`release.json` 四支，不寫、不修、不重排任何檔，也不呼叫發版或退版。
+- 檢查兩件事：①啟動器用的同一組驗證函式要過（缺檔、JSON 壞掉、型別或格式錯都報）；②`manifest.json`、`gate.json`、`notice.json` 裡**不認得的欄位**（`maintenence`、`maintenance.mesage`、`minLaucherVersion`、`notcie`、`notice.titel`、`notifications[0].bodi` 這類拼錯）一律算錯誤，印出欄位路徑，例如 `gate.json: gate.maintenance.mesage: …`。有任何問題結束碼是 1，參數錯是 2，全過是 0。
+- **責任分開**：這是發佈前的把關，**不是啟動器的行為**。啟動器讀站台時仍然忽略不認得的欄位（SF-G6、SF-G7、SF-N3、SF-N7 不變），所以沒跑這個工具、或工具沒涵蓋的地方，拼錯照樣「安靜地不生效」。
+- 只查上面的契約：不檢查日期格式、`id`／`createdAt`、`logUrl` 是不是完整網址（那些是上面「要求」段，給人看的）。`release.json` 由發版工具寫，只過驗證函式，不查多餘欄位。
+- 認得的欄位清單只有一份：`lib/sync/site-format.js` 的 `KNOWN_KEYS`，工具與測試共用。`test/site-format-keys.test.cjs` 保證它和解析函式實際讀的鍵、和本檔的欄位表一致；**這個保證只涵蓋測試列名的解析函式與它的完整樣本路徑**。新增欄位要同時改解析函式（`validateIndex`／`validateGate`／`validateNotice`、`parseNoticeFields`、`normalizeBroadcastNotifications`）、`KNOWN_KEYS` 和本檔的表；在別處直接讀原始欄位，保證抓不到。
