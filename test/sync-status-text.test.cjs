@@ -71,8 +71,8 @@ const S1_EXPECTED = {
   "not-installed|false": "尚未安裝（伺服器版本 2.0.0）",
   "update-available|true": "需要更新：伺服器上的版本已改為 2.0.0（目前 1.0.0）",
   "update-available|false": "需要更新：上次同步沒有完成",
-  "up-to-date|true": "目前使用版本 1.0.0（與伺服器一致）",
-  "up-to-date|false": "目前使用版本 1.0.0（與伺服器一致）",
+  "up-to-date|true": "遊戲已就緒（本機記錄版本 1.0.0）",
+  "up-to-date|false": "遊戲已就緒（本機記錄版本 1.0.0）",
   "internal-error|true": "啟動器內部錯誤，請按「複製錯誤詳情」回報",
   "internal-error|false": "啟動器內部錯誤，請按「複製錯誤詳情」回報",
   // 不得掉回「內部錯誤，請回報」（Phase 4 V13、SPR #7）
@@ -220,7 +220,7 @@ test("S6 empty version strings", () => {
     headline("not-installed", false, { remoteVersion: "" }),
     "尚未安裝",
   );
-  assert.equal(headline("up-to-date", true, noLocal), "與伺服器一致");
+  assert.equal(headline("up-to-date", true, noLocal), "遊戲已就緒");
   assert.equal(
     headline("update-available", true, {
       ...noLocal,

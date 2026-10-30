@@ -77,7 +77,7 @@ test("W10 instance status payload adds text and logs a fixed summary", () => {
   assert.deepEqual(mainWc.sent[0].payload, {
     ...s,
     text: {
-      headline: "目前使用版本 1.0.0（與伺服器一致）",
+      headline: "遊戲已就緒（本機記錄版本 1.0.0）",
       details: ["今晚十點維護"],
     },
   });
@@ -196,7 +196,7 @@ test("W19／B4r replayLatest resends the last of each state event to the caller 
       channel: "instance:status",
       payload: {
         ...s2,
-        text: { headline: "目前使用版本 1.0.0（與伺服器一致）", details: [] },
+        text: { headline: "遊戲已就緒（本機記錄版本 1.0.0）", details: [] },
       },
     },
     { channel: "notice:changed", payload: n2 },
