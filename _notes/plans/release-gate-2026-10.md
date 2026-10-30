@@ -1,4 +1,4 @@
-# Release Gate 2026-10：首次 Windows x64 對外發版前的缺口審查與驗收計畫（狀態：**2026-10-30 第四稿，基準 `05cadf3`（`main`，與 `origin/main` 同步）；已回寫 owner 四輪裁決與回饋，§5.10 六題與發版時序全數裁畢；owner 已終審：Plan 通過設計審查、五個 CC 假設全部接受（含兩處文字校正）；這只是 Plan 通過，**不是 Release Gate 已通過**，Gate 仍未通過；只讀調查與寫本檔，未授權施工、commit、push、發版、改站台；待 owner 授權執行（Ready for Release Gate Execution Authorization）；其後 G-5 已施工（`255a03a`）並經 owner 驗收，Gate 仍未通過、B1 未開始**）
+# Release Gate 2026-10：首次 Windows x64 對外發版前的缺口審查與驗收計畫（狀態：**2026-10-30 第四稿，基準 `05cadf3`（`main`，與 `origin/main` 同步）；已回寫 owner 四輪裁決與回饋，§5.10 六題與發版時序全數裁畢；owner 已終審：Plan 通過設計審查、五個 CC 假設全部接受（含兩處文字校正）；這只是 Plan 通過，**不是 Release Gate 已通過**，Gate 仍未通過；只讀調查與寫本檔，未授權施工、commit、push、發版、改站台；待 owner 授權執行（Ready for Release Gate Execution Authorization）；其後 G-5（`255a03a`）、G-4（`1fbac0f`）已施工並經 owner 驗收，Gate 仍未通過、B1 未開始**）
 
 **這是什麼**：首次對外發版的「還欠哪些保證」的唯一權威：缺口審查（§二～§三）、Gate 施工與驗收批次（§四、§六）、owner 裁決紀錄與未決題（§五）、不擋發版的清單（§七）。已結案的 cross-review／CSS 工程不重開；本檔引用它們的裁決，不複述。
 
@@ -17,7 +17,7 @@
 分四層看，不要混成一句「0」：
 
 1. **已確認的程式缺陷阻擋項**：目前**未發現**同時具備「具體證據、現有保證不足、玩家可見後果」三項、且尚未處置的程式缺陷（§三）。這句只說程式缺陷，**不等於沒有風險，也不等於可以發版**：多項風險是「沒驗」而不是「驗過沒事」（見第 3 點）。最像 blocker 的三條（`imageUrl`、沒有 CSP、`sandbox:false`）在 HEAD 找不到可到達危險操作的路徑，其中 `imageUrl` 的 CSS 行為仍是靜態推論，已排隔離探針（RV-10）。
-2. **已裁定的首發必要施工：3 項；G-5 已施工並經 owner 驗收（`255a03a`），G-4、G-6 尚未授權施工**：OD-2b（`launcher-too-old` 提示固定下載入口，UI 已裁 B：文字行＋「開啟下載頁」按鈕，G-4）、OD-3A（正式打包不自動覆寫已選定的 `rpc-helper.exe`，G-5）、OD-5（站台手改檔的發布前檢查工具，G-6）。三項各是小幅程式碼改動，另加文件類施工 G-0～G-3。
+2. **已裁定的首發必要施工：3 項；G-4（`1fbac0f`）、G-5（`255a03a`）已施工並經 owner 驗收，G-6 尚未授權施工**：OD-2b（`launcher-too-old` 提示固定下載入口，UI 已裁 B：文字行＋「開啟下載頁」按鈕，G-4）、OD-3A（正式打包不自動覆寫已選定的 `rpc-helper.exe`，G-5）、OD-5（站台手改檔的發布前檢查工具，G-6）。三項各是小幅程式碼改動，另加文件類施工 G-0～G-3。
 3. **Required Verification 全部尚未取得正式環境證據**：RV-1～RV-14 沒有任何一項通過。本輪只有兩個隔離性的 〔實測〕：`rpc-helper` 重建探針（RV-1 的一小段）、站台檔解析函式讀鍵探針（支撐 OD-5 設計，§五 OD-5）。沒有安裝、沒有真帳號、沒有動站台。
 4. **Release Gate 整體狀態：尚未通過，不得宣稱可以正式發版。** 通過條件是 §六 矩陣中標「擋」的項目全部取得證據，或 owner 逐條明示接受剩餘風險；公開發版另需一次授權。
 
@@ -139,7 +139,7 @@ README 重製（OD-7）**不阻擋**發版，第四輪 owner 選 C：首發只�
 
 ## 四、Release Gate Plan
 
-### 最小必要施工（G-5 已施工；其餘尚未授權施工）
+### 最小必要施工（G-4、G-5 已施工；其餘尚未授權施工）
 
 **必要**＝owner 已裁定、發版前必須完成；**非 Gate**＝不擋發版。分類依 R1 更新（G-4～G-6 由選配改為必要）。
 
@@ -149,7 +149,7 @@ README 重製（OD-7）**不阻擋**發版，第四輪 owner 選 C：首發只�
 | G-1 | 玩家指引（`docs/player-troubleshooting.md` 加節）：SmartScreen 怎麼繞、診斷怎麼匯出、**診斷包可能含的資料與分享前檢查**、安全分享原則、啟動器版本過舊去哪下載。**不得虛構尚未指定的回報入口**：只寫 owner 已實際指定的入口；未指定就只寫原則。回報入口的建立（頻道、Ticket、權限）是 owner 的 Discord 伺服器管理責任，**不以任何 Discord 管理方案作為 Gate 條件**（OD-6，第四輪） | 必要（文件） | OD-1、OD-6 | M-25、M-26 |
 | G-2 | README **最低資訊**（OD-7 選 C）：正確下載入口、系統需求、功能描述、操作與支援指引、SmartScreen 提醒、真實隱私揭露（照實列出三個頭像服務與送出的資料）；支援指引只寫 owner 已指定的實際入口；`dist:win`「(Later)」改成 runbook 的指標 | 必要（文件） | OD-1、OD-7 | M-27 |
 | G-3 | `conventions.md` 的首發後相容規則（OD-4a／4b／4c）取代「從未發行所以不接舊版」的前提與第 5 條；`future-work.md` #8 的提醒了結；conventions §發包產物 中「安裝檔放檔案伺服器」被 OD-1 取代，一併改 | 必要（筆記，需 owner 授權才改 conventions） | OD-4、OD-1 | M-30 |
-| G-4 | **OD-2b**：`launcher-too-old` 提示固定下載入口 `https://github.com/Truhf0414/GGL_Launcher/releases`。UI 已裁 B：文字行＋「開啟下載頁」按鈕（沿用既有 `openExternal`，單一 `launcherDownloadUrl` 權威），接線見 §五 5.2 | **必要**（程式＋測試＋文件） | 網址與 UI（B）已裁；施工前先在隔離副本實跑「哪些既有測試會紅」的帳（learnings §測試帳用探針實跑產生），預期會碰到 `server-config`、`server-config-ipc`、`renderer-boot`、`renderer-settings-modal`、status-text 相關測試 | M-1、M-16（畫面實看、實點） |
+| G-4 | **OD-2b**：`launcher-too-old` 提示固定下載入口 `https://github.com/Truhf0414/GGL_Launcher/releases`。UI 已裁 B：文字行＋「開啟下載頁」按鈕（沿用既有 `openExternal`，單一 `launcherDownloadUrl` 權威），接線見 §五 5.2 | **必要**（程式＋測試＋文件）；**已施工**：commit `1fbac0f`，owner 2026-10-30 驗收通過，紀錄見下「G-4 施工紀錄」 | 網址與 UI（B）已裁；施工前先在隔離副本實跑「哪些既有測試會紅」的帳（learnings §測試帳用探針實跑產生），預期會碰到 `server-config`、`server-config-ipc`、`renderer-boot`、`renderer-settings-modal`、status-text 相關測試 | M-1、M-16（畫面實看、實點） |
 | G-5 | **OD-3A**：`dist:win`、`pack:win` 不再自動執行 `build:rpc-helper`；`build:rpc-helper` 留作手動腳本。〔現查 2026-10-30〕目前兩者都含 `npm run build:rpc-helper &&`，而 `assets/rpc-helper.exe` 是 repo 追蹤的檔（`git ls-files` 命中） | **必要**（`package.json` scripts 兩處＋runbook）；**已施工**：commit `255a03a`，owner 2026-10-30 驗收通過，紀錄見下「G-5 施工紀錄」 | OD-3 | M-5、M-6 |
 | G-6 | **OD-5**：站台手改檔發布前檢查工具＋合法鍵的單一權威與同步保證。設計見 §五 OD-5 | **必要**（`lib/sync/site-format.js` 小改＋新只讀工具＋測試＋`docs/site-format.md` 說明） | OD-5 已裁（未知欄位＝Error、非零結束碼；不擴充日期／編輯警告）；工具命名由實作者決定 | M-4、M-18 |
 | G-7 | 完整 README Redesign（設計提案、視覺、截圖、排版、產品文案）。**全部延至正式版發布後，由 owner 另行啟動**；現在不需要提交 README 視覺提案；不擋發版，與 G-2 分開驗收 | 非 Gate（發版後） | OD-7（第四輪，選 C） | M-28（發版後，owner 另行驗收） |
@@ -162,6 +162,16 @@ README 重製（OD-7）**不阻擋**發版，第四輪 owner 選 C：首發只�
 - 隔離副本（repo 外，`git archive` 後 `npm ci`；已清掉，紀錄在 session scratchpad，不在 repo）〔實測〕：改前原樣 `pack:win` 在這台機器直接失敗（`EALLOWSCRIPTS`，使用者層 `.npmrc`，單一環境）；繞過後它**會**把 helper 重建成與追蹤檔不同的 sha256（`2703647e…`，對照組，證明「沒被覆寫」這個檢查有鑑別力）；改後 `pack:win`、`dist:win` 都 exit 0，`assets/` 與打包後 `resources/assets/` 的 helper 都仍是 `f551ef16…`，log 無 `build:rpc-helper`、`rpc-helper/` 沒長出 `node_modules`，`check:packaged-artifacts` 過，且拿掉 helper 時它會擋。建置鏈沒有依賴 helper 重建的副作用。
 - 正式 repo：`npm test` 1431／1431（只跑本機 Node 24；Node 22 照 owner 決定保留到發版候選的 M-1／CI）、lint、prettier、`check:ui-css:strict` 過。
 - 這不是 B1，也不是 Gate 通過：出貨 helper 的 Discord 行為（RV-1b、M-6）仍沒實測。
+
+**G-4 施工紀錄**（2026-10-30，基準 HEAD `af77cdf`，owner 授權範圍僅 G-4／OD-2b；`1fbac0f`，14 檔）：
+
+- 改動：`lib/server-config.js` 頂層 `launcherDownloadUrl`（單一權威，`discord.downloadLauncherUrl` 不動）；`serverConfig:getDefaults` 多回該值；`index.html`、`renderer/bootstrap-ctx.js`、`renderer/instance-ui.js`、`styles.css` 加下載區（網址文字行＋「開啟下載頁」鈕），只在 `payload.kind === "launcher-too-old"` 顯示，網址與點擊都讀 `getDefaults` 的值、點擊走既有 `openExternal`；`docs/site-format.md`（SF-G11、`format` 段）與 `docs/new-server-checklist.md` 同步。Sync v3 狀態機、`status-text`、版本比較沒動。
+- **偏離 §五 5.2 建議之處**（該節第 3 點許可）：文字行不走 status／`derive`，改由畫面用同一個 `getDefaults` 的值顯示；`kind` 已在 payload（`main/ipc-bridge.js` 送 `{...status, text}`），不新增欄位。
+- 隔離副本探針〔實測〕：加欄位與 `getDefaults` 回傳後，既有測試 2 個紅（`server-config` K3、`server-config-ipc`）；接上畫面後共 8 個紅、3 個檔（再加 `site-format-doc` 的 SF-S1～SF-S6，公告卡替身缺新元素）。§五 5.2 預測會碰的 `renderer-boot`、`renderer-settings-modal`、status-text 替身實際**沒有紅**（施工時仍把兩個 `getDefaults` 替身補成真實形狀）。
+- 測試：新增 `test/renderer-instance-ui.test.cjs` 7 條（兩個來源經真的 `computeStatusKind`＋`describeStatus` 得同一 kind 與同一句標題、其餘 kind 全隱藏、點擊參數、值取自 `getDefaults`、兩種失敗訊息、網址字面值只在 `lib/server-config.js`、預設隱藏與折行規則的原始碼檢查）；另在 `server-config.test.cjs` 加 G4。4 個突變各被至少一條測試抓到。`npm test` 1439／1439（只跑本機 Node 24）、lint、`check:ui-css:strict`、prettier 過；owner 獨立跑相關測試 15／15、`git diff --check` 過。
+- 畫面〔實測，非真 Electron〕：把 `index.html`＋`styles.css` 拷成靜態頁、下載區取消隱藏，在內建瀏覽器（Chromium 預覽）看：視窗最小寬 980 時網址一行、不溢出；容器縮到 160px 時有 `overflow-wrap` 折成 3 行不溢出，拿掉它的對照組溢出。
+- **未驗（留 RV-5S／M-16）**：真 Electron 啟動器用過舊的 gate 與 `format` 實際看到畫面、點擊後系統預設瀏覽器真的開啟、staging 兩條過舊路徑；Node 22 與 `test:freeze`（新測試無計時器，沒跑）。
+- 這不是 Gate 通過，M-1 也還沒過。
 
 ### 依賴與批次
 
@@ -576,8 +586,8 @@ B0 owner 終審本檔 ──┬─▶ G-4／G-5／G-6 施工授權（逐項）�
 | `_notes/STATUS.md` 的「接續步驟」 | 現文字是「Phase 6 結案的 docs commit（待 owner 授權；push 另外授權）」，但 `05cadf3` 已提交並 push（〔現查 2026-10-30〕STATUS 現文、`git log -1`、`git status -sb` 與 origin 同步），commit message 也寫「STATUS has nothing open」；接續步驟應指向本檔（Release Gate），由 owner 授權後更新 | 過期文字；已隨 G-5 結案的 docs commit 同步 |
 | `conventions.md` §防禦與相容、§發包產物 | 「從未發行」前提與第 5 條改成 OD-4（4c 照 owner 第四輪原話：明確最低支援版本，首發 v1.0.0，只有實際相容需求成立才調高，不因新版自動淘汰舊版、不承諾永久相容）；「安裝檔放檔案伺服器」被 OD-1 取代；§本機打包 對 `pack:win` 失敗的說法與本場探針不一致，待 RV-1 在 owner 機器釘住後更正 | G-3、RV-1 |
 | `future-work.md` | #6 「只在 debug 開啟時接」已過期；#8 提醒了結；#10 前半由 G-6 承接；#14 依 OD-12 了結：原文出口之一是「owner 裁定不再需要」，我讀第四輪撤回為走這個出口（§五 5.10 第 4 點，待 owner 確認；若 #14 要留箱則只註明不屬 Gate），離箱前先驗家（了結紀錄落 history，並與 `plans/cross-review-2026-10-x1b.md` §結案判定 X1b-D13 對齊），歷史對齊內容＝2026-09-15 自然到期成功、同日改欄位驗證、X1b 後未再自然觸發；#15 併入 RV-2；其餘照 §七 | G-3、OD-12 |
-| `docs/site-format.md` | SF-G11 與標題段落加下載入口與「開啟下載頁」按鈕；加「發布前檢查工具」說明段 | G-4、G-6 |
-| `docs/new-server-checklist.md` | server-config 表格加 `launcherDownloadUrl` | G-4 |
+| `docs/site-format.md` | SF-G11 與標題段落加下載入口與「開啟下載頁」按鈕；加「發布前檢查工具」說明段 | G-4、G-6；G-4 的 SF-G11 與 `format` 段已於 `1fbac0f` 同步，工具說明段待 G-6 |
+| `docs/new-server-checklist.md` | server-config 表格加 `launcherDownloadUrl` | G-4；已於 `1fbac0f` 同步 |
 | `README.md` | 只做最低資訊：下載入口、系統需求、功能描述、操作與支援指引、SmartScreen、隱私段、`dist:win`「(Later)」（完整 Redesign 發版後由 owner 另行啟動，不在此） | G-2 |
 | `docs/player-troubleshooting.md` | 診斷匯出與隱私邊界、SmartScreen、過舊下載 | G-1 |
 | `history.md` | 發版相關結案時補紀錄（事故帳歸 history） | 收尾 |
@@ -590,6 +600,8 @@ B0 owner 終審本檔 ──┬─▶ G-4／G-5／G-6 施工授權（逐項）�
 ---
 
 ## 九、證據索引
+
+**本檔的 `檔:行` 引用都是基準 `05cadf3` 讀到的位置，不隨後續施工改寫**（改寫會變成宣稱重讀過）。G-4（`1fbac0f`）動過 `index.html`、`lib/server-config.js`、`main/ipc/server-config-ipc.js`、`renderer/bootstrap-ctx.js`、`renderer/instance-ui.js`、`styles.css`，這幾檔的行號之後有位移；要對舊行號用 `git show 05cadf3:<檔>`。`doc_check.py align 1fbac0f` 因此列出 11 行未對齊，都是這類基準引用。
 
 | # | 證據 | 位置／指令 | 標籤 |
 |---|---|---|---|
