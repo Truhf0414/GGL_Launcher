@@ -35,12 +35,23 @@ test("K3 server-config 的頂層鍵：等於明列清單（多一個、少一個
   assert.deepEqual(Object.keys(serverConfig).sort(), [
     "discord",
     "instanceId",
+    "launcherDownloadUrl",
     "launcherRootDir",
     "manifestUrl",
     "microsoftAuth",
     "protectedPaths",
     "serverStatus",
   ]);
+});
+
+// → _notes/plans/release-gate-2026-10.md G-4（OD-2b）：啟動器過舊時的下載入口，畫面的文字網址與按鈕都讀這一個值
+test("G4 server-config.launcherDownloadUrl：固定是啟動器的 GitHub Releases 頁，https 且解析得了；discord.downloadLauncherUrl 不動", () => {
+  assert.equal(
+    serverConfig.launcherDownloadUrl,
+    "https://github.com/Truhf0414/GGL_Launcher/releases",
+  );
+  assert.equal(new URL(serverConfig.launcherDownloadUrl).protocol, "https:");
+  assert.equal(serverConfig.discord.downloadLauncherUrl, "");
 });
 
 test("server-config: loopbackPort 為合法 port", () => {

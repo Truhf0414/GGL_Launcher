@@ -28,10 +28,11 @@ const SAVED = {
   systemMemoryGb: 16,
 };
 
-// serverConfig:getDefaults 的形狀（main/ipc/server-config-ipc.js 永遠回這兩個鍵）
+// serverConfig:getDefaults 的形狀（main/ipc/server-config-ipc.js 永遠回這三個鍵）
 const SERVER_DEFAULTS = {
   launcherRootDir: "C:\\Games\\GGL",
   discordInviteUrl: "https://discord.gg/x",
+  launcherDownloadUrl: "https://example.com/releases",
 };
 
 const INPUTS = [

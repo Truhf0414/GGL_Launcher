@@ -234,6 +234,20 @@
                 id="instanceStatusNote"
                 class="instance-status instance-status__note hidden"
               ></div>
+              <!-- 啟動器版本過舊（kind＝launcher-too-old）才顯示；網址由 renderer/instance-ui.js 填入 -->
+              <div id="launcherDownload" class="hidden">
+                <div
+                  id="launcherDownloadUrl"
+                  class="instance-status instance-status__url"
+                ></div>
+                <button
+                  id="btnOpenDownload"
+                  class="instance-status__open"
+                  type="button"
+                >
+                  開啟下載頁
+                </button>
+              </div>
               <!-- 文字須與 lib/sync/status-text.js 的 COPY_ERROR_DETAIL_LABEL 一致 -->
               <button
                 id="btnCopyErrorDetail"
