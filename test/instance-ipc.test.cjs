@@ -10,6 +10,7 @@ const { SyncStateError } = require("../main/sync/index.js");
 const { SyncRejectedError } = require("../lib/sync/plan.js");
 
 const BAD_REPAIR_ARGS = "修復參數格式錯誤：strayJarsToRemove 必須是字串陣列";
+const BAD_REPAIR_PURPOSE = "修復參數格式錯誤：purpose 必須是 install 或 repair";
 
 function setup(depsOverrides = {}) {
   const handlers = new Map();
@@ -93,7 +94,11 @@ test("W2 recheck calls getInstanceStatus once and resolves undefined", async () 
 test("W3 moved-aside dialog: none, ten lines, eleven truncated; returns hub result", async () => {
   for (const [channel, call, args] of [
     ["instance:update", "updateInstance", []],
-    ["instance:repair", "repairInstance", [{ strayJarsToRemove: [] }]],
+    [
+      "instance:repair",
+      "repairInstance",
+      [{ strayJarsToRemove: [], purpose: "repair" }],
+    ],
   ]) {
     for (const [n, expectedMessage] of [
       [0, null],
@@ -118,19 +123,26 @@ test("W3 moved-aside dialog: none, ten lines, eleven truncated; returns hub resu
 
 test("W4 repair passes the list through; malformed payloads are refused before the hub", async () => {
   const { calls, invoke } = setup();
-  await invoke("instance:repair", { strayJarsToRemove: ["mods/x.jar"] });
+  await invoke("instance:repair", {
+    strayJarsToRemove: ["mods/x.jar"],
+    purpose: "install",
+  });
+  // purpose 只決定失敗訊息的開頭，不傳進中樞
   assert.deepEqual(calls.repair, [{ strayJarsToRemove: ["mods/x.jar"] }]);
 
-  for (const bad of [
-    undefined,
-    null,
-    { strayJarsToRemove: "a.jar" },
-    { strayJarsToRemove: [1] },
+  for (const [bad, message] of [
+    [undefined, BAD_REPAIR_ARGS],
+    [null, BAD_REPAIR_ARGS],
+    [{ strayJarsToRemove: "a.jar", purpose: "repair" }, BAD_REPAIR_ARGS],
+    [{ strayJarsToRemove: [1], purpose: "repair" }, BAD_REPAIR_ARGS],
+    [{ strayJarsToRemove: [] }, BAD_REPAIR_PURPOSE],
+    [{ strayJarsToRemove: [], purpose: "settings" }, BAD_REPAIR_PURPOSE],
+    [{ strayJarsToRemove: [], purpose: "toString" }, BAD_REPAIR_PURPOSE],
   ]) {
     const s = setup();
     await rejectsWith(s.invoke("instance:repair", bad), (e) => {
       assert.equal(e.constructor, Error);
-      assert.equal(e.message, BAD_REPAIR_ARGS);
+      assert.equal(e.message, message);
     });
     assert.deepEqual(s.calls.repair, [], JSON.stringify(bad));
   }
@@ -143,7 +155,13 @@ test("W5 update/repair errors cross IPC as plain Error: GGL_SYNC_ codes verbatim
       "instance:repair",
       "repairInstance",
       "修復失敗：",
-      [{ strayJarsToRemove: [] }],
+      [{ strayJarsToRemove: [], purpose: "repair" }],
+    ],
+    [
+      "instance:repair",
+      "repairInstance",
+      "安裝失敗：",
+      [{ strayJarsToRemove: [], purpose: "install" }],
     ],
   ]) {
     for (const original of [
@@ -241,7 +259,9 @@ test("update/repair/listStrayJars 失敗 ⇒ launcher.log 寫一行 IPC_ERROR <c
     },
   });
   await assert.rejects(invoke("instance:update"));
-  await assert.rejects(invoke("instance:repair", { strayJarsToRemove: [] }));
+  await assert.rejects(
+    invoke("instance:repair", { strayJarsToRemove: [], purpose: "repair" }),
+  );
   await assert.rejects(invoke("instance:listStrayJars"));
   assert.deepEqual(lines, [
     "IPC_ERROR instance:update GGL_SYNC_GAME_UNKNOWN 無法確認遊戲是否在執行，已取消。",

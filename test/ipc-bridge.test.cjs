@@ -76,7 +76,10 @@ test("W10 instance status payload adds text and logs a fixed summary", () => {
   assert.equal(mainWc.sent[0].channel, "instance:status");
   assert.deepEqual(mainWc.sent[0].payload, {
     ...s,
-    text: { headline: "已是最新版 1.0.0", details: ["今晚十點維護"] },
+    text: {
+      headline: "目前使用版本 1.0.0（與伺服器一致）",
+      details: ["今晚十點維護"],
+    },
   });
   assert.deepEqual(logs, [
     'INSTANCE {"kind":"up-to-date","localReady":true,"localVersion":"1.0.0","remoteVersion":"2.0.0"}',
@@ -191,7 +194,10 @@ test("W19／B4r replayLatest resends the last of each state event to the caller 
   const expected = [
     {
       channel: "instance:status",
-      payload: { ...s2, text: { headline: "已是最新版 1.0.0", details: [] } },
+      payload: {
+        ...s2,
+        text: { headline: "目前使用版本 1.0.0（與伺服器一致）", details: [] },
+      },
     },
     { channel: "notice:changed", payload: n2 },
     { channel: "server:status", payload: { state: "online" } },

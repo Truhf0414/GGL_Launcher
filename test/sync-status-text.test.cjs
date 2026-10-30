@@ -67,12 +67,12 @@ const S1_EXPECTED = {
   "invalid|true": "伺服器上的版本資料有誤，先用本機的 1.0.0",
   "invalid|false":
     "伺服器上的版本資料有誤，暫時無法安裝或更新（上次同步沒有完成）",
-  "not-installed|true": "尚未安裝（最新版 2.0.0）",
-  "not-installed|false": "尚未安裝（最新版 2.0.0）",
-  "update-available|true": "需要更新：有新版本 2.0.0（目前 1.0.0）",
+  "not-installed|true": "尚未安裝（伺服器版本 2.0.0）",
+  "not-installed|false": "尚未安裝（伺服器版本 2.0.0）",
+  "update-available|true": "需要更新：伺服器上的版本已改為 2.0.0（目前 1.0.0）",
   "update-available|false": "需要更新：上次同步沒有完成",
-  "up-to-date|true": "已是最新版 1.0.0",
-  "up-to-date|false": "已是最新版 1.0.0",
+  "up-to-date|true": "目前使用版本 1.0.0（與伺服器一致）",
+  "up-to-date|false": "目前使用版本 1.0.0（與伺服器一致）",
   "internal-error|true": "啟動器內部錯誤，請按「複製錯誤詳情」回報",
   "internal-error|false": "啟動器內部錯誤，請按「複製錯誤詳情」回報",
   // 不得掉回「內部錯誤，請回報」（Phase 4 V13、SPR #7）
@@ -150,7 +150,7 @@ test("S4 update-available reasons", () => {
     headline("update-available", false, { syncReasons, ...over });
   assert.equal(
     ua(["release-differs"]),
-    "需要更新：有新版本 2.0.0（目前 1.0.0）",
+    "需要更新：伺服器上的版本已改為 2.0.0（目前 1.0.0）",
   );
   assert.equal(ua(["interrupted"]), "需要更新：上次同步沒有完成");
   assert.equal(ua(["runtime-missing"]), "需要更新：遊戲執行環境不完整");
@@ -220,13 +220,13 @@ test("S6 empty version strings", () => {
     headline("not-installed", false, { remoteVersion: "" }),
     "尚未安裝",
   );
-  assert.equal(headline("up-to-date", true, noLocal), "已是最新版");
+  assert.equal(headline("up-to-date", true, noLocal), "與伺服器一致");
   assert.equal(
     headline("update-available", true, {
       ...noLocal,
       syncReasons: ["release-differs"],
     }),
-    "需要更新：有新版本 2.0.0",
+    "需要更新：伺服器版本為 2.0.0",
   );
   assert.equal(COPY_ERROR_DETAIL_LABEL, "複製錯誤詳情");
 });

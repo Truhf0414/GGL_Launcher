@@ -26,6 +26,9 @@ function isStringArray(v) {
   return Array.isArray(v) && v.every((x) => typeof x === "string");
 }
 
+// 畫面的「安裝」也走修復（renderer/repair-ui.js 的 startRepairFlow），失敗的開頭要照玩家按的那個動作（B4 F-2）
+const REPAIR_FAIL_PREFIX = { install: "安裝失敗：", repair: "修復失敗：" };
+
 function registerInstanceIpc(ctx) {
   const { ipcMain, deps, showInfoDialog } = ctx;
 
@@ -63,13 +66,20 @@ function registerInstanceIpc(ctx) {
     if (!isStringArray(payload?.strayJarsToRemove)) {
       throw new Error("修復參數格式錯誤：strayJarsToRemove 必須是字串陣列");
     }
+    if (!Object.hasOwn(REPAIR_FAIL_PREFIX, payload.purpose)) {
+      throw new Error("修復參數格式錯誤：purpose 必須是 install 或 repair");
+    }
     let result;
     try {
       result = await deps.repairInstance({
         strayJarsToRemove: payload.strayJarsToRemove,
       });
     } catch (e) {
-      throw fail(IPC.invoke.INSTANCE_REPAIR, e, "修復失敗：");
+      throw fail(
+        IPC.invoke.INSTANCE_REPAIR,
+        e,
+        REPAIR_FAIL_PREFIX[payload.purpose],
+      );
     }
     await reportMovedAside(result);
     return result;

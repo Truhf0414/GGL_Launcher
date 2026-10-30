@@ -114,7 +114,7 @@ test("W22 repair flow holds busy while each request is in flight; list failure, 
     assert.equal(s.record.opens, 0);
     assert.deepEqual(s.record.invoked.at(-1), [
       "instance:repair",
-      { strayJarsToRemove: [] },
+      { strayJarsToRemove: [], purpose: "install" },
     ]);
     assert.equal(s.isBusy(), false);
   }
@@ -136,7 +136,7 @@ test("W22 repair flow holds busy while each request is in flight; list failure, 
     await flow;
     assert.deepEqual(s.record.invoked.at(-1), [
       "instance:repair",
-      { strayJarsToRemove: ["mods/b.jar"] },
+      { strayJarsToRemove: ["mods/b.jar"], purpose: "repair" },
     ]);
     assert.equal(s.isBusy(), false);
   }

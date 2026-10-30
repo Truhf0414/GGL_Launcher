@@ -127,6 +127,18 @@ async function fetchVia(fetchImpl, url, options) {
   }
 }
 
+// undici 在回應傳到一半、連線不是因為中止而結束時，讀 body 會丟 TypeError("terminated")
+// （undici lib/web/fetch/index.js 的 onAborted 第 3 步）。原文玩家看不懂：換成發生了什麼與能做什麼；
+// 原文與 cause 的代碼（undici 的錯，可能沒有 cause）留在括號裡供日誌對照，不推測是不是網路斷線（B4 F-2）
+function explainBodyTerminated(e) {
+  if (e.name !== "TypeError" || e.message !== "terminated") return e;
+  const code = e.cause?.code ? `，${e.cause.code}` : "";
+  return new Error(
+    `下載中斷：傳輸途中與伺服器的連線結束了（terminated${code}），請確認網路後再試一次`,
+    { cause: e },
+  );
+}
+
 function sleepMs(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -281,7 +293,7 @@ async function downloadToFile(url, absPath, onChunk, options = {}) {
         } catch {
           // 清理：同上；刪不掉的 .tmp 下次下載會從頭覆寫
         }
-        throw e;
+        throw explainBodyTerminated(e);
       }
     },
     {

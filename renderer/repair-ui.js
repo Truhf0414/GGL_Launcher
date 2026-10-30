@@ -86,7 +86,11 @@
           strayJarsToRemove = chosen;
         }
         setStatus(entry === "install" ? "開始安裝…" : "開始修復…", 0);
-        await safeInvoke("instance:repair", { strayJarsToRemove });
+        // purpose 只決定失敗訊息的開頭（安裝失敗／修復失敗），兩者走同一個 repairInstance
+        await safeInvoke("instance:repair", {
+          strayJarsToRemove,
+          purpose: entry === "install" ? "install" : "repair",
+        });
       } catch (e) {
         // main 端的錯誤一律是寫給玩家看的普通 Error：原樣顯示
         setStatusError(String(e?.message ?? e));
