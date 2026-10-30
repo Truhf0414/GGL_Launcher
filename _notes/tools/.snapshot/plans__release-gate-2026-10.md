@@ -205,7 +205,8 @@ README 重製（OD-7）**不阻擋**發版，第四輪 owner 選 C：首發只�
   - 新舊安裝檔的 Uninstall 程式位元組不同、原因未查明，建置非逐位元組可重現（出貨內容相同）；詳見 history。
 - **【Owner 裁，2026-10-31】F-5 下載太慢要首發前處理，候選會換**：B2 發現預設下載走 HTTP/2 比強制 HTTP/1.1 慢約 12 倍（過程與數字只在 `history.md` 2026-10-31 的 F-5 那條，這裡不複製）。修正在 `4b625cb`（只動 `main/net-fetch.js` 一行加測試，未 push）。因此：①凍結候選 `7bafc4c` 不再對應 main 的程式，**新候選待 Owner 授權建置後凍結**；②M-1／2／3／5／6 要對新候選重做（M-3 要 push；helper 雜湊不變就沿用 M-6）；③舊候選的證據只屬於舊候選，不寫成新候選通過；④B2 現有證據屬於舊安裝檔（sha256 `7ee09f68…`），新候選出來後只補三件：新安裝檔覆蓋舊安裝檔（同版本號、不同建置）、一次完整同步計時、解除安裝（M-7b 因此暫停到新候選），其餘沿用並明說是舊安裝檔的證據（沿用範圍由 Owner 最後裁）。
 - **新候選已建置（2026-10-31）**：候選 `4d7b01625386a335a6153c213ce96b3b1c69a2ef`（Owner 授權第三批，CC 建議凍結於此）；M-1、M-2、M-3、M-5 已對它取得證據，M-6 沿用（helper 雜湊不變）；安裝檔 sha256、路徑與逐項結果只寫在 `history.md` 2026-10-31 的「F-5 新候選建置與 CI」那一條，這裡不複製；`7bafc4c` 與舊安裝檔的證據不移轉。符不符合需求由 owner 裁。
-- **仍待**：B2 正式身分安裝（owner 授權後）；RV-7（SmartScreen／Defender 畫面、最低 Windows 版本）；M-6 沒涵蓋的 Electron 接線、第二位觀看者看到的按鈕、單實例鎖、Discord 沒開；Draft Release 以後全部。
+- **B2 證據紀錄**（2026-10-31，Owner 在兩個標準使用者測試帳號現場操作、CC 旁觀；逐項結果、安裝檔雜湊與證據位置只寫在 `history.md` 2026-10-31 的 B2 那一條，這裡不複製）：【Owner 裁，B2 Evidence Review】①c5 的 `EPERM` 訊息算可行動，c5 通過；②舊安裝檔的證據可沿用到新候選；③併測格涵蓋 c1／c2／c3／c6 接受；④F-2「564/535」是 Owner 打錯、畫面沒錯，撤回；⑤F-3 覆蓋安裝後工作列釘選消失，列 `future-work.md`、不急；⑥安裝完成頁預設勾「執行」屬正常；解除安裝後 `ggl_launcher-updater` 殘留接受。停止條件沒有被觸發。**B2 整體放行（M-7／M-8／M-9）待 Owner 明示**，在那之前 `future-work.md` 的「正式身分的安裝檔驗收」不離箱；M-10 仍要 Draft Release。
+- **仍待**：B2 整體放行（Owner 明示）；不同版本號的更新與登入帳號在覆蓋後保留（未取得）；RV-7（SmartScreen／Defender 畫面、最低 Windows 版本）；M-6 沒涵蓋的 Electron 接線、第二位觀看者看到的按鈕、單實例鎖、Discord 沒開；Draft Release 以後全部。
 - 這不是 Gate 通過。
 
 ### 依賴與批次
@@ -230,7 +231,7 @@ B0 owner 終審本檔 ──┬─▶ G-4／G-5／G-6 施工授權（逐項）�
 |---|---|---|---|---|
 | B0 | owner 終審本檔；逐項授權 G-4／G-5／G-6／G-3 的施工 | — | owner 回覆 | owner |
 | B1（2026-10-30 已執行一次、2026-10-31 對最終候選 `7bafc4c` 對齊重建，見上「B1 證據紀錄」；M-3 已取得） | RV-1／RV-1b：`git archive <候選 commit>` 到 repo 外短路徑新資料夾、`npm ci`、完整 `dist:win`、`check:packaged-artifacts`、7z 列 asar、sha256；核對出貨 `rpc-helper.exe` sha256；Discord RPC 行為實測（需 owner 的 Discord 用戶端） | repo 外隔離目錄 | owner 授權（下載數百 MB、約十來分鐘磁碟與時間；Discord 行為屬有狀態） | CC 跑、owner 看結果 |
-| B2 | RV-2／3／6／7；同時取 README 用的真實截圖（測試身分或遮蔽帳號名稱、UUID、路徑） | **乾淨環境**：獨立 Windows 使用者帳號或 VM。**不要裝在 owner 日常帳號**：正式身分的 userData 名稱 `GGL_launcher` 與 `npm start` 開發版相同（`package.json` `name`；X1b 實測測試身分 `GGL_launcher_x1btest`），會和 owner 真實的設定與帳號混在一起 | owner 逐項授權（寫登錄檔、開始選單、`%LOCALAPPDATA%`） | owner 操作、CC 旁觀紀錄（唯讀） |
+| B2（2026-10-31 已執行，見上「B2 證據紀錄」；整體放行待 Owner 明示） | RV-2／3／6／7；同時取 README 用的真實截圖（測試身分或遮蔽帳號名稱、UUID、路徑） | **乾淨環境**：獨立 Windows 使用者帳號或 VM。**不要裝在 owner 日常帳號**：正式身分的 userData 名稱 `GGL_launcher` 與 `npm start` 開發版相同（`package.json` `name`；X1b 實測測試身分 `GGL_launcher_x1btest`），會和 owner 真實的設定與帳號混在一起 | owner 逐項授權（寫登錄檔、開始選單、`%LOCALAPPDATA%`） | owner 操作、CC 旁觀紀錄（唯讀） |
 | B3 | G-0～G-3 | repo | 動 `_notes/` 與 `docs/` 前 owner 授權；commit 另授權 | CC 寫、owner 審 |
 | B4 | RV-5S／RV-12／RV-13／RV-14；RV-10 探針 | staging（見下）；探針在隔離 Electron | owner 授權建 staging；探針無狀態 | CC 建置與觀察、owner 授權 |
 | B5 | RV-4（一組不同帳號；owner 可採認既有玩家測試證據）、RV-9；M-11～M-14、M-25（M-12 含 port 占用）。RV-4b 已撤回，不在此批 | 正式身分（乾淨使用者／VM，或 owner 的正式安裝）；非 owner 帳號的來源由 owner 決定 | owner 授權（真帳號） | owner 操作、CC 旁觀紀錄；**不招募玩家**；必要但取不到的證據→「未取得」，呈報剩餘風險，owner 決定，不自動放行（§六 §0） |
