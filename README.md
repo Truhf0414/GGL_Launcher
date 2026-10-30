@@ -59,7 +59,7 @@ GGL3 Minecraft 模組伺服器（Fabric）的自製啟動器：幫你安裝與�
   | Microsoft／Xbox／Minecraft 服務（`login.live.com`、`*.auth.xboxlive.com`、`api.minecraftservices.com`）                                                                                                             | 只有登入或啟動帳號時                 | 登入流程需要的資料                                                                      |
   | **頭像服務**：`crafatar.com`、`visage.surgeplay.com`、`mc-heads.net`                                                                                                                                                | 登入後在畫面上顯示你的頭像           | 前兩者收到你的 **Minecraft UUID**；前兩者都失敗時，`mc-heads.net` 收到你的 **玩家名稱** |
 
-- **Discord 狀態（選用）**：遊戲啟動後，一支輔助程式會讀遊戲日誌判斷你在單人還是伺服器，並透過你電腦上的 Discord 用戶端顯示狀態；啟動器本身不會把它傳到別處。
+- **Discord 狀態（選用）**：遊戲啟動後，啟動器會啟動一支輔助程式，把固定的 Activity 內容（狀態文字、圖片、「加入伺服器」按鈕等，來自啟動器的設定，不是從你的遊戲內容讀出來的）透過 Discord 用戶端的 IPC 交給你電腦上的 Discord 用戶端，並監控遊戲行程，遊戲結束時清除。依程式碼，輔助程式只跟 Discord 用戶端溝通；但**經由 Discord 用戶端顯示的活動，等於交給 Discord 這個第三方服務**，誰看得到取決於你的 Discord 隱私設定。出貨版的實際行為還在驗收。
 - 你按下連結時，才會用瀏覽器開啟外部網站（例如 Discord 邀請、GitHub、minecraft.net）。
 - **留在你電腦上的**：設定與帳號資料在 `%APPDATA%` 底下的啟動器資料夾，登入憑證以 Electron `safeStorage` 加密保存；遊戲檔案在你選的安裝位置。診斷報告只會存在本機，不會自動傳出去。
 
@@ -103,8 +103,10 @@ npm start
 ## Discord Rich Presence（B1：外部 helper.exe）
 
 此功能用「獨立常駐 helper」的方式實作：啟動器啟動遊戲後會額外啟動 `assets/rpc-helper.exe`，
-由 helper 維持 Discord IPC 連線並從 `logs/latest.log` 判斷目前是 **單人** 或 **伺服器**。
-因此 **啟動器可關閉**，Discord 狀態仍會持續到遊戲結束。
+並把要顯示的 Activity 內容（`lib/server-config.js` 的 `discord` 區塊：狀態文字、圖片 key 與說明、按鈕）與遊戲行程的 PID 以啟動參數交給它（參數的組法在 `lib/discord-helper-args.js`）。
+helper 透過 Discord 用戶端的 IPC 連線登入，在 Discord ready 時呼叫一次 `setActivity` 顯示這份內容；之後每隔約 1.5 秒檢查遊戲 PID，行程結束就清除 Activity、釋放鎖檔並退出。
+顯示的內容是固定的：**沒有**依單人或伺服器動態切換的判定，helper 也不讀遊戲日誌。
+因此 **啟動器可關閉**，Discord 狀態仍會持續到遊戲結束。出貨版 helper 的實際行為仍待驗收（RV-1b）。
 
 ### 1) 建立 Discord Application（拿 client id + 上傳圖片）
 
