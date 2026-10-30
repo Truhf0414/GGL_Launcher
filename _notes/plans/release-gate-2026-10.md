@@ -193,6 +193,14 @@ README 重製（OD-7）**不阻擋**發版，第四輪 owner 選 C：首發只�
 - **仍待補齊**（文件裡都標了）：RV-7 的 SmartScreen／Defender 實際畫面與最低 Windows 版本；B1、B2 的結果；§6～§8 的全部操作；Microsoft 登入在非 owner 帳號上的證據（M-11）；出貨 helper 的 Discord 行為（M-6）；README 的下載入口與連結實點（公開後，M-27）；回報頻道（owner 尚未指定）。
 - 這不是 Gate 通過。
 
+**B1 證據紀錄**（2026-10-30，owner 授權範圍：repo 外隔離建置與檢查；候選 commit `3272fe5b5d62ed1814482d8b90d26852b62b40c3`；安裝檔 sha256、路徑與逐項結果的唯一寫處是 `history.md` 2026-10-30 的 B1 那一條，這裡不複製）：
+
+- 結果：M-1 通過、M-2 通過、M-5 通過；**M-3 未取得**（候選未 push）；**M-6 部分**（helper 雜湊核對通過，Discord 三項未取得）。四種結果不混用：通過＝候選 commit 的要求已實際滿足；未取得＝尚無對應環境或證據。
+- 發現並已修正的兩件文件問題（`96af4cb`）：①`git archive` 在 `core.autocrlf=true` 的環境會把 7 個檔轉成 CRLF，runbook §3 改成帶 `-c core.autocrlf=false -c core.eol=lf`，並要求匯出後逐檔核對 blob；②README 的 Discord 說明不實（helper 不讀 `latest.log`），改為如實描述。安裝檔仍對應建置 commit `3272fe5`，不得改稱由文件 commit 建置。
+- 【Owner 裁，B1 驗收】Discord RPC 驗收由 owner 與 CC 另行執行、結果獨立記錄（步驟在 `H:\ggl-b1\discord\STEPS.md`）；M-3 等候選 commit 的 CI 證據；候選 commit 要不要更新、正式建置證據與 CI 怎麼重新對齊，待文件 commit 完成後決定。
+- **仍待**：M-6 的 Discord 實測；M-3 的 CI（要 push，另行授權）；B2 正式身分安裝；候選 commit 的更新與重新對齊；RV-7、Draft Release 以後全部。
+- 這不是 Gate 通過。
+
 ### 依賴與批次
 
 ```
@@ -214,7 +222,7 @@ B0 owner 終審本檔 ──┬─▶ G-4／G-5／G-6 施工授權（逐項）�
 | 批 | 內容 | 在哪跑 | 授權 | 責任 |
 |---|---|---|---|---|
 | B0 | owner 終審本檔；逐項授權 G-4／G-5／G-6／G-3 的施工 | — | owner 回覆 | owner |
-| B1 | RV-1／RV-1b：`git archive <候選 commit>` 到 repo 外短路徑新資料夾、`npm ci`、完整 `dist:win`、`check:packaged-artifacts`、7z 列 asar、sha256；核對出貨 `rpc-helper.exe` sha256；Discord RPC 行為實測（需 owner 的 Discord 用戶端） | repo 外隔離目錄 | owner 授權（下載數百 MB、約十來分鐘磁碟與時間；Discord 行為屬有狀態） | CC 跑、owner 看結果 |
+| B1（2026-10-30 已執行一次，見上「B1 證據紀錄」；M-3、M-6 尚未取得） | RV-1／RV-1b：`git archive <候選 commit>` 到 repo 外短路徑新資料夾、`npm ci`、完整 `dist:win`、`check:packaged-artifacts`、7z 列 asar、sha256；核對出貨 `rpc-helper.exe` sha256；Discord RPC 行為實測（需 owner 的 Discord 用戶端） | repo 外隔離目錄 | owner 授權（下載數百 MB、約十來分鐘磁碟與時間；Discord 行為屬有狀態） | CC 跑、owner 看結果 |
 | B2 | RV-2／3／6／7；同時取 README 用的真實截圖（測試身分或遮蔽帳號名稱、UUID、路徑） | **乾淨環境**：獨立 Windows 使用者帳號或 VM。**不要裝在 owner 日常帳號**：正式身分的 userData 名稱 `GGL_launcher` 與 `npm start` 開發版相同（`package.json` `name`；X1b 實測測試身分 `GGL_launcher_x1btest`），會和 owner 真實的設定與帳號混在一起 | owner 逐項授權（寫登錄檔、開始選單、`%LOCALAPPDATA%`） | owner 操作、CC 旁觀紀錄（唯讀） |
 | B3 | G-0～G-3 | repo | 動 `_notes/` 與 `docs/` 前 owner 授權；commit 另授權 | CC 寫、owner 審 |
 | B4 | RV-5S／RV-12／RV-13／RV-14；RV-10 探針 | staging（見下）；探針在隔離 Electron | owner 授權建 staging；探針無狀態 | CC 建置與觀察、owner 授權 |
