@@ -714,7 +714,8 @@ test('SF-N6 title、subtitle、imageUrl、logUrl 不是字串就當沒寫，是�
   assert.equal(parseNoticeFields({ notice: { title: 123 } }).title, "");
   for (const key of ["title", "subtitle", "imageUrl", "logUrl"]) {
     for (const [label, v] of ALL_VALUES) {
-      const want = typeof v === "string" ? v.trim() : "";
+      // imageUrl 之後還要過 SF-S4：ALL_VALUES 的字串都不是 http(s) 網址，一律當沒寫
+      const want = typeof v === "string" && key !== "imageUrl" ? v.trim() : "";
       assert.equal(
         parseNoticeFields({ notice: { [key]: v } })[key],
         want,
@@ -722,6 +723,10 @@ test('SF-N6 title、subtitle、imageUrl、logUrl 不是字串就當沒寫，是�
       );
     }
   }
+  assert.equal(
+    parseNoticeFields({ notice: { imageUrl: "  https://x/i.png  " } }).imageUrl,
+    "https://x/i.png",
+  );
 });
 
 test('SF-N7 欄位名拼錯直接忽略："titel": "T" ⇒ 沒有標題', () => {
@@ -1119,13 +1124,70 @@ test("SF-S3 imageUrl 拿掉，縮圖維持上一張；連整個公告拿掉也�
   );
 });
 
-test('SF-S4 imageUrl 去掉頭尾空白後原樣當成圖片網址，不檢查開頭、也不會用站台網址補完："imageUrl": "thumb.jpg" ⇒ 圖片網址就是 thumb.jpg', () => {
-  // 去掉頭尾空白是 main 端的事（SF-N6），畫面收到的已經是去好的字串
+test('SF-S4 imageUrl 必須 http(s):// 開頭、不含 " \\ 與控制字元，不合格當成沒寫、縮圖不換："imageUrl": "thumb.jpg" ⇒ 當成沒寫，縮圖不換', () => {
+  // 驗在 main 端（parseNoticeFields），畫面照 SF-S3：空字串＝不換縮圖
+  const fields = (imageUrl) =>
+    parseNoticeFields({ notice: { title: "T", imageUrl } });
+  assert.equal(fields("thumb.jpg").imageUrl, "");
+  assert.equal(fields("thumb.jpg").title, "T");
+
   const { show, el } = noticeCard();
   show({
-    notice: { title: "T", subtitle: "", imageUrl: "thumb.jpg", log: [] },
+    notice: {
+      title: "T",
+      subtitle: "",
+      imageUrl: "https://ggl.test/a.jpg",
+      log: [],
+    },
   });
-  assert.equal(el.noticeThumb.style["--thumb-url"], 'url("thumb.jpg")');
+  show({
+    notice: {
+      title: "T",
+      subtitle: "",
+      imageUrl: fields("thumb.jpg").imageUrl,
+      log: [],
+    },
+  });
+  assert.equal(
+    el.noticeThumb.style["--thumb-url"],
+    'url("https://ggl.test/a.jpg")',
+  );
+
+  // 收：B4 RV-10 探針裡被接受、且只產生一個請求的寫法
+  for (const ok of [
+    "https://ggl.leaharmonic.com/notice-thumb.jpg",
+    "http://127.0.0.1:18080/notice-thumb.jpg?v=2",
+    "HTTPS://ok.test/UP.png",
+    "https://ok.test/a b.png",
+    "https://ok.test/a(1).png",
+    "https://ok.test/8.png) , url(https://other.test/8b.png",
+  ]) {
+    assert.equal(fields(ok).imageUrl, ok, ok);
+  }
+  // 拒：RV-10 能多帶請求、變成 file: 或跳出字串的寫法
+  for (const bad of [
+    'https://evil.test/1"x.png',
+    'https://ok.test/2.png"), url("https://evil.test/2b.png',
+    'x"); color: red; --y: ("',
+    'https://evil.test/5\\"); color: red; ("',
+    'https://evil.test/6.png\n"); color: red; ("',
+    "https://evil.test/9.png\\",
+    "https://ok.test/a.png?x=\\",
+    'https://h"x.test/a.png',
+    "https://ok.test/a\tb.png",
+    "url(https://evil.test/7.png)",
+    'x"), var(--design-thumb-url), url("https://evil.test/13.png',
+    "../../../Windows/win.ini",
+    "//evil.test/share/17.png",
+    "file://evil.test/share/18.png",
+    "\\\\evil.test\\share\\x.png",
+    "data:image/png;base64,AAAA",
+    "javascript:alert(1)",
+    ";",
+    "}",
+  ]) {
+    assert.equal(fields(bad).imageUrl, "", JSON.stringify(bad));
+  }
 });
 
 test('SF-S5 沒有公告 ⇒ 標題與副標回到預設、log 收起來：{"notice": null} ⇒ 顯示預設文字', () => {

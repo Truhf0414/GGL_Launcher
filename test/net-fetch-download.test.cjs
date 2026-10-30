@@ -972,3 +972,54 @@ test(
     assert.deepEqual(unhandled, []);
   },
 );
+
+// ── B4 F-2：回應傳到一半連線結束（undici 的 TypeError "terminated"）──
+
+/** 送完 headers 與前 400 bytes 就關掉連線：content-length 是 1000，對 undici 就是傳到一半連線結束 */
+function cutAfter400(req, res) {
+  res.writeHead(200, { "content-length": String(BODY.length) });
+  res.write(BODY.subarray(0, 400), () => res.socket.end());
+}
+
+test("F-2 downloadToFile: connection cut mid-body ⇒ readable 下載中斷 message, original kept as cause, .part kept for resume", async (t) => {
+  const srv = await startServer(cutAfter400);
+  t.after(() => srv.close());
+  const target = await tempTarget(t);
+
+  await assert.rejects(
+    downloadToFile(srv.url, target, null, {
+      resume: true,
+      expectedSize: BODY.length,
+    }),
+    (e) => {
+      assert.equal(e.constructor, Error);
+      assert.match(
+        e.message,
+        /^下載中斷：傳輸途中與伺服器的連線結束了（terminated[，)）]/,
+      );
+      assert.match(e.message, /請確認網路後再試一次$/);
+      assert.equal(e.cause.name, "TypeError");
+      assert.equal(e.cause.message, "terminated");
+      return true;
+    },
+  );
+  // 不是可重試的錯（同改前的 "terminated"）：只發一次請求
+  assert.equal(srv.requests.length, 1);
+  // .part 照續傳契約留著、內容是開頭那段；長度不固定：連線先結束時，還沒讀走的資料會被 undici 丟掉（可能是 0）
+  const part = await fsp.readFile(`${target}.part`);
+  assert.ok(part.length < BODY.length, String(part.length));
+  assert.deepEqual(part, BODY.subarray(0, part.length));
+});
+
+test("F-2 downloadToFile: same cut without resume ⇒ same message, .tmp removed, no target", async (t) => {
+  const srv = await startServer(cutAfter400);
+  t.after(() => srv.close());
+  const target = await tempTarget(t);
+
+  await assert.rejects(
+    downloadToFile(srv.url, target, null),
+    /^Error: 下載中斷：/,
+  );
+  assert.equal(fs.existsSync(`${target}.tmp`), false);
+  assert.equal(fs.existsSync(target), false);
+});
