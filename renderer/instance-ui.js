@@ -9,11 +9,15 @@
     ensureReadyStatusText,
     setInstanceStatusPayload,
   }) {
-    const { onIpc, onDom, setStatusError } = ctx.fx;
+    const { onIpc, onDom, setStatusError, safeInvoke, loadServerDefaults } =
+      ctx.fx;
     const {
       instanceStatusText,
       instanceStatusNote,
       btnCopyErrorDetail,
+      launcherDownload,
+      launcherDownloadUrl,
+      btnOpenDownload,
       noticeTitle,
       noticeDate,
       noticeLog,
@@ -66,6 +70,31 @@
 
       errorDetail = payload.errorDetail;
       btnCopyErrorDetail.classList.toggle("hidden", !errorDetail);
+
+      // 過舊的兩個來源（gate 最低版本、索引 format 較新）在 main 都收斂成這個 kind
+      const tooOld = payload.kind === "launcher-too-old";
+      launcherDownload.classList.toggle("hidden", !tooOld);
+      if (tooOld) void showDownloadUrl();
+    }
+
+    // 下載網址只有 server-config 的 launcherDownloadUrl 一份，文字與按鈕都經 serverConfig:getDefaults 取
+    async function showDownloadUrl() {
+      try {
+        const defaults = await loadServerDefaults();
+        launcherDownloadUrl.textContent = `下載網址：${defaults.launcherDownloadUrl}`;
+      } catch (e) {
+        setStatusError(`無法取得下載網址：${String(e?.message ?? e)}`);
+      }
+    }
+
+    // 玩家按的：取不到、開不了都在狀態區說，不記（同 renderer/window-controls.js 的 Discord 鈕）
+    async function openDownloadPage() {
+      try {
+        const defaults = await loadServerDefaults();
+        await safeInvoke("openExternal", defaults.launcherDownloadUrl);
+      } catch (e) {
+        setStatusError(`無法開啟下載頁：${String(e?.message ?? e)}`);
+      }
     }
 
     async function copyErrorDetail() {
@@ -95,6 +124,7 @@
       });
 
       onDom(btnCopyErrorDetail, "click", () => void copyErrorDetail());
+      onDom(btnOpenDownload, "click", () => void openDownloadPage());
     }
 
     return { init };

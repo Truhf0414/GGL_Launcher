@@ -210,6 +210,9 @@ function noticeCard() {
         instanceStatusText: makeEl(),
         instanceStatusNote: makeEl(),
         btnCopyErrorDetail: makeEl(),
+        launcherDownload: makeEl(),
+        launcherDownloadUrl: makeEl(),
+        btnOpenDownload: makeEl(),
       },
     }),
   }).init();

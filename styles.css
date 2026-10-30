@@ -639,7 +639,12 @@
   .instance-status__note {
     color: rgba(255, 255, 255, 0.55);
   }
-  .instance-status__copy {
+  /* 下載網址沒有空白可斷行，窄視窗要允許在任何位置折行，不然會被切掉或撐破卡片 */
+  .instance-status__url {
+    overflow-wrap: anywhere;
+  }
+  .instance-status__copy,
+  .instance-status__open {
     margin-top: calc(2px * var(--cards-scale));
     padding: calc(2px * var(--cards-scale)) calc(8px * var(--cards-scale));
     font-size: calc(12px * var(--cards-type-scale));
@@ -649,7 +654,8 @@
     border-radius: 6px;
     cursor: pointer;
   }
-  .instance-status__copy:hover {
+  .instance-status__copy:hover,
+  .instance-status__open:hover {
     background: rgba(255, 255, 255, 0.14);
   }
 

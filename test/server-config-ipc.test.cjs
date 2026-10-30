@@ -19,12 +19,13 @@ function makeFakeIpcMain() {
   };
 }
 
-test("serverConfig:getDefaults 回畫面要的兩個值，取自注入的 serverConfig", async () => {
+test("serverConfig:getDefaults 回畫面要的三個值，取自注入的 serverConfig", async () => {
   const ipcMain = makeFakeIpcMain();
   registerServerConfigIpc({ ipcMain, deps: { serverConfig } });
   const out = await ipcMain.invoke(IPC.invoke.SERVER_CONFIG_GET_DEFAULTS, {});
   assert.deepEqual(out, {
     launcherRootDir: serverConfig.launcherRootDir,
     discordInviteUrl: serverConfig.discord.inviteUrl,
+    launcherDownloadUrl: serverConfig.launcherDownloadUrl,
   });
 });

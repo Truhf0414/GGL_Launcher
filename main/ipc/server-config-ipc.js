@@ -6,6 +6,7 @@ function registerServerConfigIpc(ctx) {
   ipcMain.handle(IPC.invoke.SERVER_CONFIG_GET_DEFAULTS, async () => ({
     launcherRootDir: deps.serverConfig.launcherRootDir,
     discordInviteUrl: deps.serverConfig.discord.inviteUrl,
+    launcherDownloadUrl: deps.serverConfig.launcherDownloadUrl,
   }));
 }
 

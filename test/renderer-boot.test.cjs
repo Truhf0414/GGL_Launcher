@@ -619,6 +619,7 @@ function failOn(...fails) {
       return {
         launcherRootDir: "C:\\Games\\GGL",
         discordInviteUrl: "https://discord.gg/x",
+        launcherDownloadUrl: "https://example.com/releases",
       };
     return undefined;
   };
