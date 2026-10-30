@@ -10,7 +10,13 @@ const { ensureDirForFile, removeLinkAt } = require("./fs-utils");
 // 會丟出接不住的 assert(!this.paused)（nodejs/undici#5360），8.x 已修。明確傳 Agent、不用全域 dispatcher：
 // 全域那個由誰先載入決定，內建 fetch 先跑過就會拿到內建的舊版。
 // require("undici") 本身就會初始化全域 dispatcher，main 程序其他內建 fetch 的底層可能因此改變（X1b-D3）。
-const downloadAgent = new Agent();
+//
+// allowH2: false ⇒ 強制 HTTP/1.1。站台（Cloudflare）同時提供 h2 與 http/1.1，undici 8 預設會挑 h2；
+// 2026-10-31 在 Owner 機器上對同一個檔（約 825 MB）同範圍 30 MB 量到：預設 0.93 MB/s、allowH2: true 1.04 MB/s、
+// allowH2: false 12.46 MB/s（B2-RECORD F-5）。h2 為什麼慢沒有驗證（〔猜的〕長往返時間下的流量控制視窗），
+// 其他玩家的網路是否同樣慢也沒量過；這裡只依「強制 HTTP/1.1 在已量到的路徑上快約 12 倍」。
+// 回歸測試：test/net-fetch-http-version.test.cjs。
+const downloadAgent = new Agent({ allowH2: false });
 
 // 缺了就在開機的 configure 時丟：空函式預設會讓忘了接的重試提示與重試 log 靜默消失
 // （→ _notes/plans/cross-review-2026-10-phase6b.md §6b-3 細部初稿 M-DI #2）
