@@ -39,20 +39,46 @@ Release Gate **還沒通過**；B1（候選建置）、Draft Release、公開後
 〔預定〕全部都在候選 commit 上確認：
 
 - 候選 commit 已定、工作樹乾淨。
-- `npm test` 在 Node 22（CI 的版本）與本機版本都全綠；`npm run lint`、`npm run check:ui-css:strict` 過；`npm run docs:ipc` 之後 `ARCHITECTURE.md` 沒有變動；CI（`windows-latest`）對該 commit 是 success（`gh run list`）。至今各批施工只在本機 Node 24 跑過，Node 22 要到候選 commit 才跑。
+- `npm test` 在 Node 22（CI 的版本）與本機版本都全綠；`npm run lint`、`npm run check:ui-css:strict` 過；`npm run docs:ipc` 之後 `ARCHITECTURE.md` 沒有變動；CI（`windows-latest`）對該 commit 是 success（`gh run list`）。〔已實測〕2026-10-30 B1 候選 `3272fe5`：Node 22.23.4 與本機 Node 24.14.1 各跑完整 `npm test`，都是 1454／1454（Node 22.23.4 與 2026-10-29 那次 CI 用的版本相同，但 CI 的 22.x 會浮動，每次要看 CI 日誌確認）。lint、`check:ui-css:strict`、`docs:ipc` 差異也在該候選上過。〔尚未取得〕CI 對該 commit 的結果：它還沒 push，要 push 之後才有，舊 commit 的 CI 不能替代。候選 commit 之後若有變動，這些都要在新的候選上重做。
 - owner 知道並同意 B1 的成本（下載依賴、磁碟、時間）。
 
 ## 3. 建置安裝檔（B1）
 
-〔預定；B1 尚未執行〕在 repo 外的隔離資料夾做，不要在開發用的工作樹建：
+在 repo 外的隔離資料夾做，不要在開發用的工作樹建。〔已實測〕2026-10-30 對候選 `3272fe5` 做過一次 B1 隔離建置，用的是下面的 Git Bash 路徑；其餘標〔據文件，未實跑〕的路徑沒做過。
 
-1. 取一個**短路徑**、路徑裡不含長 UUID 的新資料夾，取出乾淨來源（從 commit 取，不是複製工作樹）。**要在 Git Bash 之類適合二進位管線的 shell 裡跑**：`git archive <候選 commit> | tar -x -C <資料夾>`（〔已實測〕2026-10-30 在 Git Bash 用過）。**Windows PowerShell 5.1 的管線會把二進位輸出當文字處理，不要照抄這條**；在 PowerShell 請改成先輸出 ZIP 再解壓〔據文件，未實跑〕：`git archive --format=zip -o <檔名>.zip <候選 commit>`，再 `Expand-Archive <檔名>.zip -DestinationPath <資料夾>`。
-2. 在該資料夾 `npm ci`。
-3. `npm run dist:win`：依序跑 `check:ui-css:strict`、`docs:ipc`、產生 electron-builder 設定、electron-builder（NSIS、x64）、`check:packaged-artifacts`。輸出在該資料夾的 `dist\`，安裝檔是 `dist\GGL-Launcher-Setup-<version>.exe`。建置日誌裡**不應**出現 `build:rpc-helper`（見 §5）。
-4. `sha256sum` 安裝檔，記下版本、建置 commit、sha256（§7）。
-5. 核對 helper：`assets\rpc-helper.exe` 與 `dist\win-unpacked\resources\assets\rpc-helper.exe` 的 sha256 相同（§5）。
+1. 取一個**短路徑**、路徑裡不含長 UUID 的新資料夾，用**帶兩個 Git 設定**的 `git archive` 從 commit 取出乾淨來源（從 commit 取，不是複製工作樹）：
+   - **Git Bash**（適合二進位管線）〔已實測〕：
 
-〔已實測〕2026-10-30 在隔離副本（基準 `05cadf3` 加 G-5 那兩行改動）跑過 `git archive`、`npm ci`、`dist:win`：exit 0，產出約 144 MB 的 `GGL-Launcher-Setup-1.0.0.exe`，約 30 秒（依賴已在本機快取），`check:packaged-artifacts` 過。**這只是探路，不是 B1 證據**：不是候選 commit，也沒有安裝或啟動過那個安裝檔。
+     ```bash
+     git -c core.autocrlf=false -c core.eol=lf archive <候選 commit> | tar -x -C <資料夾>
+     ```
+
+   - **Windows PowerShell 5.1** 的管線會把二進位輸出當文字處理，**不要照抄上面那條**。改成先輸出 ZIP 再解壓〔據文件，未實跑〕：
+
+     ```powershell
+     git -c core.autocrlf=false -c core.eol=lf archive --format=zip -o <檔名>.zip <候選 commit>
+     Expand-Archive <檔名>.zip -DestinationPath <資料夾>
+     ```
+
+   - 為什麼要那兩個設定：2026-10-30 在這台機器（系統層 `core.autocrlf=true`，repo 的 `.gitattributes` 有 `* text=auto`）上，**沒帶設定的 `git archive`** 匯出後有 7 個檔與候選 commit 的內容不一致（CRLF 取代 LF），其中 `assets/notice-thumb.svg` 會被打進安裝檔（380 bytes 對 commit 裡的 371 bytes）；帶了這兩個設定之後 413 個追蹤檔全部一致。這只是這台機器上的結果，**不保證在別的 Git 或 Windows 設定下也成立**，所以下一步的核對不能省。
+
+2. **匯出後先核對**：取出的每個追蹤檔，內容要等於候選 commit 裡該路徑的原始 blob，全部一致才往下做；有任何不一致就停，不要拿去 `npm ci` 或打包。Git Bash，在 repo 裡產出預期清單，再對匯出資料夾比對〔已實測：對 `tar` 匯出的資料夾〕：
+
+   ```bash
+   git -C <repo> ls-tree -r <候選 commit> | awk '{print $3 "\t" $4}' > expected.tsv
+   cd <資料夾>
+   cut -f2- <expected.tsv 的路徑> | git hash-object --no-filters --stdin-paths > actual.txt
+   cut -f1 <expected.tsv 的路徑> | diff - actual.txt && echo 全部一致
+   ```
+
+   對 ZIP 解壓後的資料夾也做同一個核對〔未實跑〕。
+
+3. 在該資料夾 `npm ci`。
+4. `npm run dist:win`：依序跑 `check:ui-css:strict`、`docs:ipc`、產生 electron-builder 設定、electron-builder（NSIS、x64）、`check:packaged-artifacts`。輸出在該資料夾的 `dist\`，安裝檔是 `dist\GGL-Launcher-Setup-<version>.exe`。建置日誌裡**不應**出現 `build:rpc-helper`（見 §5）。
+5. `sha256sum` 安裝檔，記下版本、建置 commit、sha256（§7）。
+6. 核對 helper：`assets\rpc-helper.exe` 與 `dist\win-unpacked\resources\assets\rpc-helper.exe` 的 sha256 相同（§5）。
+
+〔已實測〕2026-10-30 的 B1：在候選 `3272fe5` 上，Git Bash 帶兩個設定匯出，核對 413 個追蹤檔全部一致後 `npm ci`、`dist:win` exit 0（約 30 秒，依賴已在本機快取），`check:packaged-artifacts` 過，建置日誌沒有 `build:rpc-helper`。Node 24 與 Node 22.23.4 的 `npm test` 各 1454／1454。出貨 helper 的 Discord 行為、安裝與啟動那個安裝檔、CI 都沒做（見 §10）。**安裝檔的 sha256 與路徑屬於當次 B1 的證據，於 B1 結案時記入 `_notes/history.md`，不寫在這份操作文件裡。**
 
 ## 4. 站台發布前檢查
 
