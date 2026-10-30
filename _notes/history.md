@@ -183,6 +183,7 @@
 - 2026-10-30 Release Gate Plan 落檔 commit `1cb49c4`（1 檔）：首次 Windows x64 發版前的缺口審查與驗收計畫，經 owner 四輪裁決後通過設計審查；通過的是 Plan，不是 Release Gate，Gate 仍未通過 → plans/release-gate-2026-10.md
 - 2026-10-30 Release Gate G-5 commit `255a03a`（2 檔）：`dist:win`、`pack:win` 不再自動重建 `rpc-helper.exe`，並新增只含 G-5 部分的 `docs/release-runbook.md`。隔離副本實跑：改前原樣 `pack:win` 在這台機器先撞 `EALLOWSCRIPTS`（使用者層 `.npmrc`，單一環境），繞過後才看到它把 helper 重建成不同 sha256（對照組）；改後兩條命令 helper sha256 都不變、打包產物檢查過。Node 22 照 owner 決定保留到發版候選 → plans/release-gate-2026-10.md §四 G-5 施工紀錄
 - 2026-10-30 Release Gate G-4 commit `1fbac0f`（14 檔）：啟動器版本過舊時狀態卡多一行下載網址與「開啟下載頁」鈕，網址是 `lib/server-config.js` 頂層 `launcherDownloadUrl` 的單一權威，鈕走既有 `openExternal`。撞到：Plan 預測會紅的 `renderer-boot`、`renderer-settings-modal`、status-text 替身實際沒紅，真正紅的是 `site-format-doc` 的 SF-S1～SF-S6（公告卡替身缺新元素）加 K3 與 `server-config-ipc`，共 8 個。真 Electron 畫面、瀏覽器真的開啟、staging 兩條過舊路徑留到 RV-5S／M-16 → plans/release-gate-2026-10.md §四 G-4 施工紀錄
+- 2026-10-30 Release Gate G-6 commit `d3ad1eb`（6 檔）：`lib/sync/site-format.js` 匯出認得的鍵的唯一清單 `KNOWN_KEYS` 與 `unknownKeys`，新增只讀的 `scripts/check-site.js`，把 `gate.maintenence` 這類拼錯當成發佈前的 Error；啟動器對未知鍵的寬鬆解析不變。撞到：隔離副本第一次「解析器不再讀 `message`」的突變沒被抓到，是突變寫錯（後一行還在讀），不是同步測試的洞；修正後各類突變都讓同步測試紅。保證只涵蓋測試列名的解析函式與完整樣本路徑；工具沒有對正式站台資料夾本身執行，只跑在四支 JSON 的複本上 → plans/release-gate-2026-10.md §四 G-6 施工紀錄
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
