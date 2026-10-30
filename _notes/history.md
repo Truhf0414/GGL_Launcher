@@ -182,6 +182,7 @@
 - 2026-10-30 cross-review Phase 6 結案：owner 正式宣告（「正式宣告：Phase 6 結案。」），接受 6e-7 的最終驗收——五條結案條件滿足，母體處置、歷史裁決、保留理由、退回紀錄與驗證證據都已核銷。結案不代表所有 future-work 已完成，也不代表已通過首次正式發版的 Release Gate。母體不再擴張，已完成的工程裁決不重開。同日 owner 依 D-6E-CLOSE 宣告整個 cross-review-2026-10 事件結案（「整個交叉審查事件正式結案。」）；future-work、CSS 獨立工程未完成的事項、Release Gate 與正式安裝檔驗收不因此視為完成 → plans/cross-review-2026-10-phase6e.md §六 6e-7 結案紀錄；plans/cross-review-2026-10.md 狀態列
 - 2026-10-30 Release Gate Plan 落檔 commit `1cb49c4`（1 檔）：首次 Windows x64 發版前的缺口審查與驗收計畫，經 owner 四輪裁決後通過設計審查；通過的是 Plan，不是 Release Gate，Gate 仍未通過 → plans/release-gate-2026-10.md
 - 2026-10-30 Release Gate G-5 commit `255a03a`（2 檔）：`dist:win`、`pack:win` 不再自動重建 `rpc-helper.exe`，並新增只含 G-5 部分的 `docs/release-runbook.md`。隔離副本實跑：改前原樣 `pack:win` 在這台機器先撞 `EALLOWSCRIPTS`（使用者層 `.npmrc`，單一環境），繞過後才看到它把 helper 重建成不同 sha256（對照組）；改後兩條命令 helper sha256 都不變、打包產物檢查過。Node 22 照 owner 決定保留到發版候選 → plans/release-gate-2026-10.md §四 G-5 施工紀錄
+- 2026-10-30 Release Gate G-4 commit `1fbac0f`（14 檔）：啟動器版本過舊時狀態卡多一行下載網址與「開啟下載頁」鈕，網址是 `lib/server-config.js` 頂層 `launcherDownloadUrl` 的單一權威，鈕走既有 `openExternal`。撞到：Plan 預測會紅的 `renderer-boot`、`renderer-settings-modal`、status-text 替身實際沒紅，真正紅的是 `site-format-doc` 的 SF-S1～SF-S6（公告卡替身缺新元素）加 K3 與 `server-config-ipc`，共 8 個。真 Electron 畫面、瀏覽器真的開啟、staging 兩條過舊路徑留到 RV-5S／M-16 → plans/release-gate-2026-10.md §四 G-4 施工紀錄
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
