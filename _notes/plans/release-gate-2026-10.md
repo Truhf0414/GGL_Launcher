@@ -139,16 +139,16 @@ README 重製（OD-7）**不阻擋**發版，第四輪 owner 選 C：首發只�
 
 ## 四、Release Gate Plan
 
-### 最小必要施工（G-4、G-5、G-6 已施工；文件類 G-0～G-3 尚未授權）
+### 最小必要施工（G-4、G-5、G-6 已施工；文件類 G-0～G-3 也已施工）
 
 **必要**＝owner 已裁定、發版前必須完成；**非 Gate**＝不擋發版。分類依 R1 更新（G-4～G-6 由選配改為必要）。
 
 | 項 | 內容 | 分類 | 前提 | 驗收依賴 |
 |---|---|---|---|---|
-| G-0 | 新增 `docs/release-runbook.md`（操作文件，歸 `docs/`）：從乾淨 checkout 建安裝檔的指令、輸出到新資料夾、sha256 記錄位置、版本號與 `package.json` `version`／`gate.minLauncherVersion` 的對應、GitHub Release 的建立與 asset／notes 欄位（版本、建置 commit、SHA-256、SmartScreen 說明連結）、發版後怎麼回退、`rpc-helper` 只在其原始碼改過時才重建且須重新驗收。**只寫已被 RV 證明的步驟** | 必要（文件） | OD-1、OD-3 已裁；RV-1、RV-11 公開前段做完。Release 的操作順序照 OD-13（§五 5.11）寫；公開後技術驗收窗口那幾步在首發前**沒有被演練過**，runbook 要標「尚未實跑」，首發當次跑完再回填 | M-5、M-22 |
-| G-1 | 玩家指引（`docs/player-troubleshooting.md` 加節）：SmartScreen 怎麼繞、診斷怎麼匯出、**診斷包可能含的資料與分享前檢查**、安全分享原則、啟動器版本過舊去哪下載。**不得虛構尚未指定的回報入口**：只寫 owner 已實際指定的入口；未指定就只寫原則。回報入口的建立（頻道、Ticket、權限）是 owner 的 Discord 伺服器管理責任，**不以任何 Discord 管理方案作為 Gate 條件**（OD-6，第四輪） | 必要（文件） | OD-1、OD-6 | M-25、M-26 |
-| G-2 | README **最低資訊**（OD-7 選 C）：正確下載入口、系統需求、功能描述、操作與支援指引、SmartScreen 提醒、真實隱私揭露（照實列出三個頭像服務與送出的資料）；支援指引只寫 owner 已指定的實際入口；`dist:win`「(Later)」改成 runbook 的指標 | 必要（文件） | OD-1、OD-7 | M-27 |
-| G-3 | `conventions.md` 的首發後相容規則（OD-4a／4b／4c）取代「從未發行所以不接舊版」的前提與第 5 條；`future-work.md` #8 的提醒了結；conventions §發包產物 中「安裝檔放檔案伺服器」被 OD-1 取代，一併改 | 必要（筆記，需 owner 授權才改 conventions） | OD-4、OD-1 | M-30 |
+| G-0 | 新增 `docs/release-runbook.md`（操作文件，歸 `docs/`）：從乾淨 checkout 建安裝檔的指令、輸出到新資料夾、sha256 記錄位置、版本號與 `package.json` `version`／`gate.minLauncherVersion` 的對應、GitHub Release 的建立與 asset／notes 欄位（版本、建置 commit、SHA-256、SmartScreen 說明連結）、發版後怎麼回退、`rpc-helper` 只在其原始碼改過時才重建且須重新驗收。**只寫已被 RV 證明的步驟** | 必要（文件） | OD-1、OD-3 已裁；RV-1、RV-11 公開前段做完。Release 的操作順序照 OD-13（§五 5.11）寫；公開後技術驗收窗口那幾步在首發前**沒有被演練過**，runbook 要標「尚未實跑」，首發當次跑完再回填 | M-5、M-22；**已施工**：commit `3281081`，owner 2026-10-30 驗收通過（紀錄見下「B3 施工紀錄」） |
+| G-1 | 玩家指引（`docs/player-troubleshooting.md` 加節）：SmartScreen 怎麼繞、診斷怎麼匯出、**診斷包可能含的資料與分享前檢查**、安全分享原則、啟動器版本過舊去哪下載。**不得虛構尚未指定的回報入口**：只寫 owner 已實際指定的入口；未指定就只寫原則。回報入口的建立（頻道、Ticket、權限）是 owner 的 Discord 伺服器管理責任，**不以任何 Discord 管理方案作為 Gate 條件**（OD-6，第四輪） | 必要（文件） | OD-1、OD-6 | M-25、M-26；**已施工**（`3281081`，owner 驗收通過） |
+| G-2 | README **最低資訊**（OD-7 選 C）：正確下載入口、系統需求、功能描述、操作與支援指引、SmartScreen 提醒、真實隱私揭露（照實列出三個頭像服務與送出的資料）；支援指引只寫 owner 已指定的實際入口；`dist:win`「(Later)」改成 runbook 的指標 | 必要（文件） | OD-1、OD-7 | M-27；**已施工**（`3281081`，owner 驗收通過；連結實點在公開後） |
+| G-3 | `conventions.md` 的首發後相容規則（OD-4a／4b／4c）取代「從未發行所以不接舊版」的前提與第 5 條；`future-work.md` #8 的提醒了結；conventions §發包產物 中「安裝檔放檔案伺服器」被 OD-1 取代，一併改 | 必要（筆記，需 owner 授權才改 conventions） | OD-4、OD-1 | M-30；**已施工**（`3281081`，owner 驗收通過） |
 | G-4 | **OD-2b**：`launcher-too-old` 提示固定下載入口 `https://github.com/Truhf0414/GGL_Launcher/releases`。UI 已裁 B：文字行＋「開啟下載頁」按鈕（沿用既有 `openExternal`，單一 `launcherDownloadUrl` 權威），接線見 §五 5.2 | **必要**（程式＋測試＋文件）；**已施工**：commit `1fbac0f`，owner 2026-10-30 驗收通過，紀錄見下「G-4 施工紀錄」 | 網址與 UI（B）已裁；施工前先在隔離副本實跑「哪些既有測試會紅」的帳（learnings §測試帳用探針實跑產生），預期會碰到 `server-config`、`server-config-ipc`、`renderer-boot`、`renderer-settings-modal`、status-text 相關測試 | M-1、M-16（畫面實看、實點） |
 | G-5 | **OD-3A**：`dist:win`、`pack:win` 不再自動執行 `build:rpc-helper`；`build:rpc-helper` 留作手動腳本。〔現查 2026-10-30〕目前兩者都含 `npm run build:rpc-helper &&`，而 `assets/rpc-helper.exe` 是 repo 追蹤的檔（`git ls-files` 命中） | **必要**（`package.json` scripts 兩處＋runbook）；**已施工**：commit `255a03a`，owner 2026-10-30 驗收通過，紀錄見下「G-5 施工紀錄」 | OD-3 | M-5、M-6 |
 | G-6 | **OD-5**：站台手改檔發布前檢查工具＋合法鍵的單一權威與同步保證。設計見 §五 OD-5 | **必要**（`lib/sync/site-format.js` 小改＋新只讀工具＋測試＋`docs/site-format.md` 說明）；**已施工**：commit `d3ad1eb`，owner 2026-10-30 驗收通過，紀錄見下「G-6 施工紀錄」 | OD-5 已裁（未知欄位＝Error、非零結束碼；不擴充日期／編輯警告）；工具命名由實作者決定 | M-4、M-18 |
@@ -181,6 +181,16 @@ README 重製（OD-7）**不阻擋**發版，第四輪 owner 選 C：首發只�
 - owner 接受的三點：缺少預期的四支 JSON 視為發布前檢查錯誤；`release.json` 由發布工具負責，不加未知欄位檢查；現行 GGL3 manifest 用標準檔名，未來變更 manifest 路徑要重新核對檢查範圍，不在本輪擴充。
 - 保證範圍：只涵蓋測試列名的解析函式與完整樣本走到的路徑；條件分支才讀的鍵、別處直接讀原始欄位的鍵抓不到。
 - **未驗**：Node 22、`test:freeze`；對正式站台資料夾本身執行工具；G-0 runbook 還沒寫這個工具的步驟。
+- 這不是 Gate 通過。
+
+**B3 施工紀錄**（2026-10-30，基準 HEAD `b46e755`，owner 授權範圍僅 G-0～G-3 與必要的 STATUS／history／Plan 狀態同步；`3281081`，owner 2026-10-30 驗收通過，含三處文字校正）：
+
+- G-0 `docs/release-runbook.md`：續寫既有檔，不開第二份。每步標〔已實測〕〔預定〕〔尚未實跑〕〔據文件〕。涵蓋版本號與 `minLauncherVersion` 的關係、建置前檢查、乾淨候選 commit 的隔離建置、G-6 站台檢查、helper 規則、Draft Release、版本與 SHA-256 的紀錄位置、公開後技術驗收窗口、回退。B1、Draft Release、公開後流程都沒有執行，runbook 沒有任何一步寫成通過。
+- G-1 `docs/player-troubleshooting.md`：過舊版本的下載入口（第 3 節）、SmartScreen（第 6 節）、診斷匯出與分享前檢查（第 7 節）。診斷包內容照 `main/diagnostics-export.js` 逐項寫：`report.json`、`sync-record.json`、`settings.json`、`ggl-launcher.log`／`.1.log`、桌面 `launcher.log` 與 `rpc-launch.log`（後兩者只有開除錯記錄才有）；明寫不含 `latest.log`、`crash-reports`、帳號與憑證檔，也沒有宣稱自動脫敏。**沒有指定回報頻道**：owner 沒有指定實際入口，所以只寫安全分享原則與「沒被告知要送哪裡就先不分享」。
+- G-2 `README.md`：只做首發最低資訊（下載入口、系統需求、功能、基本操作、支援指引、SmartScreen、隱私揭露、技術文件入口），把過期的 `(Later)` 改掉；原本的英文「What it does」「Privacy」「Contact」整段換成新的玩家區塊，開發者的段落（Quick start、Discord、設定檔、站台、發版）沒動，除了 helper 重建的一句說明。隱私揭露點名 `crafatar.com`、`visage.surgeplay.com`（收到 UUID）、`mc-heads.net`（前兩者失敗時收到玩家名稱）與其他連線對象，主機名都來自原始碼（`renderer/account-ui.js`、`main/microsoft-auth.js`、`main/runtime/*.js`、`lib/fabric-meta.js`、`lib/server-config.js`）。功能只列有證據的；Microsoft 登入寫明只驗過作者的帳號；Discord 狀態寫明出貨版行為未驗收。沒有做 Redesign、視覺提案或截圖。
+- G-3 `_notes/conventions.md`：「從未發行」前提改成 1.0.0 之後的前提；第 5 條「不接舊版」換成 4a／4b／4c（用 owner 的原話，4c＝明確最低支援版本）；安裝檔來源改 GitHub Releases；§本機打包照 G-5 更正。`_notes/future-work.md`：#14、#10 了結離箱（依據在 history 2026-10-30，#14 不寫成最新版已實測，#10 分開寫「G-6 已解決的發布前檢查」與「不做的 Launcher 嚴格解析」）；#8 的第二件了結、第一件仍開；#6 兩處過期記述加更正（自身更新入口、`attachRendererFailureLog`）；#15 加指針、**不提前結案**。其餘候選沒動。
+- 【Owner 裁，B3 驗收】接受 CC 的三個發版文件決定：①Release tag 用 `v<version>`；②SHA-256 對外記在 Release notes，內部驗收證據記在 `history.md`；③Release notes 包含版本、建置 commit、安裝檔 SHA-256 及必要的安全／系統需求指引。README 替換過期英文玩家資訊區塊可保留，不視為提前執行 G-7。owner 另要求三處文字校正（離線啟動的描述、PowerShell 範例檔名、`git archive | tar` 的 shell 限制），已改。
+- **仍待補齊**（文件裡都標了）：RV-7 的 SmartScreen／Defender 實際畫面與最低 Windows 版本；B1、B2 的結果；§6～§8 的全部操作；Microsoft 登入在非 owner 帳號上的證據（M-11）；出貨 helper 的 Discord 行為（M-6）；README 的下載入口與連結實點（公開後，M-27）；回報頻道（owner 尚未指定）。
 - 這不是 Gate 通過。
 
 ### 依賴與批次
@@ -594,13 +604,13 @@ B0 owner 終審本檔 ──┬─▶ G-4／G-5／G-6 施工授權（逐項）�
 | 檔／處 | 需要同步什麼 | 對應 |
 |---|---|---|
 | `_notes/STATUS.md` 的「接續步驟」 | 現文字是「Phase 6 結案的 docs commit（待 owner 授權；push 另外授權）」，但 `05cadf3` 已提交並 push（〔現查 2026-10-30〕STATUS 現文、`git log -1`、`git status -sb` 與 origin 同步），commit message 也寫「STATUS has nothing open」；接續步驟應指向本檔（Release Gate），由 owner 授權後更新 | 過期文字；已隨 G-5 結案的 docs commit 同步 |
-| `conventions.md` §防禦與相容、§發包產物 | 「從未發行」前提與第 5 條改成 OD-4（4c 照 owner 第四輪原話：明確最低支援版本，首發 v1.0.0，只有實際相容需求成立才調高，不因新版自動淘汰舊版、不承諾永久相容）；「安裝檔放檔案伺服器」被 OD-1 取代；§本機打包 對 `pack:win` 失敗的說法與本場探針不一致，待 RV-1 在 owner 機器釘住後更正 | G-3、RV-1 |
-| `future-work.md` | #6 「只在 debug 開啟時接」已過期；#8 提醒了結；#10 前半由 G-6 承接；#14 依 OD-12 了結：原文出口之一是「owner 裁定不再需要」，我讀第四輪撤回為走這個出口（§五 5.10 第 4 點，待 owner 確認；若 #14 要留箱則只註明不屬 Gate），離箱前先驗家（了結紀錄落 history，並與 `plans/cross-review-2026-10-x1b.md` §結案判定 X1b-D13 對齊），歷史對齊內容＝2026-09-15 自然到期成功、同日改欄位驗證、X1b 後未再自然觸發；#15 併入 RV-2；其餘照 §七 | G-3、OD-12 |
+| `conventions.md` §防禦與相容、§發包產物 | 「從未發行」前提與第 5 條改成 OD-4（4c 照 owner 第四輪原話：明確最低支援版本，首發 v1.0.0，只有實際相容需求成立才調高，不因新版自動淘汰舊版、不承諾永久相容）；「安裝檔放檔案伺服器」被 OD-1 取代；§本機打包 對 `pack:win` 失敗的說法與本場探針不一致，待 RV-1 在 owner 機器釘住後更正 | G-3、RV-1；已於 B3（`3281081`）同步，§本機打包照 G-5 的實測更正 |
+| `future-work.md` | #6 「只在 debug 開啟時接」已過期；#8 提醒了結；#10 前半由 G-6 承接；#14 依 OD-12 了結：原文出口之一是「owner 裁定不再需要」，我讀第四輪撤回為走這個出口（§五 5.10 第 4 點，待 owner 確認；若 #14 要留箱則只註明不屬 Gate），離箱前先驗家（了結紀錄落 history，並與 `plans/cross-review-2026-10-x1b.md` §結案判定 X1b-D13 對齊），歷史對齊內容＝2026-09-15 自然到期成功、同日改欄位驗證、X1b 後未再自然觸發；#15 併入 RV-2；其餘照 §七 | G-3、OD-12；已於 B3 同步：#6、#8 更正，#10、#14 了結離箱（依據在 history 2026-10-30），#15 加指針、不結案（`3281081`） |
 | `docs/site-format.md` | SF-G11 與標題段落加下載入口與「開啟下載頁」按鈕；加「發布前檢查工具」說明段 | G-4、G-6；G-4 的 SF-G11 與 `format` 段已於 `1fbac0f` 同步，工具說明段已於 `d3ad1eb` 同步 |
 | `docs/new-server-checklist.md` | server-config 表格加 `launcherDownloadUrl` | G-4；已於 `1fbac0f` 同步 |
-| `README.md` | 只做最低資訊：下載入口、系統需求、功能描述、操作與支援指引、SmartScreen、隱私段、`dist:win`「(Later)」（完整 Redesign 發版後由 owner 另行啟動，不在此） | G-2 |
-| `docs/player-troubleshooting.md` | 診斷匯出與隱私邊界、SmartScreen、過舊下載 | G-1 |
-| `history.md` | 發版相關結案時補紀錄（事故帳歸 history） | 收尾 |
+| `README.md` | 只做最低資訊：下載入口、系統需求、功能描述、操作與支援指引、SmartScreen、隱私段、`dist:win`「(Later)」（完整 Redesign 發版後由 owner 另行啟動，不在此） | G-2；已於 B3（`3281081`）同步 |
+| `docs/player-troubleshooting.md` | 診斷匯出與隱私邊界、SmartScreen、過舊下載 | G-1；已於 B3（`3281081`）同步 |
+| `history.md` | 發版相關結案時補紀錄（事故帳歸 history） | 收尾；B3 與 #8／#10／#14 的了結紀錄已補（2026-10-30） |
 
 ### 順手揭露（不在調查範圍，不處理）
 
