@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 137388cf-a689-4a3a-90c9-b811db37040f
-  modified: 2026-10-22T10:03:31.138Z
+  modified: 2026-10-30T14:38:14.072Z
 ---
 
 - 學長的第一個專案，2026-04～05 那批程式碼由 Cursor 生成、他參與 diff（09-11 重啟後改由 Claude Code）。2026-04-14 起頭（git 從 04-17）到 05-02 活躍，之後閒置到 2026-09-11 重啟。Cursor 時期的決策已於 2026-09-11 讀完並落 _notes（讀法見 [[cursor-history-location]]）。
@@ -18,7 +18,7 @@ metadata:
 - **啟動器從來沒有發行過任何版本，世上沒有玩家裝過**（不只 v3 期間；學長 2026-10-03：「版本沒差的，沒有發給任何人。都只是現在在內測重做這樣，所以不擔心現行問題。」；2026-10-11 學長：「從來沒發行過，所以沒有玩家有東西。」並說已重複很多次）⇒ 只有學長自己的機器上有舊版留下的東西。設計時不准假設「既有玩家機器上的舊資料」要遷移或清理；未來玩家都是全新安裝。要擋的是「首次對外發版時帶著走」的缺口。
 - 2026-05-02 pre-release audit 七份分工提示詞只執行了 #1 packaging，#2–#7 本文只在 Cursor DB。
 - 2026-09-11 review 開出的待辦：auth 兩項（refresh_token 沒存、mcAccessToken 明文）2026-09-12 完成並經學長驗收；sharp 移 devDependencies、`format:ui` 補 `main/ipc/` 2026-09-12 完成（commit 36e6daa）。未結的活清單在 `_notes/future-work.md` §收集區，以該處為準，此處不複製。
-- 本機 `~/.npmrc` 有 `allow-scripts=@anthropic-ai/claude-code`，會讓 `npm run pack:win` 在 rpc-helper install 那步失敗；繞法：直接跑 electron-builder（2026-09-11 驗過可 build）。
+- 本機 `~/.npmrc` 有 `allow-scripts=@anthropic-ai/claude-code`，會讓**手動** `npm run build:rpc-helper` 在 rpc-helper install 那步失敗（EALLOWSCRIPTS）；繞法：`npm_config_userconfig` 指到空檔。2026-10-30 起 `pack:win`／`dist:win` 不再呼叫它（G-5 `255a03a`），不受影響（隔離副本實測 exit 0）。
 
 **Why:** 這些都不在 code 或 git 裡（伺服器模式、網域意圖、發包資料夾狀態、學長的取捨）。
 **How to apply:** 下次接手先 `jq .version /h/Caddy_sitebuild/release.json` 看站台現在是哪一版（v3 的 `manifest.json` 只是索引、沒有版號），再決定測試要不要對齊模組。
