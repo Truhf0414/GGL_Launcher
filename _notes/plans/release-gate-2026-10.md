@@ -218,6 +218,7 @@ README 重製（OD-7）**不阻擋**發版，第四輪 owner 選 C：首發只�
 | F-3 | 退版時寫「有新版本 X（目前 Y）」 | 是否同步看檔案清單，不看版本新舊（`docs/site-format.md` release.json 段） | 首發前改中性文案。理由（owner）：遠端可能比本機新也可能舊，啟動器的責任是告知需要同步，不是假設版本只會往前。**取代** owner 2026-10-08 的「退版時的『有新版本』文案維持」（`plans/instance-sync-v3.md` 決策表） | 不新增升版／退版判斷或新狀態 | 更新、退版、同版號檔案不同三種情境的文案都正確。【Owner 裁，2026-10-31 diff review】同一語意一併改：「尚未安裝（伺服器版本 X）」、本機無版本時「伺服器版本為 X」；其他文案不動。【Owner 裁，2026-10-31 C3 review】up-to-date 不比版本字串（可能本機記錄 alpha2、遠端 alpha1 仍是 up-to-date），改「遊戲已就緒（本機記錄版本 X）」／無版本「遊戲已就緒」，取代 diff review 的「目前使用版本 X（與伺服器一致）」（權威文字表 → `plans/instance-sync-v3-commit3b2a.md`） |
 | F-4 | RV-10：imageUrl 能讓啟動器發出額外請求、相對 `file:` 或指向別台主機的 `file:` 請求；不影響其他 CSS 宣告 | 站台是單一信任根（§十二）；logUrl 已只收 http(s)（`main/sync/site-client.js`）；SF-S4 原本就把「沒檢查」列為已知問題 | 首發前修。理由（owner）：SF-S4 已列已知問題、RV-10 有實測、logUrl 已有同樣限制、F-2／F-3 本來就要換候選、範圍窄。**不是**認定為已證實的重大漏洞，也不升 P0／Blocker | 不用 `new URL().href` 當 CSS 安全保證（被實測推翻 → `history.md` 2026-10-31 B4 那條）；不擴大 `check-site`；不動 CSP、sandbox、全域資源政策；不加第二套畫面端驗證或通用 URL validator | 在 `parseNoticeFields` 只收 `http(s)://` 開頭、不含 `"` `\` 與控制字元；不合格照 SF-S3 保留縮圖；施工前後用 RV-10 輸入在隔離 Electron 驗 |
 
+- 【Owner 裁，2026-10-31】啟動器 icon 換成 Owner 提供的飯糰 icon，**併入最終候選**（不留到首發後）；直接用提供的 ico、不經 `npm run build:icons`；舊貓眼 icon 要在別處用，保留於 repo（`1dcfe64`；驗證與未驗項 → `history.md` 2026-10-31 最終候選那條）。
 - 候選會換：F-2、F-3、F-4 都改到出貨程式，`4d7b016` 不再對應施工後的程式。新候選要在 owner 驗收、授權 commit 之後建置並重做 B1 必要項；B2 依程式差異決定沿用範圍與窄範圍補驗，不預設整個重跑；CI 要另行授權 push（owner 2026-10-31）。
 - 這不是 Gate 通過。
 
