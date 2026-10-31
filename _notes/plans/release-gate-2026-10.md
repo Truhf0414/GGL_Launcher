@@ -57,7 +57,7 @@ README 重製（OD-7）**不阻擋**發版，第四輪 owner 選 C：首發只�
 | `openExternal`（**兩層分開看**） | **呼叫者層**：畫面→main；三個呼叫處的參數全是常數（`renderer/account-ui.js:194,205` 兩個 minecraft.net 網址；`renderer/window-controls.js:23` 的 `defaults.discordInviteUrl`，來自出貨的 `lib/server-config.js` 經 `serverConfig:getDefaults`）。**main IPC 邊界層**：preload 把這個 channel 開給畫面，畫面傳什麼 main 就收什麼 | main 只驗開頭 `^https?://`（`main/ipc/external-ipc.js:7`），不驗 host；`http:` 也放行；main 這個 filter 沒有直接的測試〔現查 2026-10-30：`rg -l 'registerExternalIpc' test` 無命中；只有 `test/renderer-boot.test.cjs` 提到 `openExternal`〕 | 呼叫者層：沒有路徑能讓遠端資料變成它的參數（畫面沒有任何 `<a href>`，`rg 'href=' index.html renderer` 只有 stylesheet；遠端文字都走 `textContent`）。邊界層：畫面若被入侵，可叫預設瀏覽器開任意 http(s) 網址（`file:`、自訂協定被擋）；但要先有畫面入侵這個前提 | **非 blocker**。責任歸屬：呼叫者用常數是「今天」的事實，不是 main 邊界的保證；邊界要不要限 host 是縱深防禦，成本是一份 host 清單要與呼叫處同步（G-4 若選按鈕方案，會多一個用 `launcherDownloadUrl` 的呼叫者，清單要含 `github.com`）。進 §七，有新反例再重判 |
 | `sandbox:false` | `main/main-window.js:74`；preload 用 `fs`／`path` 算素材路徑 | preload 只暴露 `invoke`／`on`／`assetUrl`，channel 白名單（`lib/ipc-channels.js`），`assetUrl` 做了 traversal 與目錄限制（`preload.js:14-51`）；`contextIsolation:true`、`nodeIntegration:false` | 畫面拿不到 Node；開 sandbox 要改 preload 的 `assetUrl`（它要 `fs.existsSync`），有改動成本 | **非 blocker**；縱深防禦，進 §七；不展開 preload 重構 |
 | 沒有 CSP | `index.html` 無 CSP meta（〔現查 2026-10-30〕`rg 'Content-Security' index.html` 空，對照組 `rg '<meta' index.html` 命中 4 行，手段有效） | — | 沒有注入面可讓它發揮：`index.html` 的 `<script>` 全是外部檔、沒有行內 script 與 `on*=` 屬性；遠端字串走 `textContent`（`renderer/notifications-ui.js:106-114`、`renderer/instance-ui.js:35-37,45`）；唯一的 `innerHTML` 是寫死的選單（`renderer/account-ui.js:160`） | **非 blocker**；若做，`script-src 'self'` ＋ `object-src 'none'` 與目前頁面相容，**不要**限 `img-src`（見下一列）。進 §七 |
-| 公告 `imageUrl` | `notice.json`（站台）→ `lib/sync/notice.js:14-27` 只 trim → `renderer/instance-ui.js:41` 塞進 `url("…")` → CSS 變數 `--thumb-url`（`styles.css:662` 的 `background: var(--thumb-url)`） | **沒人驗**（SF-S4 明寫「原樣當成圖片網址」） | **靜態推論**：CSS 自訂屬性的值在解析階段是 token 串，含 `"`、`;`、`}` 的字串能否跳出這條宣告，我只依規格推論；本場想用 Browser pane 驗，pane 不能對 `file:` 頁執行 JS，**沒驗成**〔推論，未驗〕。已知的最大後果是畫面去載一個任意網址的圖（玩家 IP 外洩給該主機），但寫 `notice.json` 的人本來就能改 release 放 jar | **不預先宣稱漏洞，也不宣稱已驗證安全**。排狹窄的 Electron 隔離探針（RV-10）：結果若顯示 `imageUrl` 能影響 `--thumb-url` 以外的宣告，停下回報、重判。留 future-work #6，行號已更新（原記 `:50-57`，HEAD 是 `:41`） |
+| 公告 `imageUrl` | `notice.json`（站台）→ `lib/sync/notice.js:14-27` 只 trim → `renderer/instance-ui.js:41`〔對齊 2026-10-31：→ `ea19b62`：`parseNoticeFields` 現在在 `lib/sync/notice.js:27-40`，imageUrl 改由 `parseImageUrl` 只收 http(s) 開頭、不含引號、反斜線與控制字元的值（B4 F-4）；`renderer/instance-ui.js` 的 `setProperty` 在 `:44-45`，`:41` 自 G-4 `1fbac0f` 起就已過期〕 塞進 `url("…")` → CSS 變數 `--thumb-url`（`styles.css:662` 的 `background: var(--thumb-url)`） | **沒人驗**（SF-S4 明寫「原樣當成圖片網址」） | **靜態推論**：CSS 自訂屬性的值在解析階段是 token 串，含 `"`、`;`、`}` 的字串能否跳出這條宣告，我只依規格推論；本場想用 Browser pane 驗，pane 不能對 `file:` 頁執行 JS，**沒驗成**〔推論，未驗〕。已知的最大後果是畫面去載一個任意網址的圖（玩家 IP 外洩給該主機），但寫 `notice.json` 的人本來就能改 release 放 jar | **不預先宣稱漏洞，也不宣稱已驗證安全**。排狹窄的 Electron 隔離探針（RV-10）：結果若顯示 `imageUrl` 能影響 `--thumb-url` 以外的宣告，停下回報、重判。留 future-work #6，行號已更新（原記 `:50-57`，HEAD 是 `:41`） |
 | 頭像（**新發現**） | `renderer/account-ui.js:113-116` 依序嘗試 `crafatar.com`、`visage.surgeplay.com`（兩者的網址帶玩家 UUID）、`mc-heads.net`（帶玩家名稱，最後備援）；`main/microsoft-auth.js:693` 把 crafatar 網址存進帳號檔 | — | 不是安全問題；是**隱私聲明不符**：README §Privacy 寫網路只連站台、Mojang／Fabric／Adoptium、微軟（`README.md:46-49`），沒有列這三個 | → OD-7 |
 | 視窗導覽 | 沒有 `will-navigate`、`setWindowOpenHandler`（〔現查 2026-10-30〕`rg 'will-navigate\|setWindowOpenHandler' main lib preload.js main.js` 空；對照組：同指令的 `webContents.on(` 命中 3 處） | — | 畫面沒有連結，導覽只能由畫面程式碼觸發 | **非 blocker**；縱深防禦，進 §七 |
 | IPC 高影響操作 | `settings:set`：`checkSettings` 驗全部鍵、拒不認得的鍵；`instance:repair` 的 `strayJarsToRemove`：main 端 `assertRemovableStrayJars`（`lib/sync/plan.js:188`，`main/sync/index.js:347`）；`dialog:selectDirectory` 走 main 的對話框 | main 端 | 要先有畫面入侵 | 無新發現 |
@@ -209,7 +209,7 @@ README 重製（OD-7）**不阻擋**發版，第四輪 owner 選 C：首發只�
 - **仍待**：不同版本號的更新與登入帳號在覆蓋後保留（未取得）；RV-7（SmartScreen／Defender 畫面、最低 Windows 版本）；M-6 沒涵蓋的 Electron 接線、第二位觀看者看到的按鈕、單實例鎖、Discord 沒開；Draft Release 以後全部。
 - 這不是 Gate 通過。
 
-**B4 證據紀錄**（2026-10-31，staging 建置＝`4d7b016` 的 repo 外副本、只改身分與站台位址；逐格結果、證據位置只寫在 `history.md` 2026-10-31 的 B4 那一條與 `H:\ggl-b4\B4-EVIDENCE-REVIEW.md`，這裡不複製）。B4 **未放行**。以下是 owner 對 B4 發現的四項裁決（需求已裁≠程式已驗收）：
+**B4 證據紀錄**（2026-10-31，staging 建置＝`4d7b016` 的 repo 外副本、只改身分與站台位址；逐格結果、證據位置只寫在 `history.md` 2026-10-31 的 B4 那一條與 `H:\ggl-b4\B4-EVIDENCE-REVIEW.md`，這裡不複製）。B4 **已放行**（Owner 2026-10-31，見本段末）。以下是 owner 對 B4 發現的四項裁決（需求已裁≠程式已驗收）：
 
 | 項 | 問題 | 既有保證 | 【Owner 裁，2026-10-31】決定與理由 | 決定不做 | 驗收條件 |
 |---|---|---|---|---|---|
@@ -220,7 +220,8 @@ README 重製（OD-7）**不阻擋**發版，第四輪 owner 選 C：首發只�
 
 - 【Owner 裁，2026-10-31】啟動器 icon 換成 Owner 提供的飯糰 icon，**併入最終候選**（不留到首發後）；直接用提供的 ico、不經 `npm run build:icons`；舊貓眼 icon 要在別處用，保留於 repo（`1dcfe64`；驗證與未驗項 → `history.md` 2026-10-31 最終候選那條）。
 - 候選會換：F-2、F-3、F-4 都改到出貨程式，`4d7b016` 不再對應施工後的程式。新候選要在 owner 驗收、授權 commit 之後建置並重做 B1 必要項；B2 依程式差異決定沿用範圍與窄範圍補驗，不預設整個重跑；CI 要另行授權 push（owner 2026-10-31）。
-- 這不是 Gate 通過。
+- 【Owner 裁，2026-10-31】icon 候選只跑 B1 加自動取 icon 比對，**不做手動 B2**（實機安裝畫面、捷徑顯示、圖示快取列剩餘風險）。Owner 審完證據：「我同意做為最終候選。Push 吧！」⇒ **最終候選＝`584943daea8756fad2579d36d511185ae1ca82d5`**，已 push，CI success（M-3 取得）；之後 Owner：「B4 放行」。B1、icon 比對與 CI 的數字只寫在 `history.md` 2026-10-31 最終候選 `584943d` 那條，這裡不複製。
+- B4 放行不是 Gate 通過：B5（RV-4、RV-9）、B6 簽核、Draft Release 以後全部仍待；M-10 仍要 Draft Release。
 
 ### 依賴與批次
 
@@ -246,7 +247,7 @@ B0 owner 終審本檔 ──┬─▶ G-4／G-5／G-6 施工授權（逐項）�
 | B1（2026-10-30 已執行一次、2026-10-31 對最終候選 `7bafc4c` 對齊重建，見上「B1 證據紀錄」；M-3 已取得） | RV-1／RV-1b：`git archive <候選 commit>` 到 repo 外短路徑新資料夾、`npm ci`、完整 `dist:win`、`check:packaged-artifacts`、7z 列 asar、sha256；核對出貨 `rpc-helper.exe` sha256；Discord RPC 行為實測（需 owner 的 Discord 用戶端） | repo 外隔離目錄 | owner 授權（下載數百 MB、約十來分鐘磁碟與時間；Discord 行為屬有狀態） | CC 跑、owner 看結果 |
 | B2（2026-10-31 已執行，Owner 同日放行 M-7／M-8／M-9，見上「B2 證據紀錄」；M-10 不在放行範圍） | RV-2／3／6／7；同時取 README 用的真實截圖（測試身分或遮蔽帳號名稱、UUID、路徑） | **乾淨環境**：獨立 Windows 使用者帳號或 VM。**不要裝在 owner 日常帳號**：正式身分的 userData 名稱 `GGL_launcher` 與 `npm start` 開發版相同（`package.json` `name`；X1b 實測測試身分 `GGL_launcher_x1btest`），會和 owner 真實的設定與帳號混在一起 | owner 逐項授權（寫登錄檔、開始選單、`%LOCALAPPDATA%`） | owner 操作、CC 旁觀紀錄（唯讀） |
 | B3 | G-0～G-3 | repo | 動 `_notes/` 與 `docs/` 前 owner 授權；commit 另授權 | CC 寫、owner 審 |
-| B4（2026-10-31 已執行，**未放行**；見上「B4 證據紀錄」） | RV-5S／RV-12／RV-13／RV-14；RV-10 探針 | staging（見下）；探針在隔離 Electron | owner 授權建 staging；探針無狀態 | CC 建置與觀察、owner 授權 |
+| B4（2026-10-31 已執行，2026-10-31 Owner 放行；見上「B4 證據紀錄」） | RV-5S／RV-12／RV-13／RV-14；RV-10 探針 | staging（見下）；探針在隔離 Electron | owner 授權建 staging；探針無狀態 | CC 建置與觀察、owner 授權 |
 | B5 | RV-4（一組不同帳號；owner 可採認既有玩家測試證據）、RV-9；M-11～M-14、M-25（M-12 含 port 占用）。RV-4b 已撤回，不在此批 | 正式身分（乾淨使用者／VM，或 owner 的正式安裝）；非 owner 帳號的來源由 owner 決定 | owner 授權（真帳號） | owner 操作、CC 旁觀紀錄；**不招募玩家**；必要但取不到的證據→「未取得」，呈報剩餘風險，owner 決定，不自動放行（§六 §0） |
 | B6 | Owner 簽核（§六 矩陣標「擋」全綠，或 owner 逐條明示接受剩餘風險） | — | owner | owner |
 
@@ -320,7 +321,7 @@ B0 owner 終審本檔 ──┬─▶ G-4／G-5／G-6 施工授權（逐項）�
 
 - 【Owner 裁】見 5.0。「提供更新入口」同時是 OD-4c 的前提：站台格式不相容時，玩家看到的提示也要有入口。
 - **現況事實**〔現查 2026-10-30〕：
-  - 「請下載新版啟動器」目前出現在**四個**正式字串：`lib/sync/site-format.js:53`（manifest `format` 大於 3 的錯誤）、`lib/sync/status-kind.js:120-123`（gate 的 `minLauncherVersion`）、`lib/sync/status-text.js:68-72`（`launcher-too-old` 的標題，兩個變體）。**都沒說去哪下載**。
+  - 「請下載新版啟動器」目前出現在**四個**正式字串：`lib/sync/site-format.js:53`（manifest `format` 大於 3 的錯誤）、`lib/sync/status-kind.js:120-123`（gate 的 `minLauncherVersion`）、`lib/sync/status-text.js:68-72`（`launcher-too-old` 的標題，兩個變體）〔對齊 2026-10-31：→ `ea19b62`：現在是 `:69-73`，內容沒變；→ `9678cc1` 只動其後的 up-to-date，這段不受影響〕。**都沒說去哪下載**。
   - 兩條來源路徑（gate 最低版本、manifest `format` 較新）在 `lib/sync/status-kind.js:186-196` 與 `:217` 都收斂成同一個 kind `launcher-too-old`。
   - 既有精確字串測試多處釘住這些句子：`test/site-format-doc.test.cjs`（SF-G11 兩處）、`test/sync-status-kind.test.cjs`、`test/sync-status-text.test.cjs`、`test/sync-site-format.test.cjs`、`test/sync-site-client.test.cjs`。
   - `discord.downloadLauncherUrl`（`lib/server-config.js:30`，目前 `""`）屬於 Discord RPC 設定，只有 `lib/discord-helper-args.js` 引用；與更新入口無關。`discord.allowedButtonHosts: []` 的語意是「不額外限制 host」（`lib/discord-button-url.js:19`，空清單直接回傳網址），**不會**因空白名單擋掉 GitHub。
@@ -664,7 +665,7 @@ B0 owner 終審本檔 ──┬─▶ G-4／G-5／G-6 施工授權（逐項）�
 | E8 | `H:\GGL3-release` 有 `alpha1`、`alpha2` | `ls` | 〔現查 2026-10-30〕 |
 | E9 | 安全邊界各檔 | `main/ipc/external-ipc.js`、`main/main-window.js:74,78`、`preload.js`、`index.html`、`renderer/instance-ui.js:41`、`renderer/account-ui.js:113-116,160`、`lib/sync/notice.js`、`lib/ipc-channels.js` | 〔讀碼〕 |
 | E10 | 沒有 CSP、沒有導覽防護、無 `href` 的反證手段 | `rg` 加對照組（見 §二 B 各列） | 〔現查 2026-10-30〕 |
-| E11 | `launcher-too-old` 四個字串、兩條路徑收斂、`downloadLauncherUrl` 空、`allowedButtonHosts` 語意 | `lib/sync/site-format.js:47-57`、`lib/sync/status-kind.js:115-125,186-196,217`、`lib/sync/status-text.js:68-72`、`lib/server-config.js:23-31`、`lib/discord-button-url.js:15-21`、`rg '請下載新版' lib test docs` | 〔現查 2026-10-30〕 |
+| E11 | `launcher-too-old` 四個字串、兩條路徑收斂、`downloadLauncherUrl` 空、`allowedButtonHosts` 語意 | `lib/sync/site-format.js:47-57`、`lib/sync/status-kind.js:115-125,186-196,217`、`lib/sync/status-text.js:68-72`〔對齊 2026-10-31：→ `ea19b62`：現在是 `:69-73`；→ `9678cc1` 不影響這段〕、`lib/server-config.js:23-31`、`lib/discord-button-url.js:15-21`、`rg '請下載新版' lib test docs` | 〔現查 2026-10-30〕 |
 | E12 | gate／notice 驗證與無檢查工具 | `lib/sync/site-format.js`（`validateGate`、`validateNotice`）、`rg` `scripts/`、`docs/site-format.md` SF-G6／G7／N3／N7 | 〔讀碼〕＋〔現查 2026-10-30〕 |
 | E13 | 診斷包內容、常駐日誌涵蓋範圍 | `main/diagnostics-export.js`、`rg 'gglError\(' main` | 〔讀碼〕＋〔現查 2026-10-30〕 |
 | E14 | 玩家指引現況 | `docs/player-troubleshooting.md` | 〔讀碼〕 |
