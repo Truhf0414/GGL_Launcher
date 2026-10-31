@@ -223,6 +223,10 @@ README 重製（OD-7）**不阻擋**發版，第四輪 owner 選 C：首發只�
 - 【Owner 裁，2026-10-31】icon 候選只跑 B1 加自動取 icon 比對，**不做手動 B2**（實機安裝畫面、捷徑顯示、圖示快取列剩餘風險）。Owner 審完證據：「我同意做為最終候選。Push 吧！」⇒ **最終候選＝`584943daea8756fad2579d36d511185ae1ca82d5`**，已 push，CI success（M-3 取得）；之後 Owner：「B4 放行」。B1、icon 比對與 CI 的數字只寫在 `history.md` 2026-10-31 最終候選 `584943d` 那條，這裡不複製。
 - B4 放行不是 Gate 通過：B5（RV-4、RV-9）、B6 簽核、Draft Release 以後全部仍待；M-10 仍要 Draft Release。
 
+**B5 證據紀錄**（2026-10-31 起，最終候選 `584943d` 的正式安裝檔，Owner 在測試帳號 `ggltest` 操作、CC 旁觀；逐格結果與證據位置只寫在 `history.md` 2026-10-31 的 B5 那一條與 `H:\ggl-b5\B5-EVIDENCE.md`，這裡不複製）。B5 **執行中、未放行**。
+- M-13：證據已取得，待 owner 裁。
+- 【Owner 裁，2026-10-31「B5 M-12 Owner 補充裁決 — 納入 Future-work」】M-12 依 §六 判定欄「接受（訊息不佳）；卡死→擋」**接受**偏離成功條件的結果：port 被占用時沒有卡死，但畫面只顯示「登入失敗（請稍後重試）」，不是可行動的訊息。這**不是完整通過**，也不是已確認的 Release Blocker；維持最終候選 `584943d`，本輪不改程式、不重開 B1～B4。剩餘風險（受影響玩家可能持續重試；登入失敗不進常駐日誌）與後續方向 → `future-work.md`「Microsoft 登入 Loopback Port 衝突的提示與診斷缺口」，該條不是首發施工授權。
+
 ### 依賴與批次
 
 ```
@@ -248,7 +252,7 @@ B0 owner 終審本檔 ──┬─▶ G-4／G-5／G-6 施工授權（逐項）�
 | B2（2026-10-31 已執行，Owner 同日放行 M-7／M-8／M-9，見上「B2 證據紀錄」；M-10 不在放行範圍） | RV-2／3／6／7；同時取 README 用的真實截圖（測試身分或遮蔽帳號名稱、UUID、路徑） | **乾淨環境**：獨立 Windows 使用者帳號或 VM。**不要裝在 owner 日常帳號**：正式身分的 userData 名稱 `GGL_launcher` 與 `npm start` 開發版相同（`package.json` `name`；X1b 實測測試身分 `GGL_launcher_x1btest`），會和 owner 真實的設定與帳號混在一起 | owner 逐項授權（寫登錄檔、開始選單、`%LOCALAPPDATA%`） | owner 操作、CC 旁觀紀錄（唯讀） |
 | B3 | G-0～G-3 | repo | 動 `_notes/` 與 `docs/` 前 owner 授權；commit 另授權 | CC 寫、owner 審 |
 | B4（2026-10-31 已執行，2026-10-31 Owner 放行；見上「B4 證據紀錄」） | RV-5S／RV-12／RV-13／RV-14；RV-10 探針 | staging（見下）；探針在隔離 Electron | owner 授權建 staging；探針無狀態 | CC 建置與觀察、owner 授權 |
-| B5 | RV-4（一組不同帳號；owner 可採認既有玩家測試證據）、RV-9；M-11～M-14、M-25（M-12 含 port 占用）。RV-4b 已撤回，不在此批 | 正式身分（乾淨使用者／VM，或 owner 的正式安裝）；非 owner 帳號的來源由 owner 決定 | owner 授權（真帳號） | owner 操作、CC 旁觀紀錄；**不招募玩家**；必要但取不到的證據→「未取得」，呈報剩餘風險，owner 決定，不自動放行（§六 §0） |
+| B5（2026-10-31 執行中；見上「B5 證據紀錄」） | RV-4（一組不同帳號；owner 可採認既有玩家測試證據）、RV-9；M-11～M-14、M-25（M-12 含 port 占用）。RV-4b 已撤回，不在此批 | 正式身分（乾淨使用者／VM，或 owner 的正式安裝）；非 owner 帳號的來源由 owner 決定 | owner 授權（真帳號） | owner 操作、CC 旁觀紀錄；**不招募玩家**；必要但取不到的證據→「未取得」，呈報剩餘風險，owner 決定，不自動放行（§六 §0） |
 | B6 | Owner 簽核（§六 矩陣標「擋」全綠，或 owner 逐條明示接受剩餘風險） | — | owner | owner |
 
 **staging 怎麼建**【Owner 裁，第四輪（OD-10）】：本機 `127.0.0.1` 靜態伺服器，repo 外的隔離測試環境；不得修改正式站台、Caddy 或 Cloudflare Tunnel；不以硬連結共享可寫測試檔案與正式站台資料（站台資料用複本，現況約 1.5 GiB〔現查 2026-10-30，`dust` 唯讀〕，磁碟空間是建 staging 的成本）。staging 證據不替代正式出貨安裝檔與正式站台的必要驗收。細節見 §五 5.11。
