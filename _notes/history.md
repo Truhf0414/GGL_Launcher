@@ -248,6 +248,29 @@
     - 「站台舊 v2 備份」那條離箱：了結條件「資料夾不存在」已達成，`ls -d /h/Caddy_sitebuild.backup-v2-20261007` 回報找不到；對照組 `H:\Caddy_sitebuild` 查得到。刪除的裁決是 owner 2026-10-13「舊備份可以刪。」
     - pre-release audit 那條註記 imageUrl 已由 F-4 `ea19b62` 修掉。
   → plans/release-gate-2026-10.md §四 B6 證據紀錄
+- 2026-11-01 改寫 git 歷史，拿掉 Cursor 署名。owner 原話：「我真的看他不爽」「強推並更新」。工作檔在 `H:\ggl-rewrite\`。
+  - **範圍**：312 個 commit 裡，51 個帶 Cursor trailer（49 行 `Made-with: Cursor`、2 行 `Co-authored-by: Cursor <cursoragent@cursor.com>`，日期 2026-04-17～05-02）；另有 2 個作者是 `Mochi122 <mochi122@local>`。
+  - **做法**：
+    - 先備份 `pre-rewrite-all.bundle`（`git bundle --all`，驗證過歷史完整）；
+    - 在獨立 clone 裡用 `filter-branch` 改寫 main 與 `v1.0.0`：`--msg-filter` 只刪那兩種行，其他訊息逐位元組原樣輸出；`--env-filter` 把 `mochi122@local` 改成 `truhf0414 <truhf0414@gmail.com>`。
+  - **驗證**（`verify.py`，逐一比對 312 對）：
+    - tree、parent 對應、作者與 commit 時間全部相同；
+    - 訊息有差的正好 51 個、作者有差的正好 2 個；
+    - 新歷史裡 Cursor trailer 為 0（對照組：舊歷史 51）。
+  - **強推**（11:09:05～18，`--force-with-lease` 鎖定舊值）：main `9fc74a4`→`206acb6`；tag `v1.0.0` `584943d`→`f13880a`。新 tag 的 tree 跟 `584943d` 相同（`959961db…`），所以安裝檔 `a61a0217…` 不用重建。GitHub 跳出 `assets/sakura_field_BG.mp4`（88.86 MB）超過 50 MB 建議值的警告，這個檔原本就在。
+  - **Release**（11:09:37）：notes 的建置 commit 改成 `f13880a…`，target 也改了，其他不變；asset 沒動（digest、大小相同）。
+  - **核對**：
+    - 匿名下載 sha256 仍是 `a61a0217…`；
+    - 未登入的 API 看到 tag `v1.0.0` 是 `f13880a`；
+    - 首頁、Release 頁、新 commit 頁、tag 原始碼壓縮包都是 200，壓縮包註解是 `f13880a…`。
+    - 舊 commit `584943d` 的網址仍回 200：GitHub 還留著沒被引用的 commit，要徹底清除得找 GitHub 客服，這次沒做。
+  - **本機**：
+    - 這個 repo 的 main 已 `reset --hard` 到 `206acb6`，前後 tree 相同；工作區裡沒追蹤的 `GGL_Screenshot.png` 沒動。
+    - 刪掉本機 tag `1.0.0`，`v1.0.0` 更新成新的；`fetch --prune` 清掉已經不存在的遠端分支紀錄。
+    - 本機分支 `claude/ggl3-css-engineering-33c99b`、`claude/upbeat-jepsen-a6383a`、`css/css-2026-10` 和兩個 worktree（`.claude/worktrees/upbeat-jepsen-a6383a`、`H:\GGL3-css`）還是舊歷史，沒動。
+  - **舊編號怎麼查**：本檔與其他筆記、commit 訊息、`H:\ggl-*` 證據裡的 SHA 都是**改寫前**的，查新編號看 `_notes/commit-map-2026-11-01.tsv`（每行「舊 SHA<Tab>新 SHA」，312 行）。
+  - **CI**：強推後的 run `41268015312`（`206acb6`，Node 22.23.4）第一次跑 1458／1459。沒過的是 `test/runtime-minecraft.test.cjs` 的 T15，訊息是「等不到：停住那支的連線關閉」：`until` 用真實時間等 5 秒，時間到了連線還沒關。owner 授權重跑後，第 2 次 1459／1459 success（11:17）。17 分鐘前同一個 tree 的 run `41266945587` 是 success，所以判定是偶發，跟改寫無關。
+  → plans/release-gate-2026-10.md §四 B6 證據紀錄
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
