@@ -216,6 +216,13 @@
   - 09:52 核對：owner 已把三項設定還原成原值。`Mochi122` 帳號裝了 GGL Launcher 1.0.0（使用者層級）。
   - 撞到：owner 的主機同時有兩個原則讓 SmartScreen 這一半測不到（關掉 SmartScreen、不寫 MOTW），但兩種情況都長得像「沒跳警告」，靠對照組才分出來。
   → plans/release-gate-2026-10.md §四 B6 證據紀錄
+- 2026-11-01 B6 簽核，Release Gate 通過。
+  - 文件 `a5b7dbb`、筆記 `ddcae4d` 已 push（`a7ee57d..ddcae4d`）。
+  - CC 列出要 owner 逐條表態的五項：M-10、M-12、M-17、M-21、M-15。
+  - owner 原話：「B6 簽核：上表五項照現況接受，其餘剩餘風險照矩陣接受，Release Gate 通過。」
+  - 最終候選 `584943d`，安裝檔 sha256 `a61a0217…`，Draft `v1.0.0` 還沒公開，`v1.0.0` 這個 Git tag 還不存在。
+  - 公開與公開後技術驗收窗口要另外授權。
+  → plans/release-gate-2026-10.md §四 B6 證據紀錄
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
