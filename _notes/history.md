@@ -223,6 +223,21 @@
   - 最終候選 `584943d`，安裝檔 sha256 `a61a0217…`，Draft `v1.0.0` 還沒公開，`v1.0.0` 這個 Git tag 還不存在。
   - 公開與公開後技術驗收窗口要另外授權。
   → plans/release-gate-2026-10.md §四 B6 證據紀錄
+- 2026-11-01 v1.0.0 公開（證據 `H:\ggl-b6\B6-EVIDENCE.md` 的「公開與公開後窗口」一節）。
+  - 公開前（10:13:02）核對：Draft、target、digest 都對，`refs/tags/v1.0.0` 回 404。
+  - owner「公開吧！」⇒ CC `gh release edit v1.0.0 --draft=false`，`published_at` 10:13:12。
+  - tag `v1.0.0`（lightweight）指向 `584943d`；`releases/latest` 是 `v1.0.0`。
+  - 匿名 `curl` 下載（10:13:33～38）：sha256 `a61a0217…`、143,748,529 bytes，跟候選檔逐位元組相同；未登入的 API 看到的 notes 跟草稿相同。
+  - repo 首頁、Releases、README 與 notes 的連結、`launcherDownloadUrl` 匿名請求都回 200；README 渲染結果有 `隱私與網路連線` 錨點，`><b` 照字面顯示。
+  - 還沒做：OD-13 步驟④ 的正式站台 smoke（範圍待裁）、公開後的 SmartScreen 畫面、owner 在瀏覽器實點；做完以前不宣傳。
+  → plans/release-gate-2026-10.md §四 B6 證據紀錄
+- 2026-11-01 OD-13 公開後 smoke（證據 `H:\ggl-b6\od13\`）。
+  - 朋友環境：owner 提供 SmartScreen 截圖，畫面是「Windows 已保護您的電腦」，背景是 v1.0.0 Release 頁。owner 轉述：匿名下載、安裝、修復、Minecraft 啟動都成功，首頁與文件連結也正常。CC 沒有核對；Defender 結果、環境、是不是空根首裝都沒有取得。
+  - 10:40:00～13 用 `od13-m18-m19.sh` 重跑：`check-site` exit 0（對照組 exit 1）；四支 JSON 公開版與本機逐位元組相同；5 個抽樣 blob 正確；站台根前後不變，而且跟 00:19 那次逐位元組相同。
+  - 10:40:30～41:19 用 `od13-head-all.sh` 對 556 個不重複 blob（564 筆）送 HEAD：全部 200、Content-Length 等於 release.json 寫的大小，0 異常。最大的一個是 825,580,694 bytes。對照組：假的 sha 回 404、大小不符，都判成異常。
+  - 撞到：一開始在證據裡寫「據 `docs/site-format.md`，啟動器下載時會驗 sha256」，查了才發現那份文件沒寫；改成引用 `main/sync/apply.js` 的 `GGL_SYNC_HASH_MISMATCH`。
+  - 【Owner 裁】「結束窗口」⇒ OD-13 窗口結束，可以宣傳；沒取得的項目照舊不算通過。
+  → plans/release-gate-2026-10.md §四 B6 證據紀錄
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
