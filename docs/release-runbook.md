@@ -123,9 +123,9 @@ npm run build:rpc-helper
 
 ## 6. Draft Release（Plan OD-13 步驟①）
 
-〔預定；尚未實跑〕Draft 階段 Release 還沒公開。
+〔已實跑〕2026-11-01 v1.0.0：ChatGPT 用 `gh release create` 建了 Draft `v1.0.0`，並上傳既有的安裝檔與 Release Notes（據 owner 轉述；實際下的參數沒有逐字記錄）。**這一步沒有取得 owner 明確的操作授權，是程序失誤**，紀錄保留在這裡。之後 owner 裁決保留這個 Draft；第 3 點的核對做過，owner 判定 M-22 前段通過；第 4 點見該點。細節在 Plan §四 B6 證據紀錄。Draft 階段 Release 還沒公開。
 
-1. 建 Draft Release：安裝檔當 asset，檔名保留版本。命令列做法〔據文件，未實跑〕：
+1. 建 Draft Release：安裝檔當 asset，檔名保留版本。命令列做法〔據文件；2026-11-01 用 `gh release create` 實跑過一次，但沒有授權，參數有沒有照下面這行沒有記錄〕：
 
    ```bash
    gh release create v<version> --draft --title "<標題>" --notes-file <notes.md> --target <建置 commit 的完整 SHA> <安裝檔>
@@ -141,7 +141,7 @@ npm run build:rpc-helper
 
    下載回來的 sha256 要等於 §3 記下的、也要等於 notes 寫的；檔名的版本要等於 `package.json` 的 `version`；notes 的建置 commit 要等於 §3 的候選 commit。全部一致才算 M-22 前段通過；任何一項不一致就停，不要公開。
 
-4. 公開前在乾淨 Windows 用這個 Draft 的 asset 記下 SmartScreen 與 Defender 的實際畫面（RV-7／M-10），把結果回填 `docs/player-troubleshooting.md` §6 寫「發版前會…再補進來」的地方。被 Defender 隔離掉要擋下；只是 SmartScreen 警告不擋（不簽章是 owner 已裁）。
+4. 公開前在乾淨 Windows 用這個 Draft 的 asset 記下 SmartScreen 與 Defender 的實際畫面（RV-7／M-10）。被 Defender 隔離掉要擋下；只是 SmartScreen 警告不擋（不簽章是 owner 已裁）。檔案一定要有網路下載標記（`Zone.Identifier` 裡的 `ZoneId=3`）：用 `gh` 下載的檔沒有這個標記；系統的原則設定也可能關掉 SmartScreen，或讓下載的檔不寫這個標記（2026-11-01 owner 的主機兩種都有）。所以要先拿一個沒簽章、帶標記的對照程式確認 SmartScreen 真的會跳，不然「沒跳」不能算數。〔已實測〕2026-11-01 v1.0.0 在 owner 主機上做：Defender 沒有偵測；SmartScreen 的對照組沒跳，所以 SmartScreen 畫面沒取得，owner 接受（Plan §四 B6 證據紀錄）。
 5. Draft 的 asset 對匿名使用者是否可見〔猜的；沒驗過〕：不要靠「Draft 看不到」當成保護。
 
 ## 7. 版本與 SHA-256 的紀錄位置
@@ -158,7 +158,7 @@ npm run build:rpc-helper
 這個窗口**已經是公開發布狀態，不是私人 Beta**：不保證期間沒人下載，也不設固定等待時間。窗口內發現的問題，玩家可能已經遇到。
 
 1. **owner 明確授權公開**（另一次授權，不併入 Gate 簽核）。公開的做法〔據文件〕：`gh release edit v<version> --draft=false`，或在 GitHub 網頁按發布。
-2. **匿名下載核對**：用沒有登入 GitHub 的環境（例如新的瀏覽器設定檔，或沒有 token 的機器）從公開的 Releases 頁下載 asset，核對檔案、版本、sha256 與 notes。順便比對 SmartScreen 畫面是否跟公開前記下的一致〔推論：同一個檔應一致；未驗〕。
+2. **匿名下載核對**：用沒有登入 GitHub 的環境（例如新的瀏覽器設定檔，或沒有 token 的機器）從公開的 Releases 頁下載 asset，核對檔案、版本、sha256 與 notes。SmartScreen 只記下這一次實際看到的畫面（有跳就截圖，沒跳也記下）。公開前沒有取得有效的 SmartScreen 畫面（M-10），所以這裡**不做、也不能宣稱做過**公開前後的比對。Defender 隔離仍然算擋，處理照第 6 點。
 3. **正式站台唯讀 smoke**：在乾淨使用者上首次安裝、啟動（M-17；只下載，不改站台）；公開網址抓回的四支 JSON 與本機逐位元組相同、抽幾個 blob 重算 sha256（M-19）。**不得改正式站台的維護、gate、公告、回退狀態。**〔待 owner 裁〕Gate 那次的 M-17 owner 2026-11-01 已改為接受既有證據；這一步要不要仍做完整首裝、改成什麼範圍，還沒裁（Plan §四 B6 證據紀錄）。
 4. **README 與下載入口實點確認**（M-27）：README 的連結、repo 頁的 Releases 入口與下載頁實際點過（owner 2026-11-01 裁：下載入口走 GitHub Releases 頁面，README 內文不強制重複放下載連結）。Draft 階段連結點不通是預期，不能算通過也不能算失敗。
 5. 以上都過，才主動對外宣傳。
@@ -179,5 +179,5 @@ npm run build:rpc-helper
 
 ## 10. 還沒補齊的
 
-- RV-7：乾淨 Windows 的 SmartScreen／Defender 實際畫面（M-10）。
-- §6 到 §8 的全部操作（M-22）。
+- §7、§8 的全部操作（M-22 後段）。
+- SmartScreen 的實際畫面（M-10 沒取得，owner 接受；公開後有人剛好截到再說）。
