@@ -5,7 +5,7 @@
 
 ## 發包產物
 - 發包資料夾 `H:\Caddy_sitebuild`，由本機 Caddy 服務對外（Caddyfile 在該資料夾）。現況查法：`ls /h/Caddy_sitebuild/*.json`、`curl -sI https://ggl.leaharmonic.com/manifest.json`。
-- 產物由 `scripts/publish.js` 生（v3 站台，2026-10-07 起）：預設乾跑，`--apply` 才寫入；`--list`／`--rollback --to <編號>` 切換封存的版本。用法見 README §Instance update。
+- 產物由 `scripts/publish.js` 生（v3 站台，2026-10-07 起）：預設乾跑，`--apply` 才寫入；`--list`／`--rollback --to <編號>` 切換封存的版本。操作見 `docs/release-runbook.md` §4（發布）與 §9（回退）。
 - 網域拆兩個：檔案／manifest 走 `ggl.leaharmonic.com`（Cloudflare Tunnel 到本機 Caddy），伺服器在線偵測（TCP 25565）走 `ggl3.leaharmonic.com`。兩者都在 lib/server-config.js。出處：學長 2026-04-30 Cursor「連線逾時問題」原話「檔案伺服器的網域是ggl.leaharmonic.com」「伺服器在線偵測是ggl3.leaharmonic.com」。
 - 首頁 `leaharmonic.com` 也走同一條 Cloudflare Tunnel（到本機 Caddy 的 `leaharmonic.com:80` 區塊），不指家裡 IP。所以 router 只轉發 TCP 25565；ddns-go 只管 `ggl3.leaharmonic.com`。新增對外網址一律加在 Tunnel 的 Published application routes，不開埠。現況查法：`nslookup -type=A <網域> keaton.ns.cloudflare.com`（Tunnel 的網域會解析成 Cloudflare IP，`ggl3` 會解析成家裡 IP）、`curl -s http://127.0.0.1:20241/ready`（Tunnel 連線數）、ddns-go 設定 `C:\Users\Mochi122\.ddns_go_config.yaml`。出處：學長 2026-09-15 問「我有辦法換一個地方嗎？像是先用一個文件當暫時首頁之類的」，照建議改走 Tunnel 並親手完成後台設定 → history.md §專案進程 2026-09-15。
 - 不做程式碼簽章，SmartScreen 擋就擋。出處：學長 2026-04-30 Cursor「連線逾時問題」原話「蛤 300多台幣一個月喔」「我把它丟在檔案伺服器是可以的嗎? 擋就擋吧哈哈」。
