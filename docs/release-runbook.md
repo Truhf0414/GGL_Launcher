@@ -9,7 +9,7 @@
 - 〔尚未實跑〕：預定的操作裡連一次演練都沒有的；首發當次才會第一次執行，做完要回填本檔。
 - 〔據文件〕：引用工具說明，沒實跑。
 
-Release Gate **還沒通過**；B1（候選建置）、Draft Release、公開後流程都沒執行過。本檔沒有任何一步代表「已通過」。
+Release Gate **還沒通過**；B1～B5 已執行並經 owner 放行，Draft Release 與公開後流程都沒執行過。本檔沒有任何一步代表「已通過」。
 
 ## 0. 責任與界線
 
@@ -28,7 +28,7 @@ Release Gate **還沒通過**；B1（候選建置）、Draft Release、公開後
 ## 1. 版本號
 
 - `package.json` 的 `version` 是啟動器版本（首發 `1.0.0`〔現查 2026-10-30〕）。安裝檔名是 `GGL-Launcher-Setup-<version>.exe`（`build.nsis.artifactName`），啟動器比對版本讀的也是這個值（`main/start-main.js`）。
-- Release tag 用 `v<version>`〔預定；這是 CC 的建議，owner 尚未另裁〕。
+- Release tag 用 `v<version>`〔預定；owner 2026-10-30 B3 驗收時接受〕。
 - 站台 `gate.json` 的 `minLauncherVersion` 是**另一個獨立的值**，不會跟著 `package.json` 自動變。啟動器只比開頭三段數字，`-alpha1` 之類的後綴不看（`docs/site-format.md` SF-G12）。
   - 規則（Plan OD-4c，長期規則在 `_notes/conventions.md` §防禦與相容）：首發的最低支援版本是 `1.0.0`（不寫這個鍵等於不限版本）；只有實際相容需求成立才調高；不因為新版發布就調高。
   - 調高前先確認那一版安裝檔已經在 Releases 可以下載，否則玩家會看到「請下載新版」卻沒有新版可下載。
@@ -78,7 +78,7 @@ Release Gate **還沒通過**；B1（候選建置）、Draft Release、公開後
 5. `sha256sum` 安裝檔，記下版本、建置 commit、sha256（§7）。
 6. 核對 helper：`assets\rpc-helper.exe` 與 `dist\win-unpacked\resources\assets\rpc-helper.exe` 的 sha256 相同（§5）。
 
-〔已實測〕2026-10-30 的 B1：在候選 `3272fe5` 上，Git Bash 帶兩個設定匯出，核對 413 個追蹤檔全部一致後 `npm ci`、`dist:win` exit 0（約 30 秒，依賴已在本機快取），`check:packaged-artifacts` 過，建置日誌沒有 `build:rpc-helper`。Node 24 與 Node 22.23.4 的 `npm test` 各 1454／1454。出貨 helper 的 Discord 行為、安裝與啟動那個安裝檔、CI 都沒做（見 §10）。**安裝檔的 sha256 與路徑屬於當次 B1 的證據，於 B1 結案時記入 `_notes/history.md`，不寫在這份操作文件裡。**
+〔已實測〕2026-10-30 的 B1：在候選 `3272fe5` 上，Git Bash 帶兩個設定匯出，核對 413 個追蹤檔全部一致後 `npm ci`、`dist:win` exit 0（約 30 秒，依賴已在本機快取），`check:packaged-artifacts` 過，建置日誌沒有 `build:rpc-helper`。Node 24 與 Node 22.23.4 的 `npm test` 各 1454／1454。出貨 helper 的 Discord 行為、安裝與啟動那個安裝檔、CI 都沒做（之後在 B1～B5 補上，見 Plan §四 各批證據紀錄）。**安裝檔的 sha256 與路徑屬於當次 B1 的證據，於 B1 結案時記入 `_notes/history.md`，不寫在這份操作文件裡。**
 
 ## 4. 站台發布前檢查
 
@@ -90,9 +90,14 @@ node scripts/check-site.js <站台根目錄>
 
 - 結束碼 0 才算通過；1＝有問題（缺檔、JSON 壞、驗證不過、**不認得的欄位**，錯誤會印出檔名與欄位路徑）；2＝參數錯。工具只讀、不修，細節與限制見 `docs/site-format.md` 最後一節。
 - 〔已實測〕2026-10-30：測試站台（合法、六種錯字、缺檔、壞 JSON）；以及把正式站台的四支 JSON 複製到 repo 外之後跑，通過，原檔 sha256 前後不變。
-- 〔尚未實跑〕對正式站台資料夾本身執行（Plan M-18）。
+- 〔已實測〕2026-10-31（B4）與 2026-11-01（B6）對正式站台資料夾本身執行（Plan M-18）：結束碼 0，執行前後站台的檔案清單不變。
 - 這是發佈前的把關，不是啟動器的行為：啟動器讀站台仍然忽略不認得的欄位。
-- 模組包的發布與退版用 `scripts/publish.js`（預設乾跑，`--apply` 才寫入），用法見 `README.md` §發版。
+- 模組包的發布與退版用 `scripts/publish.js`，預設乾跑，只有加 `--apply` 才會寫入。發布指令如下；正式執行前仍須 Owner 授權，回退前的核對程序見本文件 §9。
+
+  ```bash
+  node scripts/publish.js <版本資料夾>          # 預覽差異，不寫站台
+  node scripts/publish.js <版本資料夾> --apply  # 正式發布，會修改站台
+  ```
 
 ## 5. rpc-helper
 
@@ -114,7 +119,7 @@ npm run build:rpc-helper
 
 單一環境的排障紀錄（2026-10-30，owner 的開發機，npm 11.16.0；**不是標準建置方式，其他環境不一定遇到**）：使用者層 `~/.npmrc` 有 `allow-scripts` 設定時，`npm run build:rpc-helper` 會在 `npm --prefix rpc-helper install` 失敗（`EALLOWSCRIPTS`）。該次把環境變數 `npm_config_userconfig` 指到一個空檔就繞過了，重建本身沒問題。沒遇到這個錯誤就不用做這步。
 
-出貨的 helper 的 Discord 行為（RV-1b／M-6）〔尚未實測〕。
+出貨的 helper 的 Discord 行為（RV-1b／M-6）〔已實測〕2026-10-30：啟動、狀態更新、退出清理各一次；沒涵蓋的情境見 Plan §四 B1 證據紀錄。
 
 ## 6. Draft Release（Plan OD-13 步驟①）
 
@@ -126,7 +131,7 @@ npm run build:rpc-helper
    gh release create v<version> --draft --title "<標題>" --notes-file <notes.md> --target <建置 commit 的完整 SHA> <安裝檔>
    ```
 
-2. notes 固定欄位〔預定〕：版本、建置 commit、安裝檔 SHA-256、SmartScreen 說明連結（`docs/player-troubleshooting.md` 的 SmartScreen 一節）、最低 Windows 版本。最低 Windows 版本要等 RV-7 實測才能寫，沒實測就寫「尚未確認」，不要猜。
+2. notes 固定欄位〔預定〕：版本、建置 commit、安裝檔 SHA-256、SmartScreen 說明連結（`docs/player-troubleshooting.md` 的 SmartScreen 一節）、系統需求。系統需求照 `README.md` §系統需求（owner 2026-11-01 裁定的用字），不在這裡另寫一份。
 3. 核對（owner 身分下載 asset）〔據文件〕：
 
    ```bash
@@ -136,7 +141,7 @@ npm run build:rpc-helper
 
    下載回來的 sha256 要等於 §3 記下的、也要等於 notes 寫的；檔名的版本要等於 `package.json` 的 `version`；notes 的建置 commit 要等於 §3 的候選 commit。全部一致才算 M-22 前段通過；任何一項不一致就停，不要公開。
 
-4. 公開前在乾淨 Windows 用這個 Draft 的 asset 記下 SmartScreen 與 Defender 的實際畫面（RV-7／M-10），把結果回填 `docs/player-troubleshooting.md` 與 `README.md` 標「待確認」的地方。被 Defender 隔離掉要擋下；只是 SmartScreen 警告不擋（不簽章是 owner 已裁）。
+4. 公開前在乾淨 Windows 用這個 Draft 的 asset 記下 SmartScreen 與 Defender 的實際畫面（RV-7／M-10），把結果回填 `docs/player-troubleshooting.md` §6 寫「發版前會…再補進來」的地方。被 Defender 隔離掉要擋下；只是 SmartScreen 警告不擋（不簽章是 owner 已裁）。
 5. Draft 的 asset 對匿名使用者是否可見〔猜的；沒驗過〕：不要靠「Draft 看不到」當成保護。
 
 ## 7. 版本與 SHA-256 的紀錄位置
@@ -154,8 +159,8 @@ npm run build:rpc-helper
 
 1. **owner 明確授權公開**（另一次授權，不併入 Gate 簽核）。公開的做法〔據文件〕：`gh release edit v<version> --draft=false`，或在 GitHub 網頁按發布。
 2. **匿名下載核對**：用沒有登入 GitHub 的環境（例如新的瀏覽器設定檔，或沒有 token 的機器）從公開的 Releases 頁下載 asset，核對檔案、版本、sha256 與 notes。順便比對 SmartScreen 畫面是否跟公開前記下的一致〔推論：同一個檔應一致；未驗〕。
-3. **正式站台唯讀 smoke**：在乾淨使用者上首次安裝、啟動（M-17；只下載，不改站台）；公開網址抓回的四支 JSON 與本機逐位元組相同、抽幾個 blob 重算 sha256（M-19）。**不得改正式站台的維護、gate、公告、回退狀態。**
-4. **README 與下載入口實點確認**（M-27）：README 的連結、下載頁實際點過。Draft 階段連結點不通是預期，不能算通過也不能算失敗。
+3. **正式站台唯讀 smoke**：在乾淨使用者上首次安裝、啟動（M-17；只下載，不改站台）；公開網址抓回的四支 JSON 與本機逐位元組相同、抽幾個 blob 重算 sha256（M-19）。**不得改正式站台的維護、gate、公告、回退狀態。**〔待 owner 裁〕Gate 那次的 M-17 owner 2026-11-01 已改為接受既有證據；這一步要不要仍做完整首裝、改成什麼範圍，還沒裁（Plan §四 B6 證據紀錄）。
+4. **README 與下載入口實點確認**（M-27）：README 的連結、repo 頁的 Releases 入口與下載頁實際點過（owner 2026-11-01 裁：下載入口走 GitHub Releases 頁面，README 內文不強制重複放下載連結）。Draft 階段連結點不通是預期，不能算通過也不能算失敗。
 5. 以上都過，才主動對外宣傳。
 6. **任何一步失敗**：立刻停止導流（不宣傳、移除已貼出的連結）；必要時撤下 Release 或 asset〔據文件〕：
 
@@ -174,8 +179,5 @@ npm run build:rpc-helper
 
 ## 10. 還沒補齊的
 
-- B1：候選 commit 的隔離建置、安裝檔 sha256、出貨 helper 的 Discord 行為（M-5、M-6）。
-- B2：正式身分在乾淨使用者上的安裝、捷徑、釘選、解除安裝、覆蓋安裝（M-7～M-9）。
-- RV-7：乾淨 Windows 的 SmartScreen／Defender 實際畫面與最低 Windows 版本（M-10）。
-- §6 到 §8 的全部操作（M-22）與 §4 對正式站台本身跑檢查（M-18）。
-- Node 22 與 CI 對候選 commit 的結果（M-1、M-3）。
+- RV-7：乾淨 Windows 的 SmartScreen／Defender 實際畫面（M-10）。
+- §6 到 §8 的全部操作（M-22）。
