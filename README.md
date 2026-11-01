@@ -2,6 +2,8 @@
 
 ##### 年糕 122 做ㄉ GGL3 Minecraft 專用模組伺服器的啟動器：安裝、更新模組包、遊戲環境建構、遊戲啟動入口。><b
 
+![GGL Launcher 主畫面](GGL_Screenshot.png)
+
 ---
 
 ## 基本功能
