@@ -238,6 +238,16 @@
   - 撞到：一開始在證據裡寫「據 `docs/site-format.md`，啟動器下載時會驗 sha256」，查了才發現那份文件沒寫；改成引用 `main/sync/apply.js` 的 `GGL_SYNC_HASH_MISMATCH`。
   - 【Owner 裁】「結束窗口」⇒ OD-13 窗口結束，可以宣傳；沒取得的項目照舊不算通過。
   → plans/release-gate-2026-10.md §四 B6 證據紀錄
+- 2026-11-01 發版後收尾。
+  - **owner 補充（轉述，CC 沒有核對）**：朋友是新環境安裝，Smart App Control 開著也沒被擋；`rpc-helper.exe` 執行時 Defender 沒反應。M-17 第二次因此改判為「取得（朋友實測、owner 轉述）」。
+  - **刪掉遠端舊 tag `1.0.0`**（owner「好，清」，10:50:58 `git push origin :refs/tags/1.0.0`）：
+    - 它指向的 `6adc88d`（2026-04-14「Create manifest.json」）是孤立 commit，不在 main 上，只有一個 1 byte 的 `manifest.json`。
+    - 刪之前把 commit、tree、blob 的原始內容備份到 `H:\ggl-b6\tag-1.0.0-backup\`，重算雜湊三個都相符。
+    - 刪掉之後，遠端只剩 `v1.0.0`→`584943d`，`releases/latest` 不受影響。
+  - **future-work**：
+    - 「站台舊 v2 備份」那條離箱：了結條件「資料夾不存在」已達成，`ls -d /h/Caddy_sitebuild.backup-v2-20261007` 回報找不到；對照組 `H:\Caddy_sitebuild` 查得到。刪除的裁決是 owner 2026-10-13「舊備份可以刪。」
+    - pre-release audit 那條註記 imageUrl 已由 F-4 `ea19b62` 修掉。
+  → plans/release-gate-2026-10.md §四 B6 證據紀錄
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
