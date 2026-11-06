@@ -271,6 +271,15 @@
   - **舊編號怎麼查**：本檔與其他筆記、commit 訊息、`H:\ggl-*` 證據裡的 SHA 都是**改寫前**的，查新編號看 `_notes/commit-map-2026-11-01.tsv`（每行「舊 SHA<Tab>新 SHA」，312 行）。
   - **CI**：強推後的 run `41268015312`（`206acb6`，Node 22.23.4）第一次跑 1458／1459。沒過的是 `test/runtime-minecraft.test.cjs` 的 T15，訊息是「等不到：停住那支的連線關閉」：`until` 用真實時間等 5 秒，時間到了連線還沒關。owner 授權重跑後，第 2 次 1459／1459 success（11:17）。17 分鐘前同一個 tree 的 run `41266945587` 是 success，所以判定是偶發，跟改寫無關。
   → plans/release-gate-2026-10.md §四 B6 證據紀錄
+- 2026-11-06 H 槽整理：把 GGL 的周邊產物收進 `H:\GGL3\`。owner 原話：「照方案走」。
+  - **搬了什麼**：本檔與其他筆記裡寫的舊路徑都是搬家前的，對照如下。
+    - `H:\ggl-b1`、`ggl-b1f`、`ggl-b2`、`ggl-b4`、`ggl-b5`、`ggl-b6`、`ggl-c2`～`ggl-c5`、`ggl-f5` → `H:\GGL3\evidence\gate-v1.0.0\<同名>`
+    - `H:\ggl-rewrite` → `H:\GGL3\evidence\rewrite-2026-11-01`
+    - `H:\ggl-notice` → `H:\GGL3\notice-backup`（改公告前的備份在其下 `backup\`）
+  - **核對**：搬前搬後逐資料夾數檔案，13 個資料夾數目全同（合計 142,091 個檔）。
+  - **沒搬**：
+    - `H:\GGL3-release`：`scripts/publish-config.js` 的 `releaseSourceRoot` 預設值寫死這個路徑，搬了要改程式。owner 裁定留在原地：「GGL3-release 就留在原地就好」。
+    - `H:\Caddy_sitebuild`（正式站台）和這個 repo：搬了要重開 Caddy／記憶要跟著搬，這輪不動。
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
