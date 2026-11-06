@@ -280,6 +280,12 @@
   - **沒搬**：
     - `H:\GGL3-release`：`scripts/publish-config.js` 的 `releaseSourceRoot` 預設值寫死這個路徑，搬了要改程式。owner 裁定留在原地：「GGL3-release 就留在原地就好」。
     - `H:\Caddy_sitebuild`（正式站台）和這個 repo：搬了要重開 Caddy／記憶要跟著搬，這輪不動。
+- 2026-11-07 v1.0.1：Discord 邀請 `discord.gg/WaRn7fphSm` 失效（Discord 邀請 API 回 `Invite is expired`），連結寫死在 `lib/server-config.js`，換連結就得重新打包。owner 裁定改走站台轉址：「好，先做轉址然後驗證通過後再重新打包」。
+  - **站台**：`H:\Caddy_sitebuild\Caddyfile` 的 `ggl.leaharmonic.com` 區塊加 `redir /discord https://discord.gg/yDMbrnQvkN 302`，`caddy validate` 過、`caddy reload` 生效（Caddy 服務沒重開）。新邀請 `expires_at: null`。實測 `/discord` 302 到新邀請、跟到底停在 `discord.com/invite/yDMbrnQvkN`；`manifest.json` 仍 200；對照 `/discordx` 404。改前的 Caddyfile 只備份在本 session 的 scratchpad，沒有長期副本。owner 驗收：「OK，繼續打包」。
+  - **程式**：commit `e9a35fa`：`inviteUrl` → `https://ggl.leaharmonic.com/discord`，版本 1.0.0 → 1.0.1。`npm test` 在 Node 24.14.1 與 22.23.4 都是 1459／1459；lint、`check:ui-css:strict` 過，`docs:ipc` 沒有差異。CI run `42310490890` success（Node 22.23.4，1459／1459）。
+  - **建置**（runbook §3）：`H:\GGL3\b101`，帶兩個設定 `git archive`，418 個追蹤檔核對全部一致；`npm ci`、`dist:win` exit 0，`check:packaged-artifacts` 過，日誌沒有 `build:rpc-helper`。安裝檔 `GGL-Launcher-Setup-1.0.1.exe`，143,748,314 bytes，sha256 `cd0eed458a142012abf136d7b097ff2ef91d0b8b5dde67660d91684a9b3dfde7`。helper 打包前後 sha256 相同；從 app.asar 抽出的 `server-config.js` 是新網址、`package.json` 是 1.0.1。撞到的：用 `@electron/asar extract-file` 抽檔會落在當前目錄，蓋掉建置資料夾根目錄的 `package.json` 之後又被刪掉；已從 `e9a35fa` 還原，hash 等於 commit 的 blob。這發生在安裝檔建完之後。owner 驗收：「OK，驗收通過」。
+  - **發版**：owner 依序授權 push（「push」）、建 Draft（「建 Draft」）、公開（「公開」）。Draft 下載回來（`H:\GGL3\b101-dl`）的 sha256、notes 寫的 sha256 與建置 commit、檔名版本都一致。公開後 tag `v1.0.1` → `e9a35fa`，標為 Latest；未登入的 curl 下載（`H:\GGL3\b101-anon`）sha256 一致，`releases/latest` 302 到 `v1.0.1`。
+  - **沒做**：runbook §6 第 4 點的 SmartScreen／Defender 畫面；§8 第 3 點（正式站台唯讀 smoke）和第 4 點（README／下載入口實點）。站台 `minLauncherVersion` 沒調高（1.0.0 照樣能玩，只有 Discord 鈕連到失效邀請）。
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn

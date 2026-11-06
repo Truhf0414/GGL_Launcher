@@ -10,7 +10,7 @@
 - Node：本機 `v24.14.1`，**CI 是 Node 22**（`.github/workflows/ci.yml:17`）——新用的 API 以 22 為準；`util.parseArgs` 18.3 起就有，不加依賴。`package.json` `"private": true`。CI 跑 `windows-latest`。〔對齊 2026-10-08：行內行號指 `.github/workflows/ci.yml`，`8a396b1` 未移動〕
 - 真站台 `H:\Caddy_sitebuild`（唯讀）頂層：`Caddyfile`、`GGL Launcher Setup 1.0.0.exe`、`GGL3 啟動器增量更新 SOP.txt`、`bootstrap-GGL3-launcher-test.json`、`changelog.json`、`files/`（底下只有資料夾 `bootstrap-GGL3-launcher-test/`）、`manifest.json`、`notice-thumb.jpg`、`service/`。
 - 真站台 `manifest.json` 是 v2：`schemaVersion: 2`、沒有 `format`；鍵含 `notice`（`title／subtitle／imageUrl／logUrl`）、`maintenance`（`enabled:false, message:""`）、`minLauncherVersion: "1.0.0"`，**還有 `notifications`**（2026-09-27：0 筆）。
-- owner 的 Prism 實例 `H:\PrismLauncher\instances\GGL3.0\minecraft\` 頂層含 `saves`、`screenshots`、`hotbar.nbt`（2026-09-27）——正是 `protectedPaths` 三項（`lib/server-config.js:36`）。
+- owner 的 Prism 實例 `H:\PrismLauncher\instances\GGL3.0\minecraft\` 頂層含 `saves`、`screenshots`、`hotbar.nbt`（2026-09-27）——正是 `protectedPaths` 三項（`lib/server-config.js:36`）。〔對齊 2026-11-07：`e9a35fa` 三檔都是原地換一行，行數不變，未移動〕
 - `H:\GGL3-release` 不存在（驗收 2 前由 owner 建）。
 - 既有 `scripts/release-v2.js:29` 自己手刻 `parseArgs`，失敗 `process.exit(1)`。〔對齊 2026-10-08：→ `8a396b1`（commit3b3a）後：`scripts/release-v2.js` 整檔刪除〕
 - 本機 `fs.symlinkSync` 的 file／dir／junction 三種都建得起來，`lstat().isSymbolicLink()` 皆為 true（2026-09-27）。

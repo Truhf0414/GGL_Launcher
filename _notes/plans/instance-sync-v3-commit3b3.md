@@ -41,7 +41,7 @@ grilling 時 agent 對 Q5 給的讀法有三處錯（日期「解不出當沒寫
 
 | 上層 §commit ③b-3 的項目 | 去向 |
 |---|---|
-| 要改的檔表：`main/launch-version-detect.js`、`minecraft-bootstrap.js`、`minecraft-launch.js`、`paths-layout.js`、`ci.yml`、`CLAUDE.md:27`、四處註解、`test/manifest-sync-detect-version.test.cjs`、`conventions.md:8`、`package.json` | ③b-3a〔對齊 2026-10-08：→ `8a396b1`（commit3b3a）後：`CLAUDE.md` `:27` 改寫〕 |
+| 要改的檔表：`main/launch-version-detect.js`、`minecraft-bootstrap.js`、`minecraft-launch.js`、`paths-layout.js`、`ci.yml`、`CLAUDE.md:27`、四處註解、`test/manifest-sync-detect-version.test.cjs`、`conventions.md:8`、`package.json` | ③b-3a〔對齊 2026-10-08：→ `8a396b1`（commit3b3a）後：`CLAUDE.md` `:27` 改寫〕〔對齊 2026-11-07：`e9a35fa` 三檔都是原地換一行，行數不變，未移動〕 |
 | 要改的檔表：`docs/site-format.md`、`README.md` | ③b-3b |
 | 要刪、站台清理 | ③b-3a |
 | 上層沒列 1–4 | ③b-3a 上層沒列 1–4 |

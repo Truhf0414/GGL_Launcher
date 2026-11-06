@@ -50,7 +50,7 @@ downloadRuntimeFile({ candidates: [{ source: "mojang", url }], dest: <json>.tmp,
 
 - `prepare.js`：刪 `getMcMirrorDecision`、`getMirror`、`deps.mirrorDecision`、`settings` 參數；`health` 只交給 `installRuntimeFiles`。`main/sync/index.js` 不再傳 `settings`。
 - `net-fetch.js`：「下載中止（切換鏡像）」→「下載中止」，5 處與 `isRetryableError`、它的測試同一次改。
-- `ARCHITECTURE.md:77`（`mc-mirror.js` 那列）刪、`:79`、`:81` 改；`package.json:18` 的 `format:ui` 拿掉 `main/mc-mirror.js`。〔對齊 2026-10-23：→ `4f1f777`（plans/cross-review-2026-10-phase5b.md）：`ARCHITECTURE.md:77` 刪除、`:79` → `:78`、`:81` → `:80`（改寫）；`package.json:18` 原地改寫；`main/mc-mirror.js` 刪除〕
+- `ARCHITECTURE.md:77`（`mc-mirror.js` 那列）刪、`:79`、`:81` 改；`package.json:18` 的 `format:ui` 拿掉 `main/mc-mirror.js`。〔對齊 2026-10-23：→ `4f1f777`（plans/cross-review-2026-10-phase5b.md）：`ARCHITECTURE.md:77` 刪除、`:79` → `:78`、`:81` → `:80`（改寫）；`package.json:18` 原地改寫；`main/mc-mirror.js` 刪除〕〔對齊 2026-11-07：`e9a35fa` 三檔都是原地換一行，行數不變，未移動〕
 
 ### 不動
 

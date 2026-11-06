@@ -374,7 +374,7 @@ B0 owner 終審本檔 ──┬─▶ G-4／G-5／G-6 施工授權（逐項）�
   - 「請下載新版啟動器」目前出現在**四個**正式字串：`lib/sync/site-format.js:53`（manifest `format` 大於 3 的錯誤）、`lib/sync/status-kind.js:120-123`（gate 的 `minLauncherVersion`）、`lib/sync/status-text.js:68-72`（`launcher-too-old` 的標題，兩個變體）〔對齊 2026-10-31：→ `ea19b62`：現在是 `:69-73`，內容沒變；→ `9678cc1` 只動其後的 up-to-date，這段不受影響〕。**都沒說去哪下載**。
   - 兩條來源路徑（gate 最低版本、manifest `format` 較新）在 `lib/sync/status-kind.js:186-196` 與 `:217` 都收斂成同一個 kind `launcher-too-old`。
   - 既有精確字串測試多處釘住這些句子：`test/site-format-doc.test.cjs`（SF-G11 兩處）、`test/sync-status-kind.test.cjs`、`test/sync-status-text.test.cjs`、`test/sync-site-format.test.cjs`、`test/sync-site-client.test.cjs`。
-  - `discord.downloadLauncherUrl`（`lib/server-config.js:30`，目前 `""`）屬於 Discord RPC 設定，只有 `lib/discord-helper-args.js` 引用；與更新入口無關。`discord.allowedButtonHosts: []` 的語意是「不額外限制 host」（`lib/discord-button-url.js:19`，空清單直接回傳網址），**不會**因空白名單擋掉 GitHub。
+  - `discord.downloadLauncherUrl`（`lib/server-config.js:30`，目前 `""`）屬於 Discord RPC 設定，只有 `lib/discord-helper-args.js` 引用；與更新入口無關。`discord.allowedButtonHosts: []` 的語意是「不額外限制 host」（`lib/discord-button-url.js:19`，空清單直接回傳網址），**不會**因空白名單擋掉 GitHub。〔對齊 2026-11-07：`e9a35fa` 三檔都是原地換一行，行數不變，未移動〕
   - `lib/server-config.js` 檔頭自述是「換伺服器時值要換、code 不用動」的唯一權威；`test/server-config.test.cjs` 的 K3 測試把頂層鍵釘成明列清單（多一個、少一個都紅），U4 測試釘 Discord 網址欄位的形狀；`docs/new-server-checklist.md` 的表格列出 server-config 的內容。
 - **UI 呈現事實**（R3 要求查明）：
   - 狀態列是 `#instanceStatusText`（`index.html:226`），`renderStatus` 以 `textContent` 把標題與 details 用換行連起來（`renderer/instance-ui.js:59-61`）；樣式 `.instance-status` 是 `white-space: pre-line`（`styles.css:632-638`），**規則內沒有 `overflow-wrap`／`word-break`**。
@@ -715,7 +715,7 @@ B0 owner 終審本檔 ──┬─▶ G-4／G-5／G-6 施工授權（逐項）�
 | E8 | `H:\GGL3-release` 有 `alpha1`、`alpha2` | `ls` | 〔現查 2026-10-30〕 |
 | E9 | 安全邊界各檔 | `main/ipc/external-ipc.js`、`main/main-window.js:74,78`、`preload.js`、`index.html`、`renderer/instance-ui.js:41`、`renderer/account-ui.js:113-116,160`、`lib/sync/notice.js`、`lib/ipc-channels.js` | 〔讀碼〕 |
 | E10 | 沒有 CSP、沒有導覽防護、無 `href` 的反證手段 | `rg` 加對照組（見 §二 B 各列） | 〔現查 2026-10-30〕 |
-| E11 | `launcher-too-old` 四個字串、兩條路徑收斂、`downloadLauncherUrl` 空、`allowedButtonHosts` 語意 | `lib/sync/site-format.js:47-57`、`lib/sync/status-kind.js:115-125,186-196,217`、`lib/sync/status-text.js:68-72`〔對齊 2026-10-31：→ `ea19b62`：現在是 `:69-73`；→ `9678cc1` 不影響這段〕、`lib/server-config.js:23-31`、`lib/discord-button-url.js:15-21`、`rg '請下載新版' lib test docs` | 〔現查 2026-10-30〕 |
+| E11 | `launcher-too-old` 四個字串、兩條路徑收斂、`downloadLauncherUrl` 空、`allowedButtonHosts` 語意 | `lib/sync/site-format.js:47-57`、`lib/sync/status-kind.js:115-125,186-196,217`、`lib/sync/status-text.js:68-72`〔對齊 2026-10-31：→ `ea19b62`：現在是 `:69-73`；→ `9678cc1` 不影響這段〕、`lib/server-config.js:23-31`、`lib/discord-button-url.js:15-21`、`rg '請下載新版' lib test docs` | 〔現查 2026-10-30〕〔對齊 2026-11-07：`e9a35fa` 三檔都是原地換一行，行數不變，未移動〕 |
 | E12 | gate／notice 驗證與無檢查工具 | `lib/sync/site-format.js`（`validateGate`、`validateNotice`）、`rg` `scripts/`、`docs/site-format.md` SF-G6／G7／N3／N7 | 〔讀碼〕＋〔現查 2026-10-30〕 |
 | E13 | 診斷包內容、常駐日誌涵蓋範圍 | `main/diagnostics-export.js`、`rg 'gglError\(' main` | 〔讀碼〕＋〔現查 2026-10-30〕 |
 | E14 | 玩家指引現況 | `docs/player-troubleshooting.md` | 〔讀碼〕 |

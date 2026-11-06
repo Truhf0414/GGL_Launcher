@@ -340,7 +340,7 @@
 
 ### 2.3 背景影片（撤回初稿的打包判斷）
 
-- `package.json:70` 的 `"!assets/*.mp4"` 只是不放進 asar；`:77-84` 的 `extraResources` 把影片打包到 `resources/assets/`；`scripts/check-packaged-artifacts.cjs:29-37` 要求它在、且不准在 asar〔讀碼〕。「正式包沒有影片」**撤回**。
+- `package.json:70` 的 `"!assets/*.mp4"` 只是不放進 asar；`:77-84` 的 `extraResources` 把影片打包到 `resources/assets/`；`scripts/check-packaged-artifacts.cjs:29-37` 要求它在、且不准在 asar〔讀碼〕。「正式包沒有影片」**撤回**。〔對齊 2026-11-07：`e9a35fa` 三檔都是原地換一行，行數不變，未移動〕
 - 降級的真正理由是執行期失敗，三種處理留著：`error`（`:42,48`）、`stalled`（`:43,52`）、`play()` 被拒或被打斷（`:36` 的 `.catch`，補理由）。
 - 改的只有範圍：`:18-77` 外層 try 與 `:34-37` 內層 try 包的呼叫都不會同步丟〔推論，U-2〕⇒ §2，刪。
 - `:15`、`:21`、`:28`、`:76` 的存在檢查由 6d-2 把兩個元素搬進 `buildUiRefs` 後一起刪。
@@ -629,7 +629,7 @@
 
 | 原主張 | 更正 | 誰指出／證據 |
 |---|---|---|
-| 初稿：背景影片「正式包排除 `assets/*.mp4`，載不到是常態」 | **撤回**；`extraResources` 有打包（§2.3） | owner 初審；`package.json:77-84`、`scripts/check-packaged-artifacts.cjs:29-37` |
+| 初稿：背景影片「正式包排除 `assets/*.mp4`，載不到是常態」 | **撤回**；`extraResources` 有打包（§2.3） | owner 初審；`package.json:77-84`、`scripts/check-packaged-artifacts.cjs:29-37`〔對齊 2026-11-07：`e9a35fa` 三檔都是原地換一行，行數不變，未移動〕 |
 | 初稿：`n.title \|\| "通知"` 隨同包資料一起刪 | **留**：合法空標題的顯示政策 | owner 初審；`lib/notifications-broadcast.js:55` |
 | 初稿：公告「在 main 由 `site-format.js` 正規化過」 | 正規化在 `parseNoticeFields`＋`assembleNotice`；`validateNotice` 不驗欄位 | owner 初審 |
 | 初稿：`ggl-log.js` 只留 `:57-65` | `gglError` 的 `:33-53` 也留（故障出口）；`gglEvent` 的退路才改 | owner 初審〔對齊 2026-10-28：→ `342a80c`（plans/cross-review-2026-10-phase6d.md 6d-1）：`ggl-log.js` 的 `:57-65` 後 `:50-58`、`:33-53` 後 `:22-46`〕 |

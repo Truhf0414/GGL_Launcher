@@ -73,7 +73,7 @@ module.exports = deepFreeze({
 
 ### main 端注入
 
-- `main/start-main.js`：拿掉 `require("./launcher-config")`（`:72-81`），改 `const serverConfig = require("../lib/server-config.js")`。manifest 那兩個函式在這裡**只做一次**：〔對齊 2026-10-03：`start-main.js:72-81` → `e944e1c`（commit3b0）未移動〕〔對齊 2026-10-08：→ `77de663`（commit3b2b）後：`main/start-main.js` `:72-81` → `:63-72`〕〔對齊 2026-10-08：工具誤判（`start-main.js` 含 `main.js` 字樣）；行內行號指 `main/start-main.js`，不在 `8a396b1`，未移動〕〔對齊 2026-10-08：`f002d2f`（commit3b3b）`main.js` 只原地改寫 `:41`，行數未變 ⇒ 本行行號未移動〕
+- `main/start-main.js`：拿掉 `require("./launcher-config")`（`:72-81`），改 `const serverConfig = require("../lib/server-config.js")`。manifest 那兩個函式在這裡**只做一次**：〔對齊 2026-10-03：`start-main.js:72-81` → `e944e1c`（commit3b0）未移動〕〔對齊 2026-10-08：→ `77de663`（commit3b2b）後：`main/start-main.js` `:72-81` → `:63-72`〕〔對齊 2026-10-08：工具誤判（`start-main.js` 含 `main.js` 字樣）；行內行號指 `main/start-main.js`，不在 `8a396b1`，未移動〕〔對齊 2026-10-08：`f002d2f`（commit3b3b）`main.js` 只原地改寫 `:41`，行數未變 ⇒ 本行行號未移動〕〔對齊 2026-11-07：`e9a35fa` 三檔都是原地換一行，行數不變，未移動〕
   ```js
   const getRemoteManifestUrl = () => serverConfig.manifestUrl;
   const isManifestUrlConfigured = () => isRemoteManifestUrlConfigured(serverConfig.manifestUrl);
@@ -153,7 +153,7 @@ module.exports = deepFreeze({
   放進 `buildRootCtx` 的輸入，由 `renderer/bootstrap-ctx.js` 收進 `fx`；`consts` 拿掉那兩個鍵（`:78-79,102-103`）。
 - `renderer/window-controls.js`：刪 `discordInviteUrl`（`:15-16`）；點擊時 `await fx.loadServerDefaults()` 再 `openExternal(discordInviteUrl)`，抓不到就什麼都不做。**不做停用狀態**（§裁決）。
 - `renderer/settings-modal.js`：刪 `DEFAULT_LAUNCHER_ROOT`（`:19-20`）。`fillSettingsForm`（`:196`）改 `s.launcherRootDir ?? ""`——`settings:get` 回來的 `launcherRootDir` 一定經過 `normalizeRootDir`，不會是空的。`pickInstallDir`（`:227`）欄位空白時才 `await loadServerDefaults()` 取 `launcherRootDir` 當對話框起點；抓不到就傳 `""`，由 `dialog-ipc.js:12` 退回 `C:\`。
-- `index.html:341` 的 placeholder「例如 C:\Games\GGL」不動（上層驗收 2 的允許例外）；`:178` 註解改成指向 `lib/server-config.js`。〔對齊 2026-10-08：→ `77de663`（commit3b2b）後：`index.html` `:341` → `:353`、`:178` 未移動〕
+- `index.html:341` 的 placeholder「例如 C:\Games\GGL」不動（上層驗收 2 的允許例外）；`:178` 註解改成指向 `lib/server-config.js`。〔對齊 2026-10-08：→ `77de663`（commit3b2b）後：`index.html` `:341` → `:353`、`:178` 未移動〕〔對齊 2026-11-07：`e9a35fa` 三檔都是原地換一行，行數不變，未移動〕
 
 ## 畫面文字
 
@@ -163,7 +163,7 @@ module.exports = deepFreeze({
 |---|---|---|
 | `main/microsoft-auth.js:665`（沒設 client id 的對話框） | 請到 main.js 的 msClientId 填入你的 Azure Client ID，然後重啟啟動器。 | 請到 lib/server-config.js 的 microsoftAuth.clientId 填入你的 Azure Client ID，然後重啟啟動器。 |
 | `main/microsoft-auth.js:65`（新的錯誤） | —（退回 49152） | 尚未設定登入回呼 port（lib/server-config.js 的 microsoftAuth.loopbackPort）。 |
-| `main/manifest-sync.js:923` | …請先在 main/launcher-config.js 設定 remoteManifestUrl。 | …請先在 lib/server-config.js 設定 manifestUrl。〔對齊 2026-09-30：`manifest-sync.js:923` → 本 commit `fb940aa` 改寫此行；`82fc41d`（commit3a1）後 `:914`；`b7852ca`（commit3a2）後 `:891`〕〔對齊 2026-10-08：→ `8a396b1`（commit3b3a）後：`main/manifest-sync.js` 整檔刪除〕 |
+| `main/manifest-sync.js:923` | …請先在 main/launcher-config.js 設定 remoteManifestUrl。 | …請先在 lib/server-config.js 設定 manifestUrl。〔對齊 2026-09-30：`manifest-sync.js:923` → 本 commit `fb940aa` 改寫此行；`82fc41d`（commit3a1）後 `:914`；`b7852ca`（commit3a2）後 `:891`〕〔對齊 2026-10-08：→ `8a396b1`（commit3b3a）後：`main/manifest-sync.js` 整檔刪除〕〔對齊 2026-11-07：`e9a35fa` 三檔都是原地換一行，行數不變，未移動〕 |
 
 ## 測試
 
@@ -193,7 +193,7 @@ module.exports = deepFreeze({
 7. **Discord**：純函式＋測試、`discord-rpc.js`、`minecraft-launch.js:303`。〔對齊 2026-10-08：→ `77de663`（commit3b2b）後：`main/minecraft-launch.js` `:303` → `:291`〕〔對齊 2026-10-08：→ `8a396b1`（commit3b3a）後：`main/minecraft-launch.js` `:291`（`77de663` 後的值）→ `:289`〕
 8. **IPC**：channel、handler＋測試、登記；`npm run docs:ipc` 重產 `ARCHITECTURE.md` 的 IPC 區塊。
 9. **renderer**：動 `renderer/`、`index.html` 前先讀 `.cursor/rules/project-guardrails.mdc`、`formatting-and-generated-files.mdc`（conventions §UI / CSS）。改完 `npm run check:ui-css`。
-10. **文件**：`docs/new-server-checklist.md`（清單照上層那列）；`_notes/conventions.md` 網域那句的「都在 main/launcher-config.js」改成 `lib/server-config.js`（產物那句留給 ③b）；`ARCHITECTURE.md:37,56,62,68,72,75` 的說明文字；`main.js:7`、`index.html:178` 註解。〔對齊 2026-10-03：`main.js:7` → `e944e1c`（commit3b0）後 `:9`；同 commit 的 `ARCHITECTURE.md:37` 原位改寫、`:75` 後 `:77`〕〔對齊 2026-10-08：→ `77de663`（commit3b2b）後：`ARCHITECTURE.md` `:37`、`:56` 未移動，`:62` → `:71`、`:68` 改寫、`:72` → `:81`，`:75`（`e944e1c` 後 `:77`）改寫；`index.html` `:178` 未移動〕〔對齊 2026-10-08：行內行號指 `ARCHITECTURE.md`、`main.js`，`8a396b1` 未移動〕〔對齊 2026-10-08：`f002d2f`（commit3b3b）`main.js` 只原地改寫 `:41`，行數未變 ⇒ 本行行號未移動〕
+10. **文件**：`docs/new-server-checklist.md`（清單照上層那列）；`_notes/conventions.md` 網域那句的「都在 main/launcher-config.js」改成 `lib/server-config.js`（產物那句留給 ③b）；`ARCHITECTURE.md:37,56,62,68,72,75` 的說明文字；`main.js:7`、`index.html:178` 註解。〔對齊 2026-10-03：`main.js:7` → `e944e1c`（commit3b0）後 `:9`；同 commit 的 `ARCHITECTURE.md:37` 原位改寫、`:75` 後 `:77`〕〔對齊 2026-10-08：→ `77de663`（commit3b2b）後：`ARCHITECTURE.md` `:37`、`:56` 未移動，`:62` → `:71`、`:68` 改寫、`:72` → `:81`，`:75`（`e944e1c` 後 `:77`）改寫；`index.html` `:178` 未移動〕〔對齊 2026-10-08：行內行號指 `ARCHITECTURE.md`、`main.js`，`8a396b1` 未移動〕〔對齊 2026-10-08：`f002d2f`（commit3b3b）`main.js` 只原地改寫 `:41`，行數未變 ⇒ 本行行號未移動〕〔對齊 2026-11-07：`e9a35fa` 三檔都是原地換一行，行數不變，未移動〕
 11. **收尾**：`package.json` 的 `format:ui` 刪 `main/launcher-config.js`，加 `lib/server-config.js`、`lib/discord-helper-args.js`、`main/ipc/server-config-ipc.js`，跑 `npm run format:ui`；再跑一次 `npm test`、`npm run check:ui-css`、上層驗收 2 的靜態掃描。
 12. **開驗收單**給 owner（上層驗收 3、4 由 owner 做）。owner 放行後才 commit。
 

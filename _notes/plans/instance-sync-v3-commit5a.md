@@ -12,7 +12,7 @@
 - windows 的 natives：rules 寫 `os.name=windows` 的 25 支裡，名字結尾 `natives-windows-arm64`／`natives-windows-x86` 的 16 支（上層：照規格保留）。
 - 1.21.11 的 `Main` 不認 `--userType`（選項清單沒有它，`allowsUnrecognizedOptions` 讓它被忽略〔查過：反編譯 `net.minecraft.client.main.Main:60-96`〕）；原版 json 的 game 參數也沒有它。現行 argv 的 `--userType msa` 是 `ensureRequiredGameArgs` 補的，⑤c 之後會消失——argv diff 的說明要列這條。
 - rules 的語意，minecraft.wiki「Client.json」沒寫（沒寫最後一條決定、沒寫有 rules 但都不符時怎樣、沒寫一條 rule 裡多個條件怎麼合）；`os.version` 寫的是「對 Java 的 `System.getProperty("os.version")` 比」〔查過：據文件，2026-10-13〕。本刀照上層與 Y6。
-- ⑤c 收尾會變成孤兒的東西（Y2 的去向，→ §留給後兩刀）：`mavenRelPath` 的匯出只有 `main/minecraft-version-json.js` 在用；`resolveVersionChain` 只有 `main/minecraft-launch.js:191` 與 `test/minecraft-version-json.test.cjs` 在用；`isLibraryAllowedOnWindows` 另被 `test/helpers/fake-runtime.cjs:17,152,156` 用；`main/minecraft-version-json.js` 這個檔名還出現在 `package.json:18`（`format:ui` 清單）、`ARCHITECTURE.md:80`、`lib/runtime-json.js:76`（註解）。
+- ⑤c 收尾會變成孤兒的東西（Y2 的去向，→ §留給後兩刀）：`mavenRelPath` 的匯出只有 `main/minecraft-version-json.js` 在用；`resolveVersionChain` 只有 `main/minecraft-launch.js:191` 與 `test/minecraft-version-json.test.cjs` 在用；`isLibraryAllowedOnWindows` 另被 `test/helpers/fake-runtime.cjs:17,152,156` 用；`main/minecraft-version-json.js` 這個檔名還出現在 `package.json:18`（`format:ui` 清單）、`ARCHITECTURE.md:80`、`lib/runtime-json.js:76`（註解）。〔對齊 2026-11-07：`e9a35fa` 三檔都是原地換一行，行數不變，未移動〕
 
 ## 設計
 
@@ -181,7 +181,7 @@ buildLaunchArgv({ merged, env, placeholders, extras, logConfigPath }) → string
 - **⑤c 收尾後的樣子**（Y2）：
   - `lib/launch-args.js`：所有「json → argv」的計算。
   - `lib/library-filter.js`：只剩 `mergeLibraries`、`libraryArtifact`；刪 `mavenRelPath` 的匯出（內部函式留著）。`isLibraryAllowedOnWindows` 與檔頭「jvm 參數的過濾留給 ⑤」那句改在 ⑤b 處理（`plans/instance-sync-v3-commit5b.md` V2）。
-  - `main/minecraft-version-json.js`：拿掉合併、classpath、參數之後只剩「沿 `inheritsFrom` 讀檔」。現查：就緒已經直接以記錄讀 `versions/<launchId>/<launchId>.json` 與 `versions/<mc>/<mc>.json`（`lib/runtime-readiness.js:31-38`），而 `checkFabricJson` 要求 `inheritsFrom === minecraft`，所以啟動照同一個方式讀兩份就夠，**整個檔可以刪**〔⑤c 細部 plan 再裁，上層原寫「保留檔案讀取」〕。刪的話連帶：`test/minecraft-version-json.test.cjs`、`package.json:18` 的 `format:ui` 清單、`ARCHITECTURE.md:80` 那列、`lib/runtime-json.js:76` 的註解。
+  - `main/minecraft-version-json.js`：拿掉合併、classpath、參數之後只剩「沿 `inheritsFrom` 讀檔」。現查：就緒已經直接以記錄讀 `versions/<launchId>/<launchId>.json` 與 `versions/<mc>/<mc>.json`（`lib/runtime-readiness.js:31-38`），而 `checkFabricJson` 要求 `inheritsFrom === minecraft`，所以啟動照同一個方式讀兩份就夠，**整個檔可以刪**〔⑤c 細部 plan 再裁，上層原寫「保留檔案讀取」〕。刪的話連帶：`test/minecraft-version-json.test.cjs`、`package.json:18` 的 `format:ui` 清單、`ARCHITECTURE.md:80` 那列、`lib/runtime-json.js:76` 的註解。〔對齊 2026-11-07：`e9a35fa` 三檔都是原地換一行，行數不變，未移動〕
   - `main/minecraft-launch.js`：讀兩份 json、湊 placeholder 的值、組 `env`、spawn。（⑤c 回寫 2026-10-13：已被 ⑤c P2′／D1 取代——啟動不讀 json、不組 `env`，用閘交的成品；湊值收成 `lib/launch-args.js` 的 `launchPlaceholders` → `plans/instance-sync-v3-commit5c.md`）
 - **⑤c 要定的值**：~~`env.os.version` 用什麼~~ ⑤b 已定（main 注入 `os.release()`，`plans/instance-sync-v3-commit5b.md` V1）；`launcher_name`、`launcher_version`、`natives_directory`。
 
