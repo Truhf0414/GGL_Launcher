@@ -1,6 +1,6 @@
 {
   "name": "GGL_launcher",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "年糕122做的Minecraft啟動器，可以拿來玩GGL3的伺服器",
   "main": "main.js",
   "author": "",
