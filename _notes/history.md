@@ -286,6 +286,13 @@
   - **建置**（runbook §3）：`H:\GGL3\b101`，帶兩個設定 `git archive`，418 個追蹤檔核對全部一致；`npm ci`、`dist:win` exit 0，`check:packaged-artifacts` 過，日誌沒有 `build:rpc-helper`。安裝檔 `GGL-Launcher-Setup-1.0.1.exe`，143,748,314 bytes，sha256 `cd0eed458a142012abf136d7b097ff2ef91d0b8b5dde67660d91684a9b3dfde7`。helper 打包前後 sha256 相同；從 app.asar 抽出的 `server-config.js` 是新網址、`package.json` 是 1.0.1。撞到的：用 `@electron/asar extract-file` 抽檔會落在當前目錄，蓋掉建置資料夾根目錄的 `package.json` 之後又被刪掉；已從 `e9a35fa` 還原，hash 等於 commit 的 blob。這發生在安裝檔建完之後。owner 驗收：「OK，驗收通過」。
   - **發版**：owner 依序授權 push（「push」）、建 Draft（「建 Draft」）、公開（「公開」）。Draft 下載回來（`H:\GGL3\b101-dl`）的 sha256、notes 寫的 sha256 與建置 commit、檔名版本都一致。公開後 tag `v1.0.1` → `e9a35fa`，標為 Latest；未登入的 curl 下載（`H:\GGL3\b101-anon`）sha256 一致，`releases/latest` 302 到 `v1.0.1`。
   - **沒做**：runbook §6 第 4 點的 SmartScreen／Defender 畫面；§8 第 3 點（正式站台唯讀 smoke）和第 4 點（README／下載入口實點）。站台 `minLauncherVersion` 沒調高（1.0.0 照樣能玩，只有 Discord 鈕連到失效邀請）。
+- 2026-11-07 公告改成 GGL3.0.3：owner 給了公告卡、通知、日誌的文字。CC 先擬草稿，發現站台 `release.json` 還是 `GGL3.0.2`（`H:\GGL3-release\GGL3.0.3` 已建好但還沒發佈），回報給 owner。owner 自己發佈之後說「發好了，更新吧。」，CC 再查一次 `release.json` 是 `GGL3.0.3`、`releases/20261107-215852-GGL3.0.3.json` 存在，才寫進站台。
+  - **改了什麼**（`H:\Caddy_sitebuild`）：
+    - `notice.json`：公告標題改成 `GGL3.0.3`，副標照 owner 給的，保留 `|`。新增通知 id `2026-11-07-ggl3.0.3`，`createdAt` `2026-11-07T21:59:50+08:00`。舊的 `2026-11-01-launch` 留著。
+    - `changelog.json`：最上面加 GGL3.0.3 的四行，空一行，下面接原本的 v1.0.0 那段。接著放、通知用同一句當標題和內文，都是 CC 自己決定的，回覆時講明了，owner 沒有反對。
+  - **備份**：改之前的兩支在 `H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261107-215950`。sha256 和改前的站台檔相同（notice `9db7d45b…`、changelog `ab1f5a0b…`）。
+  - **核對**：站台檔和草稿 `cmp` 相同；`check-site` exit 0；公開網址抓回的兩支都是 200，和本機逐位元組相同。
+  - **沒做**：沒開啟動器看實際畫面。GGL3.0～3.0.3 這幾次模組包發佈是 owner 自己做的，本檔沒有紀錄。
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
