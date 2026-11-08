@@ -99,6 +99,23 @@ node scripts/check-site.js <站台根目錄>
   node scripts/publish.js <版本資料夾> --apply  # 正式發布，會修改站台
   ```
 
+### 4a. 組版本資料夾：玩家可改檔沿用上一版
+
+玩家可改檔（清單在 `scripts/publish-config.js` 的 `playerEditable`）只要內容跟上一版不同，玩家更新時就會被整檔覆蓋，而且不備份（`_notes/plans/instance-sync-v3.md` §行為契約）。Prism 實例裡的這些檔會跟著服主自己玩遊戲一起變，所以不能整包照搬。
+
+規則（owner 2026-11-07 裁定「A：沿用上一版設定」；起因 → `_notes/history.md` §事故帳 2026-11-07）：
+
+- **上一版**＝站台目前的版本（`jq .version H:/Caddy_sitebuild/release.json`），它的來源資料夾是 `H:\GGL3-release\<上一版>`。
+- 不是玩家可改的檔（`mods/`、`resourcepacks/`、`shaderpacks/` 的光影本體、`mmc-pack.json`）照 Prism 實例複製。
+- 玩家可改的檔：
+  - 上一版有 ⇒ **從上一版的資料夾複製**，不拿 Prism 的。
+  - 上一版沒有、Prism 有（通常是新 mod 帶來的 config）⇒ 從 Prism 複製。
+  - 上一版有、Prism 沒有 ⇒ 不放（等於發布時刪除，通常是移除的 mod 的 config）。
+  - 例外：owner 指名「這個檔要推給大家」⇒ 從 Prism 複製，並在公告講明。
+- `servers.dat` 也是玩家可改檔，同上，沿用上一版。從 Prism 拿時要先拿掉 localhost 那筆。
+- **乾跑驗收**：報告裡 `[變更]` 的玩家可改檔只能是 owner 指名的那些，多出任何一個就是組錯了，停下重組。`[新增]`、`[刪除]` 的玩家可改檔逐條列給 owner 看。注意：如果是既有 mod 改版後才新產生的 config，玩家本機可能已經有一份，`[新增]` 時一樣會被蓋。
+- 〔已實測〕2026-11-08 GGL3.0.4：組之前先確認站台 3.0.3 的 449 個玩家可改檔與 `H:\GGL3-release\GGL3.0.3` 逐檔 sha256 相同（對照組拿 3.0.2 的資料夾比，抓到 25 個不符）；Prism 有改、被擋下 27 個；乾跑與發布後玩家可改檔 `[變更]` 皆 0，只有新 mod 的 2 個 config 新增、owner 指示移掉的 AliveCombat 2 個 config 刪除。
+
 ## 5. rpc-helper
 
 `rpc-helper.exe` 是 `rpc-helper/` 用 `pkg` 打出來的獨立執行檔。**`dist:win` 與 `pack:win` 不會重建它**（G-5，`255a03a`）：出貨的是 repo 追蹤的 `assets/rpc-helper.exe`，打包時原樣複製到 `resources/assets/`。〔已實測〕2026-10-30，隔離副本：兩條命令 exit 0，`assets/` 與打包後的 helper 的 sha256 前後相同；改動前的 `pack:win` 則會把它重建成不同的 sha256。
