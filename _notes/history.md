@@ -293,6 +293,11 @@
   - **備份**：改之前的兩支在 `H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261107-215950`。sha256 和改前的站台檔相同（notice `9db7d45b…`、changelog `ab1f5a0b…`）。
   - **核對**：站台檔和草稿 `cmp` 相同；`check-site` exit 0；公開網址抓回的兩支都是 200，和本機逐位元組相同。
   - **沒做**：沒開啟動器看實際畫面。GGL3.0～3.0.3 這幾次模組包發佈是 owner 自己做的，本檔沒有紀錄。
+- 2026-11-08 公告改成 GGL3.0.4：流程同 11-07 那條。owner 先給文字，CC 查到 `release.json` 還是 `GGL3.0.3`（`H:\GGL3-release\GGL3.0.4` 已建、未發佈），先擬草稿沒動站台。owner 發佈後說「發好了。」，CC 再查 `release.json` 是 `GGL3.0.4`、`releases/20261108-141944-GGL3.0.4.json` 存在，才寫入。
+  - **改了什麼**（`H:\Caddy_sitebuild`）：公告標題 `GGL3.0.4`；新增通知 id `2026-11-08-ggl3.0.4`，`createdAt` `2026-11-08T14:21:09+08:00`，舊的兩則留著，鈴鐺共三則；`changelog.json` 最上面加 3.0.4 四行，空一行接原本內容。
+  - **備份**：`H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261108-142109`，sha256 和改前站台檔相同（notice `d5581cf6…`、changelog `e0544862…`）。
+  - **核對**：站台檔和草稿 `cmp` 相同；`check-site` exit 0；公開網址兩支都是 200，和本機逐位元組相同。
+  - **沒做**：沒開啟動器看實際畫面。GGL3.0.4 的發佈是 owner 自己做的，本檔沒有紀錄。
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
