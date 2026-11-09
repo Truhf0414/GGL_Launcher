@@ -321,6 +321,11 @@
   - **發布前**：owner 說「最後再列一次完整要更新的內容吧！好了就推。」CC 用 scratchpad 的 `verify-prism-unchanged.js` 照同一套規則重算，692 個檔跟版本資料夾的 sha256 都相同（對照組拿 3.0.5 的資料夾比，差 1500 處）；重跑的乾跑跟 owner 看過的那份逐字相同，才 `--apply`。
   - **發布與核對**（11-09 10:56:13）：報告除了最後一行跟乾跑相同；`release.json` 是 `GGL3.0.6`、691 個檔，`releases/20261109-105613-GGL3.0.6.json` 存在；`check-site` exit 0；從 `ggl.leaharmonic.com` 抓回的 `release.json`、`manifest.json` 跟本機 `cmp` 相同（CC 第一次抓錯網域 `ggl3.leaharmonic.com`，憑證錯誤）；抽 `config/punchy/punchy_config.json` 與 `mods/ggl_sundries-0.1.0.jar` 從公開網址下載，跟 Prism 原檔相同。
   - **沒做**：公告、鈴鐺通知、日誌還停在 3.0.5（owner 這輪說「只寫筆記」），§4a 要求公告講明點名推送的那 5 個檔，這件也還沒做。沒從玩家那邊確認收到。兩支腳本還在 scratchpad，沒進 repo → future-work.md §收集區。
+- 2026-11-09 公告改成 GGL3.0.6：owner 給文字時，`release.json` 已經是 `GGL3.0.6`（發佈見上一條），照 3.0.5 的格式直接寫入。
+  - **改了什麼**（`H:\Caddy_sitebuild`）：公告標題 `GGL3.0.6`；新增通知 id `2026-11-09-ggl3.0.6`，`createdAt` `2026-11-09T10:57:21+08:00`，鈴鐺共五則；`changelog.json` 最上面加 owner 給的 3.0.6 七行，空一行接原本內容。
+  - **備份**：`H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261109-105721`，sha256 和改前站台檔相同（notice `34f24e91…`、changelog `8d30e8eb…`）。
+  - **核對**：站台檔和產出檔 `cmp` 相同；`check-site` exit 0；公開網址兩支都是 200，和本機逐位元組相同。
+  - **沒做**：沒開啟動器看實際畫面。runbook §4a 要求公告講明點名推送的 5 個 config（Punchy、streamsreflowing、asyncparticles），這次寫入的日誌沒提；CC 寫入時沒先對 §4a，收尾時才發現，已回報 owner。
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
