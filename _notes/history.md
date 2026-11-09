@@ -313,6 +313,14 @@
   - **備份**：`H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261108-142702`，sha256 和改前站台檔相同（notice `d2dc2360…`、changelog `5957b5a2…`）。
   - **核對**：站台檔和產出檔 `cmp` 相同；`check-site` exit 0；公開網址兩支都是 200，和本機逐位元組相同。
   - **沒做**：沒開啟動器看實際畫面。日誌 3.0.4 與 3.0.5 都寫「修正 Slabbed 模組的效能問題」，是照 owner 原文寫的，CC 有提醒、owner 沒改。
+- 2026-11-09 模組包 GGL3.0.6 發佈（CC 依 owner 授權，流程同 11-06～08 那條；乾跑、發佈報告與腳本只留在該 session 的 scratchpad）。起因：owner 說上次調的 config 玩家沒收到；CC 解釋 runbook §4a 會沿用上一版的玩家可改檔，只有 owner 點名的檔才從 Prism 拿。
+  - **組包**：用 scratchpad 的 `build-release-dir.js`，這次加了兩個參數：owner 點名要推的檔、owner 點名不放的新檔。基準：站台 3.0.5 的 449 個玩家可改檔，跟 `H:\GGL3-release\GGL3.0.5` 比 sha256，0 個不符（對照組：拿 3.0.2 的資料夾比，26 個不符、2 個多出來，腳本停下、沒有建資料夾）。
+  - **第一次乾跑**：Prism 有改、被擋下的玩家可改檔 40 個；新增的玩家可改檔 19 個，都是 owner 玩遊戲留下的（16 個 juxtui localhost 全景截圖、JEI 書籤、`config/localhost_25567/fresh-loot-highlight.json`、內容為空的 `my-totem-doll-known-player-uuids.json5`）；另外新增資源包 `Dark JujutsuTextures.zip`。
+  - **owner 裁決**：「19 個玩家可改檔可以擋。」；「Punchy 的幾個、streamsreflowings 的、asyncparticles 的一定要同步。其他都可擋。」，也就是 `config/punchy/` 底下的 `punchy_config.json`、`mix_profiles/Default_.json`、`menu_prefs.json`，以及 `config/streamsreflowing.properties`、`config/asyncparticles/asyncparticles-mixin.properties` 這 5 個檔；資源包 owner 從 Prism 刪掉了（owner 說「juxtui 我已經刪掉了」，CC 問是不是資源包，owner 答「對，是資源包」）；juxtui 截圖「這個就正常擋」，因為那個 mod 在玩家每次登出時會重新截自己的。
+  - **重組與乾跑**：CC 刪掉還沒發布的 3.0.6 資料夾，重新組。新增 3、變更 5（就是點名的那 5 個）、刪除 3、不變 683；mods：新增 `ggl_sundries-0.1.0`，punchy 3.1 → 3.2，punchy-moves 1.0.7 → 1.0.8；刪除 `config/slabbed/dismissed-beta-notice-worlds.json`；上傳 8 個 blob（5.7 MB），清掉 3 個 blob 與封存 `GGL3.0.3`。AliveCombat 的 config 這次沒有出現在新增裡。撞到：CC 用 `fd … | head` 只看了前 10 行，就跟 owner 說「Prism 裡的 juxtui 只剩 `____`」；`ls` 重查是 7 組都在，回覆中已更正。
+  - **發布前**：owner 說「最後再列一次完整要更新的內容吧！好了就推。」CC 用 scratchpad 的 `verify-prism-unchanged.js` 照同一套規則重算，692 個檔跟版本資料夾的 sha256 都相同（對照組拿 3.0.5 的資料夾比，差 1500 處）；重跑的乾跑跟 owner 看過的那份逐字相同，才 `--apply`。
+  - **發布與核對**（11-09 10:56:13）：報告除了最後一行跟乾跑相同；`release.json` 是 `GGL3.0.6`、691 個檔，`releases/20261109-105613-GGL3.0.6.json` 存在；`check-site` exit 0；從 `ggl.leaharmonic.com` 抓回的 `release.json`、`manifest.json` 跟本機 `cmp` 相同（CC 第一次抓錯網域 `ggl3.leaharmonic.com`，憑證錯誤）；抽 `config/punchy/punchy_config.json` 與 `mods/ggl_sundries-0.1.0.jar` 從公開網址下載，跟 Prism 原檔相同。
+  - **沒做**：公告、鈴鐺通知、日誌還停在 3.0.5（owner 這輪說「只寫筆記」），§4a 要求公告講明點名推送的那 5 個檔，這件也還沒做。沒從玩家那邊確認收到。兩支腳本還在 scratchpad，沒進 repo → future-work.md §收集區。
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
