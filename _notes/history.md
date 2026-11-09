@@ -325,7 +325,17 @@
   - **改了什麼**（`H:\Caddy_sitebuild`）：公告標題 `GGL3.0.6`；新增通知 id `2026-11-09-ggl3.0.6`，`createdAt` `2026-11-09T10:57:21+08:00`，鈴鐺共五則；`changelog.json` 最上面加 owner 給的 3.0.6 七行，空一行接原本內容。
   - **備份**：`H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261109-105721`，sha256 和改前站台檔相同（notice `34f24e91…`、changelog `8d30e8eb…`）。
   - **核對**：站台檔和產出檔 `cmp` 相同；`check-site` exit 0；公開網址兩支都是 200，和本機逐位元組相同。
-  - **沒做**：沒開啟動器看實際畫面。runbook §4a 要求公告講明點名推送的 5 個 config（Punchy、streamsreflowing、asyncparticles），這次寫入的日誌沒提；CC 寫入時沒先對 §4a，收尾時才發現，已回報 owner。
+  - **沒做**：沒開啟動器看實際畫面。runbook §4a 要求公告講明點名推送的 5 個 config（Punchy、streamsreflowing、asyncparticles），這次寫入的日誌沒提；CC 寫入時沒先對 §4a，收尾時才發現，已回報 owner。owner 裁「不用補。」
+- 2026-11-09 模組包 GGL3.0.7 發佈（CC 依 owner 授權，流程同 11-06～08 那條；腳本從 3.0.6 那個 session 的 scratchpad 複製來用，報告只留在本 session 的 scratchpad）。起因：owner 說 3.0.6 原本要推的 Totem 設定沒推到，3.0.6 的日誌卻已寫「調整不死圖騰回 3D 模式」。
+  - **組包**：push 只放 `config/my-totem-doll.json5`（Prism 版 11-09 05:45 改過，跟 3.0.6 差兩行：`standard_doll_skin_type` `steve` → `player`、`standard_doll_model_data` 2d → 3d），blockNew 沿用 3.0.6 的 19 個（含內容為空的 `my-totem-doll-known-player-uuids.json5`）。組之前查過沒有從 Prism 開的 java（對照組 explorer 查得到）。基準：站台 3.0.6 的 448 個玩家可改檔跟 `H:\GGL3-release\GGL3.0.6` 比 sha256，0 個不符；被擋下 34 個。`verify-prism-unchanged.js` 692 個檔 0 差異。
+  - **乾跑**：新增 0、變更 1（就是 Totem 那支）、刪除 0、不變 690；上傳 1 個 blob，清掉 1 個 blob（0.3 MB）與封存 `GGL3.0.4`。版本名 `GGL3.0.7` 是 CC 定的，回覆時講明了。owner 先給了公告文字、沒說「發」，CC 查到站台還是 3.0.6，問過才發；owner：「發，標題用 3.0.7」。
+  - **發布與核對**（11-09 11:28:27）：發之前重算 0 差異、重跑乾跑跟 owner 看過的那份 `cmp` 相同；報告除了最後一行跟乾跑相同；`release.json` 是 `GGL3.0.7`、691 個檔，`releases/20261109-112827-GGL3.0.7.json` 存在；`check-site` exit 0；公開網址的 `release.json`、`manifest.json` 跟本機 `cmp` 相同；Totem 的 blob（`a1eea9df…`）從公開網址下載跟 Prism 原檔相同，對照組假 sha 回 404。
+  - **沒做**：沒從玩家那邊確認 Totem 變成 3D。
+- 2026-11-09 公告改成 GGL3.0.7：owner 給的公告卡標題寫 `GGL3.0.6`，CC 問過，owner 改成 3.0.7。發佈完才寫入。
+  - **改了什麼**（`H:\Caddy_sitebuild`）：公告標題 `GGL3.0.7`；新增通知 id `2026-11-09-ggl3.0.7`，`createdAt` `2026-11-09T11:29:08+08:00`，鈴鐺共六則；`changelog.json` 最上面加 owner 給的 3.0.7 三行，空一行接原本內容。
+  - **備份**：`H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261109-112908`，sha256 和改前站台檔相同（notice `4899c3be…`、changelog `34d82b1a…`）。
+  - **核對**：站台檔和產出檔 `cmp` 相同；`check-site` exit 0；公開網址兩支都是 200，和本機逐位元組相同。
+  - **沒做**：沒開啟動器看實際畫面。日誌沒寫 Totem 設定會整檔覆蓋玩家版本，是 owner 的文字，CC 有提醒。
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
