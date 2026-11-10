@@ -1,4 +1,4 @@
-# 啟動器支援 macOS（先）與 Linux（後）（狀態：v2，2026-11-10；M1 完成 `e6386a0`，分支 `feat/mac-support`）
+# 啟動器支援 macOS（先）與 Linux（後）（狀態：v2，2026-11-10；M1 完成 `e6386a0`、M2 完成 `aea2bc1`，分支 `feat/mac-support`）
 
 **版本沿革**：v1 `124663dd`（2026-11-10 寫成，同日 owner 裁 Q1–Q5）→ 輕量 SPR（自審＋Codex，23 條）→ owner 放行處置 → **v2**（本檔）。review 見 `_notes/reviews/mac-linux-support-v124663dd-20261110.md`（已封存）。下文的 `R#n` 指那份 review 的第 n 條。
 
@@ -43,7 +43,7 @@
 | `main/runtime/java.js` `installViaMojang` | 取 `windows-x64`；只處理 `directory`、`file`；驗 `<根>/bin/java.exe` | 取 `mac-os-arm64`。manifest：directory 86、file 145、link 205，全部在 `jre.bundle/` 底下；link 全是 `legal/` 的授權檔、目標都是相對路徑；`bin/java` 帶 `executable: true`〔查過：java-runtime-delta manifest〕 |
 | `lib/sync/game-running.js`、`main/sync/game-running.js` | PowerShell 查 `java.exe`／`javaw.exe` 的命令列 | `ps`（→ §設計「遊戲偵測」） |
 | `lib/settings-format.js` `DRIVE_ABSOLUTE_RE` | 安裝位置必須 `X:\` 開頭；錯誤文字舉 `D:\Games\GGL` | POSIX 絕對路徑；文字依平台。**這個檔畫面也用 `<script>` 載入**（`index.html:556`），拿不到 `process.platform`（R#1） |
-| `lib/server-config.js` `launcherRootDir` | 常數 `C:\Games\GGL`；`lib/paths-layout.js:14`、`main/ipc/server-config-ipc.js:7` 直接讀 | Mac `~/Games/GGL`，要家目錄（R#2）〔對齊 2026-11-10：→ `e6386a0`（本檔 M1）後：`lib/paths-layout.js:14` 那行已刪（預設根改由 `lib/platform.js` 給）；`main/ipc/server-config-ipc.js` `:7` → `:9`〕 |
+| `lib/server-config.js` `launcherRootDir` | 常數 `C:\Games\GGL`；`lib/paths-layout.js:14`、`main/ipc/server-config-ipc.js:7` 直接讀 | Mac `~/Games/GGL`，要家目錄（R#2）〔對齊 2026-11-10：→ `e6386a0`（本檔 M1）後：`lib/paths-layout.js:14` 那行已刪（預設根改由 `lib/platform.js` 給）；`main/ipc/server-config-ipc.js` `:7` → `:9`〕〔對齊 2026-11-10：`aea2bc1` 未移動（那個 commit 沒動這裡提到的行）〕 |
 | `main/ipc/dialog-ipc.js` | 對話框預設 `C:\` | 家目錄 |
 | `main/discord-rpc.js` | `launchMinecraft` 無條件呼叫；找 `assets/rpc-helper.exe`，找不到就提示 | 一進函式就依平台返回（R#19） |
 | `package.json` 打包、`scripts/check-packaged-artifacts.cjs` | 只有 `dist:win`／`pack:win`；檢查一律要 `rpc-helper.exe` | `dist:mac`（dmg、arm64）；Mac 包不帶 `rpc-helper.exe`；檢查依平台 |
@@ -81,7 +81,8 @@
 **Mojang 退路的 link 與執行權限**（R#5）
 - `link`：目標必須是相對路徑，且解析後仍在安裝根底下，否則整個安裝拒絕（與現行對 key 的檢查同一時機：任何下載開始前）。檔案都下載完才建 link。
 - `executable: true` 的檔下載後設 0755。
-- Windows 的 manifest 沒有 link〔猜的：未查 windows-x64 manifest，M2 動工時現查〕；有的話同一套規則。
+- Windows 的 manifest 沒有 link、有 124 個 `executable: true`〔查過：2026-11-10 windows-x64 java-runtime-delta manifest，directory 82／file 402〕；同一套規則，Windows 上 chmod 不影響執行。
+- link 目標的規則在 M2 實作時收緊成白名單：解析後必須正好是同一份 manifest 裡的另一個項目（比「仍在安裝根底下」更嚴）。
 
 **遊戲偵測**（R#7、R#22）：`lib/sync/game-running.js` 留兩套純函式（Windows 的 CIM 指令與 JSON 解析照舊；非 Windows 的 `ps -axww -o pid=,command=` 與逐行解析），比對 gameDir 的 `matchGameDir` 共用。`main/sync/game-running.js` 依平台資料選一套，沿用同一組逾時（10 秒）與輸出上限。`-ww` 是為了不截斷長命令列〔猜的：macOS `ps` 的截斷行為未實測，M3 在 Mac mini 上驗〕。
 
@@ -100,13 +101,13 @@ electron-builder 的 Mac 圖示吃不吃 1254px 的 png〔猜的〕：吃不了�
 
 ## 驗收
 
-已驗的部分：M1（`e6386a0`）owner 2026-11-10 回報「現在這步啟動器啟動正常」，只涵蓋啟動器開得起來；設定視窗、選資料夾、啟動遊戲未驗，併入下面的 Windows 迴歸。
+已驗的部分：M1（`e6386a0`）owner 2026-11-10 回報「現在這步啟動器啟動正常」，只涵蓋啟動器開得起來；設定視窗、選資料夾、啟動遊戲未驗，併入下面的 Windows 迴歸。M2（`aea2bc1`）CC 2026-11-10 在 owner 的 Windows 開發機實跑 `scripts/try-java-install.cjs` 兩條路都過（正常路徑裝到 Temurin 21.0.13，強迫退路裝到 Mojang 的 21.0.7，換上後 `java -version` exit 0）；這是工具直接呼叫安裝函式，不是啟動器裡按出來的。
 
 **Mac（owner 在 Mac mini 上做；CC 列步驟、owner 回報，或 owner 在 Mac 上裝 Claude Code 讓 CC 直接操作）**
 1. `npm ci`、`npm test` 全綠
 2. `npm start`：視窗能拖曳、最小化、關閉，Cmd+Q 能退出（主視窗無邊框，`main/main-window.js:62`；R#12）
 3. 登入 → 安裝模組包（Java 走 Zulu）→ 啟動遊戲 → 進伺服器
-4. 強迫走 Mojang 退路裝一次 Java（做法 M2 定，例如把 Zulu 的 endpoint 指到不存在的位址）：裝完 `Contents/Home/bin/java -version` 過、能啟動遊戲（R#10）
+4. 強迫走 Mojang 退路裝一次 Java：`node scripts/try-java-install.cjs --mojang`（裝在暫存資料夾、不開啟動器；不帶 `--mojang` 就是走 Zulu），印出「結果：通過」與 `java -version` 的內容（R#10）。這支工具驗的是「裝得起來、java 跑得動」，不含「用它啟動遊戲」
 5. 設定視窗改安裝位置到另一個資料夾：存得進去、重開讀得回來、同步與啟動用的是新位置；填 `C:\x` 這種路徑被擋下，錯誤文字是 Mac 的範例（R#13）
 6. 修復跑得完；匯出診斷有檔案；關掉啟動器後遊戲還在
 7. 遊戲開著時按更新／修復被擋下
