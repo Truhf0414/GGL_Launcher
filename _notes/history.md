@@ -336,6 +336,7 @@
   - **備份**：`H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261109-112908`，sha256 和改前站台檔相同（notice `4899c3be…`、changelog `34d82b1a…`）。
   - **核對**：站台檔和產出檔 `cmp` 相同；`check-site` exit 0；公開網址兩支都是 200，和本機逐位元組相同。
   - **沒做**：沒開啟動器看實際畫面。日誌沒寫 Totem 設定會整檔覆蓋玩家版本，是 owner 的文字，CC 有提醒。
+- 2026-11-10 Mac／Linux 支援開案：owner 問難度後裁先 Mac 再 Linux、五題（只做 Apple 晶片、Mac 首版不帶 Discord、Java 只走 Zulu＋Mojang、CI 加 macOS、預設裝 `~/Games/GGL`）→ plan v1 `124663dd`；輕量 SPR（自審 16 條＋Codex 7 條，Codex 的結論是「目前不能開始實作」，CC 把它標的兩條 blocker 裁成 major、處置相同）→ owner 放行 → plan v2；owner 給圖示原圖（存 `assets/icon.png`，未 commit）；M1 commit `e6386a0`（分支 `feat/mac-support`，32 檔，+622／-108）：`lib/platform.js` 與依平台的啟動參數、Java 位置、設定檢查、預設安裝位置，`npm test` 1476 過；owner 回報啟動器開得起來，並裁這一輪驗收積到最後一起做。沒做：Mac 上一次都沒跑過；設定視窗、選資料夾、啟動遊戲在 Windows 上未驗 → `plans/mac-linux-support.md`、`reviews/mac-linux-support-v124663dd-20261110.md`
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
