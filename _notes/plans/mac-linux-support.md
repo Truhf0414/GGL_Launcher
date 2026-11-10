@@ -1,4 +1,4 @@
-# 啟動器支援 macOS（先）與 Linux（後）（狀態：v2，2026-11-10；M1 `e6386a0`、M2 `aea2bc1`、M3 `ae3336f`、M4 `90433c5` 都已 commit，分支 `feat/mac-support`；2026-11-10 起 Mac 上跑過，結果見 §驗收；Mac 段 2026-11-11 合併進 main `48799f3`；Linux 段 2026-11-11 細化並經輕量審（`_notes/reviews/mac-linux-support-linux-ve0fe9335-20261111.md`，已封存），owner 同日放行；L1 `9680945`、L2 `41acb3a`、L3 `f24b016` 與測試修正 `2a2eff6` 已 commit 並 push，分支 `feat/linux-support`，草稿 PR `Truhf0414/GGL_Launcher#2`；Linux 機器上還沒跑過）
+# 啟動器支援 macOS（先）與 Linux（後）（狀態：v2，2026-11-10；M1 `e6386a0`、M2 `aea2bc1`、M3 `ae3336f`、M4 `90433c5` 都已 commit，分支 `feat/mac-support`；2026-11-10 起 Mac 上跑過，結果見 §驗收；Mac 段 2026-11-11 合併進 main `48799f3`；Linux 段 2026-11-11 細化並經輕量審（`_notes/reviews/mac-linux-support-linux-ve0fe9335-20261111.md`，已封存），owner 同日放行；L1 `9680945`、L2 `41acb3a`、L3 `f24b016` 與測試修正 `2a2eff6`、`1396efd` 已 commit 並 push，三個平台的 CI 都綠，分支 `feat/linux-support`，草稿 PR `Truhf0414/GGL_Launcher#2`；Linux 機器上還沒跑過）
 
 **版本沿革**：v1 `124663dd`（2026-11-10 寫成，同日 owner 裁 Q1–Q5）→ 輕量 SPR（自審＋Codex，23 條）→ owner 放行處置 → **v2**（本檔）。review 見 `_notes/reviews/mac-linux-support-v124663dd-20261110.md`（已封存）。下文的 `R#n` 指那份 review 的第 n 條。
 
@@ -220,7 +220,8 @@ electron-builder 的 Mac 圖示吃不吃 1254px 的 png〔猜的〕：吃不了�
 - `2a2eff6`：上面三種原因的修正，加上兩個只在不分大小寫的磁碟才成立的案例改成在分大小寫的磁碟跳過（備份名只差大小寫的撞名、`sync-index` 的 N9）。
 - L3 `f24b016`：照表做。打包檢查改成看包裡有沒有 `<產品名>.exe` 來判斷是不是 Windows 的包。Windows 上 `npm run pack:win` exit 0、`check:packaged-artifacts` 過、helper 的 sha256 與 repo 相同；拿 Windows 的 `resources` 複本（沒有 exe）當非 Windows 的包試過：帶 helper 被擋、拿掉後通過。
 - Windows 上 `npm test`：1512 個、1508 過、0 紅、4 跳過（真 `ps` 那支與三支只在分大小寫磁碟跑的）。
-- **寫這段時沒驗的**：`2a2eff6` 與 `f24b016` 的 CI 還沒有結果（2026-11-11 00:53 查：`2a2eff6` 的執行剛開始、`f24b016` 還沒出現，GitHub 狀態頁當時是部分服務中斷），所以 L2 的規則、三支 Linux 專用測試、測試修正都還沒在 Linux 上跑過；結果用 `gh pr checks 2` 看。AppImage 沒建過。
+- CI 的後續（`ubuntu-latest`）：第二輪（`2a2eff6`，已含 L2）1512 個裡 1 個紅——`sync-apply` 的 L16 用 `Foo.jar`→`foo.jar` 走「改名」那條路，分大小寫的磁碟上那是刪舊的加下載新的，期望值改成跟磁碟走（`1396efd`）。第三輪（`1396efd`）三個 job 都綠：Linux 1512 個、1450 過、0 紅、62 跳過（原本 60 個只在 Windows 跑的，加兩個只在不分大小寫磁碟成立的）。三支只在分大小寫磁碟跑的案例與 L16 在 Linux 上通過；M3 那支真的跑 `ps` 的端到端測試也在 Linux 上通過，procps 吃 `-axww -o pid=,command=` 的猜測成立。`f24b016`、`eb77c12` 兩輪的紅燈是同一個 L16（那兩個 commit 在修正之前）。
+- **還沒驗的**：Linux 機器上的實際操作（驗收九步）全部沒做；AppImage 沒建過。
 
 ### 驗收
 
