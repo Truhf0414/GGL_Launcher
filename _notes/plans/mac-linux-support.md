@@ -1,4 +1,4 @@
-# 啟動器支援 macOS（先）與 Linux（後）（狀態：v2，2026-11-10；M1 `e6386a0`、M2 `aea2bc1`、M3 `ae3336f`、M4 `90433c5` 都已 commit，分支 `feat/mac-support`；2026-11-10 起 Mac 上跑過，結果見 §驗收；Mac 段 2026-11-11 合併進 main `48799f3`；Linux 段 2026-11-11 細化並經輕量審（`_notes/reviews/mac-linux-support-linux-ve0fe9335-20261111.md`，已封存），owner 同日放行，施工中，分支 `feat/linux-support`）
+# 啟動器支援 macOS（先）與 Linux（後）（狀態：v2，2026-11-10；M1 `e6386a0`、M2 `aea2bc1`、M3 `ae3336f`、M4 `90433c5` 都已 commit，分支 `feat/mac-support`；2026-11-10 起 Mac 上跑過，結果見 §驗收；Mac 段 2026-11-11 合併進 main `48799f3`；Linux 段 2026-11-11 細化並經輕量審（`_notes/reviews/mac-linux-support-linux-ve0fe9335-20261111.md`，已封存），owner 同日放行；L1 `9680945`、L2 `41acb3a`、L3 `f24b016` 與測試修正 `2a2eff6` 已 commit 並 push，分支 `feat/linux-support`，草稿 PR `Truhf0414/GGL_Launcher#2`；Linux 機器上還沒跑過）
 
 **版本沿革**：v1 `124663dd`（2026-11-10 寫成，同日 owner 裁 Q1–Q5）→ 輕量 SPR（自審＋Codex，23 條）→ owner 放行處置 → **v2**（本檔）。review 見 `_notes/reviews/mac-linux-support-v124663dd-20261110.md`（已封存）。下文的 `R#n` 指那份 review 的第 n 條。
 
@@ -47,11 +47,11 @@
 | `lib/launch-args.js` `buildClasspath`、`launchPlaceholders` | `path.win32.join`、以 `;` 串 | 依平台的 path 與 `:`。`checkLaunchable` 的假路徑（`C:\ggl-check`）只是假值，一併看過即可（R#9） |
 | `lib/paths-layout.js` `javaExeRel` | `runtime/java-<major>/bin/java.exe` | Mac：`runtime/java-<major>/Contents/Home/bin/java`（→ §設計「Java 目錄」） |
 | `main/runtime/java.js` `zipSources` | 固定查 Zulu、Semeru、Adoptium×2；後三個的篩選寫死 windows | Mac 只查 Zulu（`os=macos`、`arch=aarch64`，有 zip〔查過〕）（R#17、R#18） |
-| `main/runtime/java.js` `installViaZip` | 驗 `<根>/bin/java.exe` | 驗平台的 java 相對路徑。`extract-zip` 會還原 mode 與 symlink〔查過：讀碼 `node_modules/extract-zip/index.js:91-132`；Mac 上實跑未驗〕。Zulu Mac zip：唯一根目錄，底下 `Contents/_CodeSignature`、`Contents/Home/bin/java`（0755），148 個 symlink〔查過：`unzip -Z`〕〔對齊 2026-11-10：`e6386a0` 未移動（`node_modules/extract-zip/index.js` 不在這個 commit；工具對到的是同名的 `main/sync/index.js`）〕〔對齊 2026-11-10：`ae3336f` 未移動（同前：工具對到的是同名的 `main/sync/index.js`）〕 |
+| `main/runtime/java.js` `installViaZip` | 驗 `<根>/bin/java.exe` | 驗平台的 java 相對路徑。`extract-zip` 會還原 mode 與 symlink〔查過：讀碼 `node_modules/extract-zip/index.js:91-132`；Mac 上實跑未驗〕。Zulu Mac zip：唯一根目錄，底下 `Contents/_CodeSignature`、`Contents/Home/bin/java`（0755），148 個 symlink〔查過：`unzip -Z`〕〔對齊 2026-11-10：`e6386a0` 未移動（`node_modules/extract-zip/index.js` 不在這個 commit；工具對到的是同名的 `main/sync/index.js`）〕〔對齊 2026-11-10：`ae3336f` 未移動（同前：工具對到的是同名的 `main/sync/index.js`）〕〔對齊 2026-11-11：`41acb3a` 未移動（同前：工具對到的是同名的 `main/sync/index.js`）〕 |
 | `main/runtime/java.js` `installViaMojang` | 取 `windows-x64`；只處理 `directory`、`file`；驗 `<根>/bin/java.exe` | 取 `mac-os-arm64`。manifest：directory 86、file 145、link 205，全部在 `jre.bundle/` 底下；link 全是 `legal/` 的授權檔、目標都是相對路徑；`bin/java` 帶 `executable: true`〔查過：java-runtime-delta manifest〕 |
 | `lib/sync/game-running.js`、`main/sync/game-running.js` | PowerShell 查 `java.exe`／`javaw.exe` 的命令列 | `ps`（→ §設計「遊戲偵測」） |
 | `lib/settings-format.js` `DRIVE_ABSOLUTE_RE` | 安裝位置必須 `X:\` 開頭；錯誤文字舉 `D:\Games\GGL` | POSIX 絕對路徑；文字依平台。**這個檔畫面也用 `<script>` 載入**（`index.html:556`），拿不到 `process.platform`（R#1） |
-| `lib/server-config.js` `launcherRootDir` | 常數 `C:\Games\GGL`；`lib/paths-layout.js:14`、`main/ipc/server-config-ipc.js:7` 直接讀 | Mac `~/Games/GGL`，要家目錄（R#2）〔對齊 2026-11-10：→ `e6386a0`（本檔 M1）後：`lib/paths-layout.js:14` 那行已刪（預設根改由 `lib/platform.js` 給）；`main/ipc/server-config-ipc.js` `:7` → `:9`〕〔對齊 2026-11-10：`aea2bc1` 未移動（那個 commit 沒動這裡提到的行）〕〔對齊 2026-11-10：`ae3336f`、`90433c5` 未移動（兩個 commit 都沒動這裡提到的行）〕 |
+| `lib/server-config.js` `launcherRootDir` | 常數 `C:\Games\GGL`；`lib/paths-layout.js:14`、`main/ipc/server-config-ipc.js:7` 直接讀 | Mac `~/Games/GGL`，要家目錄（R#2）〔對齊 2026-11-10：→ `e6386a0`（本檔 M1）後：`lib/paths-layout.js:14` 那行已刪（預設根改由 `lib/platform.js` 給）；`main/ipc/server-config-ipc.js` `:7` → `:9`〕〔對齊 2026-11-10：`aea2bc1` 未移動（那個 commit 沒動這裡提到的行）〕〔對齊 2026-11-10：`ae3336f`、`90433c5` 未移動（兩個 commit 都沒動這裡提到的行）〕〔對齊 2026-11-11：`9680945`、`41acb3a` 未移動（兩個 commit 動了 `lib/platform.js`，沒動這裡提到的行）〕 |
 | `main/ipc/dialog-ipc.js` | 對話框預設 `C:\` | 家目錄 |
 | `main/discord-rpc.js` | `launchMinecraft` 無條件呼叫；找 `assets/rpc-helper.exe`，找不到就提示 | 一進函式就依平台返回（R#19） |
 | `package.json` 打包、`scripts/check-packaged-artifacts.cjs` | 只有 `dist:win`／`pack:win`；檢查一律要 `rpc-helper.exe` | `dist:mac`（dmg、arm64）；Mac 包不帶 `rpc-helper.exe`；檢查依平台 |
@@ -212,6 +212,15 @@ electron-builder 的 Mac 圖示吃不吃 1254px 的 png〔猜的〕：吃不了�
 | L1 | 平台資料加 Linux 與測試（含 Java 安裝用 Linux 平台資料的測試）；CI 加 `test-linux`；修 Linux 上會紅、而且只是測試寫死平台的測試 | Windows `npm test`；CI 三個 job（Linux job 第一次跑，紅的逐條分成「測試寫死」與「程式真的錯」） |
 | L2 | L-Q1 選項 A：同步的路徑鍵規則跟平台走（怎麼傳、判準見上） | Windows `npm test`（既有測試的期望值不准變）。Linux 規則的測試分兩層：純函式的（假探針、給「原字串」規則）每個平台都跑，涵蓋上面三種情況與「保護名單、玩家可改清單仍不分大小寫」；碰真檔案系統的（改名又換內容不留兩份、資料夾改大小寫後檔在新位置、只差大小寫的玩家 jar 列得出來也刪得掉）只在 Linux 跑，其他平台跳過。CI 三個 job |
 | L3 | `dist:linux`／`pack:linux`、`build.linux`、`check-packaged-artifacts` 加 Linux、runbook §3b | Windows `npm run pack:win` 仍過；Mint：驗收 9 |
+
+**施工結果（2026-11-11，CC 在 Windows 開發機；每個 commit 的細節在 commit 訊息）**
+- L1 `9680945`：照表做。`main/runtime/java.js` 沒有改，Linux 平台資料的 zip 與 Mojang 兩條路測試直接過。
+- 第一次 `test-linux`（跑在 L1 上，`ubuntu-latest`）：1495 個裡 6 個紅、60 個跳過，3 種原因，都是測試的假設，沒有程式錯——classpath 筆數的表沒有 Linux（補 70；用 `jq` 從 fixture 另外算過，Windows 84、macOS 80 當對照）；記錄檔路徑是資料夾的案例用 1024 的輪替門檻，Linux 的資料夾 size 是 4096，被當成過大的記錄檔改名輪替掉，寫檔反而成功（門檻調大；這也表示 Linux 上記錄檔的位置如果是資料夾，啟動器會把它改名移開再寫，未裁要不要管）；`Config` 擋 `config/` 的案例在分大小寫的磁碟上不成立。
+- L2 `41acb3a`：照判準做。新檔 `lib/sync/path-key.js`；`planSync`、`listStrayJars`、`assertRemovableStrayJars`、`findBlockers`、`linkCheckPaths` 漏給路徑鍵會丟 TypeError；`applyPlan` 把它列進必填的注入。`plan.js` 原本的 `fold` 用到的地方全部屬於「磁碟上是不是同一個檔」，沒有政策比對混在裡面（政策都走 `compileGlob`），所以整個換掉，與審查 #1 擔心的不同。與表不同的地方：L1 的「修測試」拆成獨立的 `2a2eff6`，排在 L2 之後。
+- `2a2eff6`：上面三種原因的修正，加上兩個只在不分大小寫的磁碟才成立的案例改成在分大小寫的磁碟跳過（備份名只差大小寫的撞名、`sync-index` 的 N9）。
+- L3 `f24b016`：照表做。打包檢查改成看包裡有沒有 `<產品名>.exe` 來判斷是不是 Windows 的包。Windows 上 `npm run pack:win` exit 0、`check:packaged-artifacts` 過、helper 的 sha256 與 repo 相同；拿 Windows 的 `resources` 複本（沒有 exe）當非 Windows 的包試過：帶 helper 被擋、拿掉後通過。
+- Windows 上 `npm test`：1512 個、1508 過、0 紅、4 跳過（真 `ps` 那支與三支只在分大小寫磁碟跑的）。
+- **寫這段時沒驗的**：`2a2eff6` 與 `f24b016` 的 CI 還沒有結果（2026-11-11 00:53 查：`2a2eff6` 的執行剛開始、`f24b016` 還沒出現，GitHub 狀態頁當時是部分服務中斷），所以 L2 的規則、三支 Linux 專用測試、測試修正都還沒在 Linux 上跑過；結果用 `gh pr checks 2` 看。AppImage 沒建過。
 
 ### 驗收
 
