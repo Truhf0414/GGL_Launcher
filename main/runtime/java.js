@@ -11,6 +11,7 @@ const path = require("path");
 const { spawn } = require("child_process");
 
 const { javaDirFor, javaExeFor } = require("../../lib/paths-layout.js");
+const { hostPlatform } = require("../../lib/platform.js");
 const { checkStrictRelPath } = require("../../lib/sync/rel-path.js");
 const {
   safeLog,
@@ -445,7 +446,7 @@ async function installJava({
 }) {
   const fs = deps.fsp ?? fsp;
   const dir = javaDirFor(paths, major);
-  const exe = javaExeFor(paths, major);
+  const exe = javaExeFor(hostPlatform(), paths, major);
   const old = `${dir}.old`;
   const now = deps.now ?? Date.now;
 

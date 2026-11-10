@@ -9,7 +9,8 @@ const path = require("path");
 const { runtimeNeeds } = require("../../lib/runtime-needs.js");
 const { launchIdFor } = require("../../lib/runtime-target.js");
 const { javaExeFor } = require("../../lib/paths-layout.js");
-const { windowsEnv } = require("../../lib/launch-args.js");
+const { launchEnv } = require("../../lib/launch-args.js");
+const { hostPlatform } = require("../../lib/platform.js");
 const fx = require("./runtime-fixtures.cjs");
 
 const RUNTIME = Object.freeze({
@@ -31,7 +32,7 @@ function runtimeFileRels() {
     record: RUNTIME,
     target: ok(fx.fabric()),
     vanilla: ok(fx.vanilla()),
-    env: windowsEnv("10.0.26200"),
+    env: launchEnv(hostPlatform(), "10.0.26200"),
   }).files.map((f) => f.rel);
 }
 
@@ -48,7 +49,7 @@ async function installRuntime(paths) {
   }
   for (const rel of runtimeFileRels())
     await writeFile(path.join(paths.gameDir, ...rel.split("/")), "");
-  await writeFile(javaExeFor(paths, RUNTIME.javaMajor), "");
+  await writeFile(javaExeFor(hostPlatform(), paths, RUNTIME.javaMajor), "");
 }
 
 module.exports = { RUNTIME, LAUNCH_ID, installRuntime, runtimeFileRels };

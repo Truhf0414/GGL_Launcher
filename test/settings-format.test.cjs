@@ -25,7 +25,10 @@ const VALID = {
   debugLogging: false,
 };
 
-const issuesOf = (over) => checkSettings({ ...VALID, ...over });
+const WIN = { pathStyle: "windows" };
+const POSIX = { pathStyle: "posix" };
+
+const issuesOf = (over) => checkSettings({ ...VALID, ...over }, WIN);
 
 test("SETTINGS_KEYS 是五個鍵（memoryGb 退休）、每個都有畫面用的名稱、錯誤碼固定", () => {
   assert.deepEqual(SETTINGS_KEYS, [
@@ -40,14 +43,14 @@ test("SETTINGS_KEYS 是五個鍵（memoryGb 退休）、每個都有畫面用的
     [...SETTINGS_KEYS].sort(),
   );
   assert.equal(SETTINGS_ERROR_CODE, "GGL_SETTINGS");
-  assert.deepEqual(checkSettings(VALID), []);
+  assert.deepEqual(checkSettings(VALID, WIN), []);
 });
 
 test("每個鍵都可省略：空物件合法（缺鍵＝預設，D-SET-DEFAULTS）", () => {
-  assert.deepEqual(checkSettings({}), []);
+  assert.deepEqual(checkSettings({}, WIN), []);
   for (const key of SETTINGS_KEYS) {
     const { [key]: _gone, ...rest } = VALID;
-    assert.deepEqual(checkSettings(rest), [], key);
+    assert.deepEqual(checkSettings(rest, WIN), [], key);
   }
 });
 
@@ -176,7 +179,7 @@ test("V5 未知鍵（含退休的 memoryGb、打錯字、舊 discord 鍵、__pro
   const fromJson = JSON.parse(
     '{"launcherRootDri":"D:\\\\x","memoryGb":4,"discordClientId":"1","__proto__":{"a":1}}',
   );
-  const issues = checkSettings(fromJson);
+  const issues = checkSettings(fromJson, WIN);
   assert.deepEqual(
     issues.map((i) => i.key),
     ["launcherRootDri", "memoryGb", "discordClientId", "__proto__"],
@@ -186,14 +189,17 @@ test("V5 未知鍵（含退休的 memoryGb、打錯字、舊 discord 鍵、__pro
 });
 
 test("checkSettings 回全部問題，不是第一條就停", () => {
-  const issues = checkSettings({
-    memoryGb: 4,
-    minMemoryGb: 0,
-    maxMemoryGb: "8",
-    playerId: "",
-    launcherRootDir: "C:",
-    debugLogging: "yes",
-  });
+  const issues = checkSettings(
+    {
+      memoryGb: 4,
+      minMemoryGb: 0,
+      maxMemoryGb: "8",
+      playerId: "",
+      launcherRootDir: "C:",
+      debugLogging: "yes",
+    },
+    WIN,
+  );
   assert.deepEqual(issues.map((i) => i.key).sort(), [
     "debugLogging",
     "launcherRootDir",
@@ -249,4 +255,51 @@ test("recoveredNoticeText：壞法、備份完整路徑、安裝位置回到預�
   assert.ok(text.includes("C:\\Games\\GGL"), text);
   assert.ok(text.includes("重新選回"), text);
   assert.ok(text.includes("其他設定"), text);
+});
+
+// → _notes/plans/mac-linux-support.md M1：安裝位置照平台的規則驗
+
+test("M1 安裝位置 posix：/ 開頭才合法；Windows 的路徑、相對路徑、前後空白一律拒絕，文字是 posix 的範例", () => {
+  const posixIssues = (launcherRootDir) =>
+    checkSettings({ launcherRootDir }, POSIX);
+  for (const ok of ["/Users/t/Games/GGL", "/opt/ggl", "/"]) {
+    assert.deepEqual(posixIssues(ok), [], ok);
+  }
+  for (const bad of [
+    "C:\\Games\\GGL",
+    "Games/GGL",
+    "~/Games/GGL",
+    " /x",
+    "/x ",
+    "",
+    5,
+  ]) {
+    const issues = posixIssues(bad);
+    assert.equal(issues.length, 1, JSON.stringify(bad));
+    assert.equal(issues[0].key, "launcherRootDir");
+    assert.match(issues[0].reason, /\/ 開頭/);
+    assert.match(issues[0].fix, /\/Users\//);
+    assert.ok(!issues[0].fix.includes("D:"), issues[0].fix);
+  }
+});
+
+test("M1 安裝位置 windows：posix 的路徑被拒絕，文字是 Windows 的範例（與改前相同）", () => {
+  const [issue] = checkSettings({ launcherRootDir: "/Users/t/Games/GGL" }, WIN);
+  assert.deepEqual(issue, {
+    key: "launcherRootDir",
+    value: "/Users/t/Games/GGL",
+    reason: "必須是磁碟機代號開頭的完整資料夾路徑，前後不能有空白",
+    fix: "改成像 D:\\Games\\GGL 這樣的路徑（不支援網路路徑）",
+  });
+});
+
+test("M1 checkSettings 沒給或給了不認得的 pathStyle ⇒ TypeError（呼叫端用錯，不是設定有問題）", () => {
+  for (const opts of [{}, { pathStyle: "linux" }, { pathStyle: "__proto__" }]) {
+    assert.throws(
+      () => checkSettings(VALID, opts),
+      (e) => e instanceof TypeError && /pathStyle/.test(e.message),
+      JSON.stringify(opts),
+    );
+  }
+  assert.throws(() => checkSettings(VALID), TypeError);
 });

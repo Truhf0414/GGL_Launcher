@@ -1,4 +1,5 @@
 const { IPC } = require("../../lib/ipc-channels");
+const { hostPlatform } = require("../../lib/platform.js");
 
 function registerDialogIpc(ctx) {
   const { ipcMain, deps, dialog } = ctx;
@@ -12,7 +13,7 @@ function registerDialogIpc(ctx) {
           defaultPath:
             typeof defaultPath === "string" && defaultPath
               ? defaultPath
-              : "C:\\",
+              : hostPlatform().browseStartDir,
           properties: ["openDirectory", "createDirectory"],
         },
       );

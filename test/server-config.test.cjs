@@ -36,7 +36,6 @@ test("K3 server-config 的頂層鍵：等於明列清單（多一個、少一個
     "discord",
     "instanceId",
     "launcherDownloadUrl",
-    "launcherRootDir",
     "manifestUrl",
     "microsoftAuth",
     "protectedPaths",

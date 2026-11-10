@@ -219,7 +219,15 @@
         minMemoryGb: memory(inputMinMemoryGb),
         maxMemoryGb: memory(inputMaxMemoryGb),
       };
-      const [issue] = settingsFormat.checkSettings(patch);
+      let pathStyle;
+      try {
+        // 安裝位置照哪個平台的規則驗，只有 main 知道（出貨常數，取不到只剩接線壞）
+        ({ pathStyle } = await loadServerDefaults());
+      } catch (e) {
+        setSettingsError(`儲存失敗：${String(e?.message ?? e)}`);
+        return;
+      }
+      const [issue] = settingsFormat.checkSettings(patch, { pathStyle });
       if (issue) {
         setSettingsError(settingsFormat.formatIssue(issue), {
           focusEl: fieldOf[issue.key],

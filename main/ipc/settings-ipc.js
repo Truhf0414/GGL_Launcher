@@ -1,5 +1,6 @@
 const { IPC } = require("../../lib/ipc-channels");
 const { checkSettings, formatIssue } = require("../../lib/settings-format.js");
+const { hostPlatform } = require("../../lib/platform.js");
 
 // IPC 是安全邊界：畫面已經用同一份規則擋過，這裡照樣再驗（D-SET-KIND；→ _notes/plans/cross-review-2026-10-phase4.md §SETTINGS_SET）
 function registerSettingsIpc(ctx) {
@@ -16,7 +17,7 @@ function registerSettingsIpc(ctx) {
       throw new Error(`設定內容格式錯誤（收到 ${got}）`);
     }
     // 不認得的鍵與 patch 本身的值先擋；合併後才出現的矛盾（min > max）由 writeSettings 擋
-    const issues = checkSettings(patch);
+    const issues = checkSettings(patch, hostPlatform());
     if (issues.length) throw new Error(issues.map(formatIssue).join("\n"));
     // 同步／啟動拿著鎖時換根目錄，會讓進行中的那件事與之後的檢查看不同的資料夾。
     // 設定視窗每次儲存都帶 launcherRootDir，所以比的是有沒有真的變（兩邊都是驗過的字串）。

@@ -35,7 +35,8 @@ const { applyPlan, SyncApplyError } = require("../main/sync/apply.js");
 const { prepareRuntime } = require("../main/runtime/prepare.js");
 const { registerInstanceIpc } = require("../main/ipc/instance-ipc.js");
 const { linkMessage } = require("../lib/fs-links.js");
-const { windowsEnv } = require("../lib/launch-args.js");
+const { launchEnv } = require("../lib/launch-args.js");
+const { hostPlatform } = require("../lib/platform.js");
 const { startFakeRuntime, MC, LOADER } = require("./helpers/fake-runtime.cjs");
 
 const HANG_LIMIT_MS = 10_000;
@@ -1260,7 +1261,7 @@ test(
       loader: LOADER,
       verifyAll,
       reinstallJava: false,
-      env: windowsEnv("10.0.26200"),
+      env: launchEnv(hostPlatform(), "10.0.26200"),
       deps: {
         ...fake.endpoints,
         stall: { windowMs: 300, minBytes: 1 },

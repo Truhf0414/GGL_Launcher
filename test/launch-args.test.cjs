@@ -16,13 +16,25 @@ const {
   logConfigFile,
   expandArguments,
   buildLaunchArgv,
-  windowsEnv,
+  launchEnv,
   assertEnv,
   launchPlaceholders,
   checkLaunchable,
 } = require("../lib/launch-args.js");
 const { libraryArtifact } = require("../lib/library-filter.js");
 const fx = require("./helpers/runtime-fixtures.cjs");
+const { describePlatform } = require("../lib/platform.js");
+
+const WIN = describePlatform({
+  platform: "win32",
+  arch: "x64",
+  homedir: "C:\\Users\\t",
+});
+const MAC = describePlatform({
+  platform: "darwin",
+  arch: "arm64",
+  homedir: "/Users/t",
+});
 
 const ENV = Object.freeze({
   os: { name: "windows", arch: "x86_64", version: "10.0.26200" },
@@ -54,6 +66,7 @@ function goldenInput() {
     libraries: filterLibraries(merged.libraries, ENV),
     librariesDir: LIBS,
     versionJarPath: JAR,
+    platform: WIN,
   });
   return {
     merged,
@@ -222,6 +235,7 @@ test("L7 buildClasspath：84 段、jar 在最後、全是反斜線路徑", () =>
     libraries: filterLibraries(mergedFixtures().libraries, ENV),
     librariesDir: LIBS,
     versionJarPath: JAR,
+    platform: WIN,
   });
   const parts = cp.split(";");
   assert.equal(parts.length, 84);
@@ -546,10 +560,14 @@ test("L14 checkLaunchSpec：fixture 過；各種壞法 ⇒ ok:false 指出哪一
 });
 
 // → _notes/plans/instance-sync-v3-commit5b.md K8
-test("K8 windowsEnv：形狀；osVersion 不是非空字串 ⇒ TypeError", () => {
-  assert.deepEqual(windowsEnv("10.0.26200"), ENV);
+test("K8 launchEnv：形狀（name、arch 來自平台資料）；osVersion 不是非空字串 ⇒ TypeError", () => {
+  assert.deepEqual(launchEnv(WIN, "10.0.26200"), ENV);
+  assert.deepEqual(launchEnv(MAC, "25.1.0"), {
+    os: { name: "osx", arch: "arm64", version: "25.1.0" },
+    features: {},
+  });
   for (const bad of ["", undefined, null, 10]) {
-    assert.throws(() => windowsEnv(bad), TypeError, String(bad));
+    assert.throws(() => launchEnv(WIN, bad), TypeError, String(bad));
   }
 });
 
@@ -574,6 +592,7 @@ const phInput = (over = {}) => ({
   classpath: "CP",
   auth: ONLINE,
   launcher: LAUNCHER,
+  platform: WIN,
   ...over,
 });
 const NULL_KEYS = [
@@ -711,4 +730,59 @@ test("N3c buildLaunchArgv：${classpath} 套過 rules 才數——多一個不�
   };
   const expected = JSON.parse(fs.readFileSync(GOLDEN, "utf8"));
   assert.deepEqual(buildLaunchArgv({ ...input, merged }), expected);
+});
+
+// → _notes/plans/mac-linux-support.md M1：同一份版本檔，平台資料換成 Mac
+
+const MAC_ENV = launchEnv(MAC, "25.1.0");
+
+test("M1 Mac：filterLibraries 留 osx 的 natives（arm64 與 x64 兩份）、不留 windows／linux 的", () => {
+  const names = filterLibraries(mergedFixtures().libraries, MAC_ENV).map(
+    (l) => l.name,
+  );
+  const natives = names.filter((n) => /:natives-/.test(n));
+  assert.ok(natives.length > 0);
+  for (const n of natives) assert.match(n, /:natives-macos(-arm64|-patch)?$/);
+  assert.ok(names.includes("org.lwjgl:lwjgl:3.3.3:natives-macos-arm64"));
+  assert.ok(names.includes("org.lwjgl:lwjgl:3.3.3:natives-macos"));
+});
+
+test("M1 Mac：buildClasspath 用正斜線路徑、以 : 串；assets_root 也是正斜線", () => {
+  const libraries = filterLibraries(mergedFixtures().libraries, MAC_ENV);
+  const cp = buildClasspath({
+    libraries,
+    librariesDir: "/g/libraries",
+    versionJarPath: "/g/versions/1.21.11/1.21.11.jar",
+    platform: MAC,
+  });
+  const parts = cp.split(":");
+  assert.equal(parts.length, libraries.length + 1);
+  assert.equal(parts.at(-1), "/g/versions/1.21.11/1.21.11.jar");
+  for (const p of parts.slice(0, -1))
+    assert.ok(p.startsWith("/g/libraries/"), p);
+  assert.ok(!cp.includes("\\") && !cp.includes(";"));
+
+  const ph = launchPlaceholders(
+    phInput({ gameDir: "/g", nativesDir: "/g/natives", platform: MAC }),
+  );
+  assert.equal(ph.assets_root, "/g/assets");
+});
+
+test("M1 Mac：argv 帶 -XstartOnFirstThread、不帶 Windows 才有的 HeapDumpPath；Windows 反過來", () => {
+  const argvFor = (platform, env, gameDir, nativesDir) =>
+    buildLaunchArgv({
+      merged: mergedFixtures(),
+      env,
+      placeholders: launchPlaceholders(
+        phInput({ gameDir, nativesDir, platform }),
+      ),
+      extras: [],
+      logConfigPath: LOG,
+    });
+  const mac = argvFor(MAC, MAC_ENV, "/g", "/g/natives");
+  assert.ok(mac.includes("-XstartOnFirstThread"));
+  assert.ok(!mac.some((a) => a.startsWith("-XX:HeapDumpPath=")));
+  const win = argvFor(WIN, ENV, GAME, NATIVES);
+  assert.ok(!win.includes("-XstartOnFirstThread"));
+  assert.ok(win.some((a) => a.startsWith("-XX:HeapDumpPath=")));
 });

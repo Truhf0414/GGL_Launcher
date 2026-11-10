@@ -17,7 +17,8 @@ const {
 } = require("../main/minecraft-launch.js");
 const { DEFAULT_SETTINGS } = require("../main/settings.js");
 const { getPaths, javaExeFor } = require("../lib/paths-layout.js");
-const { windowsEnv } = require("../lib/launch-args.js");
+const { launchEnv } = require("../lib/launch-args.js");
+const { hostPlatform } = require("../lib/platform.js");
 const { checkRuntimeReady } = require("../lib/runtime-readiness.js");
 const { makeRuntimeProbe } = require("../main/sync/runtime-probe.js");
 const pkg = require("../package.json");
@@ -31,7 +32,7 @@ const {
   throwOnSend,
 } = require("./helpers/real-bridge.cjs");
 
-const ENV = windowsEnv("10.0.26200");
+const ENV = launchEnv(hostPlatform(), "10.0.26200");
 const FABRIC_REL = `versions/${LAUNCH_ID}/${LAUNCH_ID}.json`;
 const VANILLA_REL = `versions/${RUNTIME.minecraft}/${RUNTIME.minecraft}.json`;
 
@@ -85,6 +86,7 @@ async function setup(
     record: { ...RUNTIME },
     probe: makeRuntimeProbe(paths),
     env: ENV,
+    platform: hostPlatform(),
   });
   assert.equal(ready.ready, true, `setup：就緒不過 ${ready.missing}`);
   const bundle = ready.launch;
@@ -133,7 +135,7 @@ test("C8 正常：spawn 收到 javaExeFor 那支、launchId 與真 token；log �
   await h.launch(online);
   assert.equal(h.calls.spawn.length, 1);
   const { exe, args } = h.calls.spawn[0];
-  assert.equal(exe, javaExeFor(h.paths, RUNTIME.javaMajor));
+  assert.equal(exe, javaExeFor(hostPlatform(), h.paths, RUNTIME.javaMajor));
   assert.ok(args.includes(LAUNCH_ID), "argv 帶 launchId");
   assert.ok(args.includes(TOKEN), "交給遊戲的是真 token");
   assert.equal(h.calls.log.length, 1);

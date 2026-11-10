@@ -24,7 +24,8 @@ const {
   assertRemovableStrayJars,
 } = require("../../lib/sync/plan.js");
 const { checkRuntimeReady } = require("../../lib/runtime-readiness.js");
-const { windowsEnv } = require("../../lib/launch-args.js");
+const { launchEnv } = require("../../lib/launch-args.js");
+const { hostPlatform } = require("../../lib/platform.js");
 const {
   pickRuntimeFields,
   sameRuntimeTarget,
@@ -170,7 +171,8 @@ function createInstanceSync(deps) {
     deps.prepareRuntime ?? require("../runtime/prepare.js").prepareRuntime;
   const runtimeProbeFor = deps.makeRuntimeProbe ?? makeRuntimeProbe;
   // 就緒與安裝過濾 library 用同一份，只在這裡組（→ _notes/plans/instance-sync-v3-commit5b.md Q2）
-  const runtimeEnv = windowsEnv(os.release());
+  const platform = hostPlatform();
+  const runtimeEnv = launchEnv(platform, os.release());
   const cleanupFs = deps.cleanupFs; // 測試換掉 D2 用的 fs（R#17）；預設＝fs/promises
   const gameDeps = { isMinecraftRunning: deps.isMinecraftRunning };
   if (deps.runPowerShell) gameDeps.runPowerShell = deps.runPowerShell;
@@ -216,6 +218,7 @@ function createInstanceSync(deps) {
         record: record.value,
         probe: runtimeProbeFor(paths),
         env: runtimeEnv,
+        platform,
       }),
     );
     if (!runtime.ok) return { side: "unreadable", detail: runtime.detail };

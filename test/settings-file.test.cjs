@@ -24,7 +24,7 @@ const {
 } = require("../main/settings.js");
 const { SETTINGS_KEYS, checkSettings } = require("../lib/settings-format.js");
 const { reportStartupFailure } = require("../main/startup-failure.js");
-const serverConfig = require("../lib/server-config.js");
+const { hostPlatform } = require("../lib/platform.js");
 
 // 2026-10-21T16:30:05Z＝台北 2026-10-22 00:30:05
 const NOW = Date.UTC(2026, 9, 21, 16, 30, 5);
@@ -83,17 +83,17 @@ async function gglRecords(dir, e) {
     .filter((r) => r.e === e);
 }
 
-test("唯一一份預設：五個鍵都在、本身合法、根目錄是 server-config 的預設", () => {
+test("唯一一份預設：五個鍵都在、本身合法、根目錄是這台平台的預設", () => {
   assert.deepEqual(
     Object.keys(DEFAULT_SETTINGS).sort(),
     [...SETTINGS_KEYS].sort(),
   );
-  assert.deepEqual(checkSettings(DEFAULT_SETTINGS), []);
+  assert.deepEqual(checkSettings(DEFAULT_SETTINGS, hostPlatform()), []);
   assert.deepEqual(DEFAULT_SETTINGS, {
     minMemoryGb: null,
     maxMemoryGb: null,
     playerId: "Player001",
-    launcherRootDir: serverConfig.launcherRootDir,
+    launcherRootDir: hostPlatform().defaultLauncherRootDir,
     debugLogging: false,
   });
 });

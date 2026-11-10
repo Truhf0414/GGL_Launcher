@@ -8,6 +8,7 @@ const { spawn } = require("child_process");
 const { ensureWritableTree } = require("./fs-utils");
 const { launchIdFor } = require("../lib/runtime-target.js");
 const { javaExeFor } = require("../lib/paths-layout.js");
+const { hostPlatform } = require("../lib/platform.js");
 const { heapMbFromSettings } = require("../lib/launch-memory.js");
 const {
   buildClasspath,
@@ -161,7 +162,8 @@ async function launchMinecraft({ settings, paths, record, launch, auth }) {
   await fsp.mkdir(gameDir, { recursive: true });
   await ensureWritableTree(gameDir);
 
-  const javaExe = javaExeFor(paths, record.javaMajor);
+  const platform = hostPlatform();
+  const javaExe = javaExeFor(platform, paths, record.javaMajor);
   try {
     await fsp.access(javaExe, fs.constants.F_OK);
   } catch {
@@ -174,6 +176,7 @@ async function launchMinecraft({ settings, paths, record, launch, auth }) {
     libraries: launch.libraries,
     librariesDir: path.join(gameDir, "libraries"),
     versionJarPath: abs(launch.versionJarRel),
+    platform,
   });
   const nativesDir = path.join(gameDir, "natives");
   await fsp.mkdir(nativesDir, { recursive: true });
@@ -185,6 +188,7 @@ async function launchMinecraft({ settings, paths, record, launch, auth }) {
     classpath,
     auth,
     launcher: { name: LAUNCHER_NAME, version: LAUNCHER_VERSION },
+    platform,
   });
   // 沒有 log4j 設定檔 ⇒ 不給這個鍵（給 null 會被當成用錯）
   const logArg =

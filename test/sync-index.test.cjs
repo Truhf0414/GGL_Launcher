@@ -20,7 +20,8 @@ const {
 } = require("./helpers/mock-clock.cjs");
 const { snapshot } = require("./helpers/fs-snapshot.cjs");
 const { getPaths } = require("../lib/paths-layout.js");
-const { windowsEnv } = require("../lib/launch-args.js");
+const { launchEnv } = require("../lib/launch-args.js");
+const { hostPlatform } = require("../lib/platform.js");
 const realServerConfig = require("../lib/server-config.js");
 const {
   readRecord,
@@ -732,7 +733,7 @@ test("U4 applyPlan 收到的 prepareRuntime()（無參數）⇒ 新管線被以 
     loader: REL_2.loader,
     verifyAll: false,
     reinstallJava: false,
-    env: windowsEnv(os.release()), // ⑤b：就緒與安裝用同一份（→ instance-sync-v3-commit5b.md Q2）
+    env: launchEnv(hostPlatform(), os.release()), // ⑤b：就緒與安裝用同一份（→ instance-sync-v3-commit5b.md Q2）
   });
 });
 
@@ -2459,7 +2460,7 @@ test("S5 fn 拿到就緒的成品；狀態算過之後 json 才改 ⇒ 拿到的
     got = inputs;
   });
   assert.equal(got.launch.merged.id, LAUNCH_ID);
-  assert.deepEqual(got.launch.env, windowsEnv(os.release()));
+  assert.deepEqual(got.launch.env, launchEnv(hostPlatform(), os.release()));
   assert.equal(got.launch.merged.type, "snapshot");
   assert.ok(got.launch.merged.arguments.jvm.includes("-Dggl.check=1"));
 
