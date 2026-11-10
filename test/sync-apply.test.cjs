@@ -20,7 +20,8 @@ const {
 const { snapshot } = require("./helpers/fs-snapshot.cjs");
 const { getPaths } = require("../lib/paths-layout.js");
 const { planSync } = require("../lib/sync/plan.js");
-const { linkCheckPaths } = require("../lib/sync/blocking.js");
+const blocking = require("../lib/sync/blocking.js");
+const { pathKeyFor } = require("../lib/sync/path-key.js");
 const { hashFile } = require("../main/fs-utils.js");
 const {
   readRecord,
@@ -37,6 +38,10 @@ const { registerInstanceIpc } = require("../main/ipc/instance-ipc.js");
 const { linkMessage } = require("../lib/fs-links.js");
 const { launchEnv } = require("../lib/launch-args.js");
 const { hostPlatform } = require("../lib/platform.js");
+// 這個檔碰真的磁碟：路徑鍵跟這台的平台資料走（Windows、macOS 轉小寫，Linux 原字串）
+const HOST_KEY = pathKeyFor(hostPlatform().pathsCaseSensitive);
+const linkCheckPaths = (input) =>
+  blocking.linkCheckPaths({ pathKey: HOST_KEY, ...input });
 const { startFakeRuntime, MC, LOADER } = require("./helpers/fake-runtime.cjs");
 
 const HANG_LIMIT_MS = 10_000;
@@ -129,6 +134,7 @@ async function plan(paths, { previous = null, next }) {
     protectedPaths: [],
     verifyAll: false,
     onHashProgress: () => {},
+    pathKey: HOST_KEY,
   });
 }
 
@@ -152,6 +158,7 @@ function deps(extra = {}) {
       }),
     fetchReleaseFiles: async () => null,
     sendSyncProgress: (p) => progress.push(p),
+    pathKey: HOST_KEY,
     now: () => new Date(2026, 8, 30, 14, 30, 0),
     ...extra,
   };
@@ -1487,3 +1494,58 @@ for (const key of ["prepareRuntime", "fetchReleaseFiles", "sendSyncProgress"]) {
     });
   }
 }
+
+// ── 分大小寫的磁碟（Linux；→ _notes/plans/mac-linux-support.md §Linux 段 L-Q1）──
+// 要真的磁碟分大小寫才有意義；Windows、macOS 上跳過（那邊的規則由上面既有的案例把關）。
+const onCaseSensitiveDisk = hostPlatform().pathsCaseSensitive;
+
+test(
+  "分大小寫的磁碟：只改檔名大小寫又換內容 ⇒ 只剩新的那一個",
+  { skip: !onCaseSensitiveDisk },
+  async (t) => {
+    const ctx = await setup(t);
+    await put(ctx.paths, "mods/Foo.jar", A);
+    await run(ctx, {
+      previous: [{ path: "mods/Foo.jar", sha256: sha(A) }],
+      next: [entry("mods/foo.jar", B)],
+    });
+    assert.deepEqual(await fsp.readdir(abs(ctx.paths, "mods")), ["foo.jar"]);
+    assert.deepEqual(await read(ctx.paths, "mods/foo.jar"), B);
+  },
+);
+
+test(
+  "分大小寫的磁碟：只改資料夾大小寫 ⇒ 檔在新位置，舊位置的不在了",
+  { skip: !onCaseSensitiveDisk },
+  async (t) => {
+    const ctx = await setup(t);
+    await put(ctx.paths, "config/Sub/c.toml", C);
+    await run(ctx, {
+      previous: [{ path: "config/Sub/c.toml", sha256: sha(C) }],
+      next: [entry("config/sub/c.toml", C)],
+    });
+    assert.deepEqual(await read(ctx.paths, "config/sub/c.toml"), C);
+    assert.equal(await exists(abs(ctx.paths, "config/Sub/c.toml")), false);
+  },
+);
+
+test(
+  "分大小寫的磁碟：玩家勾選刪掉只差大小寫的 jar ⇒ 清單裡的那個留著、玩家的那個刪掉",
+  { skip: !onCaseSensitiveDisk },
+  async (t) => {
+    const ctx = await setup(t);
+    await put(ctx.paths, "mods/Sodium.jar", "mine");
+    const next = [entry("mods/sodium.jar", A)];
+    const p = await plan(ctx.paths, { next });
+    p.remove.push("mods/Sodium.jar");
+    await applyPlan({
+      plan: p,
+      record: recordFor(next),
+      paths: ctx.paths,
+      filesBaseUrl: ctx.filesBaseUrl,
+      deps: deps(),
+    });
+    assert.deepEqual(await fsp.readdir(abs(ctx.paths, "mods")), ["sodium.jar"]);
+    assert.deepEqual(await read(ctx.paths, "mods/sodium.jar"), A);
+  },
+);

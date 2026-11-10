@@ -65,6 +65,8 @@ const REQUIRED_FUNCTIONS = [
   "prepareRuntime",
   "fetchReleaseFiles",
   "sendSyncProgress",
+  // 路徑鍵（lib/sync/path-key.js）：這台的磁碟分不分大小寫，由組裝層依平台資料給
+  "pathKey",
 ];
 
 function assertRequiredDeps(deps) {
@@ -113,9 +115,11 @@ async function applyPlan({ plan, record, paths, filesBaseUrl, deps: given }) {
       bases.length > 0
         ? bases
         : await findLinks({
-            paths: linkCheckPaths({ plan, recordFiles: record.files }).map(
-              (rel) => ({ path: rel, where: "game" }),
-            ),
+            paths: linkCheckPaths({
+              plan,
+              recordFiles: record.files,
+              pathKey: deps.pathKey,
+            }).map((rel) => ({ path: rel, where: "game" })),
             probe,
           });
     if (errors.length > 0) throw blockedError(errors[0]);
@@ -136,6 +140,7 @@ async function applyPlan({ plan, record, paths, filesBaseUrl, deps: given }) {
     download: plan.download,
     removeFirst: plan.removeFirst,
     probe,
+    pathKey: deps.pathKey,
   });
   if (blockers.errors.length > 0) throw blockedError(blockers.errors[0]);
 
@@ -144,7 +149,9 @@ async function applyPlan({ plan, record, paths, filesBaseUrl, deps: given }) {
     await fsp.rm(abs(rel), { recursive: true, force: true });
   const movedAside = [];
   for (const rel of blockers.moveAside)
-    movedAside.push(await moveAside(fsp, abs, rel, stamp(deps.now())));
+    movedAside.push(
+      await moveAside(fsp, abs, rel, stamp(deps.now()), deps.pathKey),
+    );
 
   const total = plan.download.length;
   for (let i = 0; i < total; i++) {
@@ -343,18 +350,17 @@ async function removeFile(fsp, abs, rel) {
   }
 }
 
-/** 記錄外、擋路的單一檔案改名到旁邊；名字用本機實際寫法（NTFS 查詢不分大小寫，但玩家要找得到） */
-async function moveAside(fsp, abs, rel, when) {
+/** 記錄外、擋路的單一檔案改名到旁邊；名字用本機實際寫法（不分大小寫的磁碟查得到別種寫法，但玩家要找得到） */
+async function moveAside(fsp, abs, rel, when, pathKey) {
   const dirRel = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "";
   const base = rel.slice(dirRel ? dirRel.length + 1 : 0);
   const dirAbs = dirRel ? abs(dirRel) : abs(".");
   const names = await fsp.readdir(dirAbs);
-  const real =
-    names.find((n) => n.toLowerCase() === base.toLowerCase()) ?? base;
-  // 撞名要不分大小寫比：NTFS 上 rename 到只差大小寫的既有檔會直接蓋掉它（2026-09-30 實測）
-  const taken = new Set(names.map((n) => n.toLowerCase()));
+  const real = names.find((n) => pathKey(n) === pathKey(base)) ?? base;
+  // 撞名照路徑鍵比：NTFS 上 rename 到只差大小寫的既有檔會直接蓋掉它（2026-09-30 實測）
+  const taken = new Set(names.map(pathKey));
   let backup = `${real}.ggl-備份-${when}`;
-  for (let n = 2; taken.has(backup.toLowerCase()); n++)
+  for (let n = 2; taken.has(pathKey(backup)); n++)
     backup = `${real}.ggl-備份-${when}-${n}`;
   await fsp.rename(path.join(dirAbs, real), path.join(dirAbs, backup));
   const join = (name) => (dirRel ? `${dirRel}/${name}` : name);
