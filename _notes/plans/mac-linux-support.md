@@ -1,4 +1,4 @@
-# 啟動器支援 macOS（先）與 Linux（後）（狀態：v2，2026-11-10；M1 `e6386a0`、M2 `aea2bc1`、M3 `ae3336f`、M4 `90433c5` 都已 commit，分支 `feat/mac-support`；Mac 上還沒跑過）
+# 啟動器支援 macOS（先）與 Linux（後）（狀態：v2，2026-11-10；M1 `e6386a0`、M2 `aea2bc1`、M3 `ae3336f`、M4 `90433c5` 都已 commit，分支 `feat/mac-support`；2026-11-10 起 Mac 上跑過，結果見 §驗收）
 
 **版本沿革**：v1 `124663dd`（2026-11-10 寫成，同日 owner 裁 Q1–Q5）→ 輕量 SPR（自審＋Codex，23 條）→ owner 放行處置 → **v2**（本檔）。review 見 `_notes/reviews/mac-linux-support-v124663dd-20261110.md`（已封存）。下文的 `R#n` 指那份 review 的第 n 條。
 
@@ -107,6 +107,17 @@ electron-builder 的 Mac 圖示吃不吃 1254px 的 png〔猜的〕：吃不了�
 ## 驗收
 
 已驗的部分：M1（`e6386a0`）owner 2026-11-10 回報「現在這步啟動器啟動正常」，只涵蓋啟動器開得起來；設定視窗、選資料夾、啟動遊戲未驗，併入下面的 Windows 迴歸。M2（`aea2bc1`）CC 2026-11-10 在 owner 的 Windows 開發機實跑 `scripts/try-java-install.cjs` 兩條路都過（正常路徑裝到 Temurin 21.0.13，強迫退路裝到 Mojang 的 21.0.7，換上後 `java -version` exit 0）；這是工具直接呼叫安裝函式，不是啟動器裡按出來的。M4（`90433c5`）CC 2026-11-10 在同一台跑 `npm run pack:win`：exit 0、`check:packaged-artifacts` 過、包裡的 `rpc-helper.exe` 與 repo 那份 sha256 相同（跑之前刪了 `dist/win-unpacked` 裡 2026-09-15 的舊產物）。M3 的真 `ps` 端到端測試在 Windows 上是跳過的，還沒在任何機器跑過。
+
+**Mac 驗收結果（2026-11-10，CC 在 owner 的 Mac mini 上直接操作；macOS 26.6.2、arm64、Node 22.23.4；分支 `feat/mac-support`，修正 commit `1b1bb38`）**
+- 第 1 步：第一次 `npm test` 23 紅 ⇒ 7 支是程式真的錯、16 支是測試寫死 Windows。程式錯＝`main/sync/apply.js` 只吞 `ENOENT`，路徑中間有一節是檔案時 Windows 回 `ENOENT`、macOS 回 `ENOTDIR`；改成兩者都當「不在」，加一支測試（修之前在 Mac 紅）。測試的 16 支改成跟平台資料走（新增 `test/helpers/host-root.cjs`；`sync-index` 依 `processList` 注入 `runPowerShell` 或 `runPs`；classpath 分隔字元與筆數：Windows 84、macOS 80＝71 個 osx 允許的原版 library ＋ Fabric 8 ＋ client jar，筆數由 fixture 另外算過）。修完 Mac 上 `npm test` 1432 過、0 紅、60 跳過，`lint`、`check:ui-css` 過；Windows 上 1492 個 1491 過、0 紅、1 跳過（真 `ps` 那支）。M3 的真 `ps` 端到端測試在 Mac 上第一次跑，過了：`ps -axww` 沒有截斷長命令列，原先「猜的」成立。
+- 第 2 步：`npm start` 視窗拖曳、最小化、關閉、Cmd+Q 都正常（owner 目視），Cmd+Q 後沒有殘留行程。
+- 第 3 步（部分）：登入、安裝模組包（Java 走 Zulu）、按啟動都跑通，啟動器日誌無錯誤。遊戲啟動後卡在模組載入，**「進伺服器」沒驗到**：模組包的 `splashscreen-1.1.1+ggl3.jar` 在 macOS 上用 AWT 畫啟動畫面，主執行緒（`-XstartOnFirstThread`）卡在 `Splashscreen.onInitialize` 的 `Window.dispose()` 等 AWT 事件執行緒（`jstack` 傾印；卡死的機制是從堆疊推的，沒有另外實證）。這是模組包的問題，不是啟動器；owner 裁示本輪只做啟動器，→ `future-work.md`。
+- 第 4 步：兩條路都過。Zulu 路徑裝到 21.0.13、Mojang 退路裝到 21.0.7，兩者 `java -version` exit 0，布局都是 `runtime/java-21/Contents/Home/bin/java`，Mojang 路徑的 `bin/*` 權限 0755，裝好的 runtime 上沒有 `com.apple.quarantine`。
+- 第 5 步（縮小版，owner 在設定視窗操作）：填 `C:\x` 被擋下，錯誤文字是 Mac 範例（`/Users/你的名字/Games/GGL`）；改路徑存檔寫得進 `settings.json`，重開讀得回來，選資料夾對話框的起點正常；測完改回 `/Users/mochi122/Games/GGL`（`settings.json` 已確認）。**沒驗**「同步與啟動用的是新位置」：換空資料夾會整包重下載，刻意省略。過程中 owner 不小心把路徑貼了兩次，存成重複路徑，是輸入失誤，不是程式問題。
+- 第 6 步（部分）：Cmd+Q 關掉啟動器後遊戲行程還活著；修復跑完（owner 回報成功，啟動器日誌無錯誤）；匯出診斷有檔案（`diagnostics/<時間>/` 四個檔：`report.json`、`ggl-launcher.log`、`settings.json`、`sync-record.json`），掃過沒有 token、帳號、xuid；路徑裡帶使用者名稱。
+- 第 7 步：遊戲開著時，啟動器畫面顯示「遊戲執行中」、更新與修復按鈕不出現、設定裡的修復也按不了；這是啟動器重開（沒有自己 spawn 的子行程記憶）之後出現的，所以走的是 `ps` 偵測（`main/sync/game-running.js`）；遊戲關掉後按鈕恢復。同一次觀察到：啟動器重開後啟動鈕沒被擋，能再開出第二個遊戲（`main/ipc/minecraft-ipc.js:47` 的防護只看自己這次 spawn 的子行程，只擋同一次執行裡的連按；Windows 同一段程式碼）。要不要加強防護未裁。
+- 第 8 步：開發版（`npm start`）登入、關掉重開仍是登入，**從頭到尾沒有跳鑰匙圈視窗**（項目是它自己建的）。真正的視窗出現在 dmg 版第一次啟動（見第 9 步）。按「拒絕」的行為在 dmg 版上驗：不當機、視窗正常開、按啟動才顯示「暫時無法讀取登入憑證，請稍後再試」，`account.json` 逐位元組不變；再按一次啟動視窗會再跳，按「永遠允許」後能啟動。**和計畫預期不同**：計畫寫「畫面要求重新登入」，實際是「稍後再試」（程式依 Electron 的 `temporarily unavailable` 訊息分類，→ `lib/account-secret.js:36`、`main/ipc/minecraft-ipc.js:75`）；登入沒有被清掉，文字有沒有要改（玩家主動按拒絕時，這句沒告訴他去允許鑰匙圈）未裁。
+- 第 9 步：`npm run dist:mac` 在 Mac mini 上 exit 0，`check:packaged-artifacts` 過；dmg 約 146 MB，簽章 `adhoc`、`codesign --verify --deep --strict` 過；包裡沒有 `rpc-helper.exe`；1254 px 的 `icon.png` 沒讓打包報錯（electron-builder 自己轉 icns），計畫裡「吃不吃得了」的猜測不成立。為模擬玩家下載，在 dmg 的副本上加了 `com.apple.quarantine`（Chrome 下載的樣子）：雙擊 dmg 被擋，dmg 仍能掛載；app 拖進「應用程式」後打開被擋，訊息「Apple 無法驗證『GGL Launcher』是否為惡意軟體…」只有「完成／丟到垃圾桶」；跑 runbook 的 `xattr -cr` 後能啟動。**裝好的 app 與開發版共用同一個 userData（`GGL_launcher`）與鑰匙圈項目（`GGL_launcher Safe Storage`）**，所以不用重新登入，第一次啟動出現鑰匙圈授權視窗（要輸入「登入」鑰匙圈密碼）；先前「dmg 版會用另一個項目、要重新登入」的預測是錯的。dmg 版啟動遊戲成功（遊戲同樣卡在 splashscreen）。**覆蓋安裝**：同一個 dmg 再裝一次，第一次打開又被擋，要再 `xattr -cr`；之後登入還在、鑰匙圈視窗沒再跳（先前按過「永遠允許」）。沒驗：不同版本（臨時簽章不同）的覆蓋安裝。結果已回填 `docs/release-runbook.md` §3a。
 
 **Mac（owner 在 Mac mini 上做；CC 列步驟、owner 回報，或 owner 在 Mac 上裝 Claude Code 讓 CC 直接操作）**
 1. `npm ci`、`npm test` 全綠
