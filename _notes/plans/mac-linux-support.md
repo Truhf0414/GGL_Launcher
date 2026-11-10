@@ -137,6 +137,11 @@ electron-builder 的 Mac 圖示吃不吃 1254px 的 png〔猜的〕：吃不了�
 4. 遊戲開著時按更新／修復被擋下
 5. 設定視窗：填不合法的安裝位置，錯誤文字與改前相同
 
+**Windows 迴歸結果（2026-11-10，owner 的開發機；分支 `feat/mac-support`，`00a151a`）**
+- 第 1 項：CC 實跑。`npm test` 1492 個、1491 過、0 紅、1 跳過（真 `ps` 那支）；`npm run pack:win` exit 0、`check:packaged-artifacts` 過、包裡的 `rpc-helper.exe` 與 repo 那份 sha256 相同。
+- 第 2–5 項：owner 用 `dist/win-unpacked/GGL Launcher.exe`（同日 22:40 打的）操作，回報「全項通過。」。CC 給的步驟裡第 3 項是把 `runtime/java-21` 改名而不是刪除；另有一個選做項（遊戲開著時重開啟動器，看啟動鈕能不能再按），owner 有沒有做、結果如何沒有回報。
+- CI：草稿 PR `Truhf0414/GGL_Launcher#1`（為了讓 CI 跑才開，不合併），`5068a38`、`1b1bb38` 兩次的 Windows 與 macOS job 都過；`00a151a` 那次的結果用 `gh pr checks 1` 看。
+
 ## Linux 段（L，Mac 結案後再細化）
 
 已知要處理的：
