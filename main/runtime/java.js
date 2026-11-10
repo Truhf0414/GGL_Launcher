@@ -1,7 +1,8 @@
 "use strict";
 
 // runtime 安裝的 Java 段：依大版本裝到 <root>/runtime/java-<major>。
-// 官方 zip 候選（Zulu／Semeru／Adoptium）逐一完整驗證（下載＋hash → 解壓 → -version），
+// 哪些來源、查什麼平台、java 在哪、Mojang 取哪個鍵，全照平台資料（lib/platform.js）。
+// 官方 zip 候選（Windows：Zulu／Semeru／Adoptium；Mac：Zulu）逐一完整驗證（下載＋hash → 解壓 → -version），
 // 全部失敗 ⇒ Mojang runtime 退路；取消 ⇒ 立刻停（→ _notes/plans/cross-review-2026-10-phase5a.md）。
 // 在暫存區驗過才換上，換上走 .old，失敗不碰正式目錄
 // （→ _notes/plans/instance-sync-v3-commit4b.md §設計「Java」）。不 require("electron")。
@@ -29,14 +30,14 @@ const UA = { "User-Agent": "GGL3-Launcher" };
 
 /** 各來源的網址；測試換成本機 server */
 const DEFAULT_ENDPOINTS = {
-  zuluQuery: (major) =>
+  zuluQuery: (major, { os, arch }) =>
     "https://api.azul.com/metadata/v1/zulu/packages/?" +
     [
       "latest=true",
       "page=1",
       "page_size=1",
-      "os=windows",
-      "arch=x86_64",
+      `os=${os}`,
+      `arch=${arch}`,
       `java_version=${major}`,
       "java_package_type=jre",
       "archive_type=zip",
@@ -137,13 +138,15 @@ function requireSha256(x, what) {
 }
 
 async function zuluSource(major, ctx) {
-  const j = await fetchJsonWithDeadline(ctx.endpoints.zuluQuery(major), {
+  const query = ctx.endpoints.zuluQuery(major, ctx.platform.zuluQuery);
+  const j = await fetchJsonWithDeadline(query, {
     ...ctx.fetchOpts,
     headers: { ...UA, Accept: "application/json" },
   });
   const item = Array.isArray(j) ? j[0] : undefined;
   const url = String(item?.download_url ?? "").trim();
-  if (!isHttpUrl(url)) throw new Error("查不到 Windows x64 JRE zip");
+  if (!isHttpUrl(url))
+    throw new Error(`查不到 ${ctx.platform.javaBuildLabel} JRE zip`);
   return { url, sha256: requireSha256(item.sha256_hash, "Azul 的回應") };
 }
 
@@ -220,14 +223,27 @@ async function adoptiumSource(major, vendor, ctx) {
   return { url: pkg.link, sha256: requireSha256(pkg.checksum, `${pkg.name} `) };
 }
 
-/** 各來源依序查；不成候選的記進 rejected（彙總用），排序與下載只看 candidates */
+// 平台資料的 javaZipSources 用這裡的鍵點名。Semeru 與 Adoptium 的查詢只會挑 Windows x64 的 zip，
+// 所以只有 Windows 的清單列它們。
+const ZIP_SOURCES = {
+  zulu: ["Azul Zulu", zuluSource],
+  semeru: ["IBM Semeru", semeruSource],
+  "adoptium-eclipse": [
+    "Adoptium(eclipse)",
+    (major, ctx) => adoptiumSource(major, "eclipse", ctx),
+  ],
+  "adoptium-adoptium": [
+    "Adoptium(adoptium)",
+    (major, ctx) => adoptiumSource(major, "adoptium", ctx),
+  ],
+};
+
+/** 這個平台的來源依序查；不成候選的記進 rejected（彙總用），排序與下載只看 candidates */
 async function zipSources(major, ctx) {
-  const queries = [
-    ["Azul Zulu", () => zuluSource(major, ctx)],
-    ["IBM Semeru", () => semeruSource(major, ctx)],
-    ["Adoptium(eclipse)", () => adoptiumSource(major, "eclipse", ctx)],
-    ["Adoptium(adoptium)", () => adoptiumSource(major, "adoptium", ctx)],
-  ];
+  const queries = ctx.platform.javaZipSources.map((id) => {
+    const [name, source] = ZIP_SOURCES[id];
+    return [name, () => source(major, ctx)];
+  });
   const candidates = [];
   const rejected = [];
   for (const [name, query] of queries) {
@@ -245,9 +261,11 @@ async function zipSources(major, ctx) {
   return { candidates, rejected };
 }
 
-async function verifyJava(exe, ctx, label) {
-  if (!(await isFile(ctx.fs, exe)))
-    throw new Error(`${label}找不到 bin/java.exe`);
+/** root＝要換上成 runtime/java-<major> 的那個資料夾；java 在它底下的位置照平台資料 */
+async function verifyJava(root, ctx, label) {
+  const rel = ctx.platform.javaExeInRuntime;
+  const exe = path.join(root, ...rel.split("/"));
+  if (!(await isFile(ctx.fs, exe))) throw new Error(`${label}找不到 ${rel}`);
   const r = await ctx.runJava(exe, ["-version"], { signal: ctx.signal });
   if (r?.code !== 0) {
     throw new Error(
@@ -295,7 +313,7 @@ async function installViaZip(major, ctx) {
 
       stage = "執行驗證";
       ctx.report("verify", 0, 0);
-      await verifyJava(path.join(root, "bin", "java.exe"), ctx, "zip 版 ");
+      await verifyJava(root, ctx, "zip 版 ");
       safeLog(ctx.deps.log, `RUNTIME_JAVA zip 來源 ${s.name} 驗過`);
       return root;
     } catch (e) {
@@ -314,16 +332,40 @@ async function installViaZip(major, ctx) {
   throw new Error(`官方 zip 候選全部失敗\n${failures.join("\n")}`);
 }
 
-/** Mojang 退路：all.json → manifest → 先驗所有路徑 → 逐檔下載 → -version；回驗過的根 */
+/**
+ * manifest 的 link：目標要是相對路徑，而且解析後正好是 manifest 裡的另一個項目（白名單：
+ * 指到清單外、絕對路徑、跑出根目錄的一律不建）。回解析後的鍵；不合法回 null。
+ */
+function linkTargetKey(key, target, files) {
+  if (
+    typeof target !== "string" ||
+    target === "" ||
+    target.startsWith("/") ||
+    target.includes("\\") ||
+    /^[A-Za-z]:/.test(target)
+  ) {
+    return null;
+  }
+  const resolved = path.posix.normalize(
+    path.posix.join(path.posix.dirname(key), target),
+  );
+  return Object.hasOwn(files, resolved) ? resolved : null;
+}
+
+/**
+ * Mojang 退路：all.json → manifest → 先驗所有路徑與 link 目標 → 逐檔下載（executable 的設可執行）
+ * → 建 link → -version；回驗過的根
+ */
 async function installViaMojang(component, ctx) {
   ctx.report("download", 0, 0);
   const all = await fetchJsonWithDeadline(
     ctx.endpoints.mojangAll,
     ctx.fetchOpts,
   );
-  const manifestUrl = all?.["windows-x64"]?.[component]?.[0]?.manifest?.url;
+  const runtimeKey = ctx.platform.mojangRuntimeKey;
+  const manifestUrl = all?.[runtimeKey]?.[component]?.[0]?.manifest?.url;
   if (!isHttpUrl(manifestUrl)) {
-    throw new Error(`Mojang runtime 沒有 windows-x64／${component}`);
+    throw new Error(`Mojang runtime 沒有 ${runtimeKey}／${component}`);
   }
   const manifest = await fetchJsonWithDeadline(manifestUrl, ctx.fetchOpts);
   const files = manifest?.files;
@@ -347,6 +389,11 @@ async function installViaMojang(component, ctx) {
       ) {
         throw new Error(`Mojang runtime manifest 的 ${key} 缺網址或 sha1`);
       }
+    }
+    if (v?.type === "link" && linkTargetKey(key, v.target, files) === null) {
+      throw new Error(
+        `Mojang runtime manifest 的連結 ${key} 指到清單外（${v.target}）`,
+      );
     }
   }
 
@@ -386,15 +433,25 @@ async function installViaMojang(component, ctx) {
         },
         deps: ctx.deps,
       });
+      // Windows 不看這個位元；Mac 的 java 沒有它就跑不起來
+      if (v.executable === true) await ctx.fs.chmod(under(key), 0o755);
       inflight.delete(key);
       doneBytes += Number(raw.size) || 0;
       report();
     },
   );
+  // 檔案都到了才建 link（目標在上面驗過，都是清單裡的項目）
+  for (const [key, v] of entries) {
+    if (v?.type === "link") await ctx.fs.symlink(v.target, under(key));
+  }
 
   ctx.report("verify", 0, 0);
-  await verifyJava(path.join(root, "bin", "java.exe"), ctx, "Mojang 版 ");
-  return root;
+  const javaRoot = path.join(
+    root,
+    ...ctx.platform.mojangRuntimeRoot.split("/").filter(Boolean),
+  );
+  await verifyJava(javaRoot, ctx, "Mojang 版 ");
+  return javaRoot;
 }
 
 /** 18-9：正式目錄在 ⇒ 先改名 .old；新的搬進去；失敗把 .old 搬回 */
@@ -445,8 +502,10 @@ async function installJava({
   deps = {},
 }) {
   const fs = deps.fsp ?? fsp;
+  // 測試縫：正式不注入，就是這台的平台資料
+  const platform = deps.platform ?? hostPlatform();
   const dir = javaDirFor(paths, major);
-  const exe = javaExeFor(hostPlatform(), paths, major);
+  const exe = javaExeFor(platform, paths, major);
   const old = `${dir}.old`;
   const now = deps.now ?? Date.now;
 
@@ -481,6 +540,7 @@ async function installJava({
   const ctx = {
     fs,
     deps,
+    platform,
     signal,
     staging,
     zipPath: path.join(paths.tempDir, `jre${major}.zip`),

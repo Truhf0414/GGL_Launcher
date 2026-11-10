@@ -28,6 +28,11 @@ test("describePlatform：Windows 的值（與改成依平台之前寫死的相�
     javaExeInRuntime: "bin/java.exe",
     defaultLauncherRootDir: "C:\\Games\\GGL",
     browseStartDir: "C:\\",
+    javaBuildLabel: "Windows x64",
+    javaZipSources: ["zulu", "semeru", "adoptium-eclipse", "adoptium-adoptium"],
+    zuluQuery: { os: "windows", arch: "x86_64" },
+    mojangRuntimeKey: "windows-x64",
+    mojangRuntimeRoot: "",
   });
 });
 
@@ -60,6 +65,11 @@ test("describePlatform：Apple 晶片的 Mac", () => {
     javaExeInRuntime: "Contents/Home/bin/java",
     defaultLauncherRootDir: "/Users/t/Games/GGL",
     browseStartDir: "/Users/t",
+    javaBuildLabel: "macOS arm64",
+    javaZipSources: ["zulu"],
+    zuluQuery: { os: "macos", arch: "aarch64" },
+    mojangRuntimeKey: "mac-os-arm64",
+    mojangRuntimeRoot: "jre.bundle",
   });
 });
 
@@ -71,6 +81,8 @@ test("describePlatform：回傳的資料凍結", () => {
     const p = describePlatform(host);
     assert.ok(Object.isFrozen(p), host.platform);
     assert.ok(Object.isFrozen(p.minecraftOs), host.platform);
+    assert.ok(Object.isFrozen(p.javaZipSources), host.platform);
+    assert.ok(Object.isFrozen(p.zuluQuery), host.platform);
   }
 });
 

@@ -24,6 +24,19 @@ const {
   runJava,
   DEFAULT_ENDPOINTS,
 } = require("../main/runtime/java.js");
+const { describePlatform } = require("../lib/platform.js");
+
+// 既有各案釘的是 Windows 的行為：平台資料明給，不跟著跑測試的機器變
+const WIN = describePlatform({
+  platform: "win32",
+  arch: "x64",
+  homedir: "C:\\Users\\t",
+});
+const MAC = describePlatform({
+  platform: "darwin",
+  arch: "arm64",
+  homedir: "/Users/t",
+});
 
 // 下載走 net-fetch：兩個函式必填（6b-3b，M-DI #2），這裡給安靜的
 require("../main/net-fetch.js").configureNetFetch({
@@ -209,6 +222,7 @@ async function javaEnv(t, opts = {}) {
   const calls = { extract: 0 };
   const nth = (v, i) => (Array.isArray(v) ? v[i] : v);
   const deps = {
+    platform: WIN,
     endpoints: {
       zuluQuery: (m) => `${url}/zulu/${m}`,
       semeruRelease: (m) => `${url}/semeru/${m}`,
@@ -1207,8 +1221,17 @@ test(
   },
 );
 
-test("預設端點：Adoptium 兩條、Semeru、Zulu 都以 major 組", () => {
-  assert.match(DEFAULT_ENDPOINTS.zuluQuery(21), /java_version=21&/);
+test("預設端點：Adoptium 兩條、Semeru、Zulu 都以 major 組；Zulu 的 os／arch 照平台資料", () => {
+  const zulu = DEFAULT_ENDPOINTS.zuluQuery(21, WIN.zuluQuery);
+  assert.match(zulu, /java_version=21&/);
+  // Windows 的查詢字串與改成依平台之前逐字相同
+  assert.equal(
+    zulu,
+    "https://api.azul.com/metadata/v1/zulu/packages/?latest=true&page=1&page_size=1&os=windows&arch=x86_64&java_version=21&java_package_type=jre&archive_type=zip&release_status=ga&availability_types=CA&include_fields=download_url,sha256_hash",
+  );
+  const zuluMac = DEFAULT_ENDPOINTS.zuluQuery(21, MAC.zuluQuery);
+  assert.ok(zuluMac.includes("&os=macos&arch=aarch64&"), zuluMac);
+  assert.ok(zuluMac.includes("archive_type=zip"), zuluMac);
   assert.match(DEFAULT_ENDPOINTS.semeruRelease(21), /semeru21-binaries/);
   const adoptium = DEFAULT_ENDPOINTS.adoptium(21, "eclipse");
   assert.match(adoptium, /\/v3\/assets\/feature_releases\/21\/ga\?/);
@@ -1364,5 +1387,268 @@ test(
       ZIP_JAVA,
     );
     await assertCleaned(env);
+  },
+);
+
+// ── Mac（→ _notes/plans/mac-linux-support.md M2）：來源只有 Zulu、整個 bundle 原樣換上、Mojang 的 link 與執行權限 ──
+
+const MAC_JAVA_REL = ["Contents", "Home", "bin", "java"];
+
+/** 假的 Zulu Mac zip：唯一根目錄，底下是帶簽章的 bundle */
+const macExtract =
+  ({ withJava = true } = {}) =>
+  async (zipPath, { dir }) => {
+    const root = path.join(dir, "zulu21-macosx_aarch64");
+    await fsp.mkdir(path.join(root, "Contents", "_CodeSignature"), {
+      recursive: true,
+    });
+    await fsp.writeFile(
+      path.join(root, "Contents", "_CodeSignature", "CodeResources"),
+      "signature",
+    );
+    await fsp.mkdir(path.join(root, "Contents", "Home", "bin"), {
+      recursive: true,
+    });
+    if (withJava)
+      await fsp.writeFile(path.join(root, ...MAC_JAVA_REL), ZIP_JAVA);
+  };
+
+test(
+  "M2 Mac zip：只查 Zulu（帶 macos／aarch64）、整個 bundle 原樣換上、java 在 Contents/Home/bin/java",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const env = await javaEnv(t);
+    const zuluArgs = [];
+    const r = await installJava(
+      env.args({
+        deps: {
+          platform: MAC,
+          extractZip: macExtract(),
+          endpoints: {
+            ...env.deps.endpoints,
+            zuluQuery: (m, q) => {
+              zuluArgs.push(q);
+              return env.deps.endpoints.zuluQuery(m);
+            },
+          },
+        },
+      }),
+    );
+    assert.deepEqual(zuluArgs, [{ os: "macos", arch: "aarch64" }]);
+    assert.equal(r.javaExe, path.join(env.dir, ...MAC_JAVA_REL));
+    assert.equal(await fsp.readFile(r.javaExe, "utf8"), ZIP_JAVA);
+    assert.equal(
+      await fsp.readFile(
+        path.join(env.dir, "Contents", "_CodeSignature", "CodeResources"),
+        "utf8",
+      ),
+      "signature",
+      "簽章跟著整包換上",
+    );
+    assert.deepEqual(
+      env.runJavaCalls.map((c) => c.exe.split(path.sep).slice(-4)),
+      [MAC_JAVA_REL],
+      "驗的是 bundle 裡的那支 java",
+    );
+    const hit = env.srv.requests.map((q) => q.url);
+    for (const u of hit) {
+      assert.ok(!u.startsWith("/semeru/") && !u.startsWith("/adoptium/"), u);
+    }
+    await assertCleaned(env);
+  },
+);
+
+test(
+  "M2 Mac zip：解出來沒有 Contents/Home/bin/java（只有 Windows 位置的）⇒ 那個候選失敗、訊息寫出要找的位置",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const env = await javaEnv(t);
+    // Mojang 這邊沒有 mac-os-arm64 ⇒ 整個安裝失敗，訊息裡兩條路的原因都在
+    await assert.rejects(
+      installJava(env.args({ deps: { platform: MAC } })),
+      (e) =>
+        e.code === "GGL_JAVA_INSTALL_FAILED" &&
+        e.message.includes("找不到 Contents/Home/bin/java") &&
+        e.message.includes(
+          "Mojang runtime 沒有 mac-os-arm64／java-runtime-delta",
+        ),
+    );
+    assert.equal(await exists(env.dir), false);
+    await assertCleaned(env);
+  },
+);
+
+/** Mojang 的 Mac manifest（實測形狀）：全部在 jre.bundle/ 底下、bin/java 帶 executable、legal 是 link */
+function useMacMojang(env, { linkTarget = "../java.base/LICENSE" } = {}) {
+  const u = env.srv.url;
+  const file = (key, buf, extra = {}) => {
+    env.overrides.set(`/mojang/mac/${key}`, send(buf));
+    return {
+      type: "file",
+      downloads: {
+        raw: {
+          url: `${u}/mojang/mac/${key}`,
+          sha1: sha("sha1", buf),
+          size: buf.length,
+        },
+      },
+      ...extra,
+    };
+  };
+  const B = "jre.bundle/Contents/Home";
+  const files = {
+    "jre.bundle": { type: "directory" },
+    "jre.bundle/Contents": { type: "directory" },
+    [B]: { type: "directory" },
+    [`${B}/bin`]: { type: "directory" },
+    [`${B}/legal`]: { type: "directory" },
+    [`${B}/legal/java.base`]: { type: "directory" },
+    [`${B}/legal/java.se`]: { type: "directory" },
+    [`${B}/bin/java`]: file(`${B}/bin/java`, Buffer.from("mac java"), {
+      executable: true,
+    }),
+    [`${B}/release`]: file(`${B}/release`, Buffer.from("release"), {
+      executable: false,
+    }),
+    [`${B}/legal/java.base/LICENSE`]: file(
+      `${B}/legal/java.base/LICENSE`,
+      Buffer.from("license"),
+    ),
+    [`${B}/legal/java.se/LICENSE`]: { type: "link", target: linkTarget },
+  };
+  env.overrides.set(
+    "/mojang/all.json",
+    sendJson({
+      "windows-x64": {
+        "java-runtime-delta": [
+          { manifest: { url: `${u}/mojang/manifest.json` } },
+        ],
+      },
+      "mac-os-arm64": {
+        "java-runtime-delta": [
+          { manifest: { url: `${u}/mojang/mac-manifest.json` } },
+        ],
+      },
+    }),
+  );
+  env.overrides.set("/mojang/mac-manifest.json", sendJson({ files }));
+  return B;
+}
+
+/** 真的 fs，但 chmod 與 symlink 只記下來：Windows 上建 symlink 要權限、也看不出執行位元 */
+function recordingFs() {
+  const calls = { chmod: [], symlink: [] };
+  return {
+    calls,
+    fsp: {
+      ...fsp,
+      chmod: async (p, mode) => {
+        calls.chmod.push([p, mode]);
+      },
+      symlink: async (target, p) => {
+        calls.symlink.push([target, p]);
+        await fsp.writeFile(p, `link -> ${target}`);
+      },
+    },
+  };
+}
+
+test(
+  "M2 Mac Mojang 退路：取 mac-os-arm64、換上的是 jre.bundle、executable 的設 0755、link 在檔案之後建",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const env = await javaEnv(t, { extract: "throw" });
+    const B = useMacMojang(env);
+    const rec = recordingFs();
+    const r = await installJava(
+      env.args({ deps: { platform: MAC, fsp: rec.fsp } }),
+    );
+
+    assert.equal(r.javaExe, path.join(env.dir, ...MAC_JAVA_REL));
+    assert.equal(await fsp.readFile(r.javaExe, "utf8"), "mac java");
+    assert.equal(
+      await exists(path.join(env.dir, "jre.bundle")),
+      false,
+      "換上的是 jre.bundle 本身，不是包著它的那層",
+    );
+    assert.ok(
+      !env.srv.requests.some((q) => q.url === "/mojang/manifest.json"),
+      "沒去抓 windows-x64 的 manifest",
+    );
+
+    const staged = (key) =>
+      path.join(
+        env.paths.tempDir,
+        "java-21-staging",
+        "mojang",
+        ...key.split("/"),
+      );
+    assert.deepEqual(rec.calls.chmod, [[staged(`${B}/bin/java`), 0o755]]);
+    assert.deepEqual(rec.calls.symlink, [
+      ["../java.base/LICENSE", staged(`${B}/legal/java.se/LICENSE`)],
+    ]);
+    assert.equal(
+      await fsp.readFile(
+        path.join(env.dir, "Contents", "Home", "legal", "java.se", "LICENSE"),
+        "utf8",
+      ),
+      "link -> ../java.base/LICENSE",
+    );
+    await assertCleaned(env);
+  },
+);
+
+test(
+  "M2 Mojang 的 link 目標不在清單裡（跑出根、絕對路徑、指到不存在的項目、不是字串）⇒ 一個檔都不下載、正式目錄原狀",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    for (const linkTarget of [
+      "../../../../../../outside",
+      "/etc/passwd",
+      "../java.base/NOPE",
+      "..\\java.base\\LICENSE",
+      "C:/Windows/x",
+      "",
+      null,
+      5,
+    ]) {
+      const env = await javaEnv(t, { extract: "throw" });
+      await putA(env.dir);
+      useMacMojang(env, { linkTarget });
+      const rec = recordingFs();
+      await assert.rejects(
+        installJava(
+          env.args({ reinstall: true, deps: { platform: MAC, fsp: rec.fsp } }),
+        ),
+        (e) =>
+          e.code === "GGL_JAVA_INSTALL_FAILED" &&
+          e.message.includes("指到清單外"),
+        String(linkTarget),
+      );
+      assert.ok(
+        !env.srv.requests.some((q) => q.url.startsWith("/mojang/mac/")),
+        `${linkTarget}：不該開始下載`,
+      );
+      assert.deepEqual(rec.calls.symlink, [], String(linkTarget));
+      await assertIsA(env.dir);
+      await assertCleaned(env);
+    }
+  },
+);
+
+test(
+  "M2 Windows Mojang 退路：executable 的檔也設 0755（同一條路，Windows 不看這個位元）、沒有 link 就不建",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const env = await javaEnv(t, { extract: "throw" });
+    env.manifest.files["bin/java.exe"].executable = true;
+    const rec = recordingFs();
+    const r = await installJava(env.args({ deps: { fsp: rec.fsp } }));
+    assert.equal(await fsp.readFile(r.javaExe, "utf8"), "java from mojang");
+    assert.deepEqual(
+      rec.calls.chmod.map(([p, mode]) => [path.basename(p), mode]),
+      [["java.exe", 0o755]],
+    );
+    assert.deepEqual(rec.calls.symlink, []);
   },
 );
