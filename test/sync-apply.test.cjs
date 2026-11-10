@@ -42,6 +42,7 @@ const { hostPlatform } = require("../lib/platform.js");
 const HOST_KEY = pathKeyFor(hostPlatform().pathsCaseSensitive);
 const linkCheckPaths = (input) =>
   blocking.linkCheckPaths({ pathKey: HOST_KEY, ...input });
+const onCaseSensitiveDisk = hostPlatform().pathsCaseSensitive;
 const { startFakeRuntime, MC, LOADER } = require("./helpers/fake-runtime.cjs");
 
 const HANG_LIMIT_MS = 10_000;
@@ -743,17 +744,19 @@ for (const [label, previous] of [
   test(`record-external file where a folder is needed (${label}) ⇒ moved aside intact, update succeeds`, async (t) => {
     const ctx = await setup(t);
     if (previous) await put(ctx.paths, "mods/a.jar", A);
-    await put(ctx.paths, "Config", "player stuff"); // 大寫：備份名要用本機實際寫法
+    // 不分大小寫的磁碟：用大寫，備份名要用本機實際寫法。分大小寫的磁碟上 Config 不擋 config/，要同名才擋
+    const stray = onCaseSensitiveDisk ? "config" : "Config";
+    await put(ctx.paths, stray, "player stuff");
     const { result } = await run(ctx, {
       previous,
       next: [entry("mods/a.jar", A), entry("config/c.toml", C)],
     });
 
     assert.deepEqual(result.movedAside, [
-      { from: "Config", to: "Config.ggl-備份-20260930-143000" },
+      { from: stray, to: `${stray}.ggl-備份-20260930-143000` },
     ]);
     assert.equal(
-      String(await read(ctx.paths, "Config.ggl-備份-20260930-143000")),
+      String(await read(ctx.paths, `${stray}.ggl-備份-20260930-143000`)),
       "player stuff",
     );
     assert.deepEqual(await read(ctx.paths, "config/c.toml"), C);
@@ -812,19 +815,24 @@ test("record written by writeRecord is the injected one (deps default wiring)", 
   assert.equal(typeof got.appliedAt, "string");
 });
 
-test("backup name taken with different letter case ⇒ still -2 (NTFS rename would overwrite it)", async (t) => {
-  const ctx = await setup(t);
-  await put(ctx.paths, "config", "new stray");
-  await put(ctx.paths, "Config.ggl-備份-20260930-143000", "older backup");
-  const { result } = await run(ctx, { next: [entry("config/c.toml", C)] });
-  assert.deepEqual(result.movedAside, [
-    { from: "config", to: "config.ggl-備份-20260930-143000-2" },
-  ]);
-  assert.equal(
-    String(await read(ctx.paths, "Config.ggl-備份-20260930-143000")),
-    "older backup",
-  );
-});
+// 不分大小寫的磁碟才有這件事；分大小寫的磁碟上兩個名字是兩個檔，不會被蓋掉
+test(
+  "backup name taken with different letter case ⇒ still -2 (NTFS rename would overwrite it)",
+  { skip: onCaseSensitiveDisk },
+  async (t) => {
+    const ctx = await setup(t);
+    await put(ctx.paths, "config", "new stray");
+    await put(ctx.paths, "Config.ggl-備份-20260930-143000", "older backup");
+    const { result } = await run(ctx, { next: [entry("config/c.toml", C)] });
+    assert.deepEqual(result.movedAside, [
+      { from: "config", to: "config.ggl-備份-20260930-143000-2" },
+    ]);
+    assert.equal(
+      String(await read(ctx.paths, "Config.ggl-備份-20260930-143000")),
+      "older backup",
+    );
+  },
+);
 
 // ── 真 junction（Windows；不需要管理員權限，2026-09-30 實測） ──
 
@@ -1497,7 +1505,6 @@ for (const key of ["prepareRuntime", "fetchReleaseFiles", "sendSyncProgress"]) {
 
 // ── 分大小寫的磁碟（Linux；→ _notes/plans/mac-linux-support.md §Linux 段 L-Q1）──
 // 要真的磁碟分大小寫才有意義；Windows、macOS 上跳過（那邊的規則由上面既有的案例把關）。
-const onCaseSensitiveDisk = hostPlatform().pathsCaseSensitive;
 
 test(
   "分大小寫的磁碟：只改檔名大小寫又換內容 ⇒ 只剩新的那一個",

@@ -1233,15 +1233,20 @@ test("N9 updateInstance 不收 strayJarsToRemove ⇒ 那個 jar 還在", async (
   assert.equal(await exists(abs(h.paths, "mods/stray.jar")), true);
 });
 
-test("N9 勾選一個計畫本來就會刪的檔（大小寫不同）⇒ remove 裡只有一筆", async (t) => {
-  const h = await setup(t, {
-    installed: { release: REL_OLD },
-    site: { release: REL_1 },
-  });
-  await h.sync.repairInstance({ strayJarsToRemove: ["mods/OLD.jar"] });
-  assert.deepEqual(h.calls.applyPlan[0].plan.remove, ["mods/old.jar"]);
-  assert.equal(await exists(abs(h.paths, "mods/old.jar")), false);
-});
+// 不分大小寫的磁碟才是同一個檔；分大小寫的磁碟上是兩個檔，規則在 sync-plan／sync-apply 的「分大小寫」案例驗
+test(
+  "N9 勾選一個計畫本來就會刪的檔（大小寫不同）⇒ remove 裡只有一筆",
+  { skip: hostPlatform().pathsCaseSensitive },
+  async (t) => {
+    const h = await setup(t, {
+      installed: { release: REL_OLD },
+      site: { release: REL_1 },
+    });
+    await h.sync.repairInstance({ strayJarsToRemove: ["mods/OLD.jar"] });
+    assert.deepEqual(h.calls.applyPlan[0].plan.remove, ["mods/old.jar"]);
+    assert.equal(await exists(abs(h.paths, "mods/old.jar")), false);
+  },
+);
 
 test("N10 protectedPaths 接線：release 含 saves/world/level.dat ⇒ GGL_SYNC_PROTECTED_PATH", async (t) => {
   const withSave = makeRelease("1.1", [
