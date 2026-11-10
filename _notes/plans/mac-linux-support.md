@@ -22,6 +22,10 @@
 | Mac 圖示原圖 | 用 owner 給的那張（已存 `assets/icon.png`，1254×1254、透明背景） | owner 2026-11-10「是這張。」（附圖） |
 | 版本號與發行 | 版本號往下推；做完先不發 | owner 2026-11-10「可以把版本號往下推。」「但做完先別發，我還有想做的事。」 |
 | 驗收的節奏 | 這一輪例外：每一步各自 commit、不逐步驗收，全部做完一起驗（全域規則是「驗收沒過，下一階段不准動工」） | owner 2026-11-10 問「我如果積到最後一起驗會怎麼樣嗎？」，CC 說明代價並提「每步各自 commit、最後一起驗」後：「可以，阿現在這步啟動器啟動正常。」「可以 commit 了。」「然後往下一步推進哈哈。」 |
+| Mac 上卡死的 `splashscreen` 模組 | 另開一件事處理，不在這份 plan 裡做（→ `future-work.md` 的 splashscreen 條） | owner 2026-11-10「等等開張卡片來處理。」 |
+| 啟動器重開後能再開出第二個遊戲 | 不補強，維持現狀 | owner 2026-11-10「不用，這其實意外得挺好的。」 |
+| 鑰匙圈按「拒絕」後的提示文字 | 不改，維持「暫時無法讀取登入憑證，請稍後再試」 | owner 2026-11-10「不用。」 |
+| 連結防護的測試在 Mac 上是跳過的 | 不補；Mac 上這個保護沒有測試在驗，照這樣接受 | owner 2026-11-10「不用。」（回 CC「Mac 的連結防護測試要不要補」） |
 
 **agent 假設（非 owner 裁，可翻）**
 - 「版本號往下推」＝用下一個版本號，具體數字發版時定；本 plan 的施工不改 `package.json` 的 `version`、不打包發行、不 push。
@@ -115,8 +119,8 @@ electron-builder 的 Mac 圖示吃不吃 1254px 的 png〔猜的〕：吃不了�
 - 第 4 步：兩條路都過。Zulu 路徑裝到 21.0.13、Mojang 退路裝到 21.0.7，兩者 `java -version` exit 0，布局都是 `runtime/java-21/Contents/Home/bin/java`，Mojang 路徑的 `bin/*` 權限 0755，裝好的 runtime 上沒有 `com.apple.quarantine`。
 - 第 5 步（縮小版，owner 在設定視窗操作）：填 `C:\x` 被擋下，錯誤文字是 Mac 範例（`/Users/你的名字/Games/GGL`）；改路徑存檔寫得進 `settings.json`，重開讀得回來，選資料夾對話框的起點正常；測完改回 `/Users/mochi122/Games/GGL`（`settings.json` 已確認）。**沒驗**「同步與啟動用的是新位置」：換空資料夾會整包重下載，刻意省略。過程中 owner 不小心把路徑貼了兩次，存成重複路徑，是輸入失誤，不是程式問題。
 - 第 6 步（部分）：Cmd+Q 關掉啟動器後遊戲行程還活著；修復跑完（owner 回報成功，啟動器日誌無錯誤）；匯出診斷有檔案（`diagnostics/<時間>/` 四個檔：`report.json`、`ggl-launcher.log`、`settings.json`、`sync-record.json`），掃過沒有 token、帳號、xuid；路徑裡帶使用者名稱。
-- 第 7 步：遊戲開著時，啟動器畫面顯示「遊戲執行中」、更新與修復按鈕不出現、設定裡的修復也按不了；這是啟動器重開（沒有自己 spawn 的子行程記憶）之後出現的，所以走的是 `ps` 偵測（`main/sync/game-running.js`）；遊戲關掉後按鈕恢復。同一次觀察到：啟動器重開後啟動鈕沒被擋，能再開出第二個遊戲（`main/ipc/minecraft-ipc.js:47` 的防護只看自己這次 spawn 的子行程，只擋同一次執行裡的連按；Windows 同一段程式碼）。要不要加強防護未裁。
-- 第 8 步：開發版（`npm start`）登入、關掉重開仍是登入，**從頭到尾沒有跳鑰匙圈視窗**（項目是它自己建的）。真正的視窗出現在 dmg 版第一次啟動（見第 9 步）。按「拒絕」的行為在 dmg 版上驗：不當機、視窗正常開、按啟動才顯示「暫時無法讀取登入憑證，請稍後再試」，`account.json` 逐位元組不變；再按一次啟動視窗會再跳，按「永遠允許」後能啟動。**和計畫預期不同**：計畫寫「畫面要求重新登入」，實際是「稍後再試」（程式依 Electron 的 `temporarily unavailable` 訊息分類，→ `lib/account-secret.js:36`、`main/ipc/minecraft-ipc.js:75`）；登入沒有被清掉，文字有沒有要改（玩家主動按拒絕時，這句沒告訴他去允許鑰匙圈）未裁。
+- 第 7 步：遊戲開著時，啟動器畫面顯示「遊戲執行中」、更新與修復按鈕不出現、設定裡的修復也按不了；這是啟動器重開（沒有自己 spawn 的子行程記憶）之後出現的，所以走的是 `ps` 偵測（`main/sync/game-running.js`）；遊戲關掉後按鈕恢復。同一次觀察到：啟動器重開後啟動鈕沒被擋，能再開出第二個遊戲（`main/ipc/minecraft-ipc.js:47` 的防護只看自己這次 spawn 的子行程，只擋同一次執行裡的連按；Windows 同一段程式碼）。要不要加強防護：已裁不補（→ §裁決）。
+- 第 8 步：開發版（`npm start`）登入、關掉重開仍是登入，**從頭到尾沒有跳鑰匙圈視窗**（項目是它自己建的）。真正的視窗出現在 dmg 版第一次啟動（見第 9 步）。按「拒絕」的行為在 dmg 版上驗：不當機、視窗正常開、按啟動才顯示「暫時無法讀取登入憑證，請稍後再試」，`account.json` 逐位元組不變；再按一次啟動視窗會再跳，按「永遠允許」後能啟動。**和計畫預期不同**：計畫寫「畫面要求重新登入」，實際是「稍後再試」（程式依 Electron 的 `temporarily unavailable` 訊息分類，→ `lib/account-secret.js:36`、`main/ipc/minecraft-ipc.js:75`）；登入沒有被清掉，文字有沒有要改（玩家主動按拒絕時，這句沒告訴他去允許鑰匙圈）：已裁不改（→ §裁決）。
 - 第 9 步：`npm run dist:mac` 在 Mac mini 上 exit 0，`check:packaged-artifacts` 過；dmg 約 146 MB，簽章 `adhoc`、`codesign --verify --deep --strict` 過；包裡沒有 `rpc-helper.exe`；1254 px 的 `icon.png` 沒讓打包報錯（electron-builder 自己轉 icns），計畫裡「吃不吃得了」的猜測不成立。為模擬玩家下載，在 dmg 的副本上加了 `com.apple.quarantine`（Chrome 下載的樣子）：雙擊 dmg 被擋，dmg 仍能掛載；app 拖進「應用程式」後打開被擋，訊息「Apple 無法驗證『GGL Launcher』是否為惡意軟體…」只有「完成／丟到垃圾桶」；跑 runbook 的 `xattr -cr` 後能啟動。**裝好的 app 與開發版共用同一個 userData（`GGL_launcher`）與鑰匙圈項目（`GGL_launcher Safe Storage`）**，所以不用重新登入，第一次啟動出現鑰匙圈授權視窗（要輸入「登入」鑰匙圈密碼）；先前「dmg 版會用另一個項目、要重新登入」的預測是錯的。dmg 版啟動遊戲成功（遊戲同樣卡在 splashscreen）。**覆蓋安裝**：同一個 dmg 再裝一次，第一次打開又被擋，要再 `xattr -cr`；之後登入還在、鑰匙圈視窗沒再跳（先前按過「永遠允許」）。沒驗：不同版本（臨時簽章不同）的覆蓋安裝。結果已回填 `docs/release-runbook.md` §3a。
 
 **Mac（owner 在 Mac mini 上做；CC 列步驟、owner 回報，或 owner 在 Mac 上裝 Claude Code 讓 CC 直接操作）**
