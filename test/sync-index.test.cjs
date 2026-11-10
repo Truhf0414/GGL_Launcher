@@ -174,6 +174,23 @@ const isUnder = (child, parent) => {
   return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
 };
 
+// 遊戲偵測的測試縫跟著這台的平台走（lib/platform.js 的 processList）：
+// Windows 注入 runPowerShell、其他注入 runPs。注入錯邊的話，正式實作會去跑真的指令。
+const USES_CIM = hostPlatform().processList === "cim";
+const processListDeps = (run) =>
+  USES_CIM ? { runPowerShell: run } : { runPs: run };
+
+/** 一個 java 程序在那種指令輸出裡的樣子 */
+const javaProcessStdout = (pid, javaArgs) =>
+  USES_CIM
+    ? JSON.stringify([
+        {
+          ProcessId: pid,
+          CommandLine: `"C:\\Java\\bin\\javaw.exe" ${javaArgs}`,
+        },
+      ])
+    : `${pid} /Library/Java/bin/java ${javaArgs}\n`;
+
 /**
  * 每個案例一個新的根目錄、假站台、site-client 與中樞。
  * @param {{ installed?: object, site?: object, deps?: object, config?: object, timeoutMs?: number }} [opts]
@@ -276,7 +293,7 @@ async function setup(
       await hooks.beforeApply?.(input);
       return realApplyPlan(input);
     },
-    runPowerShell: async () => ({ code: 0, stdout: "" }),
+    ...processListDeps(async () => ({ code: 0, stdout: "" })),
     onProgress: () => {}, // 必填（6b-3b，M-DI #8）；要看進度的案例用 depsOver 換掉
     ...depsOver,
   };
@@ -1061,15 +1078,15 @@ test(
   },
 );
 
-const rejectingPowerShell = async () => {
-  throw new Error("powershell 不見了");
+const rejectingProcessList = async () => {
+  throw new Error("列程序的指令不見了");
 };
 
 async function setupUnknownGame(t, confirm) {
   const h = await setup(t, {
     installed: { release: REL_1 },
     site: { release: REL_2 },
-    deps: { runPowerShell: rejectingPowerShell },
+    deps: processListDeps(rejectingProcessList),
   });
   h.deps.confirmGameClosed = async () => {
     h.calls.confirmGameClosed++;
@@ -1147,14 +1164,9 @@ test("N6 遊戲偵測的 gameDir 接線：命令列含 gameDir ⇒ 擋；鄰居�
     const h = await setup(t, {
       installed: { release: REL_1 },
       site: { release: REL_2 },
-      deps: { runPowerShell: async () => ({ code: 0, stdout }) },
+      deps: processListDeps(async () => ({ code: 0, stdout })),
     });
-    stdout = JSON.stringify([
-      {
-        ProcessId: 4242,
-        CommandLine: `"C:\\Java\\bin\\javaw.exe" -Xmx4G --gameDir ${dirOf(h.paths)}`,
-      },
-    ]);
+    stdout = javaProcessStdout(4242, `-Xmx4G --gameDir ${dirOf(h.paths)}`);
     if (blocked) {
       await assert.rejects(
         h.sync.updateInstance(),

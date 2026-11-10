@@ -25,6 +25,7 @@ const {
 const { SETTINGS_KEYS, checkSettings } = require("../lib/settings-format.js");
 const { reportStartupFailure } = require("../main/startup-failure.js");
 const { hostPlatform } = require("../lib/platform.js");
+const { hostRoot } = require("./helpers/host-root.cjs");
 
 // 2026-10-21T16:30:05Z＝台北 2026-10-22 00:30:05
 const NOW = Date.UTC(2026, 9, 21, 16, 30, 5);
@@ -126,7 +127,7 @@ test("V2 合法且五個鍵都在（owner 那份拿掉 memoryGb）⇒ 開機後�
     minMemoryGb: 4,
     maxMemoryGb: 16,
     playerId: "Truhf0414",
-    launcherRootDir: "E:\\Game2\\GGL",
+    launcherRootDir: hostRoot("E:\\Game2\\GGL"),
     debugLogging: false,
   };
   const bytes = json(owner);

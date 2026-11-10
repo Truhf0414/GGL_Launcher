@@ -33,6 +33,11 @@ const {
 } = require("./helpers/real-bridge.cjs");
 
 const ENV = launchEnv(hostPlatform(), "10.0.26200");
+// classpath 跟著平台走（lib/platform.js）：怎麼串、路徑不該出現哪種分隔符、有幾筆。
+// 筆數＝原版 fixture 裡這個 os.name 允許的 library ＋ Fabric 的 8 筆 ＋ client jar（Windows 75、osx 71）
+const CP_SEP = hostPlatform().classpathSeparator;
+const CP_FOREIGN_SEP = hostPlatform().pathStyle === "windows" ? "/" : "\\";
+const CP_COUNT = { windows: 84, macos: 80 }[hostPlatform().id];
 const FABRIC_REL = `versions/${LAUNCH_ID}/${LAUNCH_ID}.json`;
 const VANILLA_REL = `versions/${RUNTIME.minecraft}/${RUNTIME.minecraft}.json`;
 
@@ -274,11 +279,11 @@ test("S1 argv 照 json 組：log4j、classpath、launcher 名與版本；舊的�
     1,
   );
   assert.equal(count(args, "-cp"), 1);
-  const cp = argOf(args, "-cp").split(";");
-  assert.equal(cp.length, 84);
+  const cp = argOf(args, "-cp").split(CP_SEP);
+  assert.equal(cp.length, CP_COUNT);
   assert.equal(cp.at(-1), path.join(g, "versions", "1.21.11", "1.21.11.jar"));
   assert.equal(
-    cp.some((p) => p.includes("/")),
+    cp.some((p) => p.includes(CP_FOREIGN_SEP)),
     false,
   );
   assert.equal(
@@ -330,7 +335,7 @@ test("S1b 啟動照成品走：成品哪一欄換了，argv 就跟著換", async
   assert.equal(
     (await run(B)).includes("-Xss1M"),
     false,
-    "對照：x86_64 沒有 -Xss1M",
+    "對照：這台的 arch（x86_64、arm64）沒有 -Xss1M",
   );
 
   let a = await run({ ...B, logConfigRel: "assets/log_configs/other.xml" });
@@ -350,11 +355,11 @@ test("S1b 啟動照成品走：成品哪一欄換了，argv 就跟著換", async
   assert.equal(argOf(a, "--version"), "x-id");
   a = await run({ ...B, versionJarRel: "versions/x/x.jar" });
   assert.equal(
-    argOf(a, "-cp").split(";").at(-1),
+    argOf(a, "-cp").split(CP_SEP).at(-1),
     path.join(g, "versions", "x", "x.jar"),
   );
   a = await run({ ...B, libraries: B.libraries.slice(1) });
-  assert.equal(argOf(a, "-cp").split(";").length, 83);
+  assert.equal(argOf(a, "-cp").split(CP_SEP).length, CP_COUNT - 1);
   a = await run({ ...B, env: { ...B.env, os: { ...B.env.os, arch: "x86" } } });
   assert.ok(a.includes("-Xss1M"));
 });

@@ -634,6 +634,31 @@ test("delete step: target already gone ⇒ treated as success", async (t) => {
   assert.notEqual(await readRecord(ctx.paths), null);
 });
 
+// 上層變成檔案：Windows 回 ENOENT、POSIX 回 ENOTDIR，兩邊都是「要刪的檔本來就不在」
+test("delete step: the target's folder became a file meanwhile ⇒ treated as success, that file untouched", async (t) => {
+  const ctx = await setup(t);
+  await put(ctx.paths, "mods/sub/old.jar", "x");
+  const next = [entry("mods/a.jar", A)];
+  const p = await plan(ctx.paths, {
+    previous: [{ path: "mods/sub/old.jar", sha256: "1".repeat(64) }],
+    next,
+  });
+  await fsp.rm(abs(ctx.paths, "mods/sub"), { recursive: true });
+  await put(ctx.paths, "mods/sub", "player file");
+  await applyPlan({
+    plan: p,
+    record: recordFor(next),
+    paths: ctx.paths,
+    filesBaseUrl: ctx.filesBaseUrl,
+    deps: deps(),
+  });
+  assert.notEqual(await readRecord(ctx.paths), null);
+  assert.deepEqual(
+    await read(ctx.paths, "mods/sub"),
+    Buffer.from("player file"),
+  );
+});
+
 test("writing the record fails ⇒ marker stays, error propagates", async (t) => {
   const ctx = await setup(t);
   const boom = new Error("disk full (test)");

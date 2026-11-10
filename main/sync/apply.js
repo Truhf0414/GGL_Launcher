@@ -199,7 +199,7 @@ async function clearLeftovers({ fsp, abs, record, plan, stagingDir, log }) {
       (k) => k === "other",
       () => false,
     );
-    await fsp.rm(abs(tmpRel), { force: true });
+    await removeIfPresent(fsp, abs(tmpRel));
     if (isLink) safeLog(log, `SYNC_LEFTOVER_LINK_REMOVED ${tmpRel}`);
   }
   const wanted = new Set(plan.download.map((d) => d.sha256));
@@ -302,20 +302,35 @@ async function throwIfSiteChanged(deps, record) {
   }
 }
 
+/**
+ * 「這個路徑上沒有東西」的 errno。路徑中間有一節是檔案（不是資料夾）時，
+ * Windows 回 ENOENT、POSIX 回 ENOTDIR；兩者都代表底下不可能有東西。
+ */
+const isAbsent = (e) => e.code === "ENOENT" || e.code === "ENOTDIR";
+
 async function exists(fsp, p) {
   try {
     await fsp.lstat(p);
     return true;
   } catch (e) {
-    if (e?.code === "ENOENT") return false;
+    if (isAbsent(e)) return false;
     throw e;
   }
 }
 
-/** 不 recursive：檔不存在＝成功；其實是資料夾（玩家自己放的）⇒ 報錯不刪 */
+/** rm 的 force 只吞 ENOENT；上層是檔案（POSIX 的 ENOTDIR）同樣是「本來就不在」 */
+async function removeIfPresent(fsp, p) {
+  try {
+    await fsp.rm(p, { force: true });
+  } catch (e) {
+    if (!isAbsent(e)) throw e;
+  }
+}
+
+/** 不 recursive：檔不存在（含上層其實是檔案）＝成功；其實是資料夾（玩家自己放的）⇒ 報錯不刪 */
 async function removeFile(fsp, abs, rel) {
   try {
-    await fsp.rm(abs(rel), { force: true });
+    await removeIfPresent(fsp, abs(rel));
   } catch (e) {
     if (e?.code === "ERR_FS_EISDIR" || e?.code === "EISDIR") {
       throw new SyncApplyError(
