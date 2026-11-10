@@ -337,6 +337,7 @@
   - **核對**：站台檔和產出檔 `cmp` 相同；`check-site` exit 0；公開網址兩支都是 200，和本機逐位元組相同。
   - **沒做**：沒開啟動器看實際畫面。日誌沒寫 Totem 設定會整檔覆蓋玩家版本，是 owner 的文字，CC 有提醒。
 - 2026-11-10 Mac／Linux 支援開案：owner 問難度後裁先 Mac 再 Linux、五題（只做 Apple 晶片、Mac 首版不帶 Discord、Java 只走 Zulu＋Mojang、CI 加 macOS、預設裝 `~/Games/GGL`）→ plan v1 `124663dd`；輕量 SPR（自審 16 條＋Codex 7 條，Codex 的結論是「目前不能開始實作」，CC 把它標的兩條 blocker 裁成 major、處置相同）→ owner 放行 → plan v2；owner 給圖示原圖（存 `assets/icon.png`，未 commit）；M1 commit `e6386a0`（分支 `feat/mac-support`，32 檔，+622／-108）：`lib/platform.js` 與依平台的啟動參數、Java 位置、設定檢查、預設安裝位置，`npm test` 1476 過；owner 回報啟動器開得起來，並裁這一輪驗收積到最後一起做。沒做：Mac 上一次都沒跑過；設定視窗、選資料夾、啟動遊戲在 Windows 上未驗 → `plans/mac-linux-support.md`、`reviews/mac-linux-support-v124663dd-20261110.md`
+- 2026-11-10 Mac 支援 M2–M4 commit（分支 `feat/mac-support`，未 push）：M2 `aea2bc1` Java 安裝依平台（Mac 只查 Zulu、整個 bundle 原樣換上、Mojang 的 link 要是同一份 manifest 裡的項目才建、executable 設 0755），`scripts/try-java-install.cjs` 在 Windows 實跑兩條路都過；M3 `ae3336f` 非 Windows 用 `ps -axww` 偵測遊戲；M4 `90433c5` `dist:mac`（dmg、arm64、臨時簽章）、Mac 不帶 Discord helper、CI 加 macOS job、runbook §3a，`pack:win` 在 Windows 實跑過。`npm test` 1490 過、1 跳過。沒做：Mac 上一次都沒建過、沒跑過；macOS 的 CI 沒跑過；既有測試沒為 macOS 改 → `plans/mac-linux-support.md` §驗收
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
@@ -350,3 +351,6 @@ microsoft-auth.js 完整走完 Microsoft→Xbox→Minecraft 三段並把 mcAcces
 
 ### 2026-11-07 GGL3.0.2／3.0.3 蓋掉玩家的設定與按鍵
 owner 轉述玩家抱怨：「這次更新過後其他人的設定全部都跑掉。config 以及鍵盤設定都掉了。」原因：組版本資料夾時，CC 直接複製 Prism 實例的 `config/` 與 `options.txt`，裡面混著 owner 自己玩遊戲時的變動；玩家可改檔只要內容跟上一版不同，啟動器就整檔覆蓋、不備份（owner 2026-09-19 的設計，→ plans/instance-sync-v3.md §行為契約）。`options.txt` 的 sha256 在 3.0.1、3.0.2、3.0.3 各不相同，玩家可改檔被蓋的數量：3.0.2 有 66 個、3.0.3 有 25 個。乾跑報告每次都有標「會整檔覆蓋玩家版本」，CC 卻補一句「目前沒有玩家，不影響」，這是從過時的 memory 拿來的，沒有查證，也沒有問 owner；v1.0.0 早在 11-01 就公開了。被蓋掉的設定沒辦法從啟動器救回。處置：owner 選「A：沿用上一版設定」，寫成 docs/release-runbook.md §4a，3.0.4 起照做（→ 專案進程 2026-11-06～08）；memory 那條已改成「已過時，現在有玩家」。
+
+### 2026-11-10 Bash 指令裡的反引號被當成指令執行
+CC 查筆記行號時，把含反引號的文字（`npm ci`、`npm start` 等）直接放進雙引號的 `rg` 樣式，bash 把每一段反引號當成指令替換來執行：repo 裡的 `npm ci` 真的跑完（`node_modules` 被重裝，19:27），接著 `npm start` 真的開出啟動器視窗（用的是開發用的 userData `GGL_launcher`）；`main/runtime/java.js`、`lib/server-config.js` 也被當成 shell 腳本執行，各在前幾行語法錯誤就停。事後現查：工作樹除了 owner 自己改的 `docs/player-troubleshooting.md` 沒有變動、沒有多出檔案、`npm ls` 正常、`npm test` 1490 過。CC 停掉背景指令後視窗還在，想用 `taskkill` 關被權限擋下，由 owner 自己關。java.js 那幾行若有 `>` 轉向可能會寫出檔案，這次沒有發生。

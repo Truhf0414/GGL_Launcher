@@ -1,4 +1,4 @@
-# 啟動器支援 macOS（先）與 Linux（後）（狀態：v2，2026-11-10；M1 完成 `e6386a0`、M2 完成 `aea2bc1`，分支 `feat/mac-support`）
+# 啟動器支援 macOS（先）與 Linux（後）（狀態：v2，2026-11-10；M1 `e6386a0`、M2 `aea2bc1`、M3 `ae3336f`、M4 `90433c5` 都已 commit，分支 `feat/mac-support`；Mac 上還沒跑過）
 
 **版本沿革**：v1 `124663dd`（2026-11-10 寫成，同日 owner 裁 Q1–Q5）→ 輕量 SPR（自審＋Codex，23 條）→ owner 放行處置 → **v2**（本檔）。review 見 `_notes/reviews/mac-linux-support-v124663dd-20261110.md`（已封存）。下文的 `R#n` 指那份 review 的第 n 條。
 
@@ -39,11 +39,11 @@
 | `lib/launch-args.js` `buildClasspath`、`launchPlaceholders` | `path.win32.join`、以 `;` 串 | 依平台的 path 與 `:`。`checkLaunchable` 的假路徑（`C:\ggl-check`）只是假值，一併看過即可（R#9） |
 | `lib/paths-layout.js` `javaExeRel` | `runtime/java-<major>/bin/java.exe` | Mac：`runtime/java-<major>/Contents/Home/bin/java`（→ §設計「Java 目錄」） |
 | `main/runtime/java.js` `zipSources` | 固定查 Zulu、Semeru、Adoptium×2；後三個的篩選寫死 windows | Mac 只查 Zulu（`os=macos`、`arch=aarch64`，有 zip〔查過〕）（R#17、R#18） |
-| `main/runtime/java.js` `installViaZip` | 驗 `<根>/bin/java.exe` | 驗平台的 java 相對路徑。`extract-zip` 會還原 mode 與 symlink〔查過：讀碼 `node_modules/extract-zip/index.js:91-132`；Mac 上實跑未驗〕。Zulu Mac zip：唯一根目錄，底下 `Contents/_CodeSignature`、`Contents/Home/bin/java`（0755），148 個 symlink〔查過：`unzip -Z`〕〔對齊 2026-11-10：`e6386a0` 未移動（`node_modules/extract-zip/index.js` 不在這個 commit；工具對到的是同名的 `main/sync/index.js`）〕 |
+| `main/runtime/java.js` `installViaZip` | 驗 `<根>/bin/java.exe` | 驗平台的 java 相對路徑。`extract-zip` 會還原 mode 與 symlink〔查過：讀碼 `node_modules/extract-zip/index.js:91-132`；Mac 上實跑未驗〕。Zulu Mac zip：唯一根目錄，底下 `Contents/_CodeSignature`、`Contents/Home/bin/java`（0755），148 個 symlink〔查過：`unzip -Z`〕〔對齊 2026-11-10：`e6386a0` 未移動（`node_modules/extract-zip/index.js` 不在這個 commit；工具對到的是同名的 `main/sync/index.js`）〕〔對齊 2026-11-10：`ae3336f` 未移動（同前：工具對到的是同名的 `main/sync/index.js`）〕 |
 | `main/runtime/java.js` `installViaMojang` | 取 `windows-x64`；只處理 `directory`、`file`；驗 `<根>/bin/java.exe` | 取 `mac-os-arm64`。manifest：directory 86、file 145、link 205，全部在 `jre.bundle/` 底下；link 全是 `legal/` 的授權檔、目標都是相對路徑；`bin/java` 帶 `executable: true`〔查過：java-runtime-delta manifest〕 |
 | `lib/sync/game-running.js`、`main/sync/game-running.js` | PowerShell 查 `java.exe`／`javaw.exe` 的命令列 | `ps`（→ §設計「遊戲偵測」） |
 | `lib/settings-format.js` `DRIVE_ABSOLUTE_RE` | 安裝位置必須 `X:\` 開頭；錯誤文字舉 `D:\Games\GGL` | POSIX 絕對路徑；文字依平台。**這個檔畫面也用 `<script>` 載入**（`index.html:556`），拿不到 `process.platform`（R#1） |
-| `lib/server-config.js` `launcherRootDir` | 常數 `C:\Games\GGL`；`lib/paths-layout.js:14`、`main/ipc/server-config-ipc.js:7` 直接讀 | Mac `~/Games/GGL`，要家目錄（R#2）〔對齊 2026-11-10：→ `e6386a0`（本檔 M1）後：`lib/paths-layout.js:14` 那行已刪（預設根改由 `lib/platform.js` 給）；`main/ipc/server-config-ipc.js` `:7` → `:9`〕〔對齊 2026-11-10：`aea2bc1` 未移動（那個 commit 沒動這裡提到的行）〕 |
+| `lib/server-config.js` `launcherRootDir` | 常數 `C:\Games\GGL`；`lib/paths-layout.js:14`、`main/ipc/server-config-ipc.js:7` 直接讀 | Mac `~/Games/GGL`，要家目錄（R#2）〔對齊 2026-11-10：→ `e6386a0`（本檔 M1）後：`lib/paths-layout.js:14` 那行已刪（預設根改由 `lib/platform.js` 給）；`main/ipc/server-config-ipc.js` `:7` → `:9`〕〔對齊 2026-11-10：`aea2bc1` 未移動（那個 commit 沒動這裡提到的行）〕〔對齊 2026-11-10：`ae3336f`、`90433c5` 未移動（兩個 commit 都沒動這裡提到的行）〕 |
 | `main/ipc/dialog-ipc.js` | 對話框預設 `C:\` | 家目錄 |
 | `main/discord-rpc.js` | `launchMinecraft` 無條件呼叫；找 `assets/rpc-helper.exe`，找不到就提示 | 一進函式就依平台返回（R#19） |
 | `package.json` 打包、`scripts/check-packaged-artifacts.cjs` | 只有 `dist:win`／`pack:win`；檢查一律要 `rpc-helper.exe` | `dist:mac`（dmg、arm64）；Mac 包不帶 `rpc-helper.exe`；檢查依平台 |
@@ -99,9 +99,14 @@
 
 electron-builder 的 Mac 圖示吃不吃 1254px 的 png〔猜的〕：吃不了打包會直接報錯，屆時轉成 `.icns`。
 
+**M4 落地時與上表不同的地方**
+- Discord 的平台判斷放在 `main/minecraft-launch.js`（啟動遊戲那裡看平台資料的 `hasDiscordHelper`），不是 `main/discord-rpc.js` 一進函式就返回：這樣平台資料只從一個測試縫進來，`discord-rpc.js` 不必知道平台。
+- `build.mac.identity` 明寫 `"-"`（臨時簽章），不靠 electron-builder 自己退回〔查過：`node_modules/app-builder-lib/out/macPackager.js` 的 `qualifier === "-"` 分支〕。
+- 既有測試有一批寫死 Windows 路徑或用這台的平台資料，M4 沒有為 macOS 改它們：沒有 Mac 可跑，不知道哪些會紅。第一次在 Mac 上 `npm test`（驗收 1）之後再修；CI 的 macOS job 在那之前預期是紅的。
+
 ## 驗收
 
-已驗的部分：M1（`e6386a0`）owner 2026-11-10 回報「現在這步啟動器啟動正常」，只涵蓋啟動器開得起來；設定視窗、選資料夾、啟動遊戲未驗，併入下面的 Windows 迴歸。M2（`aea2bc1`）CC 2026-11-10 在 owner 的 Windows 開發機實跑 `scripts/try-java-install.cjs` 兩條路都過（正常路徑裝到 Temurin 21.0.13，強迫退路裝到 Mojang 的 21.0.7，換上後 `java -version` exit 0）；這是工具直接呼叫安裝函式，不是啟動器裡按出來的。
+已驗的部分：M1（`e6386a0`）owner 2026-11-10 回報「現在這步啟動器啟動正常」，只涵蓋啟動器開得起來；設定視窗、選資料夾、啟動遊戲未驗，併入下面的 Windows 迴歸。M2（`aea2bc1`）CC 2026-11-10 在 owner 的 Windows 開發機實跑 `scripts/try-java-install.cjs` 兩條路都過（正常路徑裝到 Temurin 21.0.13，強迫退路裝到 Mojang 的 21.0.7，換上後 `java -version` exit 0）；這是工具直接呼叫安裝函式，不是啟動器裡按出來的。M4（`90433c5`）CC 2026-11-10 在同一台跑 `npm run pack:win`：exit 0、`check:packaged-artifacts` 過、包裡的 `rpc-helper.exe` 與 repo 那份 sha256 相同（跑之前刪了 `dist/win-unpacked` 裡 2026-09-15 的舊產物）。M3 的真 `ps` 端到端測試在 Windows 上是跳過的，還沒在任何機器跑過。
 
 **Mac（owner 在 Mac mini 上做；CC 列步驟、owner 回報，或 owner 在 Mac 上裝 Claude Code 讓 CC 直接操作）**
 1. `npm ci`、`npm test` 全綠
