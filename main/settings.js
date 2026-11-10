@@ -4,7 +4,7 @@
 const fsp = require("fs/promises");
 const path = require("path");
 const { getSettingsPath } = require("./paths");
-const { DEFAULT_LAUNCHER_ROOT_DIR } = require("../lib/paths-layout.js");
+const { hostPlatform } = require("../lib/platform.js");
 const { setDebugLoggingEnabled } = require("./launcher-log");
 const {
   computeDebugLoggingEnabled,
@@ -27,7 +27,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   minMemoryGb: null,
   maxMemoryGb: null,
   playerId: "Player001",
-  launcherRootDir: DEFAULT_LAUNCHER_ROOT_DIR,
+  launcherRootDir: hostPlatform().defaultLauncherRootDir,
   debugLogging: false,
 });
 
@@ -155,7 +155,7 @@ function parseBytes(bytes) {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     return { broken: { kind: "not-object", text: "內容不是 JSON 物件" } };
   }
-  const issues = checkSettings(value);
+  const issues = checkSettings(value, hostPlatform());
   if (issues.length) return { issues };
   return { settings: { ...DEFAULT_SETTINGS, ...value } };
 }
@@ -318,7 +318,7 @@ function writeSettings(patch) {
     const settingsPath = getSettingsPath();
     const { settings: current, bytes } = await readCurrent(settingsPath);
     const next = { ...current, ...patch };
-    const issues = checkSettings(next);
+    const issues = checkSettings(next, hostPlatform());
     if (issues.length) throw new Error(issues.map(formatIssue).join("\n"));
     try {
       await replaceFileWithBytes(settingsPath, bytesOf(next), {

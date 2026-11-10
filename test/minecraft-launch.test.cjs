@@ -17,7 +17,8 @@ const {
 } = require("../main/minecraft-launch.js");
 const { DEFAULT_SETTINGS } = require("../main/settings.js");
 const { getPaths, javaExeFor } = require("../lib/paths-layout.js");
-const { windowsEnv } = require("../lib/launch-args.js");
+const { launchEnv } = require("../lib/launch-args.js");
+const { hostPlatform, describePlatform } = require("../lib/platform.js");
 const { checkRuntimeReady } = require("../lib/runtime-readiness.js");
 const { makeRuntimeProbe } = require("../main/sync/runtime-probe.js");
 const pkg = require("../package.json");
@@ -31,7 +32,12 @@ const {
   throwOnSend,
 } = require("./helpers/real-bridge.cjs");
 
-const ENV = windowsEnv("10.0.26200");
+const ENV = launchEnv(hostPlatform(), "10.0.26200");
+// classpath 跟著平台走（lib/platform.js）：怎麼串、路徑不該出現哪種分隔符、有幾筆。
+// 筆數＝原版 fixture 裡這個 os.name 允許的 library ＋ Fabric 的 8 筆 ＋ client jar（Windows 75、osx 71）
+const CP_SEP = hostPlatform().classpathSeparator;
+const CP_FOREIGN_SEP = hostPlatform().pathStyle === "windows" ? "/" : "\\";
+const CP_COUNT = { windows: 84, macos: 80 }[hostPlatform().id];
 const FABRIC_REL = `versions/${LAUNCH_ID}/${LAUNCH_ID}.json`;
 const VANILLA_REL = `versions/${RUNTIME.minecraft}/${RUNTIME.minecraft}.json`;
 
@@ -85,6 +91,7 @@ async function setup(
     record: { ...RUNTIME },
     probe: makeRuntimeProbe(paths),
     env: ENV,
+    platform: hostPlatform(),
   });
   assert.equal(ready.ready, true, `setup：就緒不過 ${ready.missing}`);
   const bundle = ready.launch;
@@ -133,7 +140,7 @@ test("C8 正常：spawn 收到 javaExeFor 那支、launchId 與真 token；log �
   await h.launch(online);
   assert.equal(h.calls.spawn.length, 1);
   const { exe, args } = h.calls.spawn[0];
-  assert.equal(exe, javaExeFor(h.paths, RUNTIME.javaMajor));
+  assert.equal(exe, javaExeFor(hostPlatform(), h.paths, RUNTIME.javaMajor));
   assert.ok(args.includes(LAUNCH_ID), "argv 帶 launchId");
   assert.ok(args.includes(TOKEN), "交給遊戲的是真 token");
   assert.equal(h.calls.log.length, 1);
@@ -272,11 +279,11 @@ test("S1 argv 照 json 組：log4j、classpath、launcher 名與版本；舊的�
     1,
   );
   assert.equal(count(args, "-cp"), 1);
-  const cp = argOf(args, "-cp").split(";");
-  assert.equal(cp.length, 84);
+  const cp = argOf(args, "-cp").split(CP_SEP);
+  assert.equal(cp.length, CP_COUNT);
   assert.equal(cp.at(-1), path.join(g, "versions", "1.21.11", "1.21.11.jar"));
   assert.equal(
-    cp.some((p) => p.includes("/")),
+    cp.some((p) => p.includes(CP_FOREIGN_SEP)),
     false,
   );
   assert.equal(
@@ -328,7 +335,7 @@ test("S1b 啟動照成品走：成品哪一欄換了，argv 就跟著換", async
   assert.equal(
     (await run(B)).includes("-Xss1M"),
     false,
-    "對照：x86_64 沒有 -Xss1M",
+    "對照：這台的 arch（x86_64、arm64）沒有 -Xss1M",
   );
 
   let a = await run({ ...B, logConfigRel: "assets/log_configs/other.xml" });
@@ -348,11 +355,11 @@ test("S1b 啟動照成品走：成品哪一欄換了，argv 就跟著換", async
   assert.equal(argOf(a, "--version"), "x-id");
   a = await run({ ...B, versionJarRel: "versions/x/x.jar" });
   assert.equal(
-    argOf(a, "-cp").split(";").at(-1),
+    argOf(a, "-cp").split(CP_SEP).at(-1),
     path.join(g, "versions", "x", "x.jar"),
   );
   a = await run({ ...B, libraries: B.libraries.slice(1) });
-  assert.equal(argOf(a, "-cp").split(";").length, 83);
+  assert.equal(argOf(a, "-cp").split(CP_SEP).length, CP_COUNT - 1);
   a = await run({ ...B, env: { ...B.env, os: { ...B.env.os, arch: "x86" } } });
   assert.ok(a.includes("-Xss1M"));
 });
@@ -578,4 +585,34 @@ test("C3b 同一份 configure：啟動送 running true、清過期行程送 fals
   h.calls.children[0].exitCode = 0;
   assert.equal(isMinecraftRunning(), false);
   assert.deepEqual(h.calls.running, [true, false]);
+});
+
+// → _notes/plans/mac-linux-support.md M4（Q2：Mac 首版不帶 Discord helper）
+test("M4 平台資料說沒有 Discord helper ⇒ 啟動成功但不啟動 helper；有 ⇒ 帶著遊戲的 pid 啟動一次", async (t) => {
+  const MAC = describePlatform({
+    platform: "darwin",
+    arch: "arm64",
+    homedir: "/Users/t",
+  });
+  const h = await setup(t);
+  // Mac 的 java 在 bundle 裡的位置；其餘（classpath、參數）照平台資料組
+  const macJava = javaExeFor(MAC, h.paths, RUNTIME.javaMajor);
+  await fsp.mkdir(path.dirname(macJava), { recursive: true });
+  await fsp.writeFile(macJava, "");
+
+  const started = [];
+  const tryStartDiscordRpcHelper = async (arg) => {
+    started.push(arg);
+  };
+  await h.launch(online, { platform: MAC, tryStartDiscordRpcHelper });
+  assert.equal(h.calls.spawn.length, 1);
+  assert.equal(h.calls.spawn[0].exe, macJava);
+  assert.deepEqual(started, []);
+
+  await h.launch(online, {
+    platform: { ...hostPlatform(), hasDiscordHelper: true },
+    tryStartDiscordRpcHelper,
+  });
+  assert.equal(h.calls.spawn.length, 2);
+  assert.deepEqual(started, [{ mcPid: undefined }]);
 });

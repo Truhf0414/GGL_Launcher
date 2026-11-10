@@ -8,6 +8,7 @@ const { spawn } = require("child_process");
 const { ensureWritableTree } = require("./fs-utils");
 const { launchIdFor } = require("../lib/runtime-target.js");
 const { javaExeFor } = require("../lib/paths-layout.js");
+const { hostPlatform } = require("../lib/platform.js");
 const { heapMbFromSettings } = require("../lib/launch-memory.js");
 const {
   buildClasspath,
@@ -43,8 +44,8 @@ const REQUIRED_FUNCTIONS = [
 let launchDeps = null;
 
 function configureMinecraftLaunch(next) {
-  // spawn 正式不注入、預設就是正式實作：測試縫（→ 同檔 §裁決 6b-3 Q6）；給了 undefined 也算蓋掉
-  const merged = { spawn, ...next };
+  // spawn、platform 正式不注入、預設就是正式實作／這台的平台資料：測試縫（→ 同檔 §裁決 6b-3 Q6）；給了 undefined 也算蓋掉
+  const merged = { spawn, platform: hostPlatform(), ...next };
   for (const key of REQUIRED_FUNCTIONS) {
     if (typeof merged[key] !== "function")
       throw new TypeError(`configureMinecraftLaunch: 缺少必填的注入 ${key}`);
@@ -161,7 +162,8 @@ async function launchMinecraft({ settings, paths, record, launch, auth }) {
   await fsp.mkdir(gameDir, { recursive: true });
   await ensureWritableTree(gameDir);
 
-  const javaExe = javaExeFor(paths, record.javaMajor);
+  const platform = d.platform;
+  const javaExe = javaExeFor(platform, paths, record.javaMajor);
   try {
     await fsp.access(javaExe, fs.constants.F_OK);
   } catch {
@@ -174,6 +176,7 @@ async function launchMinecraft({ settings, paths, record, launch, auth }) {
     libraries: launch.libraries,
     librariesDir: path.join(gameDir, "libraries"),
     versionJarPath: abs(launch.versionJarRel),
+    platform,
   });
   const nativesDir = path.join(gameDir, "natives");
   await fsp.mkdir(nativesDir, { recursive: true });
@@ -185,6 +188,7 @@ async function launchMinecraft({ settings, paths, record, launch, auth }) {
     classpath,
     auth,
     launcher: { name: LAUNCHER_NAME, version: LAUNCHER_VERSION },
+    platform,
   });
   // 沒有 log4j 設定檔 ⇒ 不給這個鍵（給 null 會被當成用錯）
   const logArg =
@@ -229,7 +233,10 @@ async function launchMinecraft({ settings, paths, record, launch, auth }) {
   runningMcProcess = p;
   d.sendMcRunning(true);
 
-  void d.tryStartDiscordRpcHelper({ mcPid: p.pid });
+  // 這個平台的安裝檔沒帶 helper ⇒ 不啟動，也不讓它去提示「找不到 helper」（那是預期中的缺席）
+  if (platform.hasDiscordHelper) {
+    void d.tryStartDiscordRpcHelper({ mcPid: p.pid });
+  }
 
   let finalized = false;
   const finalize = (code, reason) => {

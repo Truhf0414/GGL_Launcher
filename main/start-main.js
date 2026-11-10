@@ -11,10 +11,8 @@ const {
   computeDebugLoggingEnabled,
 } = require("../lib/launcher-debug-logging.js");
 const { readAccount, writeAccount } = require("./account-store");
-const {
-  getPaths,
-  DEFAULT_LAUNCHER_ROOT_DIR,
-} = require("../lib/paths-layout.js");
+const { getPaths } = require("../lib/paths-layout.js");
+const { hostPlatform } = require("../lib/platform.js");
 const {
   initSettingsAtBoot,
   readSettings,
@@ -83,7 +81,7 @@ async function showSettingsRecoveredNotice({ backupPath, why }) {
       detail: recoveredNoticeText({
         why,
         backupPath,
-        defaultRootDir: DEFAULT_LAUNCHER_ROOT_DIR,
+        defaultRootDir: hostPlatform().defaultLauncherRootDir,
       }),
       buttons: ["確定"],
     });

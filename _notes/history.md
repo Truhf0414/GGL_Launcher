@@ -286,6 +286,59 @@
   - **建置**（runbook §3）：`H:\GGL3\b101`，帶兩個設定 `git archive`，418 個追蹤檔核對全部一致；`npm ci`、`dist:win` exit 0，`check:packaged-artifacts` 過，日誌沒有 `build:rpc-helper`。安裝檔 `GGL-Launcher-Setup-1.0.1.exe`，143,748,314 bytes，sha256 `cd0eed458a142012abf136d7b097ff2ef91d0b8b5dde67660d91684a9b3dfde7`。helper 打包前後 sha256 相同；從 app.asar 抽出的 `server-config.js` 是新網址、`package.json` 是 1.0.1。撞到的：用 `@electron/asar extract-file` 抽檔會落在當前目錄，蓋掉建置資料夾根目錄的 `package.json` 之後又被刪掉；已從 `e9a35fa` 還原，hash 等於 commit 的 blob。這發生在安裝檔建完之後。owner 驗收：「OK，驗收通過」。
   - **發版**：owner 依序授權 push（「push」）、建 Draft（「建 Draft」）、公開（「公開」）。Draft 下載回來（`H:\GGL3\b101-dl`）的 sha256、notes 寫的 sha256 與建置 commit、檔名版本都一致。公開後 tag `v1.0.1` → `e9a35fa`，標為 Latest；未登入的 curl 下載（`H:\GGL3\b101-anon`）sha256 一致，`releases/latest` 302 到 `v1.0.1`。
   - **沒做**：runbook §6 第 4 點的 SmartScreen／Defender 畫面；§8 第 3 點（正式站台唯讀 smoke）和第 4 點（README／下載入口實點）。站台 `minLauncherVersion` 沒調高（1.0.0 照樣能玩，只有 Discord 鈕連到失效邀請）。
+- 2026-11-07 公告改成 GGL3.0.3：owner 給了公告卡、通知、日誌的文字。CC 先擬草稿，發現站台 `release.json` 還是 `GGL3.0.2`（`H:\GGL3-release\GGL3.0.3` 已建好但還沒發佈），回報給 owner。owner 自己發佈之後說「發好了，更新吧。」，CC 再查一次 `release.json` 是 `GGL3.0.3`、`releases/20261107-215852-GGL3.0.3.json` 存在，才寫進站台。
+  - **改了什麼**（`H:\Caddy_sitebuild`）：
+    - `notice.json`：公告標題改成 `GGL3.0.3`，副標照 owner 給的，保留 `|`。新增通知 id `2026-11-07-ggl3.0.3`，`createdAt` `2026-11-07T21:59:50+08:00`。舊的 `2026-11-01-launch` 留著。
+    - `changelog.json`：最上面加 GGL3.0.3 的四行，空一行，下面接原本的 v1.0.0 那段。接著放、通知用同一句當標題和內文，都是 CC 自己決定的，回覆時講明了，owner 沒有反對。
+  - **備份**：改之前的兩支在 `H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261107-215950`。sha256 和改前的站台檔相同（notice `9db7d45b…`、changelog `ab1f5a0b…`）。
+  - **核對**：站台檔和草稿 `cmp` 相同；`check-site` exit 0；公開網址抓回的兩支都是 200，和本機逐位元組相同。
+  - **沒做**：沒開啟動器看實際畫面。GGL3.0～3.0.3 這幾次模組包發佈是 owner 自己做的，本檔沒有紀錄。〔更正 2026-11-08：是 CC 依 owner 授權發的 → 本檔 2026-11-06～08 模組包發佈〕
+- 2026-11-08 公告改成 GGL3.0.4：流程同 11-07 那條。owner 先給文字，CC 查到 `release.json` 還是 `GGL3.0.3`（`H:\GGL3-release\GGL3.0.4` 已建、未發佈），先擬草稿沒動站台。owner 發佈後說「發好了。」，CC 再查 `release.json` 是 `GGL3.0.4`、`releases/20261108-141944-GGL3.0.4.json` 存在，才寫入。
+  - **改了什麼**（`H:\Caddy_sitebuild`）：公告標題 `GGL3.0.4`；新增通知 id `2026-11-08-ggl3.0.4`，`createdAt` `2026-11-08T14:21:09+08:00`，舊的兩則留著，鈴鐺共三則；`changelog.json` 最上面加 3.0.4 四行，空一行接原本內容。
+  - **備份**：`H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261108-142109`，sha256 和改前站台檔相同（notice `d5581cf6…`、changelog `e0544862…`）。
+  - **核對**：站台檔和草稿 `cmp` 相同；`check-site` exit 0；公開網址兩支都是 200，和本機逐位元組相同。
+  - **沒做**：沒開啟動器看實際畫面。GGL3.0.4 的發佈是 owner 自己做的，本檔沒有紀錄。〔更正 2026-11-08：3.0.4 是 CC 依 owner 授權發的 → 下一條〕
+- 2026-11-06～08 模組包 GGL3.0～3.0.5 發佈（CC 依 owner 授權，`scripts/publish.js`；來源是 owner 的 Prism 實例 `H:\PrismLauncher\instances\GGL3.0`，版本資料夾在 `H:\GGL3-release\<版本>`，乾跑與發佈報告只留在該 session 的 scratchpad）。每版都先乾跑、把報告給 owner 看，owner 說「發」才 `--apply`；發完都核對：報告除了最後一行跟乾跑相同、`release.json` 的版號與檔數、`check-site` exit 0、公開網址的 `release.json`／`manifest.json` 跟本機 `cmp` 相同、抽一個新 blob 從公開網址下載跟 Prism 原檔相同。
+  - **GGL3.0**（11-06 17:44:13）：上一版 alpha1。複製 include 的七項＋`mmc-pack.json`，跟 Prism `diff -r` 相同；複製前確認沒有 javaw／java 在跑（對照組 explorer.exe 查得到）。`servers.dat` 照 owner 指示拿掉 localhost 那筆：用 scratchpad 的 NBT 腳本，原檔讀了直接寫回跟原檔逐位元組相同，才刪那筆；Prism 原檔沒動。loader 0.19.3 → 0.20.1（`meta.fabricmc.net` 對 0.20.1 回 200，假版本回 400）。新增 216、變更 63、刪除 116，清掉封存 `alpha1-l0192`。撞到：第一次抽查 blob 用 `tee >(wc -c) | sha256sum`，算出的 hash 不對，改成先存檔再算就相同。
+  - **GGL3.0.1**（11-06 20:44:28）：owner 發現有東西沒調好、問能不能直接改站台檔；CC 答不行（blob 檔名就是 sha256，啟動器下載後會驗；`release.json` 只能由工具寫），而且同一個版本名內容不同會被工具擋（`version-reused`），只能換名重發。改了 SimpleMenu 圖示、移掉 REI 的 config；清掉 `alpha1-l0193`。
+  - **GGL3.0.2**（11-07 08:01:45）：新增 47、變更 38、刪除 12；Prism 的 `servers.dat` 被遊戲重寫過（6262 → 4964 bytes），照樣拿掉 localhost。報告先寫明會清掉 alpha1 封存，以及只有它用到的 169 個 blob（436.8 MB），owner 說「發」。撞到：發完查 blob 完整性報缺 600 多個，原因是 Windows 的 `jq` 輸出帶 `\r`；去掉 `\r` 重查是 0 個缺，拿假 hash 當對照組會報缺 1。
+  - **GGL3.0.3**（11-07 21:58:52）：第一次乾跑時 `backport_261` 是 `.disabled`，被排除規則當成刪除；owner 說「有一個剛剛被關掉了。重跑一下。」，CC 刪掉還沒發的版本資料夾重新組，重跑後那個 jar 變成「變更」。複製前有 3 個 java.exe，查命令列都是 Gradle，不是遊戲。清掉 GGL3.0 封存。
+  - GGL3.0.1～3.0.3 的報告都標了「玩家可改檔，會整檔覆蓋」，CC 每次都補一句「目前沒有玩家，不影響」，這句沒有查證 → 事故帳 2026-11-07。
+  - **GGL3.0.4**（11-08 14:19:44）：第一版照 `docs/release-runbook.md` §4a 組，CC 用 scratchpad 的腳本 `build-release-dir.js`（讀 `scripts/publish-config.js` 與 `lib/sync/glob.js` 判斷哪些是玩家可改檔）。基準：站台 3.0.3 的 449 個玩家可改檔，跟 `H:\GGL3-release\GGL3.0.3` 比 sha256，0 個不符（對照組：拿 3.0.2 的資料夾比，抓到 25 個不符，腳本停下、沒有建資料夾）。Prism 有改、被擋下的有 27 個（`options.txt`、`servers.dat`、`iris.properties` 等等，以及 juxtui 全景截圖）。owner 說「AliveCombat 的 Config 可以移掉」，CC 從版本資料夾刪掉那 2 個檔，Prism 裡的沒動。發完拿 3.0.3 與 3.0.4 的 release 比玩家可改檔：變更 0、新增 2（新 mod 的 config）、刪除 2（AliveCombat）。
+  - **GGL3.0.5**（11-08 14:24:37）：owner 說「笑死，我的問題。請你再發一版。」，只刪 `mods/slabbed-…jar`。AliveCombat 的 2 個 config 又被腳本從 Prism 當成新檔帶回來，CC 照上一版的指示再刪掉。跟 3.0.4 比玩家可改檔：變更、新增、刪除都是 0。
+  - **現在可退的版本**：查法 `node scripts/publish.js --list`。
+  - **沒做**：沒從玩家那邊確認 3.0.4 以後設定沒掉。Prism 裡 AliveCombat 與 `config/slabbed/` 還在，下次組版本會被當成新檔帶回來。`build-release-dir.js` 只在 session 的 scratchpad，沒進 repo → future-work.md §收集區。
+- 2026-11-08 公告改成 GGL3.0.5：owner 給文字時，`release.json` 已經是 `GGL3.0.5`（`releases/20261108-142437-GGL3.0.5.json`，發佈見上一條），所以沒擬草稿、直接照 3.0.4 的格式寫入。
+  - **改了什麼**（`H:\Caddy_sitebuild`）：公告標題 `GGL3.0.5`；新增通知 id `2026-11-08-ggl3.0.5`，`createdAt` `2026-11-08T14:27:02+08:00`，鈴鐺共四則；`changelog.json` 最上面加 3.0.5 一行，空一行接原本內容。新檔用 `jq` 從站台現檔改出來。
+  - **備份**：`H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261108-142702`，sha256 和改前站台檔相同（notice `d2dc2360…`、changelog `5957b5a2…`）。
+  - **核對**：站台檔和產出檔 `cmp` 相同；`check-site` exit 0；公開網址兩支都是 200，和本機逐位元組相同。
+  - **沒做**：沒開啟動器看實際畫面。日誌 3.0.4 與 3.0.5 都寫「修正 Slabbed 模組的效能問題」，是照 owner 原文寫的，CC 有提醒、owner 沒改。
+- 2026-11-09 模組包 GGL3.0.6 發佈（CC 依 owner 授權，流程同 11-06～08 那條；乾跑、發佈報告與腳本只留在該 session 的 scratchpad）。起因：owner 說上次調的 config 玩家沒收到；CC 解釋 runbook §4a 會沿用上一版的玩家可改檔，只有 owner 點名的檔才從 Prism 拿。
+  - **組包**：用 scratchpad 的 `build-release-dir.js`，這次加了兩個參數：owner 點名要推的檔、owner 點名不放的新檔。基準：站台 3.0.5 的 449 個玩家可改檔，跟 `H:\GGL3-release\GGL3.0.5` 比 sha256，0 個不符（對照組：拿 3.0.2 的資料夾比，26 個不符、2 個多出來，腳本停下、沒有建資料夾）。
+  - **第一次乾跑**：Prism 有改、被擋下的玩家可改檔 40 個；新增的玩家可改檔 19 個，都是 owner 玩遊戲留下的（16 個 juxtui localhost 全景截圖、JEI 書籤、`config/localhost_25567/fresh-loot-highlight.json`、內容為空的 `my-totem-doll-known-player-uuids.json5`）；另外新增資源包 `Dark JujutsuTextures.zip`。
+  - **owner 裁決**：「19 個玩家可改檔可以擋。」；「Punchy 的幾個、streamsreflowings 的、asyncparticles 的一定要同步。其他都可擋。」，也就是 `config/punchy/` 底下的 `punchy_config.json`、`mix_profiles/Default_.json`、`menu_prefs.json`，以及 `config/streamsreflowing.properties`、`config/asyncparticles/asyncparticles-mixin.properties` 這 5 個檔；資源包 owner 從 Prism 刪掉了（owner 說「juxtui 我已經刪掉了」，CC 問是不是資源包，owner 答「對，是資源包」）；juxtui 截圖「這個就正常擋」，因為那個 mod 在玩家每次登出時會重新截自己的。
+  - **重組與乾跑**：CC 刪掉還沒發布的 3.0.6 資料夾，重新組。新增 3、變更 5（就是點名的那 5 個）、刪除 3、不變 683；mods：新增 `ggl_sundries-0.1.0`，punchy 3.1 → 3.2，punchy-moves 1.0.7 → 1.0.8；刪除 `config/slabbed/dismissed-beta-notice-worlds.json`；上傳 8 個 blob（5.7 MB），清掉 3 個 blob 與封存 `GGL3.0.3`。AliveCombat 的 config 這次沒有出現在新增裡。撞到：CC 用 `fd … | head` 只看了前 10 行，就跟 owner 說「Prism 裡的 juxtui 只剩 `____`」；`ls` 重查是 7 組都在，回覆中已更正。
+  - **發布前**：owner 說「最後再列一次完整要更新的內容吧！好了就推。」CC 用 scratchpad 的 `verify-prism-unchanged.js` 照同一套規則重算，692 個檔跟版本資料夾的 sha256 都相同（對照組拿 3.0.5 的資料夾比，差 1500 處）；重跑的乾跑跟 owner 看過的那份逐字相同，才 `--apply`。
+  - **發布與核對**（11-09 10:56:13）：報告除了最後一行跟乾跑相同；`release.json` 是 `GGL3.0.6`、691 個檔，`releases/20261109-105613-GGL3.0.6.json` 存在；`check-site` exit 0；從 `ggl.leaharmonic.com` 抓回的 `release.json`、`manifest.json` 跟本機 `cmp` 相同（CC 第一次抓錯網域 `ggl3.leaharmonic.com`，憑證錯誤）；抽 `config/punchy/punchy_config.json` 與 `mods/ggl_sundries-0.1.0.jar` 從公開網址下載，跟 Prism 原檔相同。
+  - **沒做**：公告、鈴鐺通知、日誌還停在 3.0.5（owner 這輪說「只寫筆記」），§4a 要求公告講明點名推送的那 5 個檔，這件也還沒做。沒從玩家那邊確認收到。兩支腳本還在 scratchpad，沒進 repo → future-work.md §收集區。
+- 2026-11-09 公告改成 GGL3.0.6：owner 給文字時，`release.json` 已經是 `GGL3.0.6`（發佈見上一條），照 3.0.5 的格式直接寫入。
+  - **改了什麼**（`H:\Caddy_sitebuild`）：公告標題 `GGL3.0.6`；新增通知 id `2026-11-09-ggl3.0.6`，`createdAt` `2026-11-09T10:57:21+08:00`，鈴鐺共五則；`changelog.json` 最上面加 owner 給的 3.0.6 七行，空一行接原本內容。
+  - **備份**：`H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261109-105721`，sha256 和改前站台檔相同（notice `34f24e91…`、changelog `8d30e8eb…`）。
+  - **核對**：站台檔和產出檔 `cmp` 相同；`check-site` exit 0；公開網址兩支都是 200，和本機逐位元組相同。
+  - **沒做**：沒開啟動器看實際畫面。runbook §4a 要求公告講明點名推送的 5 個 config（Punchy、streamsreflowing、asyncparticles），這次寫入的日誌沒提；CC 寫入時沒先對 §4a，收尾時才發現，已回報 owner。owner 裁「不用補。」
+- 2026-11-09 模組包 GGL3.0.7 發佈（CC 依 owner 授權，流程同 11-06～08 那條；腳本從 3.0.6 那個 session 的 scratchpad 複製來用，報告只留在本 session 的 scratchpad）。起因：owner 說 3.0.6 原本要推的 Totem 設定沒推到，3.0.6 的日誌卻已寫「調整不死圖騰回 3D 模式」。
+  - **組包**：push 只放 `config/my-totem-doll.json5`（Prism 版 11-09 05:45 改過，跟 3.0.6 差兩行：`standard_doll_skin_type` `steve` → `player`、`standard_doll_model_data` 2d → 3d），blockNew 沿用 3.0.6 的 19 個（含內容為空的 `my-totem-doll-known-player-uuids.json5`）。組之前查過沒有從 Prism 開的 java（對照組 explorer 查得到）。基準：站台 3.0.6 的 448 個玩家可改檔跟 `H:\GGL3-release\GGL3.0.6` 比 sha256，0 個不符；被擋下 34 個。`verify-prism-unchanged.js` 692 個檔 0 差異。
+  - **乾跑**：新增 0、變更 1（就是 Totem 那支）、刪除 0、不變 690；上傳 1 個 blob，清掉 1 個 blob（0.3 MB）與封存 `GGL3.0.4`。版本名 `GGL3.0.7` 是 CC 定的，回覆時講明了。owner 先給了公告文字、沒說「發」，CC 查到站台還是 3.0.6，問過才發；owner：「發，標題用 3.0.7」。
+  - **發布與核對**（11-09 11:28:27）：發之前重算 0 差異、重跑乾跑跟 owner 看過的那份 `cmp` 相同；報告除了最後一行跟乾跑相同；`release.json` 是 `GGL3.0.7`、691 個檔，`releases/20261109-112827-GGL3.0.7.json` 存在；`check-site` exit 0；公開網址的 `release.json`、`manifest.json` 跟本機 `cmp` 相同；Totem 的 blob（`a1eea9df…`）從公開網址下載跟 Prism 原檔相同，對照組假 sha 回 404。
+  - **沒做**：沒從玩家那邊確認 Totem 變成 3D。
+- 2026-11-09 公告改成 GGL3.0.7：owner 給的公告卡標題寫 `GGL3.0.6`，CC 問過，owner 改成 3.0.7。發佈完才寫入。
+  - **改了什麼**（`H:\Caddy_sitebuild`）：公告標題 `GGL3.0.7`；新增通知 id `2026-11-09-ggl3.0.7`，`createdAt` `2026-11-09T11:29:08+08:00`，鈴鐺共六則；`changelog.json` 最上面加 owner 給的 3.0.7 三行，空一行接原本內容。
+  - **備份**：`H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261109-112908`，sha256 和改前站台檔相同（notice `4899c3be…`、changelog `34d82b1a…`）。
+  - **核對**：站台檔和產出檔 `cmp` 相同；`check-site` exit 0；公開網址兩支都是 200，和本機逐位元組相同。
+  - **沒做**：沒開啟動器看實際畫面。日誌沒寫 Totem 設定會整檔覆蓋玩家版本，是 owner 的文字，CC 有提醒。
+- 2026-11-10 Mac／Linux 支援開案：owner 問難度後裁先 Mac 再 Linux、五題（只做 Apple 晶片、Mac 首版不帶 Discord、Java 只走 Zulu＋Mojang、CI 加 macOS、預設裝 `~/Games/GGL`）→ plan v1 `124663dd`；輕量 SPR（自審 16 條＋Codex 7 條，Codex 的結論是「目前不能開始實作」，CC 把它標的兩條 blocker 裁成 major、處置相同）→ owner 放行 → plan v2；owner 給圖示原圖（存 `assets/icon.png`，未 commit）；M1 commit `e6386a0`（分支 `feat/mac-support`，32 檔，+622／-108）：`lib/platform.js` 與依平台的啟動參數、Java 位置、設定檢查、預設安裝位置，`npm test` 1476 過；owner 回報啟動器開得起來，並裁這一輪驗收積到最後一起做。沒做：Mac 上一次都沒跑過；設定視窗、選資料夾、啟動遊戲在 Windows 上未驗 → `plans/mac-linux-support.md`、`reviews/mac-linux-support-v124663dd-20261110.md`
+- 2026-11-10 Mac 支援 M2–M4 commit（分支 `feat/mac-support`，未 push）：M2 `aea2bc1` Java 安裝依平台（Mac 只查 Zulu、整個 bundle 原樣換上、Mojang 的 link 要是同一份 manifest 裡的項目才建、executable 設 0755），`scripts/try-java-install.cjs` 在 Windows 實跑兩條路都過；M3 `ae3336f` 非 Windows 用 `ps -axww` 偵測遊戲；M4 `90433c5` `dist:mac`（dmg、arm64、臨時簽章）、Mac 不帶 Discord helper、CI 加 macOS job、runbook §3a，`pack:win` 在 Windows 實跑過。`npm test` 1490 過、1 跳過。沒做：Mac 上一次都沒建過、沒跑過；macOS 的 CI 沒跑過；既有測試沒為 macOS 改 → `plans/mac-linux-support.md` §驗收
+- 2026-11-10 Mac 支援 push 與兩邊驗收：owner 說「好，推。」後 push `feat/mac-support`；CC 事前說推 7 個 commit，實際推了 14 個（本機 main 有 7 個沒推過的筆記 commit 一起上去），owner 事後裁「沒有問題。」。Mac mini 上另一個 CC session 做 Mac 驗收：第 1 步修 `main/sync/apply.js` 的 ENOTDIR 與一批寫死 Windows 的測試（`1b1bb38`；原本的 `5068a38` 帶 Co-Authored-By，owner 要求拔掉後改寫重推），第 2–9 步結果與筆記 `00a151a`。開草稿 PR `Truhf0414/GGL_Launcher#1` 讓 CI 跑（不合併），Windows 與 macOS job 都過。Windows 迴歸五項 owner 回報「全項通過。」（`868eaed`）。Mac 上看到的四件事 owner 裁完：splashscreen 另案、其餘三件不動 → `plans/mac-linux-support.md` §裁決、§驗收
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
@@ -296,3 +349,9 @@ microsoft-auth.js 完整走完 Microsoft→Xbox→Minecraft 三段並把 mcAcces
 
 ### 2026-09-11 現查：manifest 404 的原因
 本機 Caddy 服務在跑（Caddyfile 指向 H:\Caddy_sitebuild）、對外 Cloudflare 正常轉達；資料夾頂層無 manifest.json 與 bootstrap-*.json（files/bootstrap-GGL3.0.00、0.01 檔案樹在）。未修 → future-work.md §收集區（放回 manifest）
+
+### 2026-11-07 GGL3.0.2／3.0.3 蓋掉玩家的設定與按鍵
+owner 轉述玩家抱怨：「這次更新過後其他人的設定全部都跑掉。config 以及鍵盤設定都掉了。」原因：組版本資料夾時，CC 直接複製 Prism 實例的 `config/` 與 `options.txt`，裡面混著 owner 自己玩遊戲時的變動；玩家可改檔只要內容跟上一版不同，啟動器就整檔覆蓋、不備份（owner 2026-09-19 的設計，→ plans/instance-sync-v3.md §行為契約）。`options.txt` 的 sha256 在 3.0.1、3.0.2、3.0.3 各不相同，玩家可改檔被蓋的數量：3.0.2 有 66 個、3.0.3 有 25 個。乾跑報告每次都有標「會整檔覆蓋玩家版本」，CC 卻補一句「目前沒有玩家，不影響」，這是從過時的 memory 拿來的，沒有查證，也沒有問 owner；v1.0.0 早在 11-01 就公開了。被蓋掉的設定沒辦法從啟動器救回。處置：owner 選「A：沿用上一版設定」，寫成 docs/release-runbook.md §4a，3.0.4 起照做（→ 專案進程 2026-11-06～08）；memory 那條已改成「已過時，現在有玩家」。
+
+### 2026-11-10 Bash 指令裡的反引號被當成指令執行
+CC 查筆記行號時，把含反引號的文字（`npm ci`、`npm start` 等）直接放進雙引號的 `rg` 樣式，bash 把每一段反引號當成指令替換來執行：repo 裡的 `npm ci` 真的跑完（`node_modules` 被重裝，19:27），接著 `npm start` 真的開出啟動器視窗（用的是開發用的 userData `GGL_launcher`）；`main/runtime/java.js`、`lib/server-config.js` 也被當成 shell 腳本執行，各在前幾行語法錯誤就停。事後現查：工作樹除了 owner 自己改的 `docs/player-troubleshooting.md` 沒有變動、沒有多出檔案、`npm ls` 正常、`npm test` 1490 過。CC 停掉背景指令後視窗還在，想用 `taskkill` 關被權限擋下，由 owner 自己關。java.js 那幾行若有 `>` 轉向可能會寫出檔案，這次沒有發生。

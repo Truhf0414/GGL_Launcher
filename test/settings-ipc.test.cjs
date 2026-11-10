@@ -21,11 +21,12 @@ const {
   writeSettings,
 } = require("../main/settings.js");
 const { SETTINGS_KEYS } = require("../lib/settings-format.js");
+const { hostRoot } = require("./helpers/host-root.cjs");
 
 const REFUSED = "同步或啟動進行中，請稍後再改";
 const ON_DISK = {
   ...DEFAULT_SETTINGS,
-  launcherRootDir: "D:\\GGL",
+  launcherRootDir: hostRoot("D:\\GGL"),
   maxMemoryGb: 8,
 };
 
@@ -136,7 +137,7 @@ test("K5 settings:set 擋下不是物件的 patch 與不認得的鍵（含 memor
 test("K5 設定視窗實際送的四個鍵照常寫入；檔裡是合併後的完整物件、回傳它", async (t) => {
   const h = await setup(t);
   const patch = {
-    launcherRootDir: "E:\\Game2\\GGL",
+    launcherRootDir: hostRoot("E:\\Game2\\GGL"),
     playerId: "Steve",
     minMemoryGb: 2,
     maxMemoryGb: null,
@@ -157,7 +158,7 @@ test("V8 直接打 IPC 送非法值 ⇒ reject（訊息是同一份 formatIssue�
     { playerId: "" },
     { playerId: " Steve" },
     { launcherRootDir: "C:" },
-    { launcherRootDir: "  D:\\GGL  " },
+    { launcherRootDir: `  ${hostRoot("D:\\GGL")}  ` },
     { debugLogging: "true" },
   ]) {
     const h = await setup(t);
@@ -190,10 +191,13 @@ test("settings:set 遇壞檔 ⇒ reject SettingsError、不覆寫", async (t) =>
 test("W7 持鎖時換根目錄 ⇒ 拒絕、不寫", async (t) => {
   for (const holder of ["update", "repair", "launch"]) {
     const h = await setup(t, { lockHolder: holder });
-    await rejectsWith(h.set({ launcherRootDir: "E:\\Other" }), (e) => {
-      assert.equal(e.constructor, Error);
-      assert.equal(e.message, REFUSED);
-    });
+    await rejectsWith(
+      h.set({ launcherRootDir: hostRoot("E:\\Other") }),
+      (e) => {
+        assert.equal(e.constructor, Error);
+        assert.equal(e.message, REFUSED);
+      },
+    );
     await h.unchanged();
   }
 });
@@ -201,15 +205,18 @@ test("W7 持鎖時換根目錄 ⇒ 拒絕、不寫", async (t) => {
 test("W8 持鎖時根目錄字串不變 ⇒ 照寫；前後帶空白不再算「一樣」，而是不合法", async (t) => {
   {
     const h = await setup(t, { lockHolder: "update" });
-    await h.set({ launcherRootDir: "D:\\GGL", playerId: "Steve" });
+    await h.set({ launcherRootDir: hostRoot("D:\\GGL"), playerId: "Steve" });
     assert.equal((await h.onDisk()).playerId, "Steve");
   }
   {
     const h = await setup(t, { lockHolder: "update" });
-    await rejectsWith(h.set({ launcherRootDir: "  D:\\GGL  " }), (e) => {
-      assert.notEqual(e.message, REFUSED);
-      assert.ok(e.message.includes("launcherRootDir"), e.message);
-    });
+    await rejectsWith(
+      h.set({ launcherRootDir: `  ${hostRoot("D:\\GGL")}  ` }),
+      (e) => {
+        assert.notEqual(e.message, REFUSED);
+        assert.ok(e.message.includes("launcherRootDir"), e.message);
+      },
+    );
     await h.unchanged();
   }
 });
@@ -222,7 +229,7 @@ test("W9 patch 沒帶根目錄、或沒人拿鎖 ⇒ 照寫", async (t) => {
   }
   {
     const h = await setup(t);
-    await h.set({ launcherRootDir: "E:\\Other" });
-    assert.equal((await h.onDisk()).launcherRootDir, "E:\\Other");
+    await h.set({ launcherRootDir: hostRoot("E:\\Other") });
+    assert.equal((await h.onDisk()).launcherRootDir, hostRoot("E:\\Other"));
   }
 });

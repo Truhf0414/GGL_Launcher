@@ -28,9 +28,10 @@ const SAVED = {
   systemMemoryGb: 16,
 };
 
-// serverConfig:getDefaults 的形狀（main/ipc/server-config-ipc.js 永遠回這三個鍵）
+// serverConfig:getDefaults 的形狀（main/ipc/server-config-ipc.js 永遠回這四個鍵）
 const SERVER_DEFAULTS = {
   launcherRootDir: "C:\\Games\\GGL",
+  pathStyle: "windows",
   discordInviteUrl: "https://discord.gg/x",
   launcherDownloadUrl: "https://example.com/releases",
 };
@@ -346,4 +347,44 @@ test("P4 欄位空白、取得伺服器預設 ⇒ 用 launcherRootDir 開對話�
     ["dialog:selectDirectory", SERVER_DEFAULTS.launcherRootDir],
   );
   assert.equal(h.errorText(), "");
+});
+
+// ---- 安裝位置照平台的規則驗，規則名由 main 給 → _notes/plans/mac-linux-support.md M1 ----
+
+test("M1 儲存時取不到伺服器預設（不知道照哪個平台驗）⇒「儲存失敗：…」、不送 settings:set", async (t) => {
+  const h = setup(t, {
+    loadServerDefaults: async () => {
+      throw new Error("接線壞了");
+    },
+  });
+  await h.open();
+  await h.save();
+  await until(() => h.errorText() !== "", "錯誤出現");
+  assert.equal(h.errorText(), "儲存失敗：接線壞了");
+  assert.ok(!h.channels().includes("settings:set"));
+  assert.equal(h.record.closed, 0);
+});
+
+test("M1 pathStyle 是 posix ⇒ Windows 的路徑被擋在畫面、/ 開頭的送得出去", async (t) => {
+  const posixDefaults = async () => ({
+    ...SERVER_DEFAULTS,
+    pathStyle: "posix",
+  });
+  const blocked = setup(t, { loadServerDefaults: posixDefaults });
+  await blocked.open();
+  await blocked.save();
+  await until(() => blocked.errorText() !== "", "錯誤出現");
+  assert.match(blocked.errorText(), /\/ 開頭/);
+  assert.equal(blocked.record.focused, "inputInstallDir");
+  assert.ok(!blocked.channels().includes("settings:set"));
+
+  const sent = setup(t, { loadServerDefaults: posixDefaults });
+  await sent.open();
+  sent.refs.inputInstallDir.value = "/Users/t/Games/GGL";
+  await sent.save();
+  await until(() => sent.channels().includes("settings:set"), "送出");
+  assert.equal(
+    sent.record.invoked.find(([c]) => c === "settings:set")[1].launcherRootDir,
+    "/Users/t/Games/GGL",
+  );
 });

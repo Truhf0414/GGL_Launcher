@@ -115,8 +115,11 @@ test("L3b: anonymous async frames are kept as relative locations", async (t) => 
   const fixtureFrames = err.stack
     .split("\n")
     .filter((l) => l.includes("ggl-log-errors.js"));
-  // 對照：真的有「at async <路徑>:行:欄」這種 frame，否則這個測試沒測到東西
-  assert.ok(fixtureFrames.some((l) => /^\s*at async [A-Za-z]:\\/.test(l)));
+  // 對照：真的有「at async <絕對路徑>:行:欄」這種 frame，否則這個測試沒測到東西
+  // （絕對路徑：Windows 是 X:\ 開頭、POSIX 是 / 開頭）
+  assert.ok(
+    fixtureFrames.some((l) => /^\s*at async (?:[A-Za-z]:\\|\/)/.test(l)),
+  );
   s.log.gglError("main", "anon", err, {});
   const rec = s.records()[0];
   assert.equal(rec.st.length, fixtureFrames.length);

@@ -618,6 +618,7 @@ function failOn(...fails) {
     if (channel === "serverConfig:getDefaults")
       return {
         launcherRootDir: "C:\\Games\\GGL",
+        pathStyle: "windows",
         discordInviteUrl: "https://discord.gg/x",
         launcherDownloadUrl: "https://example.com/releases",
       };

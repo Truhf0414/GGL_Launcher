@@ -8,6 +8,18 @@ const assert = require("node:assert/strict");
 const { checkRuntimeReady } = require("../lib/runtime-readiness.js");
 const { runtimeNeeds } = require("../lib/runtime-needs.js");
 const fx = require("./helpers/runtime-fixtures.cjs");
+const { describePlatform } = require("../lib/platform.js");
+
+const WIN = describePlatform({
+  platform: "win32",
+  arch: "x64",
+  homedir: "C:\\Users\\t",
+});
+const MAC = describePlatform({
+  platform: "darwin",
+  arch: "arm64",
+  homedir: "/Users/t",
+});
 
 const LAUNCH_ID = "fabric-loader-0.19.3-1.21.11";
 const JAVA_REL = "runtime/java-21/bin/java.exe";
@@ -72,7 +84,12 @@ function installed({
 }
 
 const check = (rec, inst) =>
-  checkRuntimeReady({ record: rec, probe: inst.probe, env: ENV });
+  checkRuntimeReady({
+    record: rec,
+    probe: inst.probe,
+    env: ENV,
+    platform: WIN,
+  });
 /** 就緒：ready／missing 之外帶著成品（⑤c P2′）；成品內容由 N1、N2 驗 */
 const assertReady = (r) => {
   assert.deepEqual(
@@ -104,7 +121,12 @@ test("C1 沒有記錄 ⇒ 只有 record、不丟錯、probe 一支都沒被呼�
     },
   };
   assert.deepEqual(
-    await checkRuntimeReady({ record: null, probe: throwing, env: ENV }),
+    await checkRuntimeReady({
+      record: null,
+      probe: throwing,
+      env: ENV,
+      platform: WIN,
+    }),
     { ready: false, missing: ["record"] },
   );
 });
@@ -214,4 +236,36 @@ test("N2 就緒 ⇒ 帶 launch（runtimeNeeds 那份、env 原物件）；不就
       missing: ["log-config"],
     },
   );
+});
+
+// → _notes/plans/mac-linux-support.md M1：java 在哪由平台資料決定
+test("M1 Mac：java 要在 runtime/java-21/Contents/Home/bin/java；只有 Windows 位置的那支 ⇒ 缺 java", async () => {
+  const MAC_ENV = Object.freeze({
+    os: { name: "osx", arch: "arm64", version: "25.1.0" },
+    features: {},
+  });
+  const macFiles = runtimeNeeds({
+    record: record(),
+    target: { ok: true, value: fx.fabric() },
+    vanilla: { ok: true, value: fx.vanilla() },
+    env: MAC_ENV,
+  }).files.map((f) => `gameDir:${f.rel}`);
+  const isFileIn = (set) => async (base, rel) => set.has(`${base}:${rel}`);
+  const probeWith = (javaRel) => ({
+    readJson: installed().probe.readJson,
+    isFile: isFileIn(new Set([...macFiles, `root:${javaRel}`])),
+  });
+  const run = (javaRel) =>
+    checkRuntimeReady({
+      record: record(),
+      probe: probeWith(javaRel),
+      env: MAC_ENV,
+      platform: MAC,
+    });
+  const ok = await run("runtime/java-21/Contents/Home/bin/java");
+  assert.deepEqual(
+    { ready: ok.ready, missing: ok.missing },
+    { ready: true, missing: [] },
+  );
+  assert.deepEqual(await run(JAVA_REL), { ready: false, missing: ["java"] });
 });

@@ -11,6 +11,8 @@ const path = require("path");
 
 const { prepareRuntime } = require("../main/runtime/prepare.js");
 const { installRuntimeFiles } = require("../main/runtime/minecraft.js");
+const { javaExeFor } = require("../lib/paths-layout.js");
+const { hostPlatform } = require("../lib/platform.js");
 const {
   startFakeRuntime,
   makeFakeRuntime,
@@ -156,7 +158,8 @@ async function readyInstall(t, { withVanillaJson }) {
   if (withVanillaJson)
     await writeJson(`versions/${MC}/${MC}.json`, fake.vanilla);
   await writeJson(`versions/${LAUNCH_ID}/${LAUNCH_ID}.json`, fake.fabric);
-  const java = path.join(root, "runtime", "java-21", "bin", "java.exe");
+  // java 放在這台平台的位置（Windows＝bin/java.exe、Mac＝Contents/Home/bin/java）；放錯位置會被當成沒裝而去安裝
+  const java = javaExeFor(hostPlatform(), paths, 21);
   await fsp.mkdir(path.dirname(java), { recursive: true });
   await fsp.writeFile(java, "java");
 

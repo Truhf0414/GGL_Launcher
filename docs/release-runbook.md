@@ -80,6 +80,36 @@ v1.0.0 的 Release Gate 已在 2026-11-01 由 owner 簽核通過（B6；接受�
 
 〔已實測〕2026-10-30 的 B1：在候選 `3272fe5` 上，Git Bash 帶兩個設定匯出，核對 413 個追蹤檔全部一致後 `npm ci`、`dist:win` exit 0（約 30 秒，依賴已在本機快取），`check:packaged-artifacts` 過，建置日誌沒有 `build:rpc-helper`。Node 24 與 Node 22.23.4 的 `npm test` 各 1454／1454。出貨 helper 的 Discord 行為、安裝與啟動那個安裝檔、CI 都沒做（之後在 B1～B5 補上，見 Plan §四 各批證據紀錄）。**安裝檔的 sha256 與路徑屬於當次 B1 的證據，於 B1 結案時記入 `_notes/history.md`，不寫在這份操作文件裡。**
 
+## 3a. 建置 Mac 版（Apple 晶片）
+
+〔已實測〕2026-11-10 在 owner 的 Mac mini（macOS 26.6.2、arm64、Node 22.23.4）上做過步驟 3：`npm run dist:mac` exit 0、`check:packaged-artifacts` 過；以及下面玩家安裝的一整段（在 `GGL Launcher.app` 與 dmg 上實際走過）。步驟 1、2 與 4 沒有照做（建在 owner 自己的工作目錄，路徑含空白，沒有走乾淨 clone；候選 commit 的 sha256 沒有記）。規格與驗收清單在 `_notes/plans/mac-linux-support.md`。
+
+- 只能在 Mac 上建（Apple 晶片；`dist:mac` 只打 arm64）。Windows 上建不出 dmg。〔已實測〕dmg 約 146 MB；`assets/icon.png`（1254 px）electron-builder 自己轉成 icns，不用另外準備；包裡的 `Resources/assets` 只有背景影片，沒有 `rpc-helper.exe`。
+- Mac 版**沒有** Apple 的開發者簽章與公證，只有臨時簽章（ad-hoc；`build.mac.identity` 是 `"-"`）。〔據文件〕依據是 `node_modules/app-builder-lib/out/macPackager.js`：identity 給 `"-"` 就用臨時簽章。〔已實測〕`codesign -dv` 顯示 `Signature=adhoc`、`TeamIdentifier=not set`，`codesign --verify --deep --strict` 通過；`spctl -a` 對它的判定是 `rejected`（沒公證，預期內）。
+- Mac 版不帶 Discord 狀態（沒有 `rpc-helper`）；`check:packaged-artifacts` 在 Mac 的包裡看到 `rpc-helper.exe` 會報錯。
+
+步驟：
+
+1. 在 Mac 上取得候選 commit 的乾淨來源（`git clone` 後 `git checkout <候選 commit>`，或照 §3 第 1、2 步的 `git archive` 與核對），放在路徑短、不含空白的資料夾。
+2. `npm ci`，再 `npm test`（要全綠）。
+3. `npm run dist:mac`：依序跑 `check:ui-css:strict`、`docs:ipc`、產生 electron-builder 設定、electron-builder（dmg、arm64）、`check:packaged-artifacts`。輸出在 `dist/`：安裝檔 `dist/GGL-Launcher-<version>-mac-arm64.dmg`，未封裝的 app 在 `dist/mac-arm64/GGL Launcher.app`。
+   - 只想要未封裝的 app（不做 dmg）用 `npm run pack:mac`。
+4. `shasum -a 256 dist/GGL-Launcher-<version>-mac-arm64.dmg`，記下版本、建置 commit、sha256（§7）。
+
+玩家安裝時要多做的一步（要寫進對玩家的說明）：
+
+- 從瀏覽器下載的 dmg 會被 macOS 加上隔離標記；app 沒有公證，直接打開會被擋（訊息可能是「無法打開」或「已損毀」）。把 app 拖進「應用程式」後，在「終端機」執行一次：
+
+  ```bash
+  xattr -cr "/Applications/GGL Launcher.app"
+  ```
+
+  〔已實測〕2026-11-10，macOS 26.6.2。擋下的畫面標題是「未打開『GGL Launcher』」，內文是「Apple 無法驗證『GGL Launcher』是否為惡意軟體，它可能會損害你的 Mac 或危害你的隱私權。」，只有「完成」與「丟到垃圾桶」兩個按鈕，沒有「仍要打開」。dmg 本身（帶瀏覽器下載的隔離標記）雙擊時也出現「無法安裝，因為未驗證」之類的擋下，之後 dmg 仍能掛載（玩家實際怎麼放行的沒有記下）。把 app 拖進「應用程式」後跑上面的 `xattr -cr`，再打開就能啟動，不需要重新登入。
+- **覆蓋安裝每次都要再放行**：再從 dmg 把同一個 app 拖進「應用程式」取代，第一次打開又被擋，要再跑一次 `xattr -cr`。
+- 第一次啟動時 macOS 會跳鑰匙圈授權視窗：「『GGL Launcher』想使用你在鑰匙圈的『GGL_launcher Safe Storage』裡儲存的機密資訊」，要輸入鑰匙圈「登入」的密碼，有「永遠允許」、「拒絕」、「允許」三個按鈕。按「允許」只管那一次（下次啟動會再問）；按「拒絕」不會當機，視窗正常開，但按啟動會顯示「暫時無法讀取登入憑證，請稍後再試」，登入狀態不變；再按一次啟動，視窗會再跳一次，按「永遠允許」就能啟動。按過「永遠允許」之後，覆蓋安裝同一個 dmg，登入狀態還在、視窗沒有再跳。
+- 同一台機器同時裝開發版（`npm start`）與裝好的 app 時，兩者共用同一個資料夾 `~/Library/Application Support/GGL_launcher` 與同一個鑰匙圈項目，登入資料互通；玩家只會裝一個，不受影響。
+- 給玩家的說明至少要寫：放行 dmg 與 app、每次更新安裝都要再放行一次、鑰匙圈視窗請按「永遠允許」、不小心按了「拒絕」就再按一次啟動。〔未驗〕不同版本（臨時簽章不同）的覆蓋安裝，鑰匙圈視窗會不會再跳：只驗過同一個 dmg 覆蓋。
+
 ## 4. 站台發布前檢查
 
 手改 `gate.json`、`notice.json` 之後、對外生效之前，跑只讀的檢查（G-6）：
@@ -98,6 +128,23 @@ node scripts/check-site.js <站台根目錄>
   node scripts/publish.js <版本資料夾>          # 預覽差異，不寫站台
   node scripts/publish.js <版本資料夾> --apply  # 正式發布，會修改站台
   ```
+
+### 4a. 組版本資料夾：玩家可改檔沿用上一版
+
+玩家可改檔（清單在 `scripts/publish-config.js` 的 `playerEditable`）只要內容跟上一版不同，玩家更新時就會被整檔覆蓋，而且不備份（`_notes/plans/instance-sync-v3.md` §行為契約）。Prism 實例裡的這些檔會跟著服主自己玩遊戲一起變，所以不能整包照搬。
+
+規則（owner 2026-11-07 裁定「A：沿用上一版設定」；起因 → `_notes/history.md` §事故帳 2026-11-07）：
+
+- **上一版**＝站台目前的版本（`jq .version H:/Caddy_sitebuild/release.json`），它的來源資料夾是 `H:\GGL3-release\<上一版>`。
+- 不是玩家可改的檔（`mods/`、`resourcepacks/`、`shaderpacks/` 的光影本體、`mmc-pack.json`）照 Prism 實例複製。
+- 玩家可改的檔：
+  - 上一版有 ⇒ **從上一版的資料夾複製**，不拿 Prism 的。
+  - 上一版沒有、Prism 有（通常是新 mod 帶來的 config）⇒ 從 Prism 複製。
+  - 上一版有、Prism 沒有 ⇒ 不放（等於發布時刪除，通常是移除的 mod 的 config）。
+  - 例外：owner 指名「這個檔要推給大家」⇒ 從 Prism 複製，並在公告講明。
+- `servers.dat` 也是玩家可改檔，同上，沿用上一版。從 Prism 拿時要先拿掉 localhost 那筆。
+- **乾跑驗收**：報告裡 `[變更]` 的玩家可改檔只能是 owner 指名的那些，多出任何一個就是組錯了，停下重組。`[新增]`、`[刪除]` 的玩家可改檔逐條列給 owner 看。注意：如果是既有 mod 改版後才新產生的 config，玩家本機可能已經有一份，`[新增]` 時一樣會被蓋。
+- 〔已實測〕2026-11-08 GGL3.0.4：組之前先確認站台 3.0.3 的 449 個玩家可改檔與 `H:\GGL3-release\GGL3.0.3` 逐檔 sha256 相同（對照組拿 3.0.2 的資料夾比，抓到 25 個不符）；Prism 有改、被擋下 27 個；乾跑與發布後玩家可改檔 `[變更]` 皆 0，只有新 mod 的 2 個 config 新增、owner 指示移掉的 AliveCombat 2 個 config 刪除。
 
 ## 5. rpc-helper
 
@@ -180,4 +227,5 @@ npm run build:rpc-helper
 ## 10. 還沒補齊的
 
 - §7、§8 的全部操作（M-22 後段）。
+- §3a 的 Mac 版：建置與玩家放行已在 owner 的 Mac mini 實測（2026-11-10），還沒做的是：乾淨 clone 的建置（步驟 1、2、4）、不同版本覆蓋安裝時鑰匙圈視窗會不會再跳、玩家實際收到的說明文字。
 - SmartScreen 的實際畫面（M-10 沒取得，owner 接受；公開後有人剛好截到再說）。

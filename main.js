@@ -33,7 +33,7 @@ if (
     }),
   );
 
-  // 只發行 Windows（Linux 是未來可能）：關掉最後一個視窗就結束（6d Q4，不留 macOS 的「留在 Dock」）
+  // 每個平台都一樣：關掉最後一個視窗就結束（6d Q4；Mac 版也不做「留在 Dock」）
   app.on("window-all-closed", () => app.quit());
 }
 

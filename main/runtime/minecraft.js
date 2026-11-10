@@ -366,7 +366,7 @@ function validateAssetIndex(idx, rel) {
 /**
  * 版本 jar → library（池）→ asset index → log4j 設定檔 → objects（池）；池子一個失敗就全停（E0）。
  * 跳過與驗證照 §檔案 第 4 步的表。檔案清單與就緒（lib/runtime-needs.js）同一套合併與過濾（⑤b V-a）。
- * env：lib/launch-args.js 的 windowsEnv；一進來就驗，發任何請求之前。
+ * env：lib/launch-args.js 的 launchEnv；一進來就驗，發任何請求之前。
  */
 async function installRuntimeFiles({
   gameDir,

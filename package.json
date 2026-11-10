@@ -13,6 +13,8 @@
     "docs:ipc": "node scripts/update-ipc-index.js",
     "dist:win": "npm run check:ui-css:strict && npm run docs:ipc && node scripts/generate-electron-builder-config.cjs && electron-builder --config scripts/.electron-builder.generated.json --win nsis --x64 && npm run check:packaged-artifacts",
     "pack:win": "npm run check:ui-css:strict && npm run docs:ipc && node scripts/generate-electron-builder-config.cjs && electron-builder --config scripts/.electron-builder.generated.json --win dir --x64 && npm run check:packaged-artifacts",
+    "dist:mac": "npm run check:ui-css:strict && npm run docs:ipc && node scripts/generate-electron-builder-config.cjs && electron-builder --config scripts/.electron-builder.generated.json --mac dmg --arm64 && npm run check:packaged-artifacts",
+    "pack:mac": "npm run check:ui-css:strict && npm run docs:ipc && node scripts/generate-electron-builder-config.cjs && electron-builder --config scripts/.electron-builder.generated.json --mac dir --arm64 && npm run check:packaged-artifacts",
     "format": "prettier --write **/*.{js,cjs,css,html,json,md,yml,yaml} --ignore-unknown",
     "format:file": "prettier --write",
     "check:ui-css": "node scripts/check-ui-css.cjs && node scripts/check-renderer-scripts.cjs",
@@ -70,10 +72,6 @@
     "asar": true,
     "extraResources": [
       {
-        "from": "assets/rpc-helper.exe",
-        "to": "assets/rpc-helper.exe"
-      },
-      {
         "from": "assets/sakura_field_BG.mp4",
         "to": "assets/sakura_field_BG.mp4"
       }
@@ -82,7 +80,13 @@
       "target": [
         "nsis"
       ],
-      "icon": "assets/icon.ico"
+      "icon": "assets/icon.ico",
+      "extraResources": [
+        {
+          "from": "assets/rpc-helper.exe",
+          "to": "assets/rpc-helper.exe"
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
@@ -90,6 +94,22 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "artifactName": "GGL-Launcher-Setup-${version}.exe"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png",
+      "category": "public.app-category.games",
+      "identity": "-"
+    },
+    "dmg": {
+      "artifactName": "GGL-Launcher-${version}-mac-arm64.dmg"
     }
   }
 }
