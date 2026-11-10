@@ -54,3 +54,23 @@ jobs:
 
       - name: Unit tests
         run: npm test
+
+  # Linux 版只支援 x64；檔案系統分大小寫，同步的大小寫規則靠這個 job 在真的磁碟上驗。
+  test-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Runner is linux / x64
+        run: node -e "const a = process.platform + '/' + process.arch; console.log(a); if (a !== 'linux/x64') process.exit(1)"
+
+      - name: Install
+        run: npm ci
+
+      - name: Unit tests
+        run: npm test
