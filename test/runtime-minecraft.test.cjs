@@ -815,10 +815,18 @@ test(
     const gameDir = await tempDir(t);
     const [h404, hStall] = fake.objectHashes;
     const objPath = (h) => `/official/objects/${h.slice(0, 2)}/${h}`;
-    fake.overrides.set(objPath(h404), status(404));
+    // 404 要等停住那支的請求真的到了 server 才回：先回的話，安裝會在那支請求送達之前就中止它，
+    // server 從頭到尾沒看過那條連線，下面等的「連線關閉」永遠不會來
+    let stallArrived;
+    const stallHasArrived = new Promise((r) => (stallArrived = r));
+    fake.overrides.set(objPath(h404), async (req, res) => {
+      await stallHasArrived;
+      status(404)(req, res);
+    });
     let stalledClosed = false;
     fake.overrides.set(objPath(hStall), (req, res) => {
       res.on("close", () => (stalledClosed = true));
+      stallArrived();
       stallAfterHeaders(req, res);
     });
     const progress = [];
