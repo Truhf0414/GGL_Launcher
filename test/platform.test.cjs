@@ -33,6 +33,7 @@ test("describePlatform：Windows 的值（與改成依平台之前寫死的相�
     zuluQuery: { os: "windows", arch: "x86_64" },
     mojangRuntimeKey: "windows-x64",
     mojangRuntimeRoot: "",
+    processList: "cim",
   });
 });
 
@@ -70,6 +71,7 @@ test("describePlatform：Apple 晶片的 Mac", () => {
     zuluQuery: { os: "macos", arch: "aarch64" },
     mojangRuntimeKey: "mac-os-arm64",
     mojangRuntimeRoot: "jre.bundle",
+    processList: "ps",
   });
 });
 

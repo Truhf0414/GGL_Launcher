@@ -165,7 +165,7 @@ function settingsErrorStatus(err) {
 function createInstanceSync(deps) {
   assertRequiredDeps(deps);
   const { launcherVersion, serverConfig, siteClient, onProgress } = deps;
-  // 以下三個與 cleanupFs、runPowerShell：正式不注入、預設就是正式實作，是測試縫（→ phase6b.md §裁決 6b-3 Q6）
+  // 以下三個與 cleanupFs、runPowerShell、runPs：正式不注入、預設就是正式實作，是測試縫（→ phase6b.md §裁決 6b-3 Q6）
   const applyPlan = deps.applyPlan ?? require("./apply.js").applyPlan;
   const prepareRuntime =
     deps.prepareRuntime ?? require("../runtime/prepare.js").prepareRuntime;
@@ -174,8 +174,12 @@ function createInstanceSync(deps) {
   const platform = hostPlatform();
   const runtimeEnv = launchEnv(platform, os.release());
   const cleanupFs = deps.cleanupFs; // 測試換掉 D2 用的 fs（R#17）；預設＝fs/promises
-  const gameDeps = { isMinecraftRunning: deps.isMinecraftRunning };
+  const gameDeps = {
+    processList: platform.processList,
+    isMinecraftRunning: deps.isMinecraftRunning,
+  };
   if (deps.runPowerShell) gameDeps.runPowerShell = deps.runPowerShell;
+  if (deps.runPs) gameDeps.runPs = deps.runPs;
 
   // null | { who: "launch" } | { who: "update" | "repair", phase: "preparing" | "applying" }（R1）
   let lock = null;
