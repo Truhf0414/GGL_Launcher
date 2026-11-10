@@ -44,8 +44,8 @@ const REQUIRED_FUNCTIONS = [
 let launchDeps = null;
 
 function configureMinecraftLaunch(next) {
-  // spawn 正式不注入、預設就是正式實作：測試縫（→ 同檔 §裁決 6b-3 Q6）；給了 undefined 也算蓋掉
-  const merged = { spawn, ...next };
+  // spawn、platform 正式不注入、預設就是正式實作／這台的平台資料：測試縫（→ 同檔 §裁決 6b-3 Q6）；給了 undefined 也算蓋掉
+  const merged = { spawn, platform: hostPlatform(), ...next };
   for (const key of REQUIRED_FUNCTIONS) {
     if (typeof merged[key] !== "function")
       throw new TypeError(`configureMinecraftLaunch: 缺少必填的注入 ${key}`);
@@ -162,7 +162,7 @@ async function launchMinecraft({ settings, paths, record, launch, auth }) {
   await fsp.mkdir(gameDir, { recursive: true });
   await ensureWritableTree(gameDir);
 
-  const platform = hostPlatform();
+  const platform = d.platform;
   const javaExe = javaExeFor(platform, paths, record.javaMajor);
   try {
     await fsp.access(javaExe, fs.constants.F_OK);
@@ -233,7 +233,10 @@ async function launchMinecraft({ settings, paths, record, launch, auth }) {
   runningMcProcess = p;
   d.sendMcRunning(true);
 
-  void d.tryStartDiscordRpcHelper({ mcPid: p.pid });
+  // 這個平台的安裝檔沒帶 helper ⇒ 不啟動，也不讓它去提示「找不到 helper」（那是預期中的缺席）
+  if (platform.hasDiscordHelper) {
+    void d.tryStartDiscordRpcHelper({ mcPid: p.pid });
+  }
 
   let finalized = false;
   const finalize = (code, reason) => {

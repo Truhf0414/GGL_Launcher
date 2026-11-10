@@ -18,7 +18,7 @@ const {
 const { DEFAULT_SETTINGS } = require("../main/settings.js");
 const { getPaths, javaExeFor } = require("../lib/paths-layout.js");
 const { launchEnv } = require("../lib/launch-args.js");
-const { hostPlatform } = require("../lib/platform.js");
+const { hostPlatform, describePlatform } = require("../lib/platform.js");
 const { checkRuntimeReady } = require("../lib/runtime-readiness.js");
 const { makeRuntimeProbe } = require("../main/sync/runtime-probe.js");
 const pkg = require("../package.json");
@@ -580,4 +580,34 @@ test("C3b 同一份 configure：啟動送 running true、清過期行程送 fals
   h.calls.children[0].exitCode = 0;
   assert.equal(isMinecraftRunning(), false);
   assert.deepEqual(h.calls.running, [true, false]);
+});
+
+// → _notes/plans/mac-linux-support.md M4（Q2：Mac 首版不帶 Discord helper）
+test("M4 平台資料說沒有 Discord helper ⇒ 啟動成功但不啟動 helper；有 ⇒ 帶著遊戲的 pid 啟動一次", async (t) => {
+  const MAC = describePlatform({
+    platform: "darwin",
+    arch: "arm64",
+    homedir: "/Users/t",
+  });
+  const h = await setup(t);
+  // Mac 的 java 在 bundle 裡的位置；其餘（classpath、參數）照平台資料組
+  const macJava = javaExeFor(MAC, h.paths, RUNTIME.javaMajor);
+  await fsp.mkdir(path.dirname(macJava), { recursive: true });
+  await fsp.writeFile(macJava, "");
+
+  const started = [];
+  const tryStartDiscordRpcHelper = async (arg) => {
+    started.push(arg);
+  };
+  await h.launch(online, { platform: MAC, tryStartDiscordRpcHelper });
+  assert.equal(h.calls.spawn.length, 1);
+  assert.equal(h.calls.spawn[0].exe, macJava);
+  assert.deepEqual(started, []);
+
+  await h.launch(online, {
+    platform: { ...hostPlatform(), hasDiscordHelper: true },
+    tryStartDiscordRpcHelper,
+  });
+  assert.equal(h.calls.spawn.length, 2);
+  assert.deepEqual(started, [{ mcPid: undefined }]);
 });

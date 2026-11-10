@@ -34,6 +34,7 @@ test("describePlatform：Windows 的值（與改成依平台之前寫死的相�
     mojangRuntimeKey: "windows-x64",
     mojangRuntimeRoot: "",
     processList: "cim",
+    hasDiscordHelper: true,
   });
 });
 
@@ -72,6 +73,7 @@ test("describePlatform：Apple 晶片的 Mac", () => {
     mojangRuntimeKey: "mac-os-arm64",
     mojangRuntimeRoot: "jre.bundle",
     processList: "ps",
+    hasDiscordHelper: false,
   });
 });
 

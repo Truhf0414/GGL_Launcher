@@ -80,6 +80,32 @@ v1.0.0 的 Release Gate 已在 2026-11-01 由 owner 簽核通過（B6；接受�
 
 〔已實測〕2026-10-30 的 B1：在候選 `3272fe5` 上，Git Bash 帶兩個設定匯出，核對 413 個追蹤檔全部一致後 `npm ci`、`dist:win` exit 0（約 30 秒，依賴已在本機快取），`check:packaged-artifacts` 過，建置日誌沒有 `build:rpc-helper`。Node 24 與 Node 22.23.4 的 `npm test` 各 1454／1454。出貨 helper 的 Discord 行為、安裝與啟動那個安裝檔、CI 都沒做（之後在 B1～B5 補上，見 Plan §四 各批證據紀錄）。**安裝檔的 sha256 與路徑屬於當次 B1 的證據，於 B1 結案時記入 `_notes/history.md`，不寫在這份操作文件裡。**
 
+## 3a. 建置 Mac 版（Apple 晶片）
+
+〔尚未實跑〕這一節的每一步都還沒在 Mac 上做過；第一次做完要回填實際結果。規格與驗收清單在 `_notes/plans/mac-linux-support.md`。
+
+- 只能在 Mac 上建（Apple 晶片；`dist:mac` 只打 arm64）。Windows 上建不出 dmg。
+- Mac 版**沒有** Apple 的開發者簽章與公證，只有臨時簽章（ad-hoc；`build.mac.identity` 是 `"-"`）。〔據文件〕依據是 `node_modules/app-builder-lib/out/macPackager.js`：identity 給 `"-"` 就用臨時簽章。
+- Mac 版不帶 Discord 狀態（沒有 `rpc-helper`）；`check:packaged-artifacts` 在 Mac 的包裡看到 `rpc-helper.exe` 會報錯。
+
+步驟：
+
+1. 在 Mac 上取得候選 commit 的乾淨來源（`git clone` 後 `git checkout <候選 commit>`，或照 §3 第 1、2 步的 `git archive` 與核對），放在路徑短、不含空白的資料夾。
+2. `npm ci`，再 `npm test`（要全綠）。
+3. `npm run dist:mac`：依序跑 `check:ui-css:strict`、`docs:ipc`、產生 electron-builder 設定、electron-builder（dmg、arm64）、`check:packaged-artifacts`。輸出在 `dist/`：安裝檔 `dist/GGL-Launcher-<version>-mac-arm64.dmg`，未封裝的 app 在 `dist/mac-arm64/GGL Launcher.app`。
+   - 只想要未封裝的 app（不做 dmg）用 `npm run pack:mac`。
+4. `shasum -a 256 dist/GGL-Launcher-<version>-mac-arm64.dmg`，記下版本、建置 commit、sha256（§7）。
+
+玩家安裝時要多做的一步（要寫進對玩家的說明）：
+
+- 從瀏覽器下載的 dmg 會被 macOS 加上隔離標記；app 沒有公證，直接打開會被擋（訊息可能是「無法打開」或「已損毀」）。把 app 拖進「應用程式」後，在「終端機」執行一次：
+
+  ```bash
+  xattr -cr "/Applications/GGL Launcher.app"
+  ```
+
+  〔尚未實跑〕這條指令與擋下時的實際訊息都還沒在 Mac 上確認。
+
 ## 4. 站台發布前檢查
 
 手改 `gate.json`、`notice.json` 之後、對外生效之前，跑只讀的檢查（G-6）：
@@ -197,4 +223,5 @@ npm run build:rpc-helper
 ## 10. 還沒補齊的
 
 - §7、§8 的全部操作（M-22 後段）。
+- §3a 整節（Mac 版建置與玩家安裝步驟）：一次都還沒在 Mac 上做過。
 - SmartScreen 的實際畫面（M-10 沒取得，owner 接受；公開後有人剛好截到再說）。

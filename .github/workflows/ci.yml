@@ -33,3 +33,24 @@ jobs:
 
       - name: Unit tests
         run: npm test
+
+  # macOS 版只支援 Apple 晶片：先確認 runner 真的是 darwin／arm64，再跑同一套測試。
+  # UI/CSS、IPC 索引、lint 讀的是原始碼文字，不分平台，上面那個 job 跑過就夠。
+  test-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Runner is darwin / arm64
+        run: node -e "const a = process.platform + '/' + process.arch; console.log(a); if (a !== 'darwin/arm64') process.exit(1)"
+
+      - name: Install
+        run: npm ci
+
+      - name: Unit tests
+        run: npm test
