@@ -110,6 +110,32 @@ v1.0.0 的 Release Gate 已在 2026-11-01 由 owner 簽核通過（B6；接受�
 - 同一台機器同時裝開發版（`npm start`）與裝好的 app 時，兩者共用同一個資料夾 `~/Library/Application Support/GGL_launcher` 與同一個鑰匙圈項目，登入資料互通；玩家只會裝一個，不受影響。
 - 給玩家的說明至少要寫：放行 dmg 與 app、每次更新安裝都要再放行一次、鑰匙圈視窗請按「永遠允許」、不小心按了「拒絕」就再按一次啟動。〔未驗〕不同版本（臨時簽章不同）的覆蓋安裝，鑰匙圈視窗會不會再跳：只驗過同一個 dmg 覆蓋。
 
+## 3b. 建置 Linux 版（x64）
+
+〔尚未實跑〕這一節的每一步都還沒在 Linux 上做過；第一次做完要回填實際結果。規格與驗收清單在 `_notes/plans/mac-linux-support.md` 的「Linux 段」。
+
+- 只能在 Linux 上建（x64；`dist:linux` 只打 x64）。
+- 安裝檔是 AppImage：單一檔案，不用安裝，設成可執行後直接開。沒有簽章。
+- Linux 版不帶 Discord 狀態（沒有 `rpc-helper`）；`check:packaged-artifacts` 在 Linux 的包裡看到 `rpc-helper.exe` 會報錯。
+
+步驟：
+
+1. 在 Linux 上取得候選 commit 的乾淨來源（`git clone` 後 `git checkout <候選 commit>`）。
+2. `npm ci`，再 `npm test`（要全綠）。
+3. `npm run dist:linux`：依序跑 `check:ui-css:strict`、`docs:ipc`、產生 electron-builder 設定、electron-builder（AppImage、x64）、`check:packaged-artifacts`。輸出在 `dist/`：安裝檔 `dist/GGL-Launcher-<version>-linux-x64.AppImage`，未封裝的在 `dist/linux-unpacked/`。
+   - 只想要未封裝的（不做 AppImage）用 `npm run pack:linux`。
+4. `sha256sum dist/GGL-Launcher-<version>-linux-x64.AppImage`，記下版本、建置 commit、sha256（§7）。
+
+玩家要做的事（要寫進對玩家的說明）：
+
+- 下載後把檔案設成可執行再開：
+
+  ```bash
+  chmod +x GGL-Launcher-*-linux-x64.AppImage
+  ```
+
+  〔尚未實跑〕這條指令、以及開不起來時的實際訊息（常聽到的兩種：系統沒有 FUSE 2 的函式庫、沙箱起不來）都還沒在 Linux 上確認。
+
 ## 4. 站台發布前檢查
 
 手改 `gate.json`、`notice.json` 之後、對外生效之前，跑只讀的檢查（G-6）：
@@ -227,5 +253,6 @@ npm run build:rpc-helper
 ## 10. 還沒補齊的
 
 - §7、§8 的全部操作（M-22 後段）。
+- §3b 整節（Linux 版建置與玩家步驟）：一次都還沒在 Linux 上做過。
 - §3a 的 Mac 版：建置與玩家放行已在 owner 的 Mac mini 實測（2026-11-10），還沒做的是：乾淨 clone 的建置（步驟 1、2、4）、不同版本覆蓋安裝時鑰匙圈視窗會不會再跳、玩家實際收到的說明文字。
 - SmartScreen 的實際畫面（M-10 沒取得，owner 接受；公開後有人剛好截到再說）。

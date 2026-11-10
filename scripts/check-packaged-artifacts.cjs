@@ -6,10 +6,12 @@ const projectRoot = path.join(__dirname, "..");
 const pkg = require(path.join(projectRoot, "package.json"));
 
 // 沒給路徑 ⇒ 這台機器剛打出來的那一包；Mac 的包是 .app，資源在 Contents/Resources
+const DEFAULT_PACKAGED_DIRS = {
+  darwin: path.join("dist", "mac-arm64", `${pkg.build.productName}.app`),
+  linux: path.join("dist", "linux-unpacked"),
+};
 const defaultPackagedDir =
-  process.platform === "darwin"
-    ? path.join("dist", "mac-arm64", `${pkg.build.productName}.app`)
-    : path.join("dist", "win-unpacked");
+  DEFAULT_PACKAGED_DIRS[process.platform] ?? path.join("dist", "win-unpacked");
 const packagedAppDir = path.resolve(
   projectRoot,
   process.argv[2] || defaultPackagedDir,
@@ -19,6 +21,10 @@ const resourcesDir = isMacApp
   ? path.join(packagedAppDir, "Contents", "Resources")
   : path.join(packagedAppDir, "resources");
 const appAsarPath = path.join(resourcesDir, "app.asar");
+// 這一包是哪個平台的：看包本身，不看這台機器（別台打的包也能拿來查）。Windows 的包有 <產品名>.exe
+const isWindowsApp =
+  !isMacApp &&
+  fs.existsSync(path.join(packagedAppDir, `${pkg.build.productName}.exe`));
 
 const requiredAsarEntries = [
   "/main.js",
@@ -36,12 +42,12 @@ const requiredAsarEntries = [
 ];
 
 const HELPER_RESOURCE = path.join("assets", "rpc-helper.exe");
-// Mac 的包不帶 Discord helper（_notes/plans/mac-linux-support.md §裁決 Q2）：帶了反而是錯
+// 只有 Windows 的包帶 Discord helper；Mac、Linux 的包不帶（_notes/plans/mac-linux-support.md §裁決 Q2、§Linux 段），帶了反而是錯
 const requiredResources = [
-  ...(isMacApp ? [] : [HELPER_RESOURCE]),
+  ...(isWindowsApp ? [HELPER_RESOURCE] : []),
   path.join("assets", "sakura_field_BG.mp4"),
 ];
-const forbiddenResources = isMacApp ? [HELPER_RESOURCE] : [];
+const forbiddenResources = isWindowsApp ? [] : [HELPER_RESOURCE];
 
 const forbiddenAsarEntries = [
   "/assets/rpc-helper.exe",
