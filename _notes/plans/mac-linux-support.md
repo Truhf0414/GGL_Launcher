@@ -1,4 +1,4 @@
-# 啟動器支援 macOS（先）與 Linux（後）（狀態：v2，2026-11-10；M1 `e6386a0`、M2 `aea2bc1`、M3 `ae3336f`、M4 `90433c5` 都已 commit，分支 `feat/mac-support`；2026-11-10 起 Mac 上跑過，結果見 §驗收）
+# 啟動器支援 macOS（先）與 Linux（後）（狀態：v2，2026-11-10；M1 `e6386a0`、M2 `aea2bc1`、M3 `ae3336f`、M4 `90433c5` 都已 commit，分支 `feat/mac-support`；2026-11-10 起 Mac 上跑過，結果見 §驗收；Mac 段 2026-11-11 合併進 main `48799f3`；Linux 段 2026-11-11 細化並經輕量審（`_notes/reviews/mac-linux-support-linux-ve0fe9335-20261111.md`，已封存），owner 同日放行，施工中，分支 `feat/linux-support`）
 
 **版本沿革**：v1 `124663dd`（2026-11-10 寫成，同日 owner 裁 Q1–Q5）→ 輕量 SPR（自審＋Codex，23 條）→ owner 放行處置 → **v2**（本檔）。review 見 `_notes/reviews/mac-linux-support-v124663dd-20261110.md`（已封存）。下文的 `R#n` 指那份 review 的第 n 條。
 
@@ -26,6 +26,10 @@
 | 啟動器重開後能再開出第二個遊戲 | 不補強，維持現狀 | owner 2026-11-10「不用，這其實意外得挺好的。」 |
 | 鑰匙圈按「拒絕」後的提示文字 | 不改，維持「暫時無法讀取登入憑證，請稍後再試」 | owner 2026-11-10「不用。」 |
 | 連結防護的測試在 Mac 上是跳過的 | 不補；Mac 上這個保護沒有測試在驗，照這樣接受 | owner 2026-11-10「不用。」（回 CC「Mac 的連結防護測試要不要補」） |
+| Linux 動工前 Mac 的 PR 怎麼辦 | 先合併進 main，Linux 從 main 另開分支（合併不發版、版本號不動） | owner 2026-11-11 在 CC 的選項題選「先合併」 |
+| Linux 支援的處理器 | 只做 Intel／AMD 64 位元（x64）；owner 的 Mint 機是這種 | owner 2026-11-11 在 CC 的選項題選「是，Intel／AMD 64 位元」 |
+| Linux 安裝檔格式 | AppImage | owner 2026-11-11 在 CC 的選項題選「AppImage」 |
+| L-Q1 同步的大小寫規則 | 選項 A：跟平台走（Windows、macOS 照舊不分大小寫，Linux 分） | owner 2026-11-11「A」；CC 當時對 Linux 上後果的描述有兩處錯，審查後更正（見 §Linux 段 L-Q1）並請 owner 重選，owner「維持 A，開工」 |
 
 **agent 假設（非 owner 裁，可翻）**
 - 「版本號往下推」＝用下一個版本號，具體數字發版時定；本 plan 的施工不改 `package.json` 的 `version`、不打包發行、不 push。
@@ -146,13 +150,90 @@ electron-builder 的 Mac 圖示吃不吃 1254px 的 png〔猜的〕：吃不了�
 - 第 2–5 項：owner 用 `dist/win-unpacked/GGL Launcher.exe`（同日 22:40 打的）操作，回報「全項通過。」。CC 給的步驟裡第 3 項是把 `runtime/java-21` 改名而不是刪除；另有一個選做項（遊戲開著時重開啟動器，看啟動鈕能不能再按），owner 有沒有做、結果如何沒有回報。
 - CI：草稿 PR `Truhf0414/GGL_Launcher#1`（為了讓 CI 跑才開，不合併），`5068a38`、`1b1bb38` 兩次的 Windows 與 macOS job 都過；`00a151a` 那次的結果用 `gh pr checks 1` 看。
 
-## Linux 段（L，Mac 結案後再細化）
+## Linux 段（L）
 
-已知要處理的：
-- 打包格式（AppImage 或 deb，屆時裁）；預設安裝位置
-- safeStorage 在沒有 secret service 的環境走 fallback（原 `future-work.md`「Linux 版啟動器」條的內容）
-- 同步用 `toLowerCase` 比對路徑（`lib/sync/plan.js`、`lib/sync/blocking.js`、`lib/sync/rel-path.js`、`main/sync/apply.js`、`main/sync/index.js`），預設檔案系統不分大小寫；Linux 分大小寫，要審一次
-- 1.21.11 的 Linux natives 只有 x64〔查過：版本檔只有 `natives-linux`〕；Zulu 有 Linux x64 的 zip〔查過〕。Mint 機是不是 x64 未問
+（2026-11-11 細化。沿用 Mac 段的平台模組與做法；這一段只寫 Linux 多出來的事。）
+
+**agent 假設（非 owner 裁，可翻）**——都是把 Mac 的裁決原樣套到 Linux：
+- 預設安裝位置 `~/Games/GGL`（同 Q5）。
+- Linux 版不帶 Discord helper（同 Q2）。
+- Java 只走 Zulu zip ＋ Mojang 退路（同 Q3）。
+- CI 加一個 `ubuntu-latest` job 跑 `npm test`（同 Q4）。
+- 不改 `package.json` 的 `version`、不發行。
+- 連結防護那批測試寫成非 Windows 就跳過，Linux 上同樣沒有測試在驗；比照 Mac 那次的裁決不補（owner 當時回的是 Mac，Linux 沒問過）。
+
+**L-Q1 同步的大小寫規則（owner 選 A，→ §裁決；下面是審查後更正過的描述）**
+同步把「只差大小寫的兩個路徑」當成同一個（`lib/sync/plan.js`、`lib/sync/blocking.js` 的 `fold`，`main/sync/apply.js` 的 `moveAside`，`main/sync/index.js` 併入多餘 jar 的那段）。Windows 與 macOS 預設的檔案系統不分大小寫，這個假設成立；Linux 分大小寫，不成立。照現在的程式，Linux 上會出錯的是這三種情況〔推論：讀 `planSync`、`listStrayJars`、`findBlockers` 得出，沒有在 Linux 上跑過〕：
+1. 發佈端把某個檔**只改大小寫、同時內容也換了**（`Foo.jar` → `foo.jar`）：新的照新名字下載，舊的因為「大小寫改名＝同一個檔，不刪」留著 ⇒ 兩個檔並存；在 `mods/` 就是同一個模組裝兩份。（內容沒換的話，`planSync` 會排一筆改名，Linux 上改得成，沒事。）
+2. 發佈端只改**資料夾**的大小寫（`Config/a` → `config/a`）、內容沒換：`planSync` 判成「留著不動」，檔還在舊拼法的資料夾裡，紀錄卻寫新拼法。
+3. 玩家自己放的 `mods/Sodium.jar` 與清單的 `mods/sodium.jar` 只差大小寫：`listStrayJars` 認為它是已知的檔，不列成多餘的 jar ⇒ 兩份並存，玩家也沒辦法從畫面刪掉它。
+前兩種要發佈端做只改大小寫的改名才會發生，第三種要玩家自己放檔。
+
+- **選項 A（owner 選的）**：平台資料加 `pathsCaseSensitive`；同步的「路徑鍵」規則由組裝層依它決定——Windows、macOS 是現在的轉小寫，Linux 是原字串。
+  - **怎麼傳**：`main/sync/index.js` 的 `createInstanceSync` 從平台資料取規則，交給 `planSync`、`listStrayJars`、`assertRemovableStrayJars`，並經 `applyPlan` 的 `deps` 交給 `findBlockers`、`linkCheckPaths`、`moveAside`；併入多餘 jar 的那段用同一個規則。`lib/` 的函式照 M1 的慣例由呼叫端顯式傳入，不自己看平台。
+  - **判準**：只有在回答「磁碟上這兩個路徑是不是同一個檔」的比對跟平台走——新舊清單對檔（`prevByKey`、決定刪不刪的 `nextKeys`）、`blockingRemovals`、多餘 jar 的判定與「這個 jar 在不在清單裡」、`findBlockers` 的 `willDelete`／`handled`、`linkCheckPaths` 的去重、`moveAside` 找本機實際檔名與避開撞名。
+  - **不動的是政策**：保護名單與玩家可改清單的比對（`lib/sync/glob.js` 的 `compileGlob` 固定不分大小寫）、清單驗證（`lib/sync/rel-path.js` 的 `casefoldCollisions`、`prefixConflicts`：清單裡不准有只差大小寫的兩條，也不准有 Windows 不能用的檔名）在每個平台都一樣。
+  - **Windows 的行為**：給的就是現在那個函式，預期逐位元組不變，由既有測試把關。
+  - 代價：動到玩家正在用的同步程式四個檔；`findBlockers` 的 16 處測試呼叫要補參數。
+- **選項 B（沒選）**：同步程式不動，改在發佈端擋「只改大小寫的改名」（版本差異在 `scripts/lib/release-build.js`、發版檢查在 `scripts/lib/publish.js`）。擋不乾淨：發佈端只能跟上一版比，玩家端比的是玩家自己那份紀錄，跳過幾版才更新的玩家仍會遇到；第三種情況也擋不到。
+- **不論選哪個都不改的**：`lib/fs-links.js` 的 `isUnder` 與 `lib/sync/game-running.js` 的 `containsGameDir` 維持不分大小寫。後者方向保守（別處有個只差大小寫的資料夾在跑 Java 時會多擋一次更新）；前者在 Linux 上只有「同一層有兩個只差大小寫的資料夾、而且都在這次要查的路徑裡」才會判錯，這次要查的路徑都從同一個安裝位置與同一份清單推出來，清單不准有只差大小寫的兩條，所以不處理、記成已知限制。
+
+### 現況（2026-11-11 現查）
+
+| 項目 | 查到的 | 出處 |
+|---|---|---|
+| 平台資料 | `describePlatform` 只認 `win32` 與 `darwin`＋`arm64`，其他丟錯 | `lib/platform.js` |
+| 平台字串的其他出處 | `scripts/check-packaged-artifacts.cjs` 自己看 `process.platform`（只分 darwin／其他）；`main/diagnostics-export.js`、`main/start-main.js` 只是把值寫進報告 | `rg` 掃 `lib main scripts renderer` |
+| Zulu | `os=linux&arch=x86_64`、Java 21、jre、zip 查得到 `zulu21.54.109-ca-jre21.0.13.0.3-linux_x64.zip`，`lib_c_type` 是 `glibc`；同一組參數用 `os=windows` 當對照也有結果 | 2026-11-11 `curl` Azul API |
+| Mojang runtime | `all.json` 有 `linux` 鍵；`java-runtime-delta` 是 21.0.7；manifest 有 directory 82、file 136、link 205，全部在根底下（`bin`、`conf`、`legal`、`lib`、`release`），沒有包一層；抽看的 link 都是 `legal/` 底下指向 `../java.base/…` 的相對路徑；`bin/java` 是 `executable: true` | 2026-11-11 `curl` all.json 與 manifest |
+| 登入憑證 | 用 `safeStorage.encryptStringAsync`／`decryptStringAsync`；拿不到金鑰時退明文是既有裁決 | `lib/account-secret.js`、`main/account-store.js` |
+| 打包 | `package.json` 的 `build` 沒有 `linux`；沒有 `dist:linux` | `package.json` |
+
+### 設計
+
+**平台資料**：`describePlatform` 加 `linux`＋`x64` 一支，其他 Linux 處理器照舊丟錯。值：`id: "linux"`、`minecraftOs: { name: "linux", arch: "x86_64" }`、`pathStyle: "posix"`、`classpathSeparator: ":"`、`javaExeInRuntime: "bin/java"`、`defaultLauncherRootDir: <家目錄>/Games/GGL`、`browseStartDir: <家目錄>`、`javaBuildLabel: "Linux x64"`、`javaZipSources: ["zulu"]`、`zuluQuery: { os: "linux", arch: "x86_64" }`、`mojangRuntimeKey: "linux"`、`mojangRuntimeRoot: ""`、`processList: "ps"`、`hasDiscordHelper: false`。不支援平台的錯誤訊息補上 Linux。
+
+**Java**：不必改 `main/runtime/java.js`——Zulu 的 zip 解開後的布局與 Windows 同型（一層資料夾底下是 `bin/`），Mojang 的 manifest 沒有包一層，link 與執行權限 M2 已經做了〔推論：依上表與 M2 的程式；Linux 上沒跑過，驗收 4 會直接看到〕。L1 在 `test/runtime-java.test.cjs` 補用 Linux 平台資料跑 zip 與 Mojang 兩條路的測試（現在只有 Windows 與 Mac 的）。
+
+**遊戲偵測**：沿用 M3 的 `ps -axww -o pid=,command=`。Linux 的 `ps` 是 procps，吃不吃這組參數〔猜的〕；M3 那支真的跑 `ps` 的端到端測試在非 Windows 都會跑，CI 的 Linux job 會直接看到結果。
+
+**登入憑證**：不加程式。Mint 的桌面有鑰匙圈服務時 Electron 用它；沒有時 Electron 會退到一個不安全的後端〔猜的：憑對 Electron 的印象，沒查這一版的文件〕，效果不比既有裁決允許的「退明文」差。驗收 8 把實際選到的後端記下來；不是系統鑰匙圈的話先回報 owner，要不要提示玩家屆時裁。
+
+**打包**：`package.json` 加 `dist:linux`、`pack:linux`（`--linux AppImage --x64`／`--linux dir --x64`）與 `build.linux`（AppImage、x64、圖示 `assets/icon.png`、分類 Game），安裝檔名 `GGL-Launcher-<version>-linux-x64.AppImage`。只能在 Linux 上建。`scripts/check-packaged-artifacts.cjs` 現在只分「`.app`／其他」，其他一律要求 `rpc-helper.exe`；要改成三種：預設路徑加 Linux（`dist/linux-unpacked`），Linux 的包不要求 helper、出現了要報錯。`docs/release-runbook.md` 加 §3b。
+
+**CI**：`.github/workflows/ci.yml` 加 `test-linux`（`ubuntu-latest`、Node 22、先斷言 `linux/x64`、`npm ci`、`npm test`）。
+
+### 施工切法
+
+每個 commit 都要 Windows 上 `npm test` 全綠；推上去後開草稿 PR，讓三個平台的 CI 都跑。
+
+| commit | 內容 | 驗 |
+|---|---|---|
+| L1 | 平台資料加 Linux 與測試（含 Java 安裝用 Linux 平台資料的測試）；CI 加 `test-linux`；修 Linux 上會紅、而且只是測試寫死平台的測試 | Windows `npm test`；CI 三個 job（Linux job 第一次跑，紅的逐條分成「測試寫死」與「程式真的錯」） |
+| L2 | L-Q1 選項 A：同步的路徑鍵規則跟平台走（怎麼傳、判準見上） | Windows `npm test`（既有測試的期望值不准變）。Linux 規則的測試分兩層：純函式的（假探針、給「原字串」規則）每個平台都跑，涵蓋上面三種情況與「保護名單、玩家可改清單仍不分大小寫」；碰真檔案系統的（改名又換內容不留兩份、資料夾改大小寫後檔在新位置、只差大小寫的玩家 jar 列得出來也刪得掉）只在 Linux 跑，其他平台跳過。CI 三個 job |
+| L3 | `dist:linux`／`pack:linux`、`build.linux`、`check-packaged-artifacts` 加 Linux、runbook §3b | Windows `npm run pack:win` 仍過；Mint：驗收 9 |
+
+### 驗收
+
+**Linux（owner 的 Mint 機；做法同 Mac：在 Mint 上開一個 CC session 直接操作，要看畫面的由 owner 配合）**
+1. `npm ci`、`npm test` 全綠
+2. `npm start`：視窗能拖曳、最小化、關閉
+3. 登入 → 安裝模組包（Java 走 Zulu）→ 啟動遊戲 → 進伺服器
+4. `node scripts/try-java-install.cjs` 與加 `--mojang` 各跑一次，都印「結果：通過」
+5. 設定視窗：填 `C:\x` 被擋下、錯誤文字是 `/` 開頭的範例；改安裝位置存得進去、重開讀得回來
+6. 關掉啟動器後遊戲還活著；修復跑得完；匯出診斷有檔案
+7. 遊戲開著時更新／修復被擋下，關掉後恢復
+8. 登入後關掉重開仍是登入；記下 `safeStorage.getSelectedStorageBackend()` 的值
+9. `npm run dist:linux` 打出 AppImage、`check:packaged-artifacts` 過；AppImage 設成可執行後開得起來，能登入、能啟動遊戲
+
+**Windows 迴歸（owner 的開發機）**：同 Mac 段那五項；L-Q1 選 A 時，第 4 項之外再按一次「更新」與「修復」確認跑得完。
+
+### 風險
+
+- **AppImage 在 Mint 上開不開得起來**〔猜的〕：兩個常聽到的問題——系統沒有 FUSE 2 的函式庫、新版 Ubuntu 系的核心限制讓 Electron 的沙箱起不來——Mint 的版本會不會遇到沒查。驗收 9 會直接看到；開不起來時再裁是補說明、還是改出 deb。
+- **Linux 上把遊戲裝在不分大小寫的磁碟（例如掛進來的 NTFS／exFAT）**：L-Q1 選 A 時，啟動器會照「分大小寫」判斷，與實際不符。不處理，記成已知限制。
+- **模組包在 Linux 上能不能跑**：Mac 上卡死的 `splashscreen` 用的是 AWT，Linux 上會不會有事〔猜的〕；其他模組帶的原生函式庫有沒有 Linux 版沒查。驗收 3 會直接看到；出事照 Mac 的前例另案處理。
+- **CC 碰不到 Mint 機**：同 Mac，靠 Mint 上的 session 與 owner 回報。
 
 ## 風險
 
