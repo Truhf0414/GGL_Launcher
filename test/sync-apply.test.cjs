@@ -1194,9 +1194,18 @@ test("L16 coverage: every path applyPlan writes through deps.fsp has its ancesto
   });
 
   // 這幾個分支都要真的走到，覆蓋率才有意義
-  assert.deepEqual(p.remove.sort(), ["mods/old.jar", "shaders"]);
+  // 分大小寫的磁碟上 Foo.jar 與 foo.jar 是兩個檔：沒有「改名」這條路，變成刪舊的、下載新的
+  assert.deepEqual(
+    p.remove.sort(),
+    onCaseSensitiveDisk
+      ? ["mods/Foo.jar", "mods/old.jar", "shaders"]
+      : ["mods/old.jar", "shaders"],
+  );
   assert.deepEqual(p.removeFirst, ["shaders"]);
-  assert.deepEqual(p.rename, [{ from: "mods/Foo.jar", to: "mods/foo.jar" }]);
+  assert.deepEqual(
+    p.rename,
+    onCaseSensitiveDisk ? [] : [{ from: "mods/Foo.jar", to: "mods/foo.jar" }],
+  );
   assert.deepEqual(
     result.movedAside.map((m) => m.from),
     ["config"],
