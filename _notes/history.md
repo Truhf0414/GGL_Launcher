@@ -344,6 +344,15 @@
 - 2026-11-11 Linux 支援驗收：Mint 機上另一個 CC session 跑完九步（`81e94c1`），修了 Linux 的視窗圖示（`374528b`，Electron 在 Linux 讀不了 `.ico`；owner「現在修。」）；遊戲在 8 GB 的 Mint 機用預設最大記憶體 4 GB 時吃光整台記憶體、被 OOM 殺掉，設成 3 GB 後順暢，owner 裁不處理。Windows 迴歸：CC 跑 `npm test` 1517 個 0 紅、`pack:win` 過；owner 手動五步回報都過。草稿 PR `Truhf0414/GGL_Launcher#2` 未合併、未發版 → `plans/mac-linux-support.md` §Linux 段
 - 2026-11-11 Linux 支援的 PR `Truhf0414/GGL_Launcher#2` 合併進 main（`8fd64cc`；owner「合併」，合併前最新一輪 CI 三個 job 都綠）。未發版、`package.json` 的 version 仍是 1.0.1 → `plans/mac-linux-support.md`
 - 2026-11-11 `plans/mac-linux-support.md` 結案：Mac 與 Linux 支援都驗收完並合併進 main（Mac `48799f3`、Linux `8fd64cc`）；同日 owner 裁 Discord 狀態要留、只做 Windows（→ `conventions.md` §功能去留），提出下一步發 v1.1.0
+- 2026-11-11 v1.1.0（第一個帶 Mac、Linux 的版本）：owner 提「1.1.0 你覺得怎麼樣？這算是個重大更新。」「三平台一起發吧！」。
+  - **版本與文件**：`e3739a3` 版本 1.0.1 → 1.1.0，README 系統需求加 macOS（Apple 晶片）與 Linux x64、玩家文件加 Mac（第 8 節）與 Linux（第 9 節）；owner「好，動手。」後 push。CI 對 `e3739a3` success。Mac 覆蓋安裝發現每次換版本鑰匙圈都會再問，`30dcfcf` 改玩家文件與 runbook。
+  - **建置**（同一個 commit `e3739a328a856091da36aac97d3035474fb9aec5`）：Windows 由 CC 在 `H:\GGL3\b110` 照 runbook §3（帶兩個設定 `git archive`，430 個追蹤檔核對一致，`npm ci`、`dist:win` exit 0、`check:packaged-artifacts` 過、日誌沒有 `build:rpc-helper`、helper sha256 不變）；Mac、Linux 由各自機器上的 CC session 從乾淨 clone 建（runbook §3a、§3b，回報 `npm test` 全綠、打包檢查過）。
+    - `GGL-Launcher-Setup-1.1.0.exe` 144,098,880 bytes，sha256 `26def39e8589ad5ce79063d8358bac9f44dc9b84c60a8a6c2c5def70ed4bcc44`
+    - `GGL-Launcher-1.1.0-mac-arm64.dmg` 146,204,943 bytes，sha256 `49568b141f482de8233ea229dbfa3de46375d11c9aeb1ced53a0e1ffcd53e05c`
+    - `GGL-Launcher-1.1.0-linux-x64.AppImage` 144,535,774 bytes，sha256 `616fa2c1098f94c42d8cf83a7ad374374662776279fe26325e4c686d57921d59`
+  - **發版前實際打開**：Windows：owner 用從 Draft 下載回來的安裝檔覆蓋安裝 1.0.1，回報「裝好了，都正常。」，診斷報告是 1.1.0、win32 x64、裝在 `AppData\Local\Programs\GGL Launcher`，裝好的 helper sha256 與 repo 相同。Mac：owner 在 Mac 授權後覆蓋安裝 1.0.1，登入還在、鑰匙圈再問一次。Linux：owner 在 Mint 打開 1.1.0 的 AppImage，回報無誤（據 Linux session 轉述）。
+  - **發版**：owner 授權「好，建。」後 CC 建 Draft（Windows 安裝檔＋說明）；dmg 由 Mac session 上傳（owner 在 Mac 授權「好，上傳 Release」）、AppImage 由 Linux session 上傳（owner「幫我去請 Linux 那邊處理一下然後上傳 Draft 吧。」）；三個都從這台下載回來核對一致，說明裡的三個 sha256 與附件相同。owner「公開」後公開並標為 Latest（2026-11-11 14:04 台北），tag `v1.1.0` → `e3739a3`；不帶登入資訊從公開網址下載三個檔（`H:\GGL3\b110-anon`）sha256 與大小都一致，`releases/latest` 轉到 `v1.1.0`。AppImage 那個下載特別慢（約 10 分鐘，其他兩個 1 分鐘內），原因沒查。
+  - **沒做**：runbook §6 第 4 點的 SmartScreen／Defender 畫面；§8 第 3 點（正式站台唯讀 smoke）與第 4 點（README／下載入口實點）。站台 `minLauncherVersion` 沒動。Mac 的模組包（`splashscreen`）由 owner 在模組包那邊處理，啟動器這邊不追。
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
