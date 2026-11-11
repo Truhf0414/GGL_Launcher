@@ -173,7 +173,11 @@ function createMainAppReadyContext({ app, appRoot }) {
     sendWindowPower,
     replayLatest,
   } = bridge;
-  configureMainWindow({ appRoot, sendWindowPower });
+  configureMainWindow({
+    appRoot,
+    sendWindowPower,
+    windowIconFile: hostPlatform().windowIconFile,
+  });
 
   const showInfoDialog = createShowInfoDialog(getMainWindow, gglError);
   // 註冊延到 app-ready 呼叫時（設定、log、各 configure* 之後）；只呼叫一次（→ main/ipc/index.js）

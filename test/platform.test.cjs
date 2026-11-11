@@ -35,6 +35,7 @@ test("describePlatform：Windows 的值（與改成依平台之前寫死的相�
     mojangRuntimeRoot: "",
     processList: "cim",
     hasDiscordHelper: true,
+    windowIconFile: "icon.ico",
     pathsCaseSensitive: false,
   });
 });
@@ -75,6 +76,7 @@ test("describePlatform：Apple 晶片的 Mac", () => {
     mojangRuntimeRoot: "jre.bundle",
     processList: "ps",
     hasDiscordHelper: false,
+    windowIconFile: "icon.png",
     pathsCaseSensitive: false,
   });
 });
@@ -100,6 +102,7 @@ test("describePlatform：x64 的 Linux", () => {
     mojangRuntimeRoot: "",
     processList: "ps",
     hasDiscordHelper: false,
+    windowIconFile: "icon.png",
     pathsCaseSensitive: true,
   });
 });
