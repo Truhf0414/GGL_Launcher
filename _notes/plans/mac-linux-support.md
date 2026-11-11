@@ -1,4 +1,4 @@
-# 啟動器支援 macOS（先）與 Linux（後）（狀態：v2，2026-11-10；M1 `e6386a0`、M2 `aea2bc1`、M3 `ae3336f`、M4 `90433c5` 都已 commit，分支 `feat/mac-support`；2026-11-10 起 Mac 上跑過，結果見 §驗收；Mac 段 2026-11-11 合併進 main `48799f3`；Linux 段 2026-11-11 細化並經輕量審（`_notes/reviews/mac-linux-support-linux-ve0fe9335-20261111.md`，已封存），owner 同日放行；L1 `9680945`、L2 `41acb3a`、L3 `f24b016` 與測試修正 `2a2eff6`、`1396efd` 已 commit 並 push，三個平台的 CI 都綠，分支 `feat/linux-support`，草稿 PR `Truhf0414/GGL_Launcher#2`；Linux 機器上還沒跑過）
+# 啟動器支援 macOS（先）與 Linux（後）（狀態：v2，2026-11-10；M1 `e6386a0`、M2 `aea2bc1`、M3 `ae3336f`、M4 `90433c5` 都已 commit，分支 `feat/mac-support`；2026-11-10 起 Mac 上跑過，結果見 §驗收；Mac 段 2026-11-11 合併進 main `48799f3`；Linux 段 2026-11-11 細化並經輕量審（`_notes/reviews/mac-linux-support-linux-ve0fe9335-20261111.md`，已封存），owner 同日放行；L1 `9680945`、L2 `41acb3a`、L3 `f24b016` 與測試修正 `2a2eff6`、`1396efd` 已 commit 並 push，三個平台的 CI 都綠，分支 `feat/linux-support`，草稿 PR `Truhf0414/GGL_Launcher#2`；2026-11-11 在 owner 的 Mint 機跑過驗收九步，結果見 §Linux 段「Linux 驗收結果」，修了一個視窗圖示的錯；Windows 迴歸還沒做）
 
 **版本沿革**：v1 `124663dd`（2026-11-10 寫成，同日 owner 裁 Q1–Q5）→ 輕量 SPR（自審＋Codex，23 條）→ owner 放行處置 → **v2**（本檔）。review 見 `_notes/reviews/mac-linux-support-v124663dd-20261110.md`（已封存）。下文的 `R#n` 指那份 review 的第 n 條。
 
@@ -221,7 +221,7 @@ electron-builder 的 Mac 圖示吃不吃 1254px 的 png〔猜的〕：吃不了�
 - L3 `f24b016`：照表做。打包檢查改成看包裡有沒有 `<產品名>.exe` 來判斷是不是 Windows 的包。Windows 上 `npm run pack:win` exit 0、`check:packaged-artifacts` 過、helper 的 sha256 與 repo 相同；拿 Windows 的 `resources` 複本（沒有 exe）當非 Windows 的包試過：帶 helper 被擋、拿掉後通過。
 - Windows 上 `npm test`：1512 個、1508 過、0 紅、4 跳過（真 `ps` 那支與三支只在分大小寫磁碟跑的）。
 - CI 的後續（`ubuntu-latest`）：第二輪（`2a2eff6`，已含 L2）1512 個裡 1 個紅——`sync-apply` 的 L16 用 `Foo.jar`→`foo.jar` 走「改名」那條路，分大小寫的磁碟上那是刪舊的加下載新的，期望值改成跟磁碟走（`1396efd`）。第三輪（`1396efd`）三個 job 都綠：Linux 1512 個、1450 過、0 紅、62 跳過（原本 60 個只在 Windows 跑的，加兩個只在不分大小寫磁碟成立的）。三支只在分大小寫磁碟跑的案例與 L16 在 Linux 上通過；M3 那支真的跑 `ps` 的端到端測試也在 Linux 上通過，procps 吃 `-axww -o pid=,command=` 的猜測成立。`f24b016`、`eb77c12` 兩輪的紅燈是同一個 L16（那兩個 commit 在修正之前）。
-- **還沒驗的**：Linux 機器上的實際操作（驗收九步）全部沒做；AppImage 沒建過。
+- **還沒驗的**（寫這段的當時）：Linux 機器上的實際操作（驗收九步）全部沒做；AppImage 沒建過。→ 同日稍後在 Mint 機做了，見下面「Linux 驗收結果」。
 
 ### 驗收
 
@@ -235,6 +235,27 @@ electron-builder 的 Mac 圖示吃不吃 1254px 的 png〔猜的〕：吃不了�
 7. 遊戲開著時更新／修復被擋下，關掉後恢復
 8. 登入後關掉重開仍是登入；記下 `safeStorage.getSelectedStorageBackend()` 的值
 9. `npm run dist:linux` 打出 AppImage、`check:packaged-artifacts` 過；AppImage 設成可執行後開得起來，能登入、能啟動遊戲
+
+**Linux 驗收結果（2026-11-11，CC 在 owner 的 Mint 機上直接操作；Linux Mint 22.3、x64、核心 7.0.0-38、Cinnamon／X11、記憶體 7.7 GB＋swap 2 GB、NVIDIA GTX 1060 3GB（驅動 580.178.04）；Node 22.23.4；分支 `feat/linux-support`，`3be5b57`；九步都跑過，沒驗到的兩項在第 5、7 步裡標明）**
+- 環境準備：這台原本沒有 git、Node。git 由 owner 用 `sudo apt install -y git` 裝（2.43.0）；Mint 套件庫的 Node 是 18，改從 nodejs.org 抓官方 22.23.4 的 tar.xz（核對過 SHA256）解到 `~/.local/opt`，捷徑放 `~/.local/bin`。Electron 要的函式庫（`libnss3`、`libgtk-3-0t64`、`libasound2t64`、`libsecret-1-0`）、`gnome-keyring`、`libfuse2t64` 本來就在。Electron 44.3.0 的執行檔不是 `npm ci` 時下載的，是第一次 `npm start` 才下載（印 `Downloading Electron binary...`）。這個 session 的 shell 沒有 `ELECTRON_RUN_AS_NODE`（空值），`npm start` 直接開得起來。
+- 第 1 步：通過。`npm ci` exit 0；`npm test` 1512 個、1450 過、0 紅、62 跳過，與 CI 的 `ubuntu-latest` 同數字。
+- 第 2 步：通過。`npm start` 視窗拖曳、最小化、關閉都正常（owner 目視），關閉後沒有殘留的 electron 行程。啟動時終端機印一行 `MESA-LOADER: failed to open dri: /usr/lib/x86_64-linux-gnu/gbm/dri_gbm.so: …拒絕不符權限的操作`；那個檔這個 shell 讀得到、shell 沒有 seccomp，owner 看畫面正常。〔猜的〕是 Electron 的繪圖行程自己的沙箱在 NVIDIA 驅動上的訊息，沒查證；從 owner 自己的終端機啟動會不會也有，沒驗。
+- 第 3 步：登入、安裝、啟動、進伺服器都做到了，但有兩件事與「順利跑完」不同。
+  - **安裝中途失敗過一次**：`instance:repair` 的 handler 丟「安裝失敗：下載失敗，所有來源都不行：…/assets/objects/60/603fd41e…」「下載停滯：30 秒內收到不到 1 MB」（來源 `resources.download.minecraft.net`，那個檔 2950673 bytes）。owner 回報再按一次就裝成功。這個失敗只出現在 `npm start` 的終端機輸出，`userData/ggl-launcher.log` 裡沒有對應的一行（debug 關著）。同一種停滯在第 4 步也出現過一次，原因沒查出來（見第 4 步）。
+  - **遊戲把整台機器的記憶體吃光**：遊戲 11:11 啟動、11:15:47 `Connecting to ggl3.leaharmonic.com, 25565`、11:18 起有伺服器的聊天訊息（owner 回報有連上）。owner 回報從遊戲啟動起整個系統極度卡頓、遊戲顯示 300 幀但無法操作、關不掉。11:23:59 遊戲寫了一份 `crash-reports/crash-2026-11-11_11.23.59-client.txt`（`java.lang.Error: Watchdog`，停在 `SoundEngine.init` 的 OpenAL 呼叫；報告裡 swap 2048 MiB 用了 2047.76）。11:27:40 核心的 OOM killer 殺掉 java（`journalctl -k`：`Out of memory: Killed process 23012 (java) … anon-rss:5133744kB`）。JVM 參數是 `-Xms1024M -Xmx4096M`（設定的最大記憶體沒填，走 `lib/launch-memory.js` 的預設 4096 MB，不看這台有多少記憶體）；同時開著 Firefox、Claude 桌面版、Cinnamon。java 實際佔 5.1 GB（堆積 4 GB 之外還有原生記憶體），這台總共 7.7 GB。這是「預設給 4 GB」這條既有裁決（D-SET-MEM-DYN）在 8 GB 機器配這個 204 個模組的包的結果，不是 Linux 專屬的程式路徑；Windows 上 8 GB 的機器會不會一樣沒驗。要不要讓預設值看系統記憶體：未裁。
+  - 與 Mac 不同：原版的 `splashscreen-1.1.1+ggl3.jar` 在 Linux 上沒有卡住，遊戲一路載到主畫面（`latest.log` 有 `Loading Minecraft 1.21.11 with Fabric Loader 0.20.1`、OpenGL 4.6 NVIDIA）。Java 走的是 Zulu（`~/Games/GGL/runtime/java-21`；是 Zulu 是從第 4 步同一條路推的，沒有另外看 `release` 檔）。
+- 第 4 步：兩條路都印出「結果：通過」，但 Mojang 那條三次裡第一次失敗。Zulu：裝到 21.0.13.0.3，`java -version` exit 0，`bin/java` 0755。Mojang（`--mojang`）：第一次失敗，`lib/modules`（62292567 bytes，`piston-data.mojang.com`）報「下載停滯：30 秒內收到不到 1 MB」；緊接著用 `curl` 單獨抓同一個檔 33 秒抓完（約 1.9 MB/s）；重跑兩次都通過（各約 46、50 秒），裝到 21.0.7，根底下是 `bin conf legal lib release`（沒有包一層），`bin/*` 0755，205 個 link 都在。失敗的原因沒查出來〔猜的：同時開多條連線時個別連線短暫沒有資料；沒重現、沒量過〕。試裝留在 `/tmp/ggl-try-java-*` 的四個資料夾（共約 370 MB）工具不會自己清，已手動刪除。
+- 第 5 步（縮小版，owner 在設定視窗操作；重開後讀回還沒看）：安裝位置填 `C:\x` 被擋下，owner 回報「如預期」（錯誤文字的範例是不是 `/` 開頭，owner 沒有逐字回報）；安裝位置改回 `/home/mochi122/Games/GGL`、最大記憶體設成 3 後存檔，`settings.json` 裡是 `"maxMemoryGb": 3`、`launcherRootDir` 不變（CC 讀檔確認）。**沒驗**「改安裝位置到另一個資料夾」：比照 Mac 那次省略（換空資料夾會整包重下載），改用最大記憶體當存檔與讀回的對象。
+- 第 8 步（後端的部分）：`safeStorage.getSelectedStorageBackend()` 回 `gnome_libsecret`、`isEncryptionAvailable()` 是 true——用同一份 `node_modules/electron` 跑一支只印這兩個值的小程式量到的，不是在啟動器行程裡量的。`account.json` 的兩個 token 欄位 `method` 是 11 個字元（與 `safeStorage` 等長；沒有印內容），不是明文退路〔推論〕。計畫裡「沒有鑰匙圈時退到不安全後端」的情況在這台沒有發生。
+- 第 5、8 步的讀回（owner 目視）：啟動器關掉重開後仍是登入狀態、設定視窗的最大記憶體仍是 3。
+- 最大記憶體設 3 之後再開遊戲（Firefox 已關）：JVM 參數變成 `-Xms1024M -Xmx3072M`（設定有生效），owner 回報「這次超級順暢」；啟動 76 秒時 java 佔 3.3 GB、系統可用 2.6 GB、記憶體壓力接近 0。
+- 第 7 步（前半，owner 目視）：遊戲開著時啟動器上的更新／修復按鈕不見了。
+- 第 7 步（後半，啟動器在遊戲執行中重開）：owner 回報重開後主按鈕是「啟動」，並表示這與 Windows、Mac 一致、知情且同意（對應 §裁決「啟動器重開後能再開出第二個遊戲：不補強」）。「遊戲關掉後按鈕恢復」owner 回報沒辦法測。**重開後更新／修復有沒有被 `ps` 偵測擋下：沒驗到**（owner 回報沒注意）；真的跑 `ps` 的端到端測試在這台是過的（第 1 步）。
+- 第 6 步（匯出診斷）：成功，`~/.config/GGL_launcher/diagnostics/20261111-114758/` 四個檔（`report.json`、`ggl-launcher.log`、`settings.json`、`sync-record.json`）；`report.json` 的 `platform` 是 `linux`、`arch` 是 `x64`、`syncRecord.version` 是 `GGL3.0.7`、`readError` 與 `indexFetchError` 都是空的；四個檔裡搜不到 `token`、`xuid`、`refresh`、`eyJ`；路徑裡帶使用者名稱（同 Mac）。修復：遊戲關閉後按得下去，owner 回報有跑完。
+- 第 9 步：`npm run dist:linux` exit 0，打出 `dist/GGL-Launcher-1.0.1-linux-x64.AppImage`（144146301 bytes），`check:packaged-artifacts` 過，包裡沒有 `rpc-helper`；打出來就帶執行權限（0755）。owner 從系統自己的終端機／檔案管理員開：開得起來、已是登入狀態（與開發版共用 `~/.config/GGL_launcher`）、遊戲能正常開啟。計畫風險段猜的兩件事在這台都沒發生：FUSE 2 函式庫本來就在（`libfuse2t64`），沙箱起得來（`kernel.apparmor_restrict_unprivileged_userns = 0`）。
+  - **從 Claude 桌面版裡開會失敗**（owner 在 Claude 視窗裡點開、CC 從 session 的 shell 開，都是 `fusermount: mount failed: Operation not permitted`／`Cannot mount AppImage, please check your FUSE setup.`）：那個環境的行程帶 `NoNewPrivs: 1`，setuid 的 `fusermount3` 拿不到權限。是 Claude 執行環境的事，不是 AppImage 的問題；記下來是免得下次驗收又踩到。
+  - **程式真的錯：面板（工作列）上的視窗圖示是一顆齒輪**（owner 目視）。原因：`main/main-window.js` 只要 `assets/icon.ico` 存在就拿它當視窗圖示，`package.json` 的 `build.files` 也只收 `assets/icon.ico`（`asar list` 確認包裡只有 ico）；Linux 的 Electron 讀不了 `.ico`〔實測：同一份 Electron 44.3.0 在這台 `nativeImage.createFromPath` 讀 `icon.ico` 是空的、讀 `icon.png` 是 1254×1254〕。owner 2026-11-11「現在修。」。改法（`374528b`）：平台資料加 `windowIconFile`（Windows `icon.ico`，macOS、Linux `icon.png`），`configureMainWindow` 多一個必填的 `windowIconFile`、由 `main/start-main.js` 從平台資料給，檔不在時照舊退回 png；`build.files` 加 `assets/icon.png`（三個平台的包都會多這張約 500 KB 的圖）。Windows 選到的檔與改前相同。這台 `npm test` 1517 個、1455 過、0 紅、62 跳過（多的 5 個是新測試），`lint` 過；重新 `dist:linux` exit 0、`check:packaged-artifacts` 過、包裡有 `assets/icon.png`。owner 重開新的 AppImage 後回報「圖示正常了」。**還沒驗**：Windows 上 `npm test`／`pack:win`；Mac 的包。AppImage 內部的圖示放在 `usr/share/icons/hicolor/1254x1254/apps/`，不是標準尺寸的資料夾，桌面整合時吃不吃得到沒驗、沒動。
+- 第 6 步（部分，順帶看到）：啟動器關掉後遊戲行程還活著（啟動器結束後 `pgrep -x electron` 是 0、java 還在，之後才被 OOM 殺掉）。修復、匯出診斷還沒做。
 
 **Windows 迴歸（owner 的開發機）**：同 Mac 段那五項；L-Q1 選 A 時，第 4 項之外再按一次「更新」與「修復」確認跑得完。
 
