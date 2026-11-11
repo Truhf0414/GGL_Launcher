@@ -82,7 +82,7 @@ v1.0.0 的 Release Gate 已在 2026-11-01 由 owner 簽核通過（B6；接受�
 
 ## 3a. 建置 Mac 版（Apple 晶片）
 
-〔已實測〕2026-11-10 在 owner 的 Mac mini（macOS 26.6.2、arm64、Node 22.23.4）上做過步驟 3：`npm run dist:mac` exit 0、`check:packaged-artifacts` 過；以及下面玩家安裝的一整段（在 `GGL Launcher.app` 與 dmg 上實際走過）。步驟 1、2 與 4 沒有照做（建在 owner 自己的工作目錄，路徑含空白，沒有走乾淨 clone；候選 commit 的 sha256 沒有記）。規格與驗收清單在 `_notes/plans/mac-linux-support.md`。
+〔已實測〕2026-11-10 在 owner 的 Mac mini（macOS 26.6.2、arm64、Node 22.23.4）上做過步驟 3：`npm run dist:mac` exit 0、`check:packaged-artifacts` 過；以及下面玩家安裝的一整段（在 `GGL Launcher.app` 與 dmg 上實際走過）。當時步驟 1、2 與 4 沒有照做（建在 owner 自己的工作目錄）。〔已實測〕2026-11-11 v1.1.0 在同一台照步驟 1–4 做了一遍：乾淨 clone 在路徑短、不含空白的資料夾，`npm ci`、`npm test` 全綠，`dist:mac` exit 0、`check:packaged-artifacts` 過、`codesign -dv` 是 adhoc（agent 的 shell 帶 `ELECTRON_RUN_AS_NODE`，npm 指令是用 `env -u ELECTRON_RUN_AS_NODE` 跑的）。同一份原始碼重建出來的 dmg sha256 會不同，所以出貨用建好的那一份，不要重建。規格與驗收清單在 `_notes/plans/mac-linux-support.md`。
 
 - 只能在 Mac 上建（Apple 晶片；`dist:mac` 只打 arm64）。Windows 上建不出 dmg。〔已實測〕dmg 約 146 MB；`assets/icon.png`（1254 px）electron-builder 自己轉成 icns，不用另外準備；包裡的 `Resources/assets` 只有背景影片，沒有 `rpc-helper.exe`。
 - Mac 版**沒有** Apple 的開發者簽章與公證，只有臨時簽章（ad-hoc；`build.mac.identity` 是 `"-"`）。〔據文件〕依據是 `node_modules/app-builder-lib/out/macPackager.js`：identity 給 `"-"` 就用臨時簽章。〔已實測〕`codesign -dv` 顯示 `Signature=adhoc`、`TeamIdentifier=not set`，`codesign --verify --deep --strict` 通過；`spctl -a` 對它的判定是 `rejected`（沒公證，預期內）。
@@ -106,13 +106,13 @@ v1.0.0 的 Release Gate 已在 2026-11-01 由 owner 簽核通過（B6；接受�
 
   〔已實測〕2026-11-10，macOS 26.6.2。擋下的畫面標題是「未打開『GGL Launcher』」，內文是「Apple 無法驗證『GGL Launcher』是否為惡意軟體，它可能會損害你的 Mac 或危害你的隱私權。」，只有「完成」與「丟到垃圾桶」兩個按鈕，沒有「仍要打開」。dmg 本身（帶瀏覽器下載的隔離標記）雙擊時也出現「無法安裝，因為未驗證」之類的擋下，之後 dmg 仍能掛載（玩家實際怎麼放行的沒有記下）。把 app 拖進「應用程式」後跑上面的 `xattr -cr`，再打開就能啟動，不需要重新登入。
 - **覆蓋安裝每次都要再放行**：再從 dmg 把同一個 app 拖進「應用程式」取代，第一次打開又被擋，要再跑一次 `xattr -cr`。
-- 第一次啟動時 macOS 會跳鑰匙圈授權視窗：「『GGL Launcher』想使用你在鑰匙圈的『GGL_launcher Safe Storage』裡儲存的機密資訊」，要輸入鑰匙圈「登入」的密碼，有「永遠允許」、「拒絕」、「允許」三個按鈕。按「允許」只管那一次（下次啟動會再問）；按「拒絕」不會當機，視窗正常開，但按啟動會顯示「暫時無法讀取登入憑證，請稍後再試」，登入狀態不變；再按一次啟動，視窗會再跳一次，按「永遠允許」就能啟動。按過「永遠允許」之後，覆蓋安裝同一個 dmg，登入狀態還在、視窗沒有再跳。
+- 第一次啟動時 macOS 會跳鑰匙圈授權視窗：「『GGL Launcher』想使用你在鑰匙圈的『GGL_launcher Safe Storage』裡儲存的機密資訊」，要輸入鑰匙圈「登入」的密碼，有「永遠允許」、「拒絕」、「允許」三個按鈕。按「允許」只管那一次（下次啟動會再問）；按「拒絕」不會當機，視窗正常開，但按啟動會顯示「暫時無法讀取登入憑證，請稍後再試」，登入狀態不變；再按一次啟動，視窗會再跳一次，按「永遠允許」就能啟動。按過「永遠允許」之後，覆蓋安裝同一個 dmg，登入狀態還在、視窗沒有再跳。〔已實測〕2026-11-11 用 1.1.0 覆蓋 1.0.1：登入狀態還在，**鑰匙圈視窗又跳一次**——「永遠允許」綁的是那一版的臨時簽章，換版本不沿用，所以玩家每次更新後的第一次啟動都會再被問。（這次是用指令複製進「應用程式」，app 沒有隔離標記，所以沒有重驗拖曳覆蓋後的放行；再跳時按「拒絕」的行為只在 1.0.1 驗過。）
 - 同一台機器同時裝開發版（`npm start`）與裝好的 app 時，兩者共用同一個資料夾 `~/Library/Application Support/GGL_launcher` 與同一個鑰匙圈項目，登入資料互通；玩家只會裝一個，不受影響。
-- 給玩家的說明至少要寫：放行 dmg 與 app、每次更新安裝都要再放行一次、鑰匙圈視窗請按「永遠允許」、不小心按了「拒絕」就再按一次啟動。〔未驗〕不同版本（臨時簽章不同）的覆蓋安裝，鑰匙圈視窗會不會再跳：只驗過同一個 dmg 覆蓋。
+- 給玩家的說明至少要寫：放行 dmg 與 app、每次更新安裝都要再放行一次、鑰匙圈視窗請按「永遠允許」而且每次更新後會再問一次、不小心按了「拒絕」就再按一次啟動。玩家看的版本在 `docs/player-troubleshooting.md` 第 8 節。
 
 ## 3b. 建置 Linux 版（x64）
 
-〔尚未實跑〕這一節的每一步都還沒在 Linux 上做過；第一次做完要回填實際結果。規格與驗收清單在 `_notes/plans/mac-linux-support.md` 的「Linux 段」。
+〔已實測〕2026-11-11 v1.1.0 在 owner 的 Linux Mint 22.3（x64、Node 22.23.4）照步驟 1–4 做了一遍：乾淨 clone、`npm ci`、`npm test` 全綠、`dist:linux` exit 0、`check:packaged-artifacts` 過，AppImage 打出來就是 0755。1.0.1 的 AppImage 從系統自己的終端機或檔案管理員打開過，能登入、能啟動遊戲；v1.1.0 這份沒有打開過。規格與驗收清單在 `_notes/plans/mac-linux-support.md` 的「Linux 段」。
 
 - 只能在 Linux 上建（x64；`dist:linux` 只打 x64）。
 - 安裝檔是 AppImage：單一檔案，不用安裝，設成可執行後直接開。沒有簽章。
@@ -134,7 +134,7 @@ v1.0.0 的 Release Gate 已在 2026-11-01 由 owner 簽核通過（B6；接受�
   chmod +x GGL-Launcher-*-linux-x64.AppImage
   ```
 
-  〔尚未實跑〕這條指令、以及開不起來時的實際訊息（常聽到的兩種：系統沒有 FUSE 2 的函式庫、沙箱起不來）都還沒在 Linux 上確認。
+  〔未驗〕這條指令沒實跑（建出來的檔本來就可執行；從瀏覽器下載的會不會掉權限沒驗）。開不起來的兩種常見原因（系統沒有 FUSE 2 的函式庫、沙箱起不來）在 Mint 上都沒發生。從 Claude 桌面版裡開會失敗（`fusermount: mount failed: Operation not permitted`），那是執行環境帶 `NoNewPrivs` 的關係，不是包的問題；驗收時要從系統自己的終端機開。
 
 ## 4. 站台發布前檢查
 
@@ -253,6 +253,6 @@ npm run build:rpc-helper
 ## 10. 還沒補齊的
 
 - §7、§8 的全部操作（M-22 後段）。
-- §3b 整節（Linux 版建置與玩家步驟）：一次都還沒在 Linux 上做過。
-- §3a 的 Mac 版：建置與玩家放行已在 owner 的 Mac mini 實測（2026-11-10），還沒做的是：乾淨 clone 的建置（步驟 1、2、4）、不同版本覆蓋安裝時鑰匙圈視窗會不會再跳、玩家實際收到的說明文字。
+- §3b：玩家的 `chmod +x` 沒實跑；v1.1.0 的 AppImage 沒打開過。
+- §3a：拖曳覆蓋不同版本後的放行沒重驗；鑰匙圈再跳時按「拒絕」只在 1.0.1 驗過。
 - SmartScreen 的實際畫面（M-10 沒取得，owner 接受；公開後有人剛好截到再說）。
