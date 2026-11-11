@@ -5,12 +5,16 @@ const assert = require("node:assert/strict");
 const os = require("os");
 const path = require("path");
 
-const {
-  SyncRejectedError,
-  planSync,
-  listStrayJars,
-  assertRemovableStrayJars,
-} = require("../lib/sync/plan.js");
+const planLib = require("../lib/sync/plan.js");
+const { pathKeyFor } = require("../lib/sync/path-key.js");
+const { SyncRejectedError, planSync } = planLib;
+// 沒另外指定時路徑鍵給「轉小寫」（Windows、macOS 的規則）；分大小寫的規則在檔尾另測
+const FOLD = pathKeyFor(false);
+const EXACT = pathKeyFor(true);
+const listStrayJars = (input) =>
+  planLib.listStrayJars({ pathKey: FOLD, ...input });
+const assertRemovableStrayJars = (paths, opts) =>
+  planLib.assertRemovableStrayJars(paths, { pathKey: FOLD, ...opts });
 
 const GAME_DIR = path.join(os.tmpdir(), "ggl-plan-game");
 const PROTECTED = ["saves/", "screenshots/", "hotbar.nbt"];
@@ -50,6 +54,7 @@ async function plan({
   playerEditable = EDITABLE,
   protectedPaths = PROTECTED,
   gameDir = GAME_DIR,
+  pathKey = FOLD,
 }) {
   const { probe, calls } = fakeProbe(local);
   const result = await planSync({
@@ -61,22 +66,23 @@ async function plan({
     protectedPaths,
     verifyAll,
     onHashProgress,
+    pathKey,
   });
-  assertPartition(result, next);
+  assertPartition(result, next, pathKey);
   return { result, calls };
 }
 
 /** C6：download／rename.to／keep 恰好切分 next；remove 與 next 不相交；removeFirst ⊆ remove */
-function assertPartition(result, next) {
+function assertPartition(result, next, pathKey) {
   const covered = [
     ...result.download.map((d) => d.path),
     ...result.rename.map((r) => r.to),
     ...result.keep,
   ].sort();
   assert.deepEqual(covered, next.map((n) => n.path).sort(), "切分 next");
-  const nextKeys = new Set(next.map((n) => n.path.toLowerCase()));
+  const nextKeys = new Set(next.map((n) => pathKey(n.path)));
   for (const r of result.remove) {
-    assert.ok(!nextKeys.has(r.toLowerCase()), `remove 不得含 next：${r}`);
+    assert.ok(!nextKeys.has(pathKey(r)), `remove 不得含 next：${r}`);
   }
   for (const r of result.removeFirst) {
     assert.ok(result.remove.includes(r), `removeFirst ⊆ remove：${r}`);
@@ -420,6 +426,7 @@ test("拒絕時一次 probe 都不呼叫", async () => {
       protectedPaths: PROTECTED,
       verifyAll: false,
       onHashProgress: () => {},
+      pathKey: FOLD,
     }),
     SyncRejectedError,
   );
@@ -490,4 +497,126 @@ test("assertRemovableStrayJars：形狀、清單內、保護名單", async () =>
     path: "../a.jar",
     detail: "dot-segment",
   });
+});
+
+// ── 分大小寫的磁碟（Linux；→ _notes/plans/mac-linux-support.md §Linux 段 L-Q1）──
+// fakeProbe 本來就分大小寫，配上「原字串」的路徑鍵＝Linux 的樣子。
+
+test("分大小寫：只改檔名大小寫又換內容 ⇒ 下載新的、刪舊的，不留兩份", async () => {
+  const { result } = await plan({
+    previous: [{ path: "mods/Foo.jar", sha256: OLD }],
+    next: [entry("mods/foo.jar", NEW)],
+    local: { "mods/Foo.jar": OLD },
+    pathKey: EXACT,
+  });
+  assert.deepEqual(
+    result.download.map((d) => d.path),
+    ["mods/foo.jar"],
+  );
+  assert.deepEqual(result.remove, ["mods/Foo.jar"]);
+  assert.deepEqual(result.rename, []);
+  assert.deepEqual(result.keep, []);
+});
+
+test("分大小寫：只改檔名大小寫、內容沒換 ⇒ 一樣是下載新的、刪舊的（兩個不同的檔，不排改名）", async () => {
+  const { result } = await plan({
+    previous: [{ path: "mods/Foo.jar", sha256: OLD }],
+    next: [entry("mods/foo.jar", OLD)],
+    local: { "mods/Foo.jar": OLD },
+    pathKey: EXACT,
+  });
+  assert.deepEqual(
+    result.download.map((d) => d.path),
+    ["mods/foo.jar"],
+  );
+  assert.deepEqual(result.remove, ["mods/Foo.jar"]);
+  assert.deepEqual(result.rename, []);
+});
+
+test("分大小寫：只改資料夾大小寫 ⇒ 新位置下載、舊位置刪掉（不會留在舊資料夾卻記成新的）", async () => {
+  const { result } = await plan({
+    previous: [{ path: "kubejs/Data/a.json", sha256: OLD }],
+    next: [entry("kubejs/data/a.json", OLD)],
+    local: { "kubejs/Data/a.json": OLD },
+    pathKey: EXACT,
+  });
+  assert.deepEqual(
+    result.download.map((d) => d.path),
+    ["kubejs/data/a.json"],
+  );
+  assert.deepEqual(result.remove, ["kubejs/Data/a.json"]);
+  assert.deepEqual(result.keep, []);
+});
+
+test("分大小寫：玩家自己放的只差大小寫的 jar 列得出來，也准刪", () => {
+  const next = [entry("mods/sodium.jar", NEW)];
+  assert.deepEqual(
+    planLib.listStrayJars({
+      next,
+      previous: null,
+      modsListing: [
+        { name: "Sodium.jar", isFile: true },
+        { name: "sodium.jar", isFile: true },
+      ],
+      pathKey: EXACT,
+    }),
+    ["mods/Sodium.jar"],
+  );
+  const opts = { gameDir: GAME_DIR, protectedPaths: [], next, pathKey: EXACT };
+  assert.doesNotThrow(() =>
+    planLib.assertRemovableStrayJars(["mods/Sodium.jar"], opts),
+  );
+  assert.throws(
+    () => planLib.assertRemovableStrayJars(["mods/sodium.jar"], opts),
+    (e) => e.code === "GGL_SYNC_IN_MANIFEST",
+  );
+});
+
+test("分大小寫：保護名單與玩家可改清單仍然不分大小寫（那是政策，不跟磁碟走）", async () => {
+  await assertRejected(
+    plan({ next: [entry("Saves/x", NEW)], pathKey: EXACT }),
+    {
+      code: "GGL_SYNC_PROTECTED_PATH",
+      path: "Saves/x",
+      detail: undefined,
+    },
+  );
+  const { result, calls } = await plan({
+    next: [entry("Config/x.toml", NEW)],
+    local: { "Config/x.toml": OTHER },
+    pathKey: EXACT,
+  });
+  assert.deepEqual(result.keep, ["Config/x.toml"]);
+  assert.equal(calls.sha256.length, 0);
+});
+
+test("漏給 pathKey ⇒ TypeError，而且一次 probe 都不呼叫", async () => {
+  const { probe, calls } = fakeProbe({});
+  await assert.rejects(
+    planSync({
+      previous: null,
+      next: [entry("mods/a.jar", NEW)],
+      gameDir: GAME_DIR,
+      probe,
+      playerEditable: EDITABLE,
+      protectedPaths: PROTECTED,
+      verifyAll: false,
+      onHashProgress: () => {},
+    }),
+    (e) => e instanceof TypeError && /pathKey/.test(e.message),
+  );
+  assert.deepEqual(calls, { exists: [], sha256: [] });
+  assert.throws(
+    () => planLib.listStrayJars({ next: [], previous: null, modsListing: [] }),
+    (e) => e instanceof TypeError && /pathKey/.test(e.message),
+  );
+  assert.throws(
+    () =>
+      planLib.assertRemovableStrayJars([], {
+        gameDir: GAME_DIR,
+        protectedPaths: [],
+        next: [],
+      }),
+    (e) => e instanceof TypeError && /pathKey/.test(e.message),
+  );
 });

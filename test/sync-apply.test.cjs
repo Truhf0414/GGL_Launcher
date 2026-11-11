@@ -20,7 +20,8 @@ const {
 const { snapshot } = require("./helpers/fs-snapshot.cjs");
 const { getPaths } = require("../lib/paths-layout.js");
 const { planSync } = require("../lib/sync/plan.js");
-const { linkCheckPaths } = require("../lib/sync/blocking.js");
+const blocking = require("../lib/sync/blocking.js");
+const { pathKeyFor } = require("../lib/sync/path-key.js");
 const { hashFile } = require("../main/fs-utils.js");
 const {
   readRecord,
@@ -37,6 +38,11 @@ const { registerInstanceIpc } = require("../main/ipc/instance-ipc.js");
 const { linkMessage } = require("../lib/fs-links.js");
 const { launchEnv } = require("../lib/launch-args.js");
 const { hostPlatform } = require("../lib/platform.js");
+// 這個檔碰真的磁碟：路徑鍵跟這台的平台資料走（Windows、macOS 轉小寫，Linux 原字串）
+const HOST_KEY = pathKeyFor(hostPlatform().pathsCaseSensitive);
+const linkCheckPaths = (input) =>
+  blocking.linkCheckPaths({ pathKey: HOST_KEY, ...input });
+const onCaseSensitiveDisk = hostPlatform().pathsCaseSensitive;
 const { startFakeRuntime, MC, LOADER } = require("./helpers/fake-runtime.cjs");
 
 const HANG_LIMIT_MS = 10_000;
@@ -129,6 +135,7 @@ async function plan(paths, { previous = null, next }) {
     protectedPaths: [],
     verifyAll: false,
     onHashProgress: () => {},
+    pathKey: HOST_KEY,
   });
 }
 
@@ -152,6 +159,7 @@ function deps(extra = {}) {
       }),
     fetchReleaseFiles: async () => null,
     sendSyncProgress: (p) => progress.push(p),
+    pathKey: HOST_KEY,
     now: () => new Date(2026, 8, 30, 14, 30, 0),
     ...extra,
   };
@@ -736,17 +744,19 @@ for (const [label, previous] of [
   test(`record-external file where a folder is needed (${label}) ⇒ moved aside intact, update succeeds`, async (t) => {
     const ctx = await setup(t);
     if (previous) await put(ctx.paths, "mods/a.jar", A);
-    await put(ctx.paths, "Config", "player stuff"); // 大寫：備份名要用本機實際寫法
+    // 不分大小寫的磁碟：用大寫，備份名要用本機實際寫法。分大小寫的磁碟上 Config 不擋 config/，要同名才擋
+    const stray = onCaseSensitiveDisk ? "config" : "Config";
+    await put(ctx.paths, stray, "player stuff");
     const { result } = await run(ctx, {
       previous,
       next: [entry("mods/a.jar", A), entry("config/c.toml", C)],
     });
 
     assert.deepEqual(result.movedAside, [
-      { from: "Config", to: "Config.ggl-備份-20260930-143000" },
+      { from: stray, to: `${stray}.ggl-備份-20260930-143000` },
     ]);
     assert.equal(
-      String(await read(ctx.paths, "Config.ggl-備份-20260930-143000")),
+      String(await read(ctx.paths, `${stray}.ggl-備份-20260930-143000`)),
       "player stuff",
     );
     assert.deepEqual(await read(ctx.paths, "config/c.toml"), C);
@@ -805,19 +815,24 @@ test("record written by writeRecord is the injected one (deps default wiring)", 
   assert.equal(typeof got.appliedAt, "string");
 });
 
-test("backup name taken with different letter case ⇒ still -2 (NTFS rename would overwrite it)", async (t) => {
-  const ctx = await setup(t);
-  await put(ctx.paths, "config", "new stray");
-  await put(ctx.paths, "Config.ggl-備份-20260930-143000", "older backup");
-  const { result } = await run(ctx, { next: [entry("config/c.toml", C)] });
-  assert.deepEqual(result.movedAside, [
-    { from: "config", to: "config.ggl-備份-20260930-143000-2" },
-  ]);
-  assert.equal(
-    String(await read(ctx.paths, "Config.ggl-備份-20260930-143000")),
-    "older backup",
-  );
-});
+// 不分大小寫的磁碟才有這件事；分大小寫的磁碟上兩個名字是兩個檔，不會被蓋掉
+test(
+  "backup name taken with different letter case ⇒ still -2 (NTFS rename would overwrite it)",
+  { skip: onCaseSensitiveDisk },
+  async (t) => {
+    const ctx = await setup(t);
+    await put(ctx.paths, "config", "new stray");
+    await put(ctx.paths, "Config.ggl-備份-20260930-143000", "older backup");
+    const { result } = await run(ctx, { next: [entry("config/c.toml", C)] });
+    assert.deepEqual(result.movedAside, [
+      { from: "config", to: "config.ggl-備份-20260930-143000-2" },
+    ]);
+    assert.equal(
+      String(await read(ctx.paths, "Config.ggl-備份-20260930-143000")),
+      "older backup",
+    );
+  },
+);
 
 // ── 真 junction（Windows；不需要管理員權限，2026-09-30 實測） ──
 
@@ -1179,9 +1194,18 @@ test("L16 coverage: every path applyPlan writes through deps.fsp has its ancesto
   });
 
   // 這幾個分支都要真的走到，覆蓋率才有意義
-  assert.deepEqual(p.remove.sort(), ["mods/old.jar", "shaders"]);
+  // 分大小寫的磁碟上 Foo.jar 與 foo.jar 是兩個檔：沒有「改名」這條路，變成刪舊的、下載新的
+  assert.deepEqual(
+    p.remove.sort(),
+    onCaseSensitiveDisk
+      ? ["mods/Foo.jar", "mods/old.jar", "shaders"]
+      : ["mods/old.jar", "shaders"],
+  );
   assert.deepEqual(p.removeFirst, ["shaders"]);
-  assert.deepEqual(p.rename, [{ from: "mods/Foo.jar", to: "mods/foo.jar" }]);
+  assert.deepEqual(
+    p.rename,
+    onCaseSensitiveDisk ? [] : [{ from: "mods/Foo.jar", to: "mods/foo.jar" }],
+  );
   assert.deepEqual(
     result.movedAside.map((m) => m.from),
     ["config"],
@@ -1487,3 +1511,57 @@ for (const key of ["prepareRuntime", "fetchReleaseFiles", "sendSyncProgress"]) {
     });
   }
 }
+
+// ── 分大小寫的磁碟（Linux；→ _notes/plans/mac-linux-support.md §Linux 段 L-Q1）──
+// 要真的磁碟分大小寫才有意義；Windows、macOS 上跳過（那邊的規則由上面既有的案例把關）。
+
+test(
+  "分大小寫的磁碟：只改檔名大小寫又換內容 ⇒ 只剩新的那一個",
+  { skip: !onCaseSensitiveDisk },
+  async (t) => {
+    const ctx = await setup(t);
+    await put(ctx.paths, "mods/Foo.jar", A);
+    await run(ctx, {
+      previous: [{ path: "mods/Foo.jar", sha256: sha(A) }],
+      next: [entry("mods/foo.jar", B)],
+    });
+    assert.deepEqual(await fsp.readdir(abs(ctx.paths, "mods")), ["foo.jar"]);
+    assert.deepEqual(await read(ctx.paths, "mods/foo.jar"), B);
+  },
+);
+
+test(
+  "分大小寫的磁碟：只改資料夾大小寫 ⇒ 檔在新位置，舊位置的不在了",
+  { skip: !onCaseSensitiveDisk },
+  async (t) => {
+    const ctx = await setup(t);
+    await put(ctx.paths, "config/Sub/c.toml", C);
+    await run(ctx, {
+      previous: [{ path: "config/Sub/c.toml", sha256: sha(C) }],
+      next: [entry("config/sub/c.toml", C)],
+    });
+    assert.deepEqual(await read(ctx.paths, "config/sub/c.toml"), C);
+    assert.equal(await exists(abs(ctx.paths, "config/Sub/c.toml")), false);
+  },
+);
+
+test(
+  "分大小寫的磁碟：玩家勾選刪掉只差大小寫的 jar ⇒ 清單裡的那個留著、玩家的那個刪掉",
+  { skip: !onCaseSensitiveDisk },
+  async (t) => {
+    const ctx = await setup(t);
+    await put(ctx.paths, "mods/Sodium.jar", "mine");
+    const next = [entry("mods/sodium.jar", A)];
+    const p = await plan(ctx.paths, { next });
+    p.remove.push("mods/Sodium.jar");
+    await applyPlan({
+      plan: p,
+      record: recordFor(next),
+      paths: ctx.paths,
+      filesBaseUrl: ctx.filesBaseUrl,
+      deps: deps(),
+    });
+    assert.deepEqual(await fsp.readdir(abs(ctx.paths, "mods")), ["sodium.jar"]);
+    assert.deepEqual(await read(ctx.paths, "mods/sodium.jar"), A);
+  },
+);

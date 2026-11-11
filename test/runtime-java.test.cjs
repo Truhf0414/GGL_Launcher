@@ -32,6 +32,11 @@ const WIN = describePlatform({
   arch: "x64",
   homedir: "C:\\Users\\t",
 });
+const LINUX = describePlatform({
+  platform: "linux",
+  arch: "x64",
+  homedir: "/home/t",
+});
 const MAC = describePlatform({
   platform: "darwin",
   arch: "arm64",
@@ -1232,6 +1237,8 @@ test("預設端點：Adoptium 兩條、Semeru、Zulu 都以 major 組；Zulu 的
   const zuluMac = DEFAULT_ENDPOINTS.zuluQuery(21, MAC.zuluQuery);
   assert.ok(zuluMac.includes("&os=macos&arch=aarch64&"), zuluMac);
   assert.ok(zuluMac.includes("archive_type=zip"), zuluMac);
+  const zuluLinux = DEFAULT_ENDPOINTS.zuluQuery(21, LINUX.zuluQuery);
+  assert.ok(zuluLinux.includes("&os=linux&arch=x86_64&"), zuluLinux);
   assert.match(DEFAULT_ENDPOINTS.semeruRelease(21), /semeru21-binaries/);
   const adoptium = DEFAULT_ENDPOINTS.adoptium(21, "eclipse");
   assert.match(adoptium, /\/v3\/assets\/feature_releases\/21\/ga\?/);
@@ -1650,5 +1657,131 @@ test(
       [["java.exe", 0o755]],
     );
     assert.deepEqual(rec.calls.symlink, []);
+  },
+);
+
+// ── Linux（→ _notes/plans/mac-linux-support.md §Linux 段 L1）：來源只有 Zulu、java 在 bin/java、Mojang 的 manifest 沒有包一層 ──
+
+/** 假的 Zulu Linux zip：唯一根目錄，底下直接是 bin/（與 Windows 同型，執行檔沒有副檔名） */
+const linuxExtract = async (zipPath, { dir }) => {
+  const root = path.join(dir, "zulu21-linux_x64");
+  await fsp.mkdir(path.join(root, "bin"), { recursive: true });
+  await fsp.writeFile(path.join(root, "bin", "java"), ZIP_JAVA);
+};
+
+test(
+  "L1 Linux zip：只查 Zulu（帶 linux／x86_64）、java 在 bin/java",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const env = await javaEnv(t);
+    const zuluArgs = [];
+    const r = await installJava(
+      env.args({
+        deps: {
+          platform: LINUX,
+          extractZip: linuxExtract,
+          endpoints: {
+            ...env.deps.endpoints,
+            zuluQuery: (m, q) => {
+              zuluArgs.push(q);
+              return env.deps.endpoints.zuluQuery(m);
+            },
+          },
+        },
+      }),
+    );
+    assert.deepEqual(zuluArgs, [{ os: "linux", arch: "x86_64" }]);
+    assert.equal(r.javaExe, path.join(env.dir, "bin", "java"));
+    assert.equal(await fsp.readFile(r.javaExe, "utf8"), ZIP_JAVA);
+    const hit = env.srv.requests.map((q) => q.url);
+    for (const u of hit) {
+      assert.ok(!u.startsWith("/semeru/") && !u.startsWith("/adoptium/"), u);
+    }
+    await assertCleaned(env);
+  },
+);
+
+test(
+  "L1 Linux Mojang 退路：取 linux、manifest 的根就是 runtime、executable 的設 0755、link 在檔案之後建",
+  { timeout: HANG_LIMIT_MS },
+  async (t) => {
+    const env = await javaEnv(t, { extract: "throw" });
+    const u = env.srv.url;
+    const file = (key, buf, extra = {}) => {
+      env.overrides.set(`/mojang/linux/${key}`, send(buf));
+      return {
+        type: "file",
+        downloads: {
+          raw: {
+            url: `${u}/mojang/linux/${key}`,
+            sha1: sha("sha1", buf),
+            size: buf.length,
+          },
+        },
+        ...extra,
+      };
+    };
+    // 實測形狀（2026-11-11）：bin、conf、legal、lib、release 直接在根底下，legal 是 link
+    const files = {
+      bin: { type: "directory" },
+      legal: { type: "directory" },
+      "legal/java.base": { type: "directory" },
+      "legal/java.se": { type: "directory" },
+      "bin/java": file("bin/java", Buffer.from("linux java"), {
+        executable: true,
+      }),
+      release: file("release", Buffer.from("release"), { executable: false }),
+      "legal/java.base/LICENSE": file(
+        "legal/java.base/LICENSE",
+        Buffer.from("license"),
+      ),
+      "legal/java.se/LICENSE": { type: "link", target: "../java.base/LICENSE" },
+    };
+    env.overrides.set(
+      "/mojang/all.json",
+      sendJson({
+        "windows-x64": {
+          "java-runtime-delta": [
+            { manifest: { url: `${u}/mojang/manifest.json` } },
+          ],
+        },
+        linux: {
+          "java-runtime-delta": [
+            { manifest: { url: `${u}/mojang/linux-manifest.json` } },
+          ],
+        },
+      }),
+    );
+    env.overrides.set("/mojang/linux-manifest.json", sendJson({ files }));
+    const rec = recordingFs();
+    const r = await installJava(
+      env.args({ deps: { platform: LINUX, fsp: rec.fsp } }),
+    );
+
+    assert.equal(r.javaExe, path.join(env.dir, "bin", "java"));
+    assert.equal(await fsp.readFile(r.javaExe, "utf8"), "linux java");
+    assert.ok(
+      !env.srv.requests.some((q) => q.url === "/mojang/manifest.json"),
+      "沒去抓 windows-x64 的 manifest",
+    );
+    const staged = (key) =>
+      path.join(
+        env.paths.tempDir,
+        "java-21-staging",
+        "mojang",
+        ...key.split("/"),
+      );
+    assert.deepEqual(rec.calls.chmod, [[staged("bin/java"), 0o755]]);
+    assert.deepEqual(rec.calls.symlink, [
+      ["../java.base/LICENSE", staged("legal/java.se/LICENSE")],
+    ]);
+    assert.equal(
+      await fsp.readFile(
+        path.join(env.dir, "legal", "java.se", "LICENSE"),
+        "utf8",
+      ),
+      "link -> ../java.base/LICENSE",
+    );
+    await assertCleaned(env);
   },
 );

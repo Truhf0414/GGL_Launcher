@@ -37,7 +37,8 @@ const ENV = launchEnv(hostPlatform(), "10.0.26200");
 // 筆數＝原版 fixture 裡這個 os.name 允許的 library ＋ Fabric 的 8 筆 ＋ client jar（Windows 75、osx 71）
 const CP_SEP = hostPlatform().classpathSeparator;
 const CP_FOREIGN_SEP = hostPlatform().pathStyle === "windows" ? "/" : "\\";
-const CP_COUNT = { windows: 84, macos: 80 }[hostPlatform().id];
+// 各平台的筆數＝原版 fixture 裡該平台允許的 library（75／71／61）＋ Fabric 8 ＋ client jar
+const CP_COUNT = { windows: 84, macos: 80, linux: 70 }[hostPlatform().id];
 const FABRIC_REL = `versions/${LAUNCH_ID}/${LAUNCH_ID}.json`;
 const VANILLA_REL = `versions/${RUNTIME.minecraft}/${RUNTIME.minecraft}.json`;
 

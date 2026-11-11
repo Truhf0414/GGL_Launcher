@@ -20,21 +20,24 @@ let sendWindowPower = null;
  * 必須在 `createMainWindow` 之前呼叫一次，讓 `getAppIconPath()` 與
  * `preload` / `index.html` 路徑以啟動入口目錄為準（`main.js` 傳 `__dirname`）。
  * `sendWindowPower` 來自 `createIpcBridgeSenders`（`main/ipc-bridge.js`），所以要在它之後呼叫。
- * 兩個都必填：缺了在開機時丟，不退回空函式或 main/ 的上一層（→ _notes/plans/cross-review-2026-10-phase6b.md §6b-3 細部初稿 M-DI #5）
+ * 三個都必填（`windowIconFile` 來自平台資料）：缺了在開機時丟，不退回空函式或 main/ 的上一層（→ _notes/plans/cross-review-2026-10-phase6b.md §6b-3 細部初稿 M-DI #5）
  */
 function configureMainWindow(deps) {
   if (typeof deps?.sendWindowPower !== "function")
     throw new TypeError("configureMainWindow: 缺少必填的注入 sendWindowPower");
   if (typeof deps.appRoot !== "string" || deps.appRoot === "")
     throw new TypeError("configureMainWindow: appRoot 必須是非空字串");
+  if (typeof deps.windowIconFile !== "string" || deps.windowIconFile === "")
+    throw new TypeError("configureMainWindow: windowIconFile 必須是非空字串");
   sendWindowPower = deps.sendWindowPower;
   appRoot = path.resolve(deps.appRoot);
 
-  const ico = path.join(appRoot, "assets", "icon.ico");
+  // 用哪個檔由平台資料決定（lib/platform.js 的 windowIconFile）；那個檔不在就退回 png
+  const preferred = path.join(appRoot, "assets", deps.windowIconFile);
   const png = path.join(appRoot, "assets", "icon.png");
   try {
-    fs.accessSync(ico);
-    appIconPath = ico;
+    fs.accessSync(preferred);
+    appIconPath = preferred;
   } catch {
     appIconPath = png;
   }

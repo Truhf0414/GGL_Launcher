@@ -26,15 +26,34 @@ function makeAppRoot(t, { ico }) {
   return root;
 }
 
-test("C3b 有 icon.ico ⇒ 圖示用 ico（對照列）", (t) => {
+test("C3b 平台要 icon.ico、檔案在 ⇒ 圖示用 ico（對照列）", (t) => {
   const appRoot = makeAppRoot(t, { ico: true });
-  configureMainWindow({ appRoot, sendWindowPower: () => {} });
+  configureMainWindow({
+    appRoot,
+    sendWindowPower: () => {},
+    windowIconFile: "icon.ico",
+  });
   assert.equal(getAppIconPath(), path.join(appRoot, "assets", "icon.ico"));
 });
 
-test("C3b 沒有 icon.ico ⇒ 退回 icon.png（磁碟邊界，照舊）", (t) => {
+test("C3b 平台要 icon.ico、檔案不在 ⇒ 退回 icon.png（磁碟邊界，照舊）", (t) => {
   const appRoot = makeAppRoot(t, { ico: false });
-  configureMainWindow({ appRoot, sendWindowPower: () => {} });
+  configureMainWindow({
+    appRoot,
+    sendWindowPower: () => {},
+    windowIconFile: "icon.ico",
+  });
+  assert.equal(getAppIconPath(), path.join(appRoot, "assets", "icon.png"));
+});
+
+// Linux 的 Electron 讀不了 .ico（2026-11-11 Mint 實測：面板上是預設圖示），所以 ico 在也不拿
+test("平台要 icon.png ⇒ 圖示用 png，就算 icon.ico 也在", (t) => {
+  const appRoot = makeAppRoot(t, { ico: true });
+  configureMainWindow({
+    appRoot,
+    sendWindowPower: () => {},
+    windowIconFile: "icon.png",
+  });
   assert.equal(getAppIconPath(), path.join(appRoot, "assets", "icon.png"));
 });
 
@@ -51,6 +70,7 @@ for (const [shape, change] of [
     const deps = {
       appRoot: makeAppRoot(t, { ico: true }),
       sendWindowPower: () => {},
+      windowIconFile: "icon.ico",
     };
     change(deps, "sendWindowPower");
     assert.throws(
@@ -66,11 +86,34 @@ for (const [shape, change] of [
   ["不是字串", (deps) => (deps.appRoot = 42)],
 ]) {
   test(`C3b appRoot ${shape} ⇒ TypeError、訊息含鍵名（不再退回 main/ 的上一層）`, () => {
-    const deps = { appRoot: "unused", sendWindowPower: () => {} };
+    const deps = {
+      appRoot: "unused",
+      sendWindowPower: () => {},
+      windowIconFile: "icon.ico",
+    };
     change(deps, "appRoot");
     assert.throws(
       () => configureMainWindow(deps),
       (e) => e instanceof TypeError && e.message.includes("appRoot"),
+    );
+  });
+}
+
+for (const [shape, change] of [
+  ...MISSING,
+  ["空字串", (deps) => (deps.windowIconFile = "")],
+  ["不是字串", (deps) => (deps.windowIconFile = 42)],
+]) {
+  test(`windowIconFile ${shape} ⇒ TypeError、訊息含鍵名`, (t) => {
+    const deps = {
+      appRoot: makeAppRoot(t, { ico: true }),
+      sendWindowPower: () => {},
+      windowIconFile: "icon.ico",
+    };
+    change(deps, "windowIconFile");
+    assert.throws(
+      () => configureMainWindow(deps),
+      (e) => e instanceof TypeError && e.message.includes("windowIconFile"),
     );
   });
 }

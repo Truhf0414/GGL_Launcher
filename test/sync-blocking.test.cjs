@@ -4,11 +4,16 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("path");
 
-const {
-  findBlockers,
-  linkCheckPaths,
-  baseLinkPaths,
-} = require("../lib/sync/blocking.js");
+const blocking = require("../lib/sync/blocking.js");
+const { pathKeyFor } = require("../lib/sync/path-key.js");
+const { baseLinkPaths } = blocking;
+// 這個檔的假磁碟模擬不分大小寫的磁碟，所以沒另外指定時路徑鍵給「轉小寫」；分大小寫的規則在檔尾另測
+const FOLD = pathKeyFor(false);
+const EXACT = pathKeyFor(true);
+const findBlockers = (input) =>
+  blocking.findBlockers({ pathKey: FOLD, ...input });
+const linkCheckPaths = (input) =>
+  blocking.linkCheckPaths({ pathKey: FOLD, ...input });
 const { getPaths } = require("../lib/paths-layout.js");
 
 /**
@@ -353,4 +358,89 @@ test("baseLinkPaths — eight managed bases, outermost first, root is its own wh
     { path: j(".temp", "runtime-trash"), where: "managed" },
     { path: j("runtime"), where: "managed" },
   ]);
+});
+
+// ── 分大小寫的磁碟（Linux；→ _notes/plans/mac-linux-support.md §Linux 段 L-Q1）──
+
+/** 假磁碟：key 與查詢都分大小寫 */
+function exactDisk(entries) {
+  const map = new Map(Object.entries(entries));
+  return {
+    probe: {
+      kind: async (rel) => map.get(rel) ?? "none",
+      listEntries: async (rel) =>
+        [...map.entries()]
+          .filter(([k, v]) => k.startsWith(`${rel}/`) && v !== "dir")
+          .map(([k, v]) => ({ path: k, kind: v })),
+    },
+  };
+}
+
+test("分大小寫：Config 檔不擋 config/x（是另一個東西）；config 檔才擋", async () => {
+  const other = exactDisk({ Config: "file" });
+  assert.deepEqual(
+    await blocking.findBlockers({
+      download: dl("config/x.toml"),
+      removeFirst: [],
+      probe: other.probe,
+      pathKey: EXACT,
+    }),
+    none,
+  );
+  const same = exactDisk({ config: "file" });
+  assert.deepEqual(
+    await blocking.findBlockers({
+      download: dl("config/x.toml"),
+      removeFirst: [],
+      probe: same.probe,
+      pathKey: EXACT,
+    }),
+    { ...none, moveAside: ["config"] },
+  );
+});
+
+test("分大小寫：removeFirst 只差大小寫的不算同一個 ⇒ 擋路的檔照樣移開", async () => {
+  const { probe } = exactDisk({ mods: "dir", "mods/extra": "file" });
+  const r = await blocking.findBlockers({
+    download: dl("mods/extra/a.jar"),
+    removeFirst: ["mods/Extra"],
+    probe,
+    pathKey: EXACT,
+  });
+  assert.deepEqual(r, { ...none, moveAside: ["mods/extra"] });
+});
+
+test("分大小寫：linkCheckPaths 不把只差大小寫的路徑併成一個", () => {
+  const got = blocking.linkCheckPaths({
+    plan: {
+      download: [{ path: "Config/a" }, { path: "config/b" }],
+      remove: [],
+      removeFirst: [],
+      rename: [],
+    },
+    recordFiles: [],
+    pathKey: EXACT,
+  });
+  for (const p of ["Config", "config", "Config/a", "config/b"]) {
+    assert.ok(got.includes(p), `${p}：${JSON.stringify(got)}`);
+  }
+});
+
+test("漏給 pathKey ⇒ TypeError（不默默當成某一種）", async () => {
+  await assert.rejects(
+    blocking.findBlockers({
+      download: [],
+      removeFirst: [],
+      probe: exactDisk({}).probe,
+    }),
+    (e) => e instanceof TypeError && /pathKey/.test(e.message),
+  );
+  assert.throws(
+    () =>
+      blocking.linkCheckPaths({
+        plan: { download: [], remove: [], removeFirst: [], rename: [] },
+        recordFiles: [],
+      }),
+    (e) => e instanceof TypeError && /pathKey/.test(e.message),
+  );
 });

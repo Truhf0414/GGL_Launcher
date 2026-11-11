@@ -35,6 +35,8 @@ test("describePlatform：Windows 的值（與改成依平台之前寫死的相�
     mojangRuntimeRoot: "",
     processList: "cim",
     hasDiscordHelper: true,
+    windowIconFile: "icon.ico",
+    pathsCaseSensitive: false,
   });
 });
 
@@ -74,6 +76,34 @@ test("describePlatform：Apple 晶片的 Mac", () => {
     mojangRuntimeRoot: "jre.bundle",
     processList: "ps",
     hasDiscordHelper: false,
+    windowIconFile: "icon.png",
+    pathsCaseSensitive: false,
+  });
+});
+
+test("describePlatform：x64 的 Linux", () => {
+  const linux = describePlatform({
+    platform: "linux",
+    arch: "x64",
+    homedir: "/home/t",
+  });
+  assert.deepEqual(linux, {
+    id: "linux",
+    minecraftOs: { name: "linux", arch: "x86_64" },
+    pathStyle: "posix",
+    classpathSeparator: ":",
+    javaExeInRuntime: "bin/java",
+    defaultLauncherRootDir: "/home/t/Games/GGL",
+    browseStartDir: "/home/t",
+    javaBuildLabel: "Linux x64",
+    javaZipSources: ["zulu"],
+    zuluQuery: { os: "linux", arch: "x86_64" },
+    mojangRuntimeKey: "linux",
+    mojangRuntimeRoot: "",
+    processList: "ps",
+    hasDiscordHelper: false,
+    windowIconFile: "icon.png",
+    pathsCaseSensitive: true,
   });
 });
 
@@ -81,6 +111,7 @@ test("describePlatform：回傳的資料凍結", () => {
   for (const host of [
     { platform: "win32", arch: "x64", homedir: "C:\\Users\\t" },
     { platform: "darwin", arch: "arm64", homedir: "/Users/t" },
+    { platform: "linux", arch: "x64", homedir: "/home/t" },
   ]) {
     const p = describePlatform(host);
     assert.ok(Object.isFrozen(p), host.platform);
@@ -90,11 +121,11 @@ test("describePlatform：回傳的資料凍結", () => {
   }
 });
 
-test("describePlatform：不支援的平台 ⇒ 丟錯並寫出是哪個平台（Intel Mac、Linux、其他）", () => {
+test("describePlatform：不支援的平台 ⇒ 丟錯並寫出是哪個平台（Intel Mac、非 x64 的 Linux、其他）", () => {
   for (const [platform, arch] of [
     ["darwin", "x64"],
-    ["linux", "x64"],
     ["linux", "arm64"],
+    ["linux", "ia32"],
     ["freebsd", "x64"],
   ]) {
     assert.throws(

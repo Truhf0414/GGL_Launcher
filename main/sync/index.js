@@ -26,6 +26,7 @@ const {
 const { checkRuntimeReady } = require("../../lib/runtime-readiness.js");
 const { launchEnv } = require("../../lib/launch-args.js");
 const { hostPlatform } = require("../../lib/platform.js");
+const { pathKeyFor } = require("../../lib/sync/path-key.js");
 const {
   pickRuntimeFields,
   sameRuntimeTarget,
@@ -173,6 +174,8 @@ function createInstanceSync(deps) {
   // 就緒與安裝過濾 library 用同一份，只在這裡組（→ _notes/plans/instance-sync-v3-commit5b.md Q2）
   const platform = hostPlatform();
   const runtimeEnv = launchEnv(platform, os.release());
+  // 這台的磁碟分不分大小寫：計畫、擋路、多餘 jar 都用同一個（→ _notes/plans/mac-linux-support.md §Linux 段 L-Q1）
+  const pathKey = pathKeyFor(platform.pathsCaseSensitive);
   const cleanupFs = deps.cleanupFs; // 測試換掉 D2 用的 fs（R#17）；預設＝fs/promises
   const gameDeps = {
     processList: platform.processList,
@@ -337,11 +340,12 @@ function createInstanceSync(deps) {
       verifyAll,
       onHashProgress: ({ done, total }) =>
         onProgress({ phase: "check", done, total }),
+      pathKey,
     });
-    const listed = new Set(plan.remove.map((p) => p.toLowerCase()));
+    const listed = new Set(plan.remove.map(pathKey));
     for (const p of strayJars) {
-      if (listed.has(p.toLowerCase())) continue;
-      listed.add(p.toLowerCase());
+      if (listed.has(pathKey(p))) continue;
+      listed.add(pathKey(p));
       plan.remove.push(p);
     }
     return plan;
@@ -355,6 +359,7 @@ function createInstanceSync(deps) {
         gameDir: paths.gameDir,
         protectedPaths: serverConfig.protectedPaths,
         next: release.value.files,
+        pathKey,
       });
     }
     // 進入套用：改階段、拿序號、送出 syncing 在同一個同步段，且在算計畫之前（R1）
@@ -377,6 +382,7 @@ function createInstanceSync(deps) {
       paths,
       filesBaseUrl: index.value.files,
       deps: {
+        pathKey,
         prepareRuntime: async () => {
           const fields = pickRuntimeFields(
             await prepareRuntime({
@@ -459,6 +465,7 @@ function createInstanceSync(deps) {
       next: inputs.release.value.files,
       previous: inputs.local.record?.files ?? null,
       modsListing: entries.map((e) => ({ name: e.name, isFile: e.isFile() })),
+      pathKey,
     });
   }
 

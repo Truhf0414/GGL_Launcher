@@ -307,7 +307,9 @@ test("L12: write failures ⇒ no throw, exactly one fixed console.error, no recu
       const log = createGglLog({
         getFilePath: make(dir),
         homedir: os.homedir(),
-        maxBytes: 1024,
+        // 門檻要比「資料夾的 size」大：Linux 的資料夾 size 是 4096，門檻太小會先被當成過大的記錄檔改名輪替掉，
+        // 寫檔就成功了，測不到失敗（Windows 的資料夾 size 是 0）
+        maxBytes: 1024 * 1024,
       });
       log.gglEvent("main", "ev", {});
       assert.equal(errOut.mock.callCount(), 1);
