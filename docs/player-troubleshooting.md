@@ -107,7 +107,7 @@
 
 1. 打開啟動器的 **設定**，按 **匯出診斷報告**。
 2. 匯出完成後，畫面會寫「已匯出診斷報告：<資料夾路徑>」，啟動器也會嘗試自動打開那個資料夾（開不開得起來，取決於你的電腦；打不開就照畫面上的路徑自己找）。
-3. 資料夾通常在 `%APPDATA%\GGL_launcher\diagnostics\<日期時間>\`，每次匯出各一個資料夾。
+3. 資料夾通常在 `%APPDATA%\GGL_launcher\diagnostics\<日期時間>\`，每次匯出各一個資料夾。Mac 是 `~/Library/Application Support/GGL_launcher/diagnostics/<日期時間>/`，Linux 是 `~/.config/GGL_launcher/diagnostics/<日期時間>/`。
 
 ### 資料夾裡可能有什麼
 
@@ -140,3 +140,43 @@
 3. 這份文件沒有指定回報的頻道或名單；**沒有被告知要送到哪裡時，先不要分享**，去問管理者。
 4. 遊戲的 `latest.log`、`crash-reports` 不是預設要附的；**只有被要求時**才手動附，附之前同樣先打開檢查（遊戲日誌也可能有你的使用者名稱與路徑）。
 5. 想讓管理者看到你的畫面，截圖前先看有沒有露出帳號名稱或路徑。
+
+---
+
+## 8) Mac 版：第一次打開被擋
+
+Mac 版只支援 Apple 晶片（M1 以後）的 Mac。它跟 Windows 版一樣**沒有簽章**，也沒有經過 Apple 的公證，所以 macOS 會擋。檔案來源與 SHA-256 的確認方式同第 6 節，只是檔名是 `GGL-Launcher-<版本>-mac-arm64.dmg`，在「終端機」用 `shasum -a 256 <檔名>` 算。
+
+1. 打開下載的 dmg，把 **GGL Launcher** 拖進「應用程式」。（雙擊 dmg 時如果跳出無法驗證的訊息，dmg 通常仍然會打開。）
+2. 直接打開 app 會被擋，畫面會說 Apple 無法驗證它是否為惡意軟體，只有「完成」和「丟到垃圾桶」。按「完成」。
+3. 打開「終端機」，貼上這一行後按 Enter：
+
+   ```bash
+   xattr -cr "/Applications/GGL Launcher.app"
+   ```
+
+4. 再打開 GGL Launcher 就可以了。
+
+**每次更新到新版、重新拖進「應用程式」之後，都要再做一次第 3 步。**
+
+第一次啟動時，macOS 會問 GGL Launcher 能不能使用鑰匙圈裡的資料，並要你輸入電腦的登入密碼。請按 **「永遠允許」**。不小心按了「拒絕」的話，按「啟動」會出現「暫時無法讀取登入憑證，請稍後再試」：再按一次「啟動」，視窗會再跳出來，這次選「永遠允許」。
+
+Mac 版沒有 Discord 狀態顯示。
+
+---
+
+## 9) Linux 版：讓 AppImage 可以執行
+
+Linux 版只支援 x64（一般的 Intel／AMD 電腦）。安裝檔是一個 AppImage 檔，不用安裝，設成可以執行之後直接打開。檔案來源與 SHA-256 的確認方式同第 6 節，只是檔名是 `GGL-Launcher-<版本>-linux-x64.AppImage`，在終端機用 `sha256sum <檔名>` 算。
+
+1. 在存放 AppImage 的資料夾開終端機，執行（`<版本>` 換成實際的檔名）：
+
+   ```bash
+   chmod +x GGL-Launcher-<版本>-linux-x64.AppImage
+   ```
+
+2. 雙擊 AppImage 打開。
+
+打不開、出現跟 FUSE 有關的錯誤時，可能是系統少了 FUSE 2 的函式庫（Ubuntu、Linux Mint 的套件名稱是 `libfuse2t64` 或 `libfuse2`）。這種情況還沒有實際遇過，請把畫面上的訊息回報給管理者。
+
+Linux 版沒有 Discord 狀態顯示。
