@@ -12,6 +12,9 @@
 - 不做程式碼簽章，SmartScreen 擋就擋。出處：學長 2026-04-30 Cursor「連線逾時問題」原話「蛤 300多台幣一個月喔」「我把它丟在檔案伺服器是可以的嗎? 擋就擋吧哈哈」。
 - 安裝檔的正式發行來源只有 GitHub Releases（`https://github.com/Truhf0414/GGL_Launcher/releases`），不放檔案伺服器；日後官網的下載入口指向它，不另存一份。模組包仍由 GGL3 站台與 Sync v3 負責。這取代上一條 2026-04-30 把安裝檔放檔案伺服器的做法。出處：owner 2026-10-30 Release Gate OD-1 → `plans/release-gate-2026-10.md` §5.0。建置與發版的步驟 → `docs/release-runbook.md`。
 
+## 功能去留
+- Discord 狀態（遊戲中在 Discord 顯示正在玩）要留，不砍；做法（外掛 helper 或搬回主程序）未定，→ `future-work.md`「Discord 狀態的做法」。出處：owner 2026-11-11「但 Discord 這個，經過發布到現在我發現他必須留著。」「他是個很好的身份證明。」
+
 ## main → 畫面的事件
 - 講「現在的狀態」的事件（目前是 `instance:status`、`notice:changed`、`server:status`、`window:power`）一律經 `main/ipc-bridge.js` 的 `sendState` 送：送出時記住最後一筆，畫面在 `renderer/bootstrap.js` 的 `start()` 最後喊 `renderer:ready`，main 把記住的各重送一筆給喊的那個 `webContents`。新增這類事件就加進 `STATE_CHANNELS`；畫面端要在 `renderer:ready` 之前同步掛好監聽。不這樣送，送出當下畫面還沒在聽（開啟、Ctrl+R）就漏掉。出處：owner 2026-10-07 G6「要要要哈哈，非常要。」→ plans/instance-sync-v3-commit3b2b.md B10。
 - handler 丟回畫面的錯誤一律是普通 Error：Electron 以 `<name>: <message>` 交給畫面，只有 message 帶得過去，自訂類別的名稱會黏在玩家看到的字上。`main/ipc-runtime.js` 拿到 `ipcMain` 時用 `lib/ipc-plain-errors.js` 統一包一次（名稱已是 `Error` 的原樣放行），各 `register*` 照寫 `ipcMain.handle`，不必各自轉；要加「哪個動作失敗」的前綴就自己丟 `new Error(前綴 + 訊息, { cause })`（範本：`main/ipc/instance-ipc.js` 的 `toPlainError`）。出處：owner 2026-10-07 → plans/instance-sync-v3-commit3b2b.md B14；統一包：owner 2026-10-22「走 B，先寫紅燈測試吧」→ history 2026-10-22。
