@@ -9,3 +9,4 @@
 - [Git Bash 無聲陷阱](git-bash-silent-traps.md) — TZ=Asia/Taipei 印的是 UTC、sd -F 不吃跨行字面、Python write_text 寫成 CRLF；都不報錯
 - [Node 22 在哪](node22-binary-location.md) — CI 的 22 會浮動（10-23 起 22.23.4）；OpenChatX 那顆 22.18 的 undici 不同、不算 CI 等價；TAP 看 `# tests`
 - [Claude 的 MSIX AppData 轉存](claude-msix-appdata-redirect.md) — 從 Bash 開的程式寫 %APPDATA% 會落到 Claude 套件快取；看真實檔用 es
+- [Bash 反引號會被執行](backticks-in-bash-run-commands.md) — 雙引號內的反引號＝指令替換；含反引號的搜尋字串用單引號、樣式檔或 Grep 工具（11-10 誤跑 npm ci、開出啟動器）

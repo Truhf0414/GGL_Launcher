@@ -343,6 +343,7 @@
 - 2026-11-11 Linux 支援的 CI：`1396efd` 三個平台都綠（Linux 1512 個、1450 過、62 跳過）。接著只動筆記的 `190d6dd` 在 Linux job 紅了一支：`test/runtime-minecraft.test.cjs` 的 T15「等不到：停住那支的連線關閉」，與 2026-11-06 那次 Windows job 的偶發是同一支、同一句（第二次）。這次改了測試（`7c0a34e`）：404 等停住那支的請求到了 server 才回；原因是讀測試推的，沒有重現，Windows 上連跑 15 次過。再出現就代表原因不是這個
 - 2026-11-11 Linux 支援驗收：Mint 機上另一個 CC session 跑完九步（`81e94c1`），修了 Linux 的視窗圖示（`374528b`，Electron 在 Linux 讀不了 `.ico`；owner「現在修。」）；遊戲在 8 GB 的 Mint 機用預設最大記憶體 4 GB 時吃光整台記憶體、被 OOM 殺掉，設成 3 GB 後順暢，owner 裁不處理。Windows 迴歸：CC 跑 `npm test` 1517 個 0 紅、`pack:win` 過；owner 手動五步回報都過。草稿 PR `Truhf0414/GGL_Launcher#2` 未合併、未發版 → `plans/mac-linux-support.md` §Linux 段
 - 2026-11-11 Linux 支援的 PR `Truhf0414/GGL_Launcher#2` 合併進 main（`8fd64cc`；owner「合併」，合併前最新一輪 CI 三個 job 都綠）。未發版、`package.json` 的 version 仍是 1.0.1 → `plans/mac-linux-support.md`
+- 2026-11-11 `plans/mac-linux-support.md` 結案：Mac 與 Linux 支援都驗收完並合併進 main（Mac `48799f3`、Linux `8fd64cc`）；同日 owner 裁 Discord 狀態要留、只做 Windows（→ `conventions.md` §功能去留），提出下一步發 v1.1.0
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
