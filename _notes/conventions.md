@@ -14,6 +14,7 @@
 
 ## 功能去留
 - Discord 狀態（遊戲中在 Discord 顯示正在玩）要留，不砍；做法（外掛 helper 或搬回主程序）未定，→ `future-work.md`「Discord 狀態的做法」。出處：owner 2026-11-11「但 Discord 這個，經過發布到現在我發現他必須留著。」「他是個很好的身份證明。」
+- Discord 狀態只做 Windows 版；Mac、Linux 版不做。出處：owner 2026-11-11「Mac 和 Linux 那邊不用。」「玩家的分佈主要在 Win 上面。剩下兩家的環境都沒有 Discord 。」「故不做支援。」
 
 ## main → 畫面的事件
 - 講「現在的狀態」的事件（目前是 `instance:status`、`notice:changed`、`server:status`、`window:power`）一律經 `main/ipc-bridge.js` 的 `sendState` 送：送出時記住最後一筆，畫面在 `renderer/bootstrap.js` 的 `start()` 最後喊 `renderer:ready`，main 把記住的各重送一筆給喊的那個 `webContents`。新增這類事件就加進 `STATE_CHANNELS`；畫面端要在 `renderer:ready` 之前同步掛好監聽。不這樣送，送出當下畫面還沒在聽（開啟、Ctrl+R）就漏掉。出處：owner 2026-10-07 G6「要要要哈哈，非常要。」→ plans/instance-sync-v3-commit3b2b.md B10。

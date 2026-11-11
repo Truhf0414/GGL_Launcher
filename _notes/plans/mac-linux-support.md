@@ -14,7 +14,7 @@
 | Apple 簽章／公證 | 不做；玩家自行略過 macOS 的阻擋 | owner 2026-11-10「授權部分可以請那個玩家略過。」（與 conventions.md §發包產物「不做程式碼簽章」同方向） |
 | 維護成本 | 接受：每次發版多一道 Mac（之後加 Linux）打包與實機驗收 | owner 2026-11-10「太好了，啟動器不常更新。這樣挺好的。」（回應 CC 說明成本主要在發版次數） |
 | Q1 Mac 晶片 | 只做 Apple 晶片（arm64），不做 Intel Mac | owner 2026-11-10「只做 M 系晶片。」 |
-| Q2 Discord 狀態 | Mac 首版不帶 rpc-helper（理由：helper 要在 Mac 重建重驗，而 `future-work.md`「Discord RPC 去留」未裁） | owner 2026-11-10「不用。」（回 CC「Mac 首版要不要有 Discord 狀態？」） |
+| Q2 Discord 狀態 | Mac 首版不帶 rpc-helper（理由：helper 要在 Mac 重建重驗，而 `future-work.md`「Discord RPC 去留」未裁）〔2026-11-11 更新：Mac、Linux 都不做 Discord 狀態，不只首版（→ `conventions.md` §功能去留）〕 | owner 2026-11-10「不用。」（回 CC「Mac 首版要不要有 Discord 狀態？」） |
 | Q3 Mac／Linux 的 Java 來源 | 只走 Zulu zip ＋ Mojang 退路，不加 tar.gz 解壓 | owner 2026-11-10「好，就這兩家。」 |
 | Q4 CI | 加一個 `macos-latest` job 跑 `npm test` | owner 2026-11-10「可以。」 |
 | Q5 Mac 預設安裝位置 | `~/Games/GGL` | owner 2026-11-10「照你。」（CC 建議 `~/Games/GGL`） |
