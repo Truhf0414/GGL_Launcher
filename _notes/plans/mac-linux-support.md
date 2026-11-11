@@ -1,4 +1,4 @@
-# 啟動器支援 macOS（先）與 Linux（後）（狀態：v2，2026-11-10；M1 `e6386a0`、M2 `aea2bc1`、M3 `ae3336f`、M4 `90433c5` 都已 commit，分支 `feat/mac-support`；2026-11-10 起 Mac 上跑過，結果見 §驗收；Mac 段 2026-11-11 合併進 main `48799f3`；Linux 段 2026-11-11 細化並經輕量審（`_notes/reviews/mac-linux-support-linux-ve0fe9335-20261111.md`，已封存），owner 同日放行；L1 `9680945`、L2 `41acb3a`、L3 `f24b016` 與測試修正 `2a2eff6`、`1396efd` 已 commit 並 push，三個平台的 CI 都綠，分支 `feat/linux-support`，草稿 PR `Truhf0414/GGL_Launcher#2`；2026-11-11 在 owner 的 Mint 機跑過驗收九步，結果見 §Linux 段「Linux 驗收結果」，修了一個視窗圖示的錯；Windows 迴歸還沒做）
+# 啟動器支援 macOS（先）與 Linux（後）（狀態：v2，2026-11-10；M1 `e6386a0`、M2 `aea2bc1`、M3 `ae3336f`、M4 `90433c5` 都已 commit，分支 `feat/mac-support`；2026-11-10 起 Mac 上跑過，結果見 §驗收；Mac 段 2026-11-11 合併進 main `48799f3`；Linux 段 2026-11-11 細化並經輕量審（`_notes/reviews/mac-linux-support-linux-ve0fe9335-20261111.md`，已封存），owner 同日放行；L1 `9680945`、L2 `41acb3a`、L3 `f24b016` 與測試修正 `2a2eff6`、`1396efd` 已 commit 並 push，三個平台的 CI 都綠，分支 `feat/linux-support`，草稿 PR `Truhf0414/GGL_Launcher#2`；2026-11-11 在 owner 的 Mint 機跑過驗收九步，結果見 §Linux 段「Linux 驗收結果」，修了一個視窗圖示的錯；同日 Windows 迴歸做完）
 
 **版本沿革**：v1 `124663dd`（2026-11-10 寫成，同日 owner 裁 Q1–Q5）→ 輕量 SPR（自審＋Codex，23 條）→ owner 放行處置 → **v2**（本檔）。review 見 `_notes/reviews/mac-linux-support-v124663dd-20261110.md`（已封存）。下文的 `R#n` 指那份 review 的第 n 條。
 
@@ -30,6 +30,7 @@
 | Linux 支援的處理器 | 只做 Intel／AMD 64 位元（x64）；owner 的 Mint 機是這種 | owner 2026-11-11 在 CC 的選項題選「是，Intel／AMD 64 位元」 |
 | Linux 安裝檔格式 | AppImage | owner 2026-11-11 在 CC 的選項題選「AppImage」 |
 | L-Q1 同步的大小寫規則 | 選項 A：跟平台走（Windows、macOS 照舊不分大小寫，Linux 分） | owner 2026-11-11「A」；CC 當時對 Linux 上後果的描述有兩處錯，審查後更正（見 §Linux 段 L-Q1）並請 owner 重選，owner「維持 A，開工」 |
+| 預設最大記憶體在 8 GB 機器吃光記憶體（Linux 驗收第 3 步） | 不處理，維持 D-SET-MEM-DYN（最大記憶體留空＝4 GB，不看系統記憶體；系統記憶體只用在設定視窗的建議文字） | owner 2026-11-11「記憶體那個我不打算處理。」 |
 
 **agent 假設（非 owner 裁，可翻）**
 - 「版本號往下推」＝用下一個版本號，具體數字發版時定；本 plan 的施工不改 `package.json` 的 `version`、不打包發行、不 push。
@@ -51,7 +52,7 @@
 | `main/runtime/java.js` `installViaMojang` | 取 `windows-x64`；只處理 `directory`、`file`；驗 `<根>/bin/java.exe` | 取 `mac-os-arm64`。manifest：directory 86、file 145、link 205，全部在 `jre.bundle/` 底下；link 全是 `legal/` 的授權檔、目標都是相對路徑；`bin/java` 帶 `executable: true`〔查過：java-runtime-delta manifest〕 |
 | `lib/sync/game-running.js`、`main/sync/game-running.js` | PowerShell 查 `java.exe`／`javaw.exe` 的命令列 | `ps`（→ §設計「遊戲偵測」） |
 | `lib/settings-format.js` `DRIVE_ABSOLUTE_RE` | 安裝位置必須 `X:\` 開頭；錯誤文字舉 `D:\Games\GGL` | POSIX 絕對路徑；文字依平台。**這個檔畫面也用 `<script>` 載入**（`index.html:556`），拿不到 `process.platform`（R#1） |
-| `lib/server-config.js` `launcherRootDir` | 常數 `C:\Games\GGL`；`lib/paths-layout.js:14`、`main/ipc/server-config-ipc.js:7` 直接讀 | Mac `~/Games/GGL`，要家目錄（R#2）〔對齊 2026-11-10：→ `e6386a0`（本檔 M1）後：`lib/paths-layout.js:14` 那行已刪（預設根改由 `lib/platform.js` 給）；`main/ipc/server-config-ipc.js` `:7` → `:9`〕〔對齊 2026-11-10：`aea2bc1` 未移動（那個 commit 沒動這裡提到的行）〕〔對齊 2026-11-10：`ae3336f`、`90433c5` 未移動（兩個 commit 都沒動這裡提到的行）〕〔對齊 2026-11-11：`9680945`、`41acb3a` 未移動（兩個 commit 動了 `lib/platform.js`，沒動這裡提到的行）〕 |
+| `lib/server-config.js` `launcherRootDir` | 常數 `C:\Games\GGL`；`lib/paths-layout.js:14`、`main/ipc/server-config-ipc.js:7` 直接讀 | Mac `~/Games/GGL`，要家目錄（R#2）〔對齊 2026-11-10：→ `e6386a0`（本檔 M1）後：`lib/paths-layout.js:14` 那行已刪（預設根改由 `lib/platform.js` 給）；`main/ipc/server-config-ipc.js` `:7` → `:9`〕〔對齊 2026-11-10：`aea2bc1` 未移動（那個 commit 沒動這裡提到的行）〕〔對齊 2026-11-10：`ae3336f`、`90433c5` 未移動（兩個 commit 都沒動這裡提到的行）〕〔對齊 2026-11-11：`9680945`、`41acb3a` 未移動（兩個 commit 動了 `lib/platform.js`，沒動這裡提到的行）〕〔對齊 2026-11-11：`374528b` 未移動（動了 `lib/platform.js`，沒動這裡提到的行）〕 |
 | `main/ipc/dialog-ipc.js` | 對話框預設 `C:\` | 家目錄 |
 | `main/discord-rpc.js` | `launchMinecraft` 無條件呼叫；找 `assets/rpc-helper.exe`，找不到就提示 | 一進函式就依平台返回（R#19） |
 | `package.json` 打包、`scripts/check-packaged-artifacts.cjs` | 只有 `dist:win`／`pack:win`；檢查一律要 `rpc-helper.exe` | `dist:mac`（dmg、arm64）；Mac 包不帶 `rpc-helper.exe`；檢查依平台 |
@@ -129,7 +130,7 @@ electron-builder 的 Mac 圖示吃不吃 1254px 的 png〔猜的〕：吃不了�
 
 **Mac（owner 在 Mac mini 上做；CC 列步驟、owner 回報，或 owner 在 Mac 上裝 Claude Code 讓 CC 直接操作）**
 1. `npm ci`、`npm test` 全綠
-2. `npm start`：視窗能拖曳、最小化、關閉，Cmd+Q 能退出（主視窗無邊框，`main/main-window.js:62`；R#12）
+2. `npm start`：視窗能拖曳、最小化、關閉，Cmd+Q 能退出（主視窗無邊框，`main/main-window.js:62`；R#12）〔對齊 2026-11-11：→ `374528b` 後 `main/main-window.js` `:62` → `:65`（`frame: false`）〕
 3. 登入 → 安裝模組包（Java 走 Zulu）→ 啟動遊戲 → 進伺服器
 4. 強迫走 Mojang 退路裝一次 Java：`node scripts/try-java-install.cjs --mojang`（裝在暫存資料夾、不開啟動器；不帶 `--mojang` 就是走 Zulu），印出「結果：通過」與 `java -version` 的內容（R#10）。這支工具驗的是「裝得起來、java 跑得動」，不含「用它啟動遊戲」
 5. 設定視窗改安裝位置到另一個資料夾：存得進去、重開讀得回來、同步與啟動用的是新位置；填 `C:\x` 這種路徑被擋下，錯誤文字是 Mac 的範例（R#13）
@@ -242,7 +243,7 @@ electron-builder 的 Mac 圖示吃不吃 1254px 的 png〔猜的〕：吃不了�
 - 第 2 步：通過。`npm start` 視窗拖曳、最小化、關閉都正常（owner 目視），關閉後沒有殘留的 electron 行程。啟動時終端機印一行 `MESA-LOADER: failed to open dri: /usr/lib/x86_64-linux-gnu/gbm/dri_gbm.so: …拒絕不符權限的操作`；那個檔這個 shell 讀得到、shell 沒有 seccomp，owner 看畫面正常。〔猜的〕是 Electron 的繪圖行程自己的沙箱在 NVIDIA 驅動上的訊息，沒查證；從 owner 自己的終端機啟動會不會也有，沒驗。
 - 第 3 步：登入、安裝、啟動、進伺服器都做到了，但有兩件事與「順利跑完」不同。
   - **安裝中途失敗過一次**：`instance:repair` 的 handler 丟「安裝失敗：下載失敗，所有來源都不行：…/assets/objects/60/603fd41e…」「下載停滯：30 秒內收到不到 1 MB」（來源 `resources.download.minecraft.net`，那個檔 2950673 bytes）。owner 回報再按一次就裝成功。這個失敗只出現在 `npm start` 的終端機輸出，`userData/ggl-launcher.log` 裡沒有對應的一行（debug 關著）。同一種停滯在第 4 步也出現過一次，原因沒查出來（見第 4 步）。
-  - **遊戲把整台機器的記憶體吃光**：遊戲 11:11 啟動、11:15:47 `Connecting to ggl3.leaharmonic.com, 25565`、11:18 起有伺服器的聊天訊息（owner 回報有連上）。owner 回報從遊戲啟動起整個系統極度卡頓、遊戲顯示 300 幀但無法操作、關不掉。11:23:59 遊戲寫了一份 `crash-reports/crash-2026-11-11_11.23.59-client.txt`（`java.lang.Error: Watchdog`，停在 `SoundEngine.init` 的 OpenAL 呼叫；報告裡 swap 2048 MiB 用了 2047.76）。11:27:40 核心的 OOM killer 殺掉 java（`journalctl -k`：`Out of memory: Killed process 23012 (java) … anon-rss:5133744kB`）。JVM 參數是 `-Xms1024M -Xmx4096M`（設定的最大記憶體沒填，走 `lib/launch-memory.js` 的預設 4096 MB，不看這台有多少記憶體）；同時開著 Firefox、Claude 桌面版、Cinnamon。java 實際佔 5.1 GB（堆積 4 GB 之外還有原生記憶體），這台總共 7.7 GB。這是「預設給 4 GB」這條既有裁決（D-SET-MEM-DYN）在 8 GB 機器配這個 204 個模組的包的結果，不是 Linux 專屬的程式路徑；Windows 上 8 GB 的機器會不會一樣沒驗。要不要讓預設值看系統記憶體：未裁。
+  - **遊戲把整台機器的記憶體吃光**：遊戲 11:11 啟動、11:15:47 `Connecting to ggl3.leaharmonic.com, 25565`、11:18 起有伺服器的聊天訊息（owner 回報有連上）。owner 回報從遊戲啟動起整個系統極度卡頓、遊戲顯示 300 幀但無法操作、關不掉。11:23:59 遊戲寫了一份 `crash-reports/crash-2026-11-11_11.23.59-client.txt`（`java.lang.Error: Watchdog`，停在 `SoundEngine.init` 的 OpenAL 呼叫；報告裡 swap 2048 MiB 用了 2047.76）。11:27:40 核心的 OOM killer 殺掉 java（`journalctl -k`：`Out of memory: Killed process 23012 (java) … anon-rss:5133744kB`）。JVM 參數是 `-Xms1024M -Xmx4096M`（設定的最大記憶體沒填，走 `lib/launch-memory.js` 的預設 4096 MB，不看這台有多少記憶體）；同時開著 Firefox、Claude 桌面版、Cinnamon。java 實際佔 5.1 GB（堆積 4 GB 之外還有原生記憶體），這台總共 7.7 GB。這是「預設給 4 GB」這條既有裁決（D-SET-MEM-DYN）在 8 GB 機器配這個 204 個模組的包的結果，不是 Linux 專屬的程式路徑；Windows 上 8 GB 的機器會不會一樣沒驗。要不要讓預設值看系統記憶體：owner 裁不處理（→ §裁決）。
   - 與 Mac 不同：原版的 `splashscreen-1.1.1+ggl3.jar` 在 Linux 上沒有卡住，遊戲一路載到主畫面（`latest.log` 有 `Loading Minecraft 1.21.11 with Fabric Loader 0.20.1`、OpenGL 4.6 NVIDIA）。Java 走的是 Zulu（`~/Games/GGL/runtime/java-21`；是 Zulu 是從第 4 步同一條路推的，沒有另外看 `release` 檔）。
 - 第 4 步：兩條路都印出「結果：通過」，但 Mojang 那條三次裡第一次失敗。Zulu：裝到 21.0.13.0.3，`java -version` exit 0，`bin/java` 0755。Mojang（`--mojang`）：第一次失敗，`lib/modules`（62292567 bytes，`piston-data.mojang.com`）報「下載停滯：30 秒內收到不到 1 MB」；緊接著用 `curl` 單獨抓同一個檔 33 秒抓完（約 1.9 MB/s）；重跑兩次都通過（各約 46、50 秒），裝到 21.0.7，根底下是 `bin conf legal lib release`（沒有包一層），`bin/*` 0755，205 個 link 都在。失敗的原因沒查出來〔猜的：同時開多條連線時個別連線短暫沒有資料；沒重現、沒量過〕。試裝留在 `/tmp/ggl-try-java-*` 的四個資料夾（共約 370 MB）工具不會自己清，已手動刪除。
 - 第 5 步（縮小版，owner 在設定視窗操作；重開後讀回還沒看）：安裝位置填 `C:\x` 被擋下，owner 回報「如預期」（錯誤文字的範例是不是 `/` 開頭，owner 沒有逐字回報）；安裝位置改回 `/home/mochi122/Games/GGL`、最大記憶體設成 3 後存檔，`settings.json` 裡是 `"maxMemoryGb": 3`、`launcherRootDir` 不變（CC 讀檔確認）。**沒驗**「改安裝位置到另一個資料夾」：比照 Mac 那次省略（換空資料夾會整包重下載），改用最大記憶體當存檔與讀回的對象。
@@ -255,9 +256,15 @@ electron-builder 的 Mac 圖示吃不吃 1254px 的 png〔猜的〕：吃不了�
 - 第 9 步：`npm run dist:linux` exit 0，打出 `dist/GGL-Launcher-1.0.1-linux-x64.AppImage`（144146301 bytes），`check:packaged-artifacts` 過，包裡沒有 `rpc-helper`；打出來就帶執行權限（0755）。owner 從系統自己的終端機／檔案管理員開：開得起來、已是登入狀態（與開發版共用 `~/.config/GGL_launcher`）、遊戲能正常開啟。計畫風險段猜的兩件事在這台都沒發生：FUSE 2 函式庫本來就在（`libfuse2t64`），沙箱起得來（`kernel.apparmor_restrict_unprivileged_userns = 0`）。
   - **從 Claude 桌面版裡開會失敗**（owner 在 Claude 視窗裡點開、CC 從 session 的 shell 開，都是 `fusermount: mount failed: Operation not permitted`／`Cannot mount AppImage, please check your FUSE setup.`）：那個環境的行程帶 `NoNewPrivs: 1`，setuid 的 `fusermount3` 拿不到權限。是 Claude 執行環境的事，不是 AppImage 的問題；記下來是免得下次驗收又踩到。
   - **程式真的錯：面板（工作列）上的視窗圖示是一顆齒輪**（owner 目視）。原因：`main/main-window.js` 只要 `assets/icon.ico` 存在就拿它當視窗圖示，`package.json` 的 `build.files` 也只收 `assets/icon.ico`（`asar list` 確認包裡只有 ico）；Linux 的 Electron 讀不了 `.ico`〔實測：同一份 Electron 44.3.0 在這台 `nativeImage.createFromPath` 讀 `icon.ico` 是空的、讀 `icon.png` 是 1254×1254〕。owner 2026-11-11「現在修。」。改法（`374528b`）：平台資料加 `windowIconFile`（Windows `icon.ico`，macOS、Linux `icon.png`），`configureMainWindow` 多一個必填的 `windowIconFile`、由 `main/start-main.js` 從平台資料給，檔不在時照舊退回 png；`build.files` 加 `assets/icon.png`（三個平台的包都會多這張約 500 KB 的圖）。Windows 選到的檔與改前相同。這台 `npm test` 1517 個、1455 過、0 紅、62 跳過（多的 5 個是新測試），`lint` 過；重新 `dist:linux` exit 0、`check:packaged-artifacts` 過、包裡有 `assets/icon.png`。owner 重開新的 AppImage 後回報「圖示正常了」。**還沒驗**：Windows 上 `npm test`／`pack:win`；Mac 的包。AppImage 內部的圖示放在 `usr/share/icons/hicolor/1254x1254/apps/`，不是標準尺寸的資料夾，桌面整合時吃不吃得到沒驗、沒動。
-- 第 6 步（部分，順帶看到）：啟動器關掉後遊戲行程還活著（啟動器結束後 `pgrep -x electron` 是 0、java 還在，之後才被 OOM 殺掉）。修復、匯出診斷還沒做。
+- 第 6 步（部分，順帶看到）：啟動器關掉後遊戲行程還活著（啟動器結束後 `pgrep -x electron` 是 0、java 還在，之後才被 OOM 殺掉）。修復與匯出診斷之後做了，見上面「第 6 步（匯出診斷）」那條。
 
 **Windows 迴歸（owner 的開發機）**：同 Mac 段那五項；L-Q1 選 A 時，第 4 項之外再按一次「更新」與「修復」確認跑得完。
+
+**Windows 迴歸結果（2026-11-11，owner 的開發機；`81e94c1`）**
+- 第 1 項：CC 實跑。`npm test` 1517 個、1513 過、0 紅、4 跳過；`npm run pack:win` exit 0、`check:packaged-artifacts` 過、包裡的 `rpc-helper.exe` 與 repo 那份 sha256 相同、`app.asar` 裡 `assets/icon.ico` 與 `assets/icon.png` 都在；`374528b` 之後 Windows 選的視窗圖示仍是 `icon.ico`（平台資料的 `windowIconFile`）。
+- 其餘：owner 用 `dist/win-unpacked/GGL Launcher.exe`（同日 12:09 打的）照 CC 列的五步操作——設定與工作列圖示、設定裡的「檢查並修復檔案」、啟動遊戲與 Discord、遊戲開著時被擋、`runtime/java-21` 改名後重裝——回報「1. 通過，如預期。2. 修復完成。3. 通過。4. 通過。5. 通過。」
+- **沒驗**：「更新」要站台上有新版本才會出現，這次測不到；它與修復走同一條同步路徑（`planSync`、`applyPlan`）。
+- CI：`81e94c1` 三個 job 都綠。
 
 ### 風險
 
