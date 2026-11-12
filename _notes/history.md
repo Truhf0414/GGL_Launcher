@@ -353,6 +353,11 @@
   - **發版前實際打開**：Windows：owner 用從 Draft 下載回來的安裝檔覆蓋安裝 1.0.1，回報「裝好了，都正常。」，診斷報告是 1.1.0、win32 x64、裝在 `AppData\Local\Programs\GGL Launcher`，裝好的 helper sha256 與 repo 相同。Mac：owner 在 Mac 授權後覆蓋安裝 1.0.1，登入還在、鑰匙圈再問一次。Linux：owner 在 Mint 打開 1.1.0 的 AppImage，回報無誤（據 Linux session 轉述）。
   - **發版**：owner 授權「好，建。」後 CC 建 Draft（Windows 安裝檔＋說明）；dmg 由 Mac session 上傳（owner 在 Mac 授權「好，上傳 Release」）、AppImage 由 Linux session 上傳（owner「幫我去請 Linux 那邊處理一下然後上傳 Draft 吧。」）；三個都從這台下載回來核對一致，說明裡的三個 sha256 與附件相同。owner「公開」後公開並標為 Latest（2026-11-11 14:04 台北），tag `v1.1.0` → `e3739a3`；不帶登入資訊從公開網址下載三個檔（`H:\GGL3\b110-anon`）sha256 與大小都一致，`releases/latest` 轉到 `v1.1.0`。AppImage 那個下載特別慢（約 10 分鐘，其他兩個 1 分鐘內），原因沒查。
   - **沒做**：runbook §6 第 4 點的 SmartScreen／Defender 畫面；§8 第 3 點（正式站台唯讀 smoke）與第 4 點（README／下載入口實點）。站台 `minLauncherVersion` 沒動。Mac 的模組包（`splashscreen`）由 owner 在模組包那邊處理，啟動器這邊不追。
+- 2026-11-12 公告改成 GGL3.0.8（模組包還沒發）：owner 給文字時，站台 `release.json` 是 `GGL3.0.7`，`H:\GGL3-release` 也沒有 `GGL3.0.8`，CC 回報。owner：「先發沒關係。另一個 session 正在走乾跑。」CC 照做，寫入時站台仍是 3.0.7。
+  - **改了什麼**（`H:\Caddy_sitebuild`）：公告標題 `GGL3.0.8`；新增通知 id `2026-11-12-ggl3.0.8`，`createdAt` `2026-11-12T21:39:46+08:00`，鈴鐺共七則；`changelog.json` 最上面加 owner 給的 3.0.8 九行，空一行接原本內容。
+  - **備份**：`H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261112-213946`，sha256 和改前站台檔相同（notice `cd76bdad…`、changelog `672b166c…`）。
+  - **核對**：站台檔和產出檔 `cmp` 相同；`check-site` exit 0；公開網址兩支都是 200，和本機逐位元組相同。
+  - **沒做**：沒開啟動器看實際畫面。3.0.8 的發佈由另一個 session 處理，本條不記；在它發佈前，公告寫 3.0.8、玩家更新拿到的是 3.0.7。日誌是 owner 原文，沒寫 §4a 要講明的點名推送設定檔，CC 有提醒。
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
