@@ -365,6 +365,12 @@
   - **發布與核對**（11-12 21:44:26）：發之前重算差異恰好是那 3 條、重跑乾跑跟 owner 看過的那份 `cmp` 相同；報告除了最後一行跟乾跑相同；`release.json` 是 `GGL3.0.8`、689 個檔，`releases/20261112-214426-GGL3.0.8.json` 存在；`check-site` exit 0；公開網址的 `release.json`、`manifest.json` 跟本機 `cmp` 相同；`release.json` 的 668 個不同 sha 在本機 `files/` 都找得到（對照組假 sha 報缺 1）；抽 `mods/jasione-1.0.9+1.21.11-fabric.jar`、`mods/ggl_sundries-0.1.0.jar`、`config/ggl_sundries-client.json` 從公開網址下載，跟 Prism 原檔相同，對照組假 sha 回 404。
   - **公告**：由另一個 CC session 寫入（→ 本檔 2026-11-12 公告改成 GGL3.0.8）。
   - **沒做**：沒開啟動器實際更新一次，沒從玩家那邊確認收到。新版 mod 組合能不能進遊戲，CC 沒驗。
+- 2026-11-13 模組包 GGL3.0.9 發佈（CC 依 owner 授權，流程同 GGL3.0.8 那條，腳本同一份，報告只留在本 session 的 scratchpad）。起因：owner「做好 3.0.9 了。這次有 Config 要推。先來乾跑一次吧！」。
+  - **組包**：基準：站台 3.0.8 的 446 個玩家可改檔跟 `H:\GGL3-release\GGL3.0.8` 比 sha256，0 個不符；沒有從 Prism 開的 java。blockNew 沿用 3.0.8 的 96 個。第一輪 push 空，CC 列出 3.0.8 之後才在 Prism 變動的設定檔與差異（`ggl_sundries-client.json` 的 `pixelFontEnabled` true → false、`gnetum.json` 少一段、`options.txt` 的 `resourcePacks` 變空陣列等），建議 `options.txt` 不推，並問 ModernUI 加回來是否故意。owner：ModernUI「是我加回來的」、`options.txt`「不推」、「就是 Sundries 要推」。重組時 push 只放 `config/ggl_sundries-client.json`。
+  - **乾跑**：新增 7、變更 2、刪除 3、不變 684。mods：ggl3_fix 2.2.1 → 2.4.0、加回 ModernUI-MC 3.12.0.5、移除 chat_heads 1.3.2；翻譯包變更。玩家可改檔：變更只有 sundries 那個；新增 `config/ggl3_fix.json` 與 `config/ModernUI/` 4 個；刪除 `config/chat_heads.json5`。上傳 4 個 blob，清掉 1 個 blob 與封存 `GGL3.0.6`。`verify-prism-unchanged.js` 報 5 條，就是那 5 個新增檔。
+  - **owner 問玩家那邊會不會一起刪 Chat Heads**：CC 讀 `lib/sync/plan.js` 與 `main/sync/apply.js` 答會（本機紀錄有、新版沒有、檔還在 ⇒ 刪；玩家自己另放的不同檔名 jar 不在紀錄裡，不會刪），沒有實測。
+  - **發布與核對**（11-13 00:23:06）：發之前重算差異跟乾跑時相同、重跑乾跑跟 owner 看過的那份 `cmp` 相同；報告除了最後一行跟乾跑相同；`release.json` 是 `GGL3.0.9`、693 個檔，`releases/20261113-002306-GGL3.0.9.json` 存在；`check-site` exit 0；公開網址的 `release.json`、`manifest.json` 跟本機 `cmp` 相同；672 個 sha 在本機 `files/` 都找得到（對照組假 sha 報缺 1）；抽 `mods/ggl3_fix-2.4.0.jar`、ModernUI 的 jar、`config/ggl_sundries-client.json` 從公開網址下載，跟 Prism 原檔相同，對照組假 sha 回 404。
+  - **沒做**：公告由另一個 CC session 寫入（→ 本檔 2026-11-13 公告改成 GGL3.0.9）。沒開啟動器實際更新一次，沒從玩家那邊確認 Chat Heads 有被刪、像素字體有被關。
 - 2026-11-13 公告改成 GGL3.0.9：寫入前站台 `release.json` 已是 `GGL3.0.9`（封存 `releases/20261113-002306-GGL3.0.9.json`，由另一個 session 發佈，本條不記），所以直接寫入。
   - **改了什麼**（`H:\Caddy_sitebuild`）：公告標題 `GGL3.0.9`，副標與縮圖不變；新增通知 id `2026-11-13-ggl3.0.9`，`createdAt` `2026-11-13T00:23:45+08:00`，鈴鐺共八則；`changelog.json` 最上面加 owner 給的 3.0.9 四行，空一行接原本內容。
   - **備份**：`H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261113-002345`（notice `25122ad2…`、changelog `a3f35675…`）。
