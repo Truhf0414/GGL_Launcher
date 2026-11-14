@@ -376,6 +376,11 @@
   - **備份**：`H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261113-002345`（notice `25122ad2…`、changelog `a3f35675…`）。
   - **核對**：站台檔和產出檔 `cmp` 相同；`check-site` exit 0；公開網址兩支都是 200，和本機逐位元組相同。
   - **沒做**：沒開啟動器看實際畫面。沒查 3.0.9 的乾跑有沒有點名推送設定檔。
+- 2026-11-13 模組包 GGL3.0.10 發佈（CC 依 owner 授權，流程同 GGL3.0.8 那條，腳本同一份，報告只留在本 session 的 scratchpad）。起因：owner「我做好了 3.0.10 了。再乾跑一次吧...」。版本名照 owner 說的；發之前查過啟動器判斷新版是比檔案清單、不比版號大小（`lib/sync/status-kind.js` 的 `computeSyncReasons`），`3.0.10` 不會被當成比 `3.0.9` 舊。
+  - **組包**：基準：站台 3.0.9 的 450 個玩家可改檔跟 `H:\GGL3-release\GGL3.0.9` 比 sha256，0 個不符。撞到：第一輪組包時有一個從 Prism `GGL3.0` 開的 java（00:45:39 啟動）在跑，CC 把那輪只當預覽、請 owner 關遊戲。第一輪冒出 2 個新的玩家可改檔：juxtui 的 `arrival-state` 與 `config/smoothloadingscreen.json`。owner：smoothloadingscreen「是我調的沒錯，但這個可以擋。因為我最後也調回預設了。」兩個都加進 blockNew（98 個），push 空。遊戲關掉後重組：被擋下 46 個，路徑跟第一輪相同；`verify-prism-unchanged.js` 0 差異。
+  - **乾跑**：新增 1、變更 0、刪除 1、不變 692，只有 `mods/ggl3_fix` 2.4.0 → 2.6.0；沒有玩家可改檔變動。上傳 1 個 blob（0.1 MB），清掉 13 個 blob（71.0 MB）與封存 `GGL3.0.7`。
+  - **發布與核對**（11-13 01:04:28）：發之前確認沒有 Prism 的 java、重算 0 差異、重跑乾跑跟 owner 看過的那份 `cmp` 相同；報告除了最後一行跟乾跑相同；`release.json` 是 `GGL3.0.10`、693 個檔，`releases/20261113-010428-GGL3.0.10.json` 存在；`check-site` exit 0；公開網址的 `release.json`、`manifest.json` 跟本機 `cmp` 相同；672 個 sha 在本機 `files/` 都找得到（對照組假 sha 報缺 1）；`mods/ggl3_fix-2.6.0.jar` 從公開網址下載跟 Prism 原檔相同，對照組假 sha 回 404。
+  - **沒做**：公告、鈴鐺通知、日誌沒動（owner 沒交代）。沒開啟動器實際更新一次。
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
