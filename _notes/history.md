@@ -404,6 +404,17 @@
   - **乾跑**：新增 9、變更 14、刪除 3、不變 684。mods：`ggl3_fix-2.6.1` 換成 `ggl3_client_fix-3.0.0`，新增 vanilla_timber 2.1.5、EnchantedTimber 1.0.1、veinminer 2.1.0、EnchantedVeinminer 1.0.1，移除 ItemParticles 1.2.0，`ggl3_punchy_fixes-1.0.0` 與 `ggl_sundries-0.1.0` 同名換內容；新增資源包 `UntitledPunchy+vEA.2.0.beta.2.zip`（beta.1 照舊留在包裡）。玩家可改檔：新增 3、變更 12（就是點名的那些）、刪除 `config/ggl3_fix.json`。上傳 22 個 blob（7.3 MB），清掉 1 個 blob 與封存 `GGL3.0.9`。`verify-prism-unchanged.js` 只報「內容不同：options.txt」。孤兒 `config/item_particles.json5` 留在包裡、內容沒變。
   - **發布與核對**（11-18 01:49:02）：發之前確認沒有 Prism 的 java、options.txt 的 3 行修改還在、重算差異只有 options.txt、重跑乾跑跟 owner 看過的那份 `cmp` 相同；報告除了最後一行跟乾跑相同；`release.json` 是 `GGL3.0.12`、707 個檔，`releases/20261118-014902-GGL3.0.12.json` 存在；`check-site` exit 0；公開網址的 `release.json`、`manifest.json` 跟本機 `cmp` 相同；686 個 sha 在本機 `files/` 都找得到（對照組假 sha 報缺 1）；抽 `mods/ggl3_client_fix-3.0.0.jar`、`config/punchy/punchy_config.json`、`options.txt` 從公開網址下載，跟版本資料夾相同，options.txt 的 3 行是改過的值；對照組假 sha 回 404。
   - **沒做**：公告、鈴鐺通知、日誌沒動（owner 沒交代）；這版會整檔覆蓋 15 個玩家設定，含 options.txt（按鍵、畫質、音量等玩家自己的設定都會被蓋）。沒開啟動器實際更新一次，沒驗 beta.2 在玩家那邊有沒有生效。
+- 2026-11-18 公告改成 GGL3.0.12（鈴鐺通知改了四次）：寫入前站台 `release.json` 已是 `GGL3.0.12`（→ 本檔 2026-11-18 模組包 GGL3.0.12 發佈），所以直接寫入。owner 給的通知內文有四行。
+  - **第一次寫入**（01:56:14）：公告標題 `GGL3.0.12`，副標與縮圖不變；新增通知 id `2026-11-18-ggl3.0.12`，內文是 owner 給的四行，用 `\n` 分隔；`changelog.json` 最上面加 owner 給的 3.0.12 十行（含「-> 機制有變動…」那行），空一行接原本內容。
+  - **發現通知內文不換行**：`renderer/notifications-ui.js` 用 `textContent` 放內文，`styles.css` 的 `.notif-item-body` 沒有 `white-space`，`\n` 會變成空格〔讀碼推論〕。日誌的 `.notice-log` 有 `pre-line`，不受影響。CC 列了兩個選項：拆成好幾則，或細節移到日誌；owner「好，拆成三則。」
+  - **拆成三則**（01:58:54）：原本那則只留「GGL3.0.12 更新完成。」，另外新增 `-n1`（標題「鍵盤佈局有更新」）、`-n2`（標題「連鎖砍伐、連鎖挖礦更新」，owner 原本兩行合成一句）。兩個標題是 CC 取的，有在回覆裡講明。三則用同一個 `createdAt`。
+  - **反過來**：owner 說通知欄位只顯示一則，玩家點開看到「更新完成」就會關掉。CC 把三則的 `createdAt` 錯開一秒（02:01:41／42／43），從上到下變成 `-n2`、`-n1`、更新完成。
+  - **U+2028 實測**：owner 問能不能用 U+2028 換行。CC 用專案的 Electron 44.3.0，套 `styles.css` 量 `.notif-item-body` 的高度：沒換行、`\n`、U+2028、U+2029 都是一行高（17.4px），確認字元還在；對照組（同一段 `\n` 加 `pre-line`）是兩行高（34.8px）。結論：不改啟動器，U+2028 也不會換行。測試腳本在本 session 的 scratchpad。
+  - **加往下看的提示**（02:04:16）：owner 要求後，`-n2`、`-n1` 內文句尾加「（↓ 下面還有一則）」，字是 CC 挑的。只改內文，id 和 `createdAt` 沒動。
+  - **最後的樣子**：鈴鐺共 13 則，最上面三則依序是連鎖砍伐挖礦、鍵盤佈局、GGL3.0.12 更新完成。
+  - **備份**：`H:\GGL3\notice-backup\backup\`，`.20261118-015614`（notice＋changelog，第一次寫入前）、`.20261118-015854`、`.20261118-020141`、`.20261118-020416`（後三次只有 notice）。
+  - **核對**：每次改完都做：站台檔和產出檔 `cmp` 相同；`check-site` exit 0；公開網址和本機逐位元組相同；用 `lib/notifications-broadcast.js` 的排序算出顯示順序；除了要改的欄位，其他欄位和改之前相同。
+  - **沒做**：沒開啟動器看實際畫面（鈴鐺怎麼顯示、紅點）。通知內文照換行顯示要改 `.notif-item-body` 再發新版，這次沒動。
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
