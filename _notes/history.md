@@ -422,6 +422,11 @@
   - **乾跑**：新增 10、變更 3、刪除 2、不變 702。mods：新增 envelope 0.8.2、ricoshot 1.1.0、mc2-udof 2.0.0、stks-tool-trims 1.4.0+26.2，`ggl_sundries-0.1.0` 同名換內容；資源包 `GGL3模組翻譯包By年糕122.zip`、`Blades x ToolTrims Patch.zip` 變更。玩家可改檔：新增放行的 6 個；刪除 `config/wavify.json`、`config/whitecap.json`（Prism 已沒有、也沒有對應 mod）；變更 0。上傳 13 個 blob（9.8 MB），清掉 13 個 blob（41.7 MB）與封存 `GGL3.0.10`。`verify-prism-unchanged.js` 報的 6 條就是那 6 個新增設定。
   - **發布與核對**（11-22 03:11:09）：發之前確認沒有 Prism 的 java、重算差異跟乾跑時相同、重跑乾跑跟 owner 看過的那份 `cmp` 相同；報告除了最後一行跟乾跑相同；`release.json` 是 `GGL3.0.13`、715 個檔，`releases/20261122-031109-GGL3.0.13.json` 存在；`check-site` exit 0；公開網址的 `release.json`、`manifest.json` 跟本機 `cmp` 相同；694 個 sha 在本機 `files/` 都找得到（對照組假 sha 報缺 1）；抽 envelope 的 jar、`config/ricoshot.json`、翻譯包從公開網址下載，跟 Prism 原檔相同，對照組假 sha 回 404。
   - **沒做**：公告、鈴鐺通知、日誌沒動（owner 沒交代）。沒開啟動器實際更新一次。
+- 2026-11-22 公告改成 GGL3.0.13：寫入前站台 `release.json` 已是 `GGL3.0.13`（→ 本檔 2026-11-22 模組包 GGL3.0.13 發佈），所以直接寫入。
+  - **改了什麼**（`H:\Caddy_sitebuild`）：公告標題 `GGL3.0.13`，副標與縮圖不變；新增通知 id `2026-11-22-ggl3.0.13`，`createdAt` `2026-11-22T03:13:25+08:00`，鈴鐺共十四則；`changelog.json` 最上面加 owner 給的 3.0.13 七行，空一行接原本內容。
+  - **備份**：`H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261122-031325`（notice `0dcd1e41…`、changelog `0bf633a8…`）。
+  - **核對**：站台檔和產出檔 `cmp` 相同；`check-site` exit 0；公開網址兩支都是 200，和本機逐位元組相同；用 `lib/notifications-broadcast.js` 的排序算過，新的那則在最上面。
+  - **沒做**：沒開啟動器看實際畫面。
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
