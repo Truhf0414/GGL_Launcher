@@ -415,6 +415,13 @@
   - **備份**：`H:\GGL3\notice-backup\backup\`，`.20261118-015614`（notice＋changelog，第一次寫入前）、`.20261118-015854`、`.20261118-020141`、`.20261118-020416`（後三次只有 notice）。
   - **核對**：每次改完都做：站台檔和產出檔 `cmp` 相同；`check-site` exit 0；公開網址和本機逐位元組相同；用 `lib/notifications-broadcast.js` 的排序算出顯示順序；除了要改的欄位，其他欄位和改之前相同。
   - **沒做**：沒開啟動器看實際畫面（鈴鐺怎麼顯示、紅點）。通知內文照換行顯示要改 `.notif-item-body` 再發新版，這次沒動。
+- 2026-11-22 模組包 GGL3.0.13 發佈（CC 依 owner 授權，流程同 GGL3.0.8 那條，報告只留在本 session 的 scratchpad）。起因：owner「我做好新的一版了。」。版本名 `GGL3.0.13` 是 CC 依序定的，回覆時講明了。組包前把工作分支快轉到 `a3ba192`（只差筆記）；opts 從 3.0.12 沿用 blockNew、拿掉 `allowPrevExtra`。三輪組包時都沒有 java 在跑。
+  - **第一輪**：基準：站台 3.0.12 的 456 個玩家可改檔跟 `H:\GGL3-release\GGL3.0.12` 比 sha256，0 個不符。冒出 12 個新玩家可改檔。CC 逐個 jar 用 `unzip -l` 搜，`modern-advancements`、`resolutionscaler`、`skill-proficiencies` 沒有對應的 mod（對照組 envelope、ricoshot、mc2_dof 搜得到）。另外指出 `resourcepacks/GGL3模組翻譯包By年糕122.zip.bak-20261122` 不是玩家可改檔、擋不掉，會被當成資源包發出；`stks-tool-trims-1.4.0+26.2` 的版號帶 `26.2`、`fabric.mod.json` 沒有 minecraft 版本限制。
+  - **第二輪**：owner「再跑一次哈哈，我 RicoShot 有改。改之前幫我把 Better Clouds enabled 改回 true 一下哈哈。」CC 確認沒有 java 後，把 Prism 的 `config/betterclouds-v1.json` 先備份到 `H:\GGL3\prism-edit-backup-20261122\`，再把 `"enabled": false` 改回 `true`，改完跟 3.0.12 那份逐位元組相同。重組後只多了 `config/ricoshot.json.bak_en`；`ricoshot.json` 是 owner 改的中文版。
+  - **裁決**：owner「1. 照你。2. 好，搬走。3. 不推。4. 沒問題。」——放 Envelope 4 個設定、`ricoshot.json`、`mc2_dof.json`，擋 `ricoshot.json.bak_en` 與 6 個無主設定並從 Prism 搬走；翻譯包備份搬出 Prism；光影與 `options.txt` 不推；`stks-tool-trims` owner 在遊戲裡測過沒問題。CC 把 `config/modern-advancements/` 4 個、`config/resolutionscaler.json`、`config/skill-proficiencies.json`、翻譯包備份共 7 個先複製到 `H:\GGL3\prism-removed-20261122\` 逐檔 `cmp` 相同，再從 Prism 刪除（含變空的 `modern-advancements/` 資料夾）。
+  - **乾跑**：新增 10、變更 3、刪除 2、不變 702。mods：新增 envelope 0.8.2、ricoshot 1.1.0、mc2-udof 2.0.0、stks-tool-trims 1.4.0+26.2，`ggl_sundries-0.1.0` 同名換內容；資源包 `GGL3模組翻譯包By年糕122.zip`、`Blades x ToolTrims Patch.zip` 變更。玩家可改檔：新增放行的 6 個；刪除 `config/wavify.json`、`config/whitecap.json`（Prism 已沒有、也沒有對應 mod）；變更 0。上傳 13 個 blob（9.8 MB），清掉 13 個 blob（41.7 MB）與封存 `GGL3.0.10`。`verify-prism-unchanged.js` 報的 6 條就是那 6 個新增設定。
+  - **發布與核對**（11-22 03:11:09）：發之前確認沒有 Prism 的 java、重算差異跟乾跑時相同、重跑乾跑跟 owner 看過的那份 `cmp` 相同；報告除了最後一行跟乾跑相同；`release.json` 是 `GGL3.0.13`、715 個檔，`releases/20261122-031109-GGL3.0.13.json` 存在；`check-site` exit 0；公開網址的 `release.json`、`manifest.json` 跟本機 `cmp` 相同；694 個 sha 在本機 `files/` 都找得到（對照組假 sha 報缺 1）；抽 envelope 的 jar、`config/ricoshot.json`、翻譯包從公開網址下載，跟 Prism 原檔相同，對照組假 sha 回 404。
+  - **沒做**：公告、鈴鐺通知、日誌沒動（owner 沒交代）。沒開啟動器實際更新一次。
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
