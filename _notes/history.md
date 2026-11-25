@@ -427,6 +427,12 @@
   - **備份**：`H:\GGL3\notice-backup\backup\`，檔名結尾 `.20261122-031325`（notice `0dcd1e41…`、changelog `0bf633a8…`）。
   - **核對**：站台檔和產出檔 `cmp` 相同；`check-site` exit 0；公開網址兩支都是 200，和本機逐位元組相同；用 `lib/notifications-broadcast.js` 的排序算過，新的那則在最上面。
   - **沒做**：沒開啟動器看實際畫面。
+- 2026-11-25 模組包 GGL3.0.14 發佈（CC 依 owner 授權，流程同 GGL3.0.8 那條，報告只留在本 session 的 scratchpad）。起因：owner「我做好新的了！來乾跑吧！」。版本名 `GGL3.0.14` 是 CC 依序定的，回覆時講明了。組包前把工作分支快轉到 `02f82a9`（只差筆記）。兩輪組包時都只有一個非 Prism 的 java（15:45 啟動）。
+  - **第一輪**：基準：站台 3.0.13 的 460 個玩家可改檔跟 `H:\GGL3-release\GGL3.0.13` 比 sha256，0 個不符。冒出 22 個新玩家可改檔。CC 用 `unzip -l` 與各 jar 的 fabric.mod.json id 查歸屬：`trashcan.json` 在 `ggl_sundries` 的 jar 裡找得到；`minigames.json` 與 `config/minigames/` 17 個找不到對應的 mod（11-25 16:53 產生）。另外指出移除的 `mc2-udof`、`vinurl` 留下的 `config/mc2_dof.json`、`config/VinURLConfig.json5` 還在 Prism，會繼續留在包裡。3.0.13 之後變動的擋住檔裡，`config/soundcontroller.json` 加了發射器 3 種音量、終界使者 5 種全改 0.05；`options.txt` 跟上版比只差 FOV 0.5 → 0.0（加上本機的視窗大小與 `lastServer`），CC 提醒推它會再清一次大家記住的視窗大小。
+  - **裁決**：owner「options 不推。config/soundcontroller.json 要推。其他都照你！」——放鞘翅物理 2 個、`elytratrails.json`、`trashcan.json`；小遊戲 18 個擋並搬走；`mc2_dof.json`、`VinURLConfig.json5` 搬走。CC 確認沒有 Prism 的 java 後，20 個檔先複製到 `H:\GGL3\prism-removed-20261125\` 逐檔 `cmp` 相同，再從 Prism 刪除（含變空的 `config/minigames/`）。
+  - **乾跑**：新增 10、變更 3、刪除 5、不變 707。mods：新增 elytra_physics 2.5、elytratrails 1.4.9、etched 5.1.0、polytone 6.6.0，`ggl3_client_fix` 3.0.0 → 3.1.0，移除 mc2-udof 2.0.0、vinurl 2.6.0，`ggl_sundries-0.1.0`（11-25 17:10 換的）與 `natures_spirit-1.0.0` 同名換內容；新增資源包 `Nature X 15.0 (1.21.11).zip`。玩家可改檔：新增放行的 4 個、變更 `soundcontroller.json`、刪除 `mc2_dof.json`、`VinURLConfig.json5`。上傳 13 個 blob（24.1 MB），清掉 16 個 blob（3.7 MB）與封存 `GGL3.0.11`。`verify-prism-unchanged.js` 報的 4 條就是那 4 個新增設定。
+  - **發布與核對**（11-25 17:23:27）：發之前確認沒有 Prism 的 java、重算差異跟乾跑時相同、重跑乾跑跟 owner 看過的那份 `cmp` 相同；報告除了最後一行跟乾跑相同；`release.json` 是 `GGL3.0.14`、720 個檔，`releases/20261125-172327-GGL3.0.14.json` 存在；`check-site` exit 0；公開網址的 `release.json`、`manifest.json` 跟本機 `cmp` 相同；699 個 sha 在本機 `files/` 都找得到（對照組假 sha 報缺 1）；抽 etched 的 jar、`config/soundcontroller.json`、Nature X 資源包從公開網址下載，跟 Prism 原檔相同，對照組假 sha 回 404。
+  - **沒做**：公告、鈴鐺通知、日誌沒動（owner 沒交代）。沒開啟動器實際更新一次。
 
 ## 事故帳
 ### 2026-09-11 auth token 沒傳到 spawn
