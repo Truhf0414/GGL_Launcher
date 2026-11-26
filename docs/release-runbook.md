@@ -172,6 +172,26 @@ node scripts/check-site.js <站台根目錄>
 - **乾跑驗收**：報告裡 `[變更]` 的玩家可改檔只能是 owner 指名的那些，多出任何一個就是組錯了，停下重組。`[新增]`、`[刪除]` 的玩家可改檔逐條列給 owner 看。注意：如果是既有 mod 改版後才新產生的 config，玩家本機可能已經有一份，`[新增]` 時一樣會被蓋。
 - 〔已實測〕2026-11-08 GGL3.0.4：組之前先確認站台 3.0.3 的 449 個玩家可改檔與 `H:\GGL3-release\GGL3.0.3` 逐檔 sha256 相同（對照組拿 3.0.2 的資料夾比，抓到 25 個不符）；Prism 有改、被擋下 27 個；乾跑與發布後玩家可改檔 `[變更]` 皆 0，只有新 mod 的 2 個 config 新增、owner 指示移掉的 AliveCombat 2 個 config 刪除。
 
+### 4b. 讓玩家多開一個資源包：用 Sundries 的必開清單，不推 options.txt
+
+玩家啟用哪些資源包記在 `options.txt` 的 `resourcePacks`。`options.txt` 是玩家可改檔，推它就是整檔覆蓋：玩家的按鍵、FOV、音量都會被蓋掉，GGL Sundries「記住視窗大小」存在 `overrideWidth`／`overrideHeight` 的值也會被清掉（起因 → `_notes/history.md` 2026-11-18 GGL3.0.12、2026-11-27 GGL3.0.15）。所以要讓大家開新的資源包，改用 GGL Sundries 的「必開資源包」：玩家第一次用到這份清單時，Sundries 只把清單裡沒開的包打開，其他設定不碰；每個包只開一次，玩家之後自己關掉就不會再被打開。
+
+**不要把 `options.txt` 從包裡拿掉**：上一版有、新版沒有的檔，啟動器會從玩家電腦刪掉（`lib/sync/plan.js` 的 remove）。
+
+清單檔與行為的權威是 Sundries 原始碼 `H:\MC_Mods_Dev\GGL_Sundries\src\client\java\com\mochi122\ggl_sundries\client\resourcepack\RequiredResourcePacks.java` 的 javadoc，這裡只寫發版要做的事：
+
+1. owner 先在自己 Prism 的遊戲裡把新包開好、排好位置。
+2. 編輯 Prism 的 `config/ggl_sundries-required-packs.json`（**放在 Prism，不是只放版本資料夾**；只放版本資料夾的話，下一版組包時 Prism 沒有它，§4a 的規則會把它當成刪除）：
+   - `required`：要幫玩家開的包，寫法同 `resourcePacks`，例如 `file/Nature X 15.0 (1.21.11).zip`。
+   - `factoryOrder`：照抄 Prism `options.txt` 的 `resourcePacks` 那一整行（JSON 陣列）。新開的包會插在這個順序裡最近的、玩家有開的鄰居旁邊。
+   - 在 Windows 用 `jq` 產生時輸出會帶 CRLF，放進去前先去掉 `\r`。
+3. 這個檔是 `config/` 底下的玩家可改檔，跟其他 config 一樣：上一版沒有就是 `[新增]`；改了內容要在組包時把它列進 owner 指名推送的檔，否則 §4a 會沿用上一版。
+4. **`config/ggl_sundries-required-packs-applied.json` 絕對不能發出去**。它是每個玩家自己的「開過哪些包」紀錄，owner 在 Prism 玩過就會出現。發出去等於所有玩家都被當成開過，包永遠不會被打開。組包時要擋下它，乾跑後確認報告和 `release.json` 裡都沒有它。
+5. 公告可以提一句「這版會自動幫你開一次某某資源包，不想要可以自己關掉」。
+
+- 〔已實測〕2026-11-27 GGL3.0.15：清單只開 Nature X、`factoryOrder` 30 個，放在 Prism；乾跑與發布後 `ggl_sundries-required-packs.json` 是 `[新增]`、跟 Prism 那份相同，`release.json` 裡沒有 applied 檔（對照組 required-packs 檔有 1 筆）。
+- 〔已實測〕2026-11-27 GGL3.0.15，玩家端：owner 用啟動器把 `E:\Game2\GGL\group\GGL` 更新到 3.0.15 後進遊戲，回報「排序成功」。遊戲日誌有 `GGL Sundries: enabled required resource pack file/Nature X 15.0 (1.21.11).zip`；`options.txt` 的 `resourcePacks` 裡 Nature X 在 Flower Clusters 與 Log Stubs 之間，跟 `factoryOrder` 的位置相同；`config/ggl_sundries-required-packs-applied.json` 記下了 Nature X。
+
 ## 5. rpc-helper
 
 `rpc-helper.exe` 是 `rpc-helper/` 用 `pkg` 打出來的獨立執行檔。**`dist:win` 與 `pack:win` 不會重建它**（G-5，`255a03a`）：出貨的是 repo 追蹤的 `assets/rpc-helper.exe`，打包時原樣複製到 `resources/assets/`。〔已實測〕2026-10-30，隔離副本：兩條命令 exit 0，`assets/` 與打包後的 helper 的 sha256 前後相同；改動前的 `pack:win` 則會把它重建成不同的 sha256。
